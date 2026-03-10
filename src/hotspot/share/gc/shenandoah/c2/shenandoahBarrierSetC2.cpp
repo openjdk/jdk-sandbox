@@ -812,7 +812,7 @@ ShenandoahStoreBarrierStubC2* ShenandoahStoreBarrierStubC2::create(const MachNod
 }
 
 ShenandoahCASBarrierStubC2* ShenandoahCASBarrierStubC2::create(const MachNode* node, Address addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae, bool maybe_null, bool acquire, bool weak) {
-  auto* stub = new (Compile::current()->comp_arena()) ShenandoahCASBarrierStubC2(node, addr.base(), addr, expected, new_val, result, tmp1, tmp1, narrow, cae, maybe_null, acquire, weak);
+  auto* stub = new (Compile::current()->comp_arena()) ShenandoahCASBarrierStubC2(node, addr.base(), addr, expected, new_val, result, tmp1, tmp2, narrow, cae, maybe_null, acquire, weak);
   stub->register_stub();
   return stub;
 }
