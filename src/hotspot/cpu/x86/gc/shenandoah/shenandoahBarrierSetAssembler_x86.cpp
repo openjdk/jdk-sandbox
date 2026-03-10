@@ -1548,41 +1548,43 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
 
 
 
-    // SATB
+    // Keep-alive
     __ bind(L_succeded);
-            Label L_satb_done, L_satb_pack_and_done, L_runtime;
-
-            Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-            __ testb(gc_state, ShenandoahHeap::MARKING);
-            __ jcc(Assembler::zero, L_satb_done);
+            Label L_keepalive_done, L_keepalive_pack_and_done, L_keepalive_slow;
 
             // Paranoia: CAS has succeded, so what was in memory is definitely oldval.
             // Instead of pulling it from other code paths, pull it from stashed value.
             // TODO: Figure out better way to do this.
             __ movptr(_expected, _tmp2);
 
-            // Is the previous value null?
-            __ cmpptr(_expected, NULL_WORD);
-            __ jccb(Assembler::equal, L_satb_done);
+            // Are we dealing with null?
+            __ testptr(_expected, _expected);
+            __ jccb(Assembler::equal, L_keepalive_done);
+
+            // We might have entered here for LRB, check if we really need to do KA
+            Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+            __ testb(gc_state, ShenandoahHeap::MARKING);
+            __ jccb(Assembler::zero, L_keepalive_done);
 
             // If object is narrow, we need to decode it first.
             if (_narrow) {
               __ decode_heap_oop_not_null(_expected);
             }
 
-            keepalive_fast(&masm, _expected, _tmp1, &L_runtime);
+            keepalive_fast(&masm, _expected, _tmp1, &L_keepalive_slow);
 
             // Slow-path re-enters here.
-            __ bind(L_satb_pack_and_done);
+            __ bind(L_keepalive_pack_and_done);
 
             // If object is narrow, we need to encode it at the end.
             if (_narrow) {
               __ encode_heap_oop_not_null(_expected);
             }
-            __ bind(L_satb_done);
+
+            __ bind(L_keepalive_done);
             __ jmp(*continuation());
 
-            __ bind(L_runtime);
+            __ bind(L_keepalive_slow);
 
             // Expected register should not be clobbered.
             preserve(_expected);
@@ -1595,7 +1597,7 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
               preserve(_result);
             }
             keepalive_slow(&masm, _expected);
-            __ jmp(L_satb_pack_and_done);
+            __ jmp(L_keepalive_pack_and_done);
 
     __ jmp(*continuation());
 }
