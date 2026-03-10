@@ -1256,6 +1256,40 @@ void ShenandoahBarrierStubC2::keepalive_slow(MacroAssembler* masm, Register obj)
   __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre)), rax);
 }
 
+void ShenandoahBarrierStubC2::lrb_fast(MacroAssembler* masm, Register obj, Register tmp, Label* L_fast, Label* L_slow) {
+  // Weak/phantom loads are handled in slow path.
+  bool is_weak = (_node->barrier_data() & ShenandoahBitStrong) == 0;
+  if (is_weak) {
+    assert(L_slow != nullptr, "Should be");
+    __ jmpb(*L_slow);
+    return;
+  }
+
+  // Compute the cset bitmap index
+  __ movptr(tmp, obj);
+  __ shrptr(tmp, ShenandoahHeapRegion::region_size_bytes_shift_jint());
+
+  // If cset address is in good spot to just use it as offset. It almost always is.
+  Address cset_addr_arg;
+  intptr_t cset_addr = (intptr_t) ShenandoahHeap::in_cset_fast_test_addr();
+  if ((cset_addr >> 3) < INT32_MAX) {
+    assert(is_aligned(cset_addr, 8), "Sanity");
+    cset_addr_arg = Address(tmp, checked_cast<int>(cset_addr >> 3), Address::times_8);
+  } else {
+    __ addptr(tmp, cset_addr);
+    cset_addr_arg = Address(tmp, 0);
+  }
+
+  // Go test.
+  __ cmpb(cset_addr_arg, 0);
+  if (L_slow != nullptr) {
+    __ jccb(Assembler::notEqual, *L_slow);
+  }
+  if (L_fast != nullptr) {
+    __ jcc(Assembler::equal, *L_fast); // FIXME: Should be short?
+  }  
+}
+
 #undef __
 #define __ masm.
 
@@ -1318,36 +1352,23 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   if (_needs_load_ref_barrier) {
     __ bind(L_lrb_entry);
-    bool is_weak = (_node->barrier_data() & ShenandoahBitStrong) == 0;
 
-    // Collection set check. Only really applies to strong loads, as weak/phantom loads
-    // are handled in runtime.
-    __ push(tmp);
-    if (!is_weak) {
-      if (_narrow) {
-        __ decode_heap_oop_not_null(tmp, _dst);
-      } else {
-        __ movptr(tmp, _dst);
-      }
-      __ shrptr(tmp, ShenandoahHeapRegion::region_size_bytes_shift_jint());
-      // Check if cset address is in good spot to just use it as offset. It almost always is.
-      Address cset_addr_arg;
-      intptr_t cset_addr = (intptr_t) ShenandoahHeap::in_cset_fast_test_addr();
-      if ((cset_addr >> 3) < INT32_MAX) {
-        assert(is_aligned(cset_addr, 8), "Sanity");
-        cset_addr_arg = Address(tmp, checked_cast<int>(cset_addr >> 3), Address::times_8);
-      } else {
-        __ addptr(tmp, cset_addr);
-        cset_addr_arg = Address(tmp, 0);
-      }
-      __ cmpb(cset_addr_arg, 0);
-      __ jccb(Assembler::notEqual, L_lrb_slow);
-      __ pop(tmp); // Slow path had popped for us otherwise
-    } else {
-      __ jmpb(L_lrb_slow);
+    // If object is narrow, we need to decode it first.
+    if (_narrow) {
+      __ decode_heap_oop_not_null(_dst);
     }
 
+    __ push(tmp);
+    lrb_fast(&masm, _dst, tmp, nullptr, &L_lrb_slow);
+    __ pop(tmp);
+
+    // Slowpath re-enters here.
     __ bind(L_lrb_done);
+
+    // If object is narrow, we need to encode it after we are done.
+    if (_narrow) {
+      __ encode_heap_oop(_dst);
+    }
   }
 
   // Exit here.
@@ -1359,11 +1380,6 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   if (_needs_load_ref_barrier) {
     __ bind(L_lrb_slow);
     __ pop(tmp); // Immediately pop tmp to make sure the stack is aligned
-
-    // If object is narrow, we need to decode it first.
-    if (_narrow) {
-      __ decode_heap_oop_not_null(_dst);
-    }
 
     dont_preserve(_dst); // For LRB we must not preserve _dst
     {
@@ -1405,9 +1421,6 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
       __ call(RuntimeAddress(entry), rax);
       assert(!save_registers.contains(_dst), "must not save result register");
       __ movptr(_dst, rax);
-    }
-    if (_narrow) {
-      __ encode_heap_oop(_dst);
     }
     __ jmp(L_lrb_done);
   }
@@ -1503,15 +1516,11 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
             if (_narrow) {
               __ decode_heap_oop(_expected);
             }
-            __ movptr(_tmp1, _expected);
-            __ shrptr(_tmp1, ShenandoahHeapRegion::region_size_bytes_shift_jint());
-            __ addptr(_tmp1, (intptr_t) ShenandoahHeap::in_cset_fast_test_addr());
-            __ cmpb(Address(_tmp1, 0), 0);
-            __ jcc(Assembler::zero, L_final);
+
+            lrb_fast(&masm, _expected, _tmp1, &L_final, nullptr);
 
             {
               SaveLiveRegisters save_registers(&masm, this);
-              // Load up failure witness again.
               if (c_rarg0 != _expected) {
                 __ movptr(c_rarg0, _expected);
               }
