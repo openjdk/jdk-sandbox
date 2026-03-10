@@ -1290,6 +1290,47 @@ void ShenandoahBarrierStubC2::lrb_fast(MacroAssembler* masm, Register obj, Regis
   }  
 }
 
+void ShenandoahBarrierStubC2::lrb_slow(MacroAssembler* masm, Register obj, Address addr, bool narrow) {
+  SaveLiveRegisters save_registers(masm, this);
+
+  // Shuffle in the arguments. The end result should be:
+  //   c_rarg0 <-- obj
+  //   c_rarg1 <-- lea(addr)
+  if (c_rarg0 == obj) {
+    __ lea(c_rarg1, addr);
+  } else if (c_rarg1 == obj) {
+    // Set up arguments in reverse, and then flip them
+    __ lea(c_rarg0, addr);
+    __ xchgptr(c_rarg0, c_rarg1);
+  } else {
+    assert_different_registers(c_rarg1, obj);
+    __ lea(c_rarg1, addr);
+    __ movptr(c_rarg0, obj);
+  }
+
+  address entry;
+  if (narrow) {
+    if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
+      entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow);
+    } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
+      entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow);
+    } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
+      entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow);
+    }
+  } else {
+    if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
+      entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong);
+    } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
+      entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak);
+    } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
+      entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom);
+    }
+  }
+  __ call(RuntimeAddress(entry), rax);
+  assert(!save_registers.contains(obj), "must not save result register");
+  __ movptr(obj, rax);
+}
+
 #undef __
 #define __ masm.
 
@@ -1382,46 +1423,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
     __ pop(tmp); // Immediately pop tmp to make sure the stack is aligned
 
     dont_preserve(_dst); // For LRB we must not preserve _dst
-    {
-      SaveLiveRegisters save_registers(&masm, this);
-
-      // Shuffle in the arguments. The end result should be:
-      //   c_rarg0 <-- _dst
-      //   c_rarg1 <-- lea(_src)
-      if (c_rarg0 == _dst) {
-        __ lea(c_rarg1, _src);
-      } else if (c_rarg1 == _dst) {
-        // Set up arguments in reverse, and then flip them
-        __ lea(c_rarg0, _src);
-        __ xchgptr(c_rarg0, c_rarg1);
-      } else {
-        assert_different_registers(c_rarg1, _dst);
-        __ lea(c_rarg1, _src);
-        __ movptr(c_rarg0, _dst);
-      }
-
-      address entry;
-      if (_narrow) {
-        if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-          entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow);
-        } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
-          entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow);
-        } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
-          entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow);
-        }
-      } else {
-        if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-          entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong);
-        } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
-          entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak);
-        } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
-          entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom);
-        }
-      }
-      __ call(RuntimeAddress(entry), rax);
-      assert(!save_registers.contains(_dst), "must not save result register");
-      __ movptr(_dst, rax);
-    }
+    lrb_slow(&masm, _dst, _src, _narrow);
     __ jmp(L_lrb_done);
   }
 
@@ -1518,23 +1520,7 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
             }
 
             lrb_fast(&masm, _expected, _tmp1, &L_final, nullptr);
-
-            {
-              SaveLiveRegisters save_registers(&masm, this);
-              if (c_rarg0 != _expected) {
-                __ movptr(c_rarg0, _expected);
-              }
-              __ lea(c_rarg1, _addr);
-
-              if (_narrow) {
-                __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow), 2);
-              } else {
-                __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong), 2);
-              }
-              // We have called LRB to fix up the heap location. We do not care about its result,
-              // as we will just try to CAS the location again.
-            }
-
+            lrb_slow(&masm, _expected, _addr, _narrow);
             __ bind(L_final);
 
             // Try to CAS again with the original expected value.
