@@ -104,7 +104,7 @@
  * @requires os.family == "linux" | os.family == "windows"
  * @library /test/lib
  *
- * @run main/othervm JCmdRevival oom VM.version Thread.print GC.heap_dump GC.heap_info VM.command_line VM.dynlibs VM.events VM.flags VM.metaspace
+ * @run main/othervm JCmdRevival oom VM.version Thread.print GC.heap_dump GC.heap_info VM.command_line VM.events VM.flags VM.metaspace
  *
  * @comment Test a subset with the OOM crash method.
  */
@@ -121,8 +121,6 @@
  * @comment Test a subset with the CICrash crash method.
  * @comment Compiler.CodeHeap_Analytics alone is likely to overrun the log.
  */
-
-
 
 import java.io.File;
 import java.util.ArrayList;

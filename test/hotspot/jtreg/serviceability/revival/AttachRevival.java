@@ -58,8 +58,6 @@ import jtreg.SkippedException;
 
 public class AttachRevival {
 
-    private static String MAJOR = System.getProperty("java.vm.version").substring(0, 2);
-
     public static void main(String[] args) throws Throwable {
         if (args.length > 1) { 
             // We are the initial test invocation.
@@ -95,7 +93,6 @@ public class AttachRevival {
     }
 
     public static ProcessBuilder getProcessBuilder(String type) {
-
         switch (type) {
             case ("cicrash"): {
                 return ProcessTools.createTestJavaProcessBuilder("-XX:+CreateCoredumpOnCrash",
@@ -151,13 +148,11 @@ public class AttachRevival {
         }
         System.out.println("PASSED");
     }
-
         
     static void testAttach(String coreFileName, String type, String command) throws Throwable {
 		System.out.println("TEST: core: " + coreFileName + " Test type: " + type + " Command: " + command);
 
         VirtualMachine vm = VirtualMachine.attach(coreFileName, null);
-
         System.out.println("vm = '" + vm.toString() + "'");
         String id = vm.id();
         System.out.println("VM id = '" + id + "'");
@@ -190,8 +185,8 @@ public class AttachRevival {
 
         // For jcmd we would cast to HotSpotVirtualMachine as executeJCmd is an implementation specific method.
         HotSpotVirtualMachine hvm = (HotSpotVirtualMachine) vm;
-        // JCmdRevival test covers jcmd in detail.
 
+        // Separate JCmdRevival test covers jcmd in detail.
         // Test IOException is thrown after detaching:
         vm.detach();
         try {
