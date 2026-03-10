@@ -1046,6 +1046,9 @@ int revive_image(const char* corename, const char* javahome, const char* libdir,
 
     // Environment settings: set to anything means "on":
     debugPause = env_check((char*) "REVIVAL_WAIT");
+    if (debugPause) {
+        warn("REVIVAL_WAIT is set"); // Warn as can be confusing if picked up from environment
+    }
     versionCheckEnabled = !env_check((char*) "REVIVAL_SKIPVERSIONCHECK");
     // For logLevel we actually read the env value:
     logLevel = 0;
