@@ -1246,20 +1246,31 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   Register tmp = select_temp_register(_src, _dst);
 
-  Label L_lrb_done, L_lrb_slow;
+  Label L_lrb_entry, L_lrb_done, L_lrb_slow;
   Label L_keepalive_done, L_keepalive_pack_and_done, L_keepalive_slow;
   Label L_done;
 
   // If the object is null, there is no point in applying barriers.
+  // The jump to exit is short if only one of the barriers is needed.
   if (_narrow) {
     __ testl(_dst, _dst);
   } else {
     __ testptr(_dst, _dst);
   }
-  if (!_needs_keep_alive_barrier && _needs_load_ref_barrier) {
-    __ jccb(Assembler::equal, L_done);
-  } else {
+  if (_needs_keep_alive_barrier && _needs_load_ref_barrier) {
     __ jcc(Assembler::equal, L_done);
+  } else {
+    __ jccb(Assembler::equal, L_done);
+  }
+
+  // Fast-path checks two exclusive conditions: MARKING xor (HAS_FORWARDED | WEAK_ROOTS).
+  // If we are here, only one of those are true. Therefore, we can figure out which
+  // case we have by checking MARKING only.
+  if (_needs_keep_alive_barrier && _needs_load_ref_barrier) {
+    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+    __ testb(gc_state, ShenandoahHeap::MARKING);
+    __ jccb(Assembler::zero, L_lrb_entry);
+    // Fall-through to KA entry
   }
 
   // Lay out barrier mid-paths here. The goal is to do quick checks/actions
@@ -1267,14 +1278,6 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   // shorter branches, where possible.
 
   if (_needs_keep_alive_barrier) {
-    // Runtime check for keep-alive, in case the other barrier is enabled.
-    // Otherwise the fastpath check already checked it.
-    if (_needs_load_ref_barrier) {
-      Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-      __ testb(gc_state, ShenandoahHeap::MARKING);
-      __ jccb(Assembler::zero, L_keepalive_done);
-    }
-
     // If object is narrow, we need to decode it first.
     if (_narrow) {
       __ decode_heap_oop_not_null(_dst);
@@ -1304,15 +1307,8 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
 
   if (_needs_load_ref_barrier) {
+    __ bind(L_lrb_entry);
     bool is_weak = (_node->barrier_data() & ShenandoahBitStrong) == 0;
-
-    // Runtime check for KA, in case the other barrier is enabled.
-    // Otherwise the fastpath check already checked it.
-    if (_needs_keep_alive_barrier) {
-      Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-      __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED | (is_weak ? ShenandoahHeap::WEAK_ROOTS : 0));
-      __ jccb(Assembler::zero, L_lrb_done);
-    }
 
     // Collection set check. Only really applies to strong loads, as weak/phantom loads
     // are handled in runtime.
