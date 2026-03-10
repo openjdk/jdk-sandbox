@@ -1248,6 +1248,14 @@ void ShenandoahBarrierStubC2::keepalive_fast(MacroAssembler* masm, Register obj,
   __ movptr(Address(tmp, 0), obj);
 }
 
+void ShenandoahBarrierStubC2::keepalive_slow(MacroAssembler* masm, Register obj) {
+  SaveLiveRegisters save_registers(masm, this);
+  if (c_rarg0 != obj) {
+    __ mov(c_rarg0, obj);
+  }
+  __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre)), rax);
+}
+
 #undef __
 #define __ masm.
 
@@ -1409,13 +1417,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
     __ pop(tmp); // Immediately pop to make sure the stack is aligned
 
     preserve(_dst); // For SATB we must preserve _dst
-    {
-      SaveLiveRegisters save_registers(&masm, this);
-      if (c_rarg0 != _dst) {
-        __ mov(c_rarg0, _dst);
-      }
-      __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre)), rax);
-    }
+    keepalive_slow(&masm, _dst);
     __ jmp(L_keepalive_done);
   }
 }
@@ -1459,18 +1461,7 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   __ bind(L_slow);
   __ pop(tmp2); // Immediately pop tmp to make sure the stack is aligned
-  {
-    SaveLiveRegisters save_registers(&masm, this);
-    if (c_rarg0 != preval) {
-      __ mov(c_rarg0, preval);
-    }
-    // rax is a caller-saved, non-argument-passing register, so it does not
-    // interfere with c_rarg0 or c_rarg1. If it contained any live value before
-    // entering this stub, it is saved at this point, and restored after the
-    // call. If it did not contain any live value, it is free to be used. In
-    // either case, it is safe to use it here as a call scratch register.
-    __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre)), rax);
-  }
+  keepalive_slow(&masm, preval);
   __ jmp(*continuation());
 }
 
@@ -1603,18 +1594,7 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
               assert(_result != noreg, "need result register");
               preserve(_result);
             }
-            {
-              SaveLiveRegisters save_registers(&masm, this);
-              if (c_rarg0 != _expected) {
-                __ mov(c_rarg0, _expected);
-              }
-              // rax is a caller-saved, non-argument-passing register, so it does not
-              // interfere with c_rarg0 or c_rarg1. If it contained any live value before
-              // entering this stub, it is saved at this point, and restored after the
-              // call. If it did not contain any live value, it is free to be used. In
-              // either case, it is safe to use it here as a call scratch register.
-              __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre)), rax);
-            }
+            keepalive_slow(&masm, _expected);
             __ jmp(L_satb_pack_and_done);
 
     __ jmp(*continuation());
