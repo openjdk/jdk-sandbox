@@ -1358,6 +1358,11 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
     __ jccb(Assembler::equal, L_done);
   }
 
+  // If object is narrow, we need to decode it first.
+  if (_narrow) {
+    __ decode_heap_oop_not_null(_dst);
+  }
+
   // Fast-path checks two exclusive conditions: MARKING xor (HAS_FORWARDED | WEAK_ROOTS).
   // If we are here, only one of those are true. Therefore, we can figure out which
   // case we have by checking MARKING only.
@@ -1373,46 +1378,25 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   // shorter branches, where possible.
 
   if (_needs_keep_alive_barrier) {
-    // If object is narrow, we need to decode it first.
-    if (_narrow) {
-      __ decode_heap_oop_not_null(_dst);
-    }
-
     __ push(tmp);
     keepalive_fast(&masm, _dst, tmp, &L_keepalive_slow);
     __ pop(tmp);
-
-    // Slow path re-enters here.
     __ bind(L_keepalive_done);
-
-    // If object is narrow, we need to encode it after we are done.
-    if (_narrow) {
-      __ encode_heap_oop(_dst);
-    }
   }
 
   if (_needs_load_ref_barrier) {
     __ bind(L_lrb_entry);
-
-    // If object is narrow, we need to decode it first.
-    if (_narrow) {
-      __ decode_heap_oop_not_null(_dst);
-    }
-
     __ push(tmp);
     lrb_fast(&masm, _dst, tmp, nullptr, &L_lrb_slow);
     __ pop(tmp);
-
-    // Slowpath re-enters here.
     __ bind(L_lrb_done);
-
-    // If object is narrow, we need to encode it after we are done.
-    if (_narrow) {
-      __ encode_heap_oop(_dst);
-    }
   }
 
   // Exit here.
+  // If object is narrow, we need to encode it after we are done.
+  if (_narrow) {
+    __ encode_heap_oop(_dst);
+  }
   __ bind(L_done);
   __ jmp(*continuation());
 
