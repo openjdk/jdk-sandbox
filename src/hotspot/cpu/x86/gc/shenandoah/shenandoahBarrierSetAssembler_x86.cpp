@@ -1337,6 +1337,8 @@ void ShenandoahBarrierStubC2::lrb_slow(MacroAssembler* masm, Register obj, Addre
 #define __ masm.
 
 void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
+  assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
+
   __ bind(*entry());
 
   Register tmp = select_temp_register(_src, _dst);
@@ -1345,18 +1347,18 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   Label L_keepalive_done, L_keepalive_slow;
   Label L_done;
 
+  // ---- Mid path
+
+  // The goal is to do quick checks/actions that can be done without going to slowpath.
+  // This also allows doing shorter branches, where possible.
+
   // If the object is null, there is no point in applying barriers.
-  // The jump to exit is short if only one of the barriers is needed.
   if (_narrow) {
     __ testl(_dst, _dst);
   } else {
     __ testptr(_dst, _dst);
   }
-  if (_needs_keep_alive_barrier && _needs_load_ref_barrier) {
-    __ jcc(Assembler::equal, L_done);
-  } else {
-    __ jccb(Assembler::equal, L_done);
-  }
+  __ jccb(Assembler::equal, L_done);
 
   // If object is narrow, we need to decode it first.
   if (_narrow) {
@@ -1373,10 +1375,6 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
     // Fall-through to KA entry
   }
 
-  // Lay out barrier mid-paths here. The goal is to do quick checks/actions
-  // that can be done without going to slowpath calls. This also allows doing
-  // shorter branches, where possible.
-
   if (_needs_keep_alive_barrier) {
     __ push(tmp);
     keepalive_fast(&masm, _dst, tmp, &L_keepalive_slow, /* short_slow = */ false);
@@ -1392,19 +1390,25 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
     __ bind(L_lrb_done);
   }
 
-  // Exit here.
-  // If object is narrow, we need to encode it after we are done.
+  // If object is narrow, we need to encode it before exiting.
   if (_narrow) {
     __ encode_heap_oop(_dst);
   }
+
+  // ---- Exit
+
   __ bind(L_done);
   __ jmp(*continuation());
 
-  // Slow paths here. LRB slow path goes first: this allows the short branches
-  // from LRB fastpath, the overwhelmingly major case.
+  // ---- Slow path
+
+  // LRB slow path goes first: this allows the short branches from LRB fastpath,
+  // the overwhelmingly major case. Slow paths immediately pop tmp to make sure
+  // the stack is aligned for the call.
+
   if (_needs_load_ref_barrier) {
     __ bind(L_lrb_slow);
-    __ pop(tmp); // Immediately pop to make sure the stack is aligned
+    __ pop(tmp);
     dont_preserve(_dst); // For LRB we must not preserve _dst
     lrb_slow(&masm, _dst, _src, _narrow);
     __ jmp(L_lrb_done);
@@ -1412,7 +1416,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   if (_needs_keep_alive_barrier) {
     __ bind(L_keepalive_slow);
-    __ pop(tmp); // Immediately pop to make sure the stack is aligned
+    __ pop(tmp);
     preserve(_dst); // For KA we must preserve _dst
     keepalive_slow(&masm, _dst);
     __ jmp(L_keepalive_done);
