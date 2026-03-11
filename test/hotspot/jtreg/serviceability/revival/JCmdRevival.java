@@ -77,7 +77,7 @@
  * @requires os.family == "linux" | os.family == "windows"
  * @library /test/lib
  *
- * @run main/othervm JCmdRevival abortvmonexception VM.version VM.class_hierarchy VM.classloader_stats VM.classloaders VM.command_line VM.dynlibs VM.events
+ * @run main/othervm JCmdRevival abortvmonexception VM.version VM.class_hierarchy VM.classloader_stats
  */
 
 /*
@@ -86,11 +86,20 @@
  * @requires os.family == "linux" | os.family == "windows"
  * @library /test/lib
  *
- * @run main/othervm JCmdRevival abortvmonexception VM.events VM.flags VM.metaspace VM.stringtable VM.symboltable VM.systemdictionary
+ * @run main/othervm JCmdRevival abortvmonexception VM.classloaders VM.command_line VM.dynlibs VM.events
  */
 
 /*
  * @test id=AbortOnException_VM_3
+ * @summary Test process revival for serviceability: jcmd on a core file (AbortVMOnException).
+ * @requires os.family == "linux" | os.family == "windows"
+ * @library /test/lib
+ *
+ * @run main/othervm JCmdRevival abortvmonexception VM.events VM.flags VM.metaspace VM.stringtable VM.symboltable VM.systemdictionary
+ */
+
+/*
+ * @test id=AbortOnException_VM_4
  * @summary Test process revival for serviceability: jcmd on a core file (AbortVMOnException).
  * @requires os.family == "linux" | os.family == "windows"
  * @library /test/lib
