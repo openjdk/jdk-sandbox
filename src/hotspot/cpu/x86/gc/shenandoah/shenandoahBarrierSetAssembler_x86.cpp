@@ -1481,24 +1481,33 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   // ---- Initial filters
 
-  // If first CAS succeded, we just need KA
+  // CAS with null failure witness cannot be a false negative,
+  // and also does not require KA.
+  __ testptr(_expected, _expected);
+  __ jcc(Assembler::equal, L_done);
+
+  // Succeeding CAS just needs KA.
   Register tst = _cae ? _tmp1 : _result;
   __ testptr(tst, tst);
   __ jccb(Assembler::notZero, L_keepalive_entry);
 
-  // ---- Mid path: LRB with retry, KA
+  // Failing CAS from null cannot be a false negative.
+  __ testptr(_tmp2, _tmp2);
+  __ jcc(Assembler::equal, L_done);
+
+  // ---- Mid path: LRB -> retry -> KA
+
+  // CAS has failed because the value held at addr does not match expected.
+  // This may be a false negative because the version in memory might be
+  // the from-space version of the same object we currently hold to-space
+  // reference for. To resolve this, we need to pass the location through
+  // the LRB fixup, this will make sure that the location has only to-space
+  // pointers.
 
   {
-    // CAS has failed because the value held at addr does not match expected.
-    // This may be a false negative because the version in memory might be
-    // the from-space version of the same object we currently hold to-space
-    // reference for. To resolve this, we need to pass the location through
-    // the LRB fixup, this will make sure that the location has only to-space
-    // pointers.
-
     // (Compressed) failure witness is in _expected.
     if (_narrow) {
-      __ decode_heap_oop(_expected);
+      __ decode_heap_oop_not_null(_expected);
     }
 
     lrb_fast(&masm, _expected, _tmp1, &L_lrb_slow, /* short_slow = */ false);
@@ -1509,35 +1518,30 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   // Try to CAS again with the original expected value.
   // At this point, there can no longer be false negatives.
-  __ movptr(_expected, _tmp2);
-  __ lock();
-  if (_narrow) {
-    __ cmpxchgl(_new_val, _addr);
-  } else {
-    __ cmpxchgptr(_new_val, _addr);
-  }
-  if (!_cae) {
-    assert(_result != noreg, "need result register");
-    __ setcc(Assembler::equal, _result);
-  } else {
-    assert(_result == noreg, "no result expected");
+  {
+    __ movptr(_expected, _tmp2);
+    __ lock();
+    if (_narrow) {
+      __ cmpxchgl(_new_val, _addr);
+    } else {
+      __ cmpxchgptr(_new_val, _addr);
+    }
+    if (!_cae) {
+      assert(_result != noreg, "need result register");
+      __ setcc(Assembler::equal, _result);
+    } else {
+      assert(_result == noreg, "no result expected");
+    }
+
+    // If the retry did not succeed skip keep-alive
+    __ jccb(Assembler::notEqual, L_done);
   }
 
-  // If the retry did not succeed skip keep-alive
-  __ jccb(Assembler::notEqual, L_done);
-
-  // Keep-alive
   {
     __ bind(L_keepalive_entry);
 
-    // Paranoia: CAS has succeded, so what was in memory is definitely oldval.
-    // Instead of pulling it from other code paths, pull it from stashed value.
-    // TODO: Figure out better way to do this.
+    // CAS has succeded, so what was in memory is definitely our stashed value.
     __ movptr(_expected, _tmp2);
-
-    // Are we dealing with null?
-    __ testptr(_expected, _expected);
-    __ jccb(Assembler::equal, L_done);
 
     // We might have entered here for LRB, check if we really need to do KA
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
