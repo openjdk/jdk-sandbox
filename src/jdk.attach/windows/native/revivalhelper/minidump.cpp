@@ -174,7 +174,6 @@ MINIDUMP_DIRECTORY* MiniDump::find_stream(int stream) {
 uint64_t MiniDump::resolve_teb() {
     // Find MiniDump ThreadListStream, read _MINIDUMP_THREAD, read TEB
     uint64_t teb = 0;
-
     MINIDUMP_DIRECTORY *md = this->find_stream(ThreadListStream);
     if (md == nullptr) {
         warn("resolve_teb: MiniDump ThreadListStream not found\n");
@@ -205,7 +204,7 @@ uint64_t MiniDump::resolve_teb() {
     return teb;
 }
 
-/*
+/**
  * Read shared library list from ModuleListStream.
  */
 void MiniDump::read_sharedlibs() {
@@ -307,7 +306,7 @@ void MiniDump::prepare_memory_ranges() {
 
 /**
  * Read the next MiniDump Memory Descriptor.
- * Return a Segment* and update the output parameters.  current RVA will be the dump file offset of the next segment.
+ * Return a Segment* and update the output parameter to be current RVA, the dump file offset of the next segment.
  * Return nullptr when no further memory descriptors are found.
  */
 Segment* MiniDump::readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA) {
