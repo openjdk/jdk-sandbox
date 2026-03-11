@@ -1470,35 +1470,42 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
 }
 
 void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
-  __ bind(*entry());
-
   assert(_expected == rax, "expected must be rax");
   assert((_node->barrier_data() & ShenandoahBitStrong) != 0, "Only strong references for CASes");
 
+  __ bind(*entry());
+
+  Label L_done;
   Label L_lrb_done, L_lrb_slow;
-  Label L_keepalive_entry, L_keepalive_slow, L_keepalive_done, L_keepalive_pack_and_done;
+  Label L_keepalive_entry, L_keepalive_slow, L_keepalive_pack_and_done;
 
-  // Check if first CAS succeded, if it did we just need to write to SATB
+  // ---- Initial filters
+
+  // If first CAS succeded, we just need KA
   Register tst = _cae ? _tmp1 : _result;
-  __ testq(tst, tst);
-  __ jnz(L_keepalive_entry);
+  __ testptr(tst, tst);
+  __ jccb(Assembler::notZero, L_keepalive_entry);
 
-  // CAS has failed because the value held at addr does not match expected.
-  // This may be a false negative because the version in memory might be
-  // the from-space version of the same object we currently hold to-space
-  // reference for. To resolve this, we need to pass the location through
-  // the LRB fixup, this will make sure that the location has only to-space
-  // pointers.
+  // ---- Mid path: LRB with retry, KA
 
-  // (Compressed) failure witness is in _expected.
-  if (_narrow) {
-    __ decode_heap_oop(_expected);
+  {
+    // CAS has failed because the value held at addr does not match expected.
+    // This may be a false negative because the version in memory might be
+    // the from-space version of the same object we currently hold to-space
+    // reference for. To resolve this, we need to pass the location through
+    // the LRB fixup, this will make sure that the location has only to-space
+    // pointers.
+
+    // (Compressed) failure witness is in _expected.
+    if (_narrow) {
+      __ decode_heap_oop(_expected);
+    }
+
+    lrb_fast(&masm, _expected, _tmp1, &L_lrb_slow, /* short_slow = */ false);
+
+    // Slow-path re-enters here.
+    __ bind(L_lrb_done);
   }
-
-  lrb_fast(&masm, _expected, _tmp1, &L_lrb_slow, /* short_slow = */ false);
-
-  // Slow-path re-enters here.
-  __ bind(L_lrb_done);
 
   // Try to CAS again with the original expected value.
   // At this point, there can no longer be false negatives.
@@ -1517,60 +1524,70 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
 
   // If the retry did not succeed skip keep-alive
-  __ jcc(Assembler::notEqual, *continuation());
+  __ jccb(Assembler::notEqual, L_done);
 
   // Keep-alive
-  __ bind(L_keepalive_entry);
+  {
+    __ bind(L_keepalive_entry);
 
-  // Paranoia: CAS has succeded, so what was in memory is definitely oldval.
-  // Instead of pulling it from other code paths, pull it from stashed value.
-  // TODO: Figure out better way to do this.
-  __ movptr(_expected, _tmp2);
+    // Paranoia: CAS has succeded, so what was in memory is definitely oldval.
+    // Instead of pulling it from other code paths, pull it from stashed value.
+    // TODO: Figure out better way to do this.
+    __ movptr(_expected, _tmp2);
 
-  // Are we dealing with null?
-  __ testptr(_expected, _expected);
-  __ jccb(Assembler::equal, L_keepalive_done);
+    // Are we dealing with null?
+    __ testptr(_expected, _expected);
+    __ jccb(Assembler::equal, L_done);
 
-  // We might have entered here for LRB, check if we really need to do KA
-  Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-  __ testb(gc_state, ShenandoahHeap::MARKING);
-  __ jccb(Assembler::zero, L_keepalive_done);
+    // We might have entered here for LRB, check if we really need to do KA
+    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+    __ testb(gc_state, ShenandoahHeap::MARKING);
+    __ jccb(Assembler::zero, L_done);
 
-  // If object is narrow, we need to decode it first.
-  if (_narrow) {
-    __ decode_heap_oop_not_null(_expected);
+    // If object is narrow, we need to decode it first.
+    if (_narrow) {
+      __ decode_heap_oop_not_null(_expected);
+    }
+
+    keepalive_fast(&masm, _expected, _tmp1, &L_keepalive_slow, /* short_slow = */ true);
+
+    // Slow-path re-enters here.
+    __ bind(L_keepalive_pack_and_done);
+
+    // If object is narrow, we need to encode it at the end.
+    if (_narrow) {
+      __ encode_heap_oop_not_null(_expected);
+    }
   }
 
-  keepalive_fast(&masm, _expected, _tmp1, &L_keepalive_slow, /* short_slow = */ true);
+  // ---- Exit 
 
-  // Slow-path re-enters here.
-  __ bind(L_keepalive_pack_and_done);
-
-  // If object is narrow, we need to encode it at the end.
-  if (_narrow) {
-    __ encode_heap_oop_not_null(_expected);
-  }
-
-  __ bind(L_keepalive_done);
+  __ bind(L_done);
   __ jmp(*continuation());
 
-  __ bind(L_keepalive_slow);
+  // ---- Slow paths
 
-  // Expected register and CAS resultr should not be clobbered.
-  preserve(_expected);
-  if (_cae) {
-    assert(_result == noreg, "no result expected");
-  } else {
-    assert(_result != noreg, "need result register");
-    preserve(_result);
+  {
+    __ bind(L_keepalive_slow);
+
+    // Expected register and CAS result should not be clobbered.
+    preserve(_expected);
+    if (_cae) {
+      assert(_result == noreg, "no result expected");
+    } else {
+      assert(_result != noreg, "need result register");
+      preserve(_result);
+    }
+    keepalive_slow(&masm, _expected);
+    __ jmp(L_keepalive_pack_and_done);
   }
-  keepalive_slow(&masm, _expected);
-  __ jmp(L_keepalive_pack_and_done);
 
-  __ bind(L_lrb_slow);
-  dont_preserve(_expected);
-  lrb_slow(&masm, _expected, _addr, _narrow);
-  __ jmp(L_lrb_done);
+  {
+    __ bind(L_lrb_slow);
+    dont_preserve(_expected);
+    lrb_slow(&masm, _expected, _addr, _narrow);
+    __ jmp(L_lrb_done);
+  }
 }
 #undef __
 #endif
