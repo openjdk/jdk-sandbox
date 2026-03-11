@@ -1357,7 +1357,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   } else {
     __ testptr(_dst, _dst);
   }
-  __ jccb(Assembler::equal, L_done);
+  __ jccb(Assembler::zero, L_done);
 
   // If object is narrow, we need to decode it first.
   if (_narrow) {
@@ -1444,7 +1444,7 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   // If the preval is null, there is no point in applying barriers.
   __ testptr(preval, preval);
-  __ jccb(Assembler::equal, L_done);
+  __ jccb(Assembler::zero, L_done);
 
   // If preval is narrow, we need to decode it first.
   // Since preval is in temp, we do not need to encode it back on any path.
@@ -1484,7 +1484,7 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
   // CAS with null failure witness cannot be a false negative,
   // and also does not require KA.
   __ testptr(_expected, _expected);
-  __ jccb(Assembler::equal, L_done);
+  __ jccb(Assembler::zero, L_done);
 
   // Fast-path checks two exclusive conditions: MARKING xor HAS_FORWARDED.
   // If we are here, only one of those are true. Therefore, we can figure out which
@@ -1535,7 +1535,7 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
 
     // Failing CAS from null cannot be a false negative.
     __ testptr(_tmp2, _tmp2);
-    __ jccb(Assembler::equal, L_done);
+    __ jccb(Assembler::zero, L_done);
 
     // (Compressed) failure witness is in _expected.
     if (_narrow) {
