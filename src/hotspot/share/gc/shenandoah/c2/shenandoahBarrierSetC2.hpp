@@ -150,7 +150,7 @@ protected:
 
   void keepalive_fast(MacroAssembler* masm, Register obj, Register tmp, Label* L_slow, bool short_slow);
   void keepalive_slow(MacroAssembler* masm, Register obj);
-  void lrb_fast(MacroAssembler* masm, Register obj, Register tmp, Label* L_fast, Label* L_slow);
+  void lrb_fast(MacroAssembler* masm, Register obj, Register tmp, Label* L_slow, bool short_slow);
   void lrb_slow(MacroAssembler* masm, Register obj, Address addr, bool narrow);
 
 public:

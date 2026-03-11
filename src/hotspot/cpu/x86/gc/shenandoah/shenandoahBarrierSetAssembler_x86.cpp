@@ -1260,11 +1260,10 @@ void ShenandoahBarrierStubC2::keepalive_slow(MacroAssembler* masm, Register obj)
   __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre)), rax);
 }
 
-void ShenandoahBarrierStubC2::lrb_fast(MacroAssembler* masm, Register obj, Register tmp, Label* L_fast, Label* L_slow) {
+void ShenandoahBarrierStubC2::lrb_fast(MacroAssembler* masm, Register obj, Register tmp, Label* L_slow, bool short_slow) {
   // Weak/phantom loads are handled in slow path.
   bool is_weak = (_node->barrier_data() & ShenandoahBitStrong) == 0;
   if (is_weak) {
-    assert(L_slow != nullptr, "Should be");
     __ jmpb(*L_slow);
     return;
   }
@@ -1286,12 +1285,11 @@ void ShenandoahBarrierStubC2::lrb_fast(MacroAssembler* masm, Register obj, Regis
 
   // Go test.
   __ cmpb(cset_addr_arg, 0);
-  if (L_slow != nullptr) {
+  if (short_slow) {
     __ jccb(Assembler::notEqual, *L_slow);
+  } else {
+    __ jcc(Assembler::notEqual, *L_slow);
   }
-  if (L_fast != nullptr) {
-    __ jcc(Assembler::equal, *L_fast); // FIXME: Should be short, but lrb_slow is in the way in CAS stub
-  }  
 }
 
 void ShenandoahBarrierStubC2::lrb_slow(MacroAssembler* masm, Register obj, Address addr, bool narrow) {
@@ -1391,7 +1389,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   if (_needs_load_ref_barrier) {
     __ bind(L_lrb_entry);
     __ push(tmp);
-    lrb_fast(&masm, _dst, tmp, nullptr, &L_lrb_slow);
+    lrb_fast(&masm, _dst, tmp, &L_lrb_slow, /* short_slow = */ true);
     __ pop(tmp);
     __ bind(L_lrb_done);
   }
@@ -1473,7 +1471,7 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   __ bind(*entry());
 
-  Label L_retry_cas;
+  Label L_lrb_done, L_lrb_slow;
   Label L_keepalive_entry, L_keepalive_slow, L_keepalive_done, L_keepalive_pack_and_done;
 
   // Check if first CAS succeded, if it did we just need to write to SATB
@@ -1493,13 +1491,13 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
     __ decode_heap_oop(_expected);
   }
 
-  lrb_fast(&masm, _expected, _tmp1, &L_retry_cas, nullptr);
-  lrb_slow(&masm, _expected, _addr, _narrow);
+  lrb_fast(&masm, _expected, _tmp1, &L_lrb_slow, /* short_slow = */ false);
+
+  // Slow-path re-enters here.
+  __ bind(L_lrb_done);
 
   // Try to CAS again with the original expected value.
   // At this point, there can no longer be false negatives.
-  __ bind(L_retry_cas);
-
   __ movptr(_expected, _tmp2);
   __ lock();
   if (_narrow) {
@@ -1564,6 +1562,11 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
   keepalive_slow(&masm, _expected);
   __ jmp(L_keepalive_pack_and_done);
+
+  __ bind(L_lrb_slow);
+  dont_preserve(_expected);
+  lrb_slow(&masm, _expected, _addr, _narrow);
+  __ jmp(L_lrb_done);
 }
 #undef __
 #endif
