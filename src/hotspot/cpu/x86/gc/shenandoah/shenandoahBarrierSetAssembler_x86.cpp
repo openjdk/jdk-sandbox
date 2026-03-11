@@ -1348,7 +1348,6 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   Label L_done, L_pack_and_done;
 
   // ---- Mid path
-
   // The goal is to do quick checks/actions that can be done without going to slowpath.
   // This also allows doing shorter branches, where possible.
 
@@ -1398,12 +1397,10 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
 
   // ---- Exit
-
   __ bind(L_done);
   __ jmp(*continuation());
 
   // ---- Slow path
-
   // LRB slow path goes first: this allows the short branches from LRB fastpath,
   // the overwhelmingly major case. Slow paths immediately pop tmp to make sure
   // the stack is aligned for the call.
@@ -1436,18 +1433,20 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
   Register preval = _tmp;
   Register tmp2 = select_temp_register(_dst, _src, _tmp);
 
-  // Load value from memory
+  // ---- Mid path
+
+  // Load preval from memory.
   if (_dst_narrow) {
     __ movl(preval, _dst);
   } else {
     __ movq(preval, _dst);
   }
 
-  // Is the previous value null?
+  // If the preval is null, there is no point in applying barriers.
   __ testptr(preval, preval);
   __ jccb(Assembler::equal, L_done);
 
-  // If object is narrow, we need to decode it first.
+  // If preval is narrow, we need to decode it first.
   if (_dst_narrow) {
     __ decode_heap_oop_not_null(preval);
   }
@@ -1456,12 +1455,16 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
   keepalive_fast(&masm, preval, tmp2, &L_slow, /* short_slow = */ true);
   __ pop(tmp2);
 
-  // Exit here.
+  // ---- Exit
+
   __ bind(L_done);
   __ jmp(*continuation());
 
+  // ---- Slow path
+  // Slow path immediately pop tmp to make sure the stack is aligned for the call.
+
   __ bind(L_slow);
-  __ pop(tmp2); // Immediately pop tmp to make sure the stack is aligned
+  __ pop(tmp2);
   keepalive_slow(&masm, preval);
   __ jmp(L_done);
 }
