@@ -26,6 +26,7 @@
 
 #include "shenandoahCSetMap.hpp"
 #include "gc/shenandoah/shenandoahCSetMap.hpp"
+
 #include "oops/oopsHierarchy.hpp"
 #include "utilities/globalDefinitions.hpp"
 

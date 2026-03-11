@@ -26,7 +26,6 @@
 #ifndef SHARE_GC_SHENANDOAH_SHENANDOAHHEAPREGION_HPP
 #define SHARE_GC_SHENANDOAH_SHENANDOAHHEAPREGION_HPP
 
-#include "shenandoahForwardingTable.hpp"
 #include "gc/shared/gc_globals.hpp"
 #include "gc/shared/spaceDecorator.hpp"
 #include "gc/shenandoah/shenandoahAffiliation.hpp"
@@ -36,6 +35,7 @@
 #include "gc/shenandoah/shenandoahForwardingTable.hpp"
 #include "gc/shenandoah/shenandoahHeap.hpp"
 #include "gc/shenandoah/shenandoahPadding.hpp"
+#include "shenandoahForwardingTable.hpp"
 #include "utilities/sizes.hpp"
 
 class VMStructs;
