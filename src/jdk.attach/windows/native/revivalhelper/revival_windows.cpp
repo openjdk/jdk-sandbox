@@ -131,10 +131,10 @@ void tls_initial_save_pd() {
     waitHitRet();
 }
 
-void tls_fixup_pd(void *core_teb) {
+void tls_fixup_pd(void *teb) {
     // Given we have revived memory, read core TEB address, to find old TLS pointer.
-    logv("tls_fixup: MiniDump TEB addr 0x%llx", core_teb);
-    uint64_t* core_tls = (uint64_t*) ((char*) core_teb + 0x58);
+    logv("tls_fixup: MiniDump TEB addr 0x%llx", teb);
+    uint64_t* core_tls = (uint64_t*) ((char*) teb + 0x58);
     logv("tls_fixup: core _tls_array = 0x%llx contains 0x%llx", core_tls, *core_tls);
 
     // Replace current TLS with that from MiniDump:
@@ -209,13 +209,28 @@ int revival_checks_pd(const char *dirname) {
     return 0;
 }
 
+void dump() {
+    char filename[BUFLEN];
+    snprintf(filename, BUFLEN, "revival_dump_%ld.mdmp", _getpid());
+    MINIDUMP_TYPE dumpType =  (MINIDUMP_TYPE)(MiniDumpWithFullMemory | MiniDumpWithHandleData | MiniDumpWithFullMemoryInfo | MiniDumpWithThreadInfo | MiniDumpWithUnloadedModules);
+    HANDLE hFile = CreateFile(filename, GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (hFile == INVALID_HANDLE_VALUE) {
+        warn("%s: CreateFile failed for MiniDump: 0x%x", filename, GetLastError());
+    } else {
+        warn("Writing MiniDump to %s...", filename);
+        if (!MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hFile, dumpType, nullptr, nullptr, nullptr)) {
+            warn("%s: MiniDumpWriteDump failed: 0x%x", filename, GetLastError());
+        }
+        Sleep(60 * 1000);
+    }
+}
 
 // Exception handler:
 LPTOP_LEVEL_EXCEPTION_FILTER previousUnhandledExceptionFilter = nullptr;
 
 LONG WINAPI topLevelUnhandledExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo) {
-        // This handler was checking the fault address was in the failedSegments.
-        // But it only ever calls exitForRetry() either way, so just do that.
+    // This handler was checking the fault address was in the failedSegments.
+    // But it only ever calls exitForRetry() either way, so just do that.
 
 #if defined(_M_AMD64)
     uint64_t pc = (uint64_t) exceptionInfo->ContextRecord->Rip;
@@ -235,6 +250,8 @@ LONG WINAPI topLevelUnhandledExceptionFilter(struct _EXCEPTION_POINTERS* excepti
         }
     }
     waitHitRet();
+
+    dump();
     exitForRetry(); // Letting this process fail would send the wrong return code back to JCmd.
     abort(); // not reached
 }

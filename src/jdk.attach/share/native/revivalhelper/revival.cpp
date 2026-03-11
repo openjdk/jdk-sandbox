@@ -46,12 +46,23 @@ std::list<Segment> writableSegments;
 std::list<Segment> failedSegments;
 struct revival_data* rdata; // Data from revived JVM
 
-void revival_exit(int e) {
-#ifdef WINDOWS
-	warn("Calling TerminateProcess %d", e);
-    TerminateProcess(GetCurrentProcess(), e);
+#ifndef WINDOWS
+struct timeval start_time;
+#else
+ULONGLONG start_time;
 #endif
+
+#ifdef WINDOWS
+uint64_t* core_teb;
+#endif
+
+void revival_exit(int e) {
+       logv("revival_exit: %d", e);
+#ifdef WINDOWS
+    TerminateProcess(GetCurrentProcess(), e);
+#else
     _exit(e);
+#endif
 }
 
 void exitForRetry() {
@@ -110,12 +121,14 @@ void log0(const char* msg) {
     // Add timestamp and newline to message, write on stderr.
     char buffer[BUFLEN];
 #ifndef WINDOWS
-    struct timeval t;
-    gettimeofday(&t, nullptr);
-    snprintf(buffer, BUFLEN - 1, "%ld.%ld: %s\n", t.tv_sec, (long) t.tv_usec, msg);
+    struct timeval now;
+    gettimeofday(&now, nullptr);
+    struct timeval timediff;
+    timersub(&now, &start_time, &timediff);
+    snprintf(buffer, BUFLEN - 1, "%ld.%ld: %s\n", timediff.tv_sec, (long) timediff.tv_usec, msg);
 #else
-    // TODO timestamp on Windows
-    snprintf(buffer, BUFLEN - 1, "%s\n", msg);
+    ULONGLONG now = GetTickCount64();
+    snprintf(buffer, BUFLEN - 1, "%lld: %s\n", (now - start_time), msg);
 #endif
     write0(2 /* stderr */, buffer);
 }
@@ -477,8 +490,8 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
         e = fscanf(f, "TEB %32s\n", s1);
         if (e == 1) {
 #ifdef WINDOWS
-            void* core_teb_addr = (void*) strtoull(s1, nullptr, 16);
-            tls_fixup_pd(core_teb_addr);
+            core_teb = (uint64_t*) strtoull(s1, nullptr, 16);
+            //tls_fixup_pd(core_teb);
 #else
             warn("TEB line invalid on non-Windows.");
 #endif
@@ -865,7 +878,9 @@ int revive_image_cooperative() {
         warn("revive_image: JVM helper function not found.");
         return -1;
     }  
-
+#ifdef WINDOWS
+    tls_fixup_pd(core_teb);
+#endif
     logv("revive_image: calling JVM revival helper method %p", s);
     void*(*helper)() = (void*(*)()) s;
     waitHitRet();
@@ -875,12 +890,12 @@ int revive_image_cooperative() {
         warn("revive_image: JVM helper failed");
         return -1;
     }
-    // Verify revival data
-    if (rdata->version != 1) {
-        error("revival data wrong version: %llx", (unsigned long long) rdata->version);
+    // Verify revival data from JVM:
+    if (rdata->version == 0 || rdata->version > REVIVAL_VERSION) {
+        error("revival data: bad version: %llx", (unsigned long long) rdata->version);
     }
     if (rdata->size_this != sizeof(struct revival_data)) {
-        warn("revival data size mismatch: this helper %ld VM data claims %ld", sizeof(struct revival_data), rdata->size_this);
+        warn("revival data: size mismatch, this helper %ld VM data claims %ld", sizeof(struct revival_data), rdata->size_this);
     }
     logv("revive_image: revival_data 0x%llx 0x%llx", (unsigned long long) rdata->magic, (unsigned long long) rdata->version);
     logv("revive_image: revival_data %s / %s / %s / %s", rdata->runtime_name, rdata->runtime_version, rdata->runtime_vendor_version,
@@ -1030,7 +1045,11 @@ bool revival_cache_exists(char* dirname, const char* mappings_filename) {
 int revive_image(const char* corename, const char* javahome, const char* libdir, const char* revival_data_path) {
     int e;
     char* dirname;
-
+#ifndef WINDOWS
+    gettimeofday(&start_time, nullptr);
+#else
+    start_time = GetTickCount64();
+#endif
     if (!file_exists_pd(corename)) {
         warn("revive_image: '%s' not found", corename);
         return -1;

@@ -97,6 +97,7 @@ void remove_handler();
 
 #include "pefile.hpp"
 
+void dump();
 void normalize_path_pd(char* s);
 void tls_fixup_pd(void* tlsPtr);
 
@@ -118,6 +119,7 @@ void tls_fixup_pd(void* tlsPtr);
 //
 
 // One structure to keep in sync with the JVM:
+#define REVIVAL_VERSION 1
 struct revival_data {
   uint64_t magic;
   uint64_t version;
