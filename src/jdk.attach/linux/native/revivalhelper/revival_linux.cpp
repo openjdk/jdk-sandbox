@@ -81,12 +81,12 @@ unsigned long long max_user_vaddr_pd() {
 void init_pd() {
     // pagesize, expect 0x1000
     long value = sysconf(_SC_PAGESIZE);
-    if (value < 0) {
+    if (value < 1) {
         warn("init_pd: sysconf retuns 0x%lx: %s", value, strerror(errno));
         value = 0x1000; // consider exiting
     }
     vaddr_align = value;
-    logv("revival: init_pd: vaddr_alignment = 0x%llx", (unsigned long long) vaddr_alignment_pd());
+    logv("revival: init_pd: vaddr_alignment (pagesize) = 0x%llx", (unsigned long long) vaddr_alignment_pd());
 }
 
 bool dir_exists_pd(const char* dirname) {
