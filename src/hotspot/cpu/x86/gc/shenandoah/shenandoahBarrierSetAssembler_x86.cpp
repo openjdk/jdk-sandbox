@@ -816,7 +816,7 @@ void ShenandoahBarrierSetAssembler::satb_barrier_c2(const MachNode* node, MacroA
   if (!ShenandoahSATBBarrierStubC2::needs_barrier(node)) {
     return;
   }
-  ShenandoahSATBBarrierStubC2* const stub = ShenandoahSATBBarrierStubC2::create(node, addr, preval, tmp);
+  ShenandoahSATBBarrierStubC2* const stub = ShenandoahSATBBarrierStubC2::create(node, addr, preval, tmp, /* TODO: */ false);
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
   Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
   __ testb(gc_state, ShenandoahHeap::MARKING);
@@ -1013,11 +1013,6 @@ void ShenandoahSATBBarrierStubC2::emit_code(MacroAssembler& masm) {
     __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre_c2)), rax);
   }
   __ jmp(*continuation());
-}
-
-void ShenandoahCASBarrierMidStubC2::emit_code(MacroAssembler& masm) {
-  // x86_64 does not implement this.
-  ShouldNotReachHere();
 }
 
 void ShenandoahCASBarrierSlowStubC2::emit_code(MacroAssembler& masm) {

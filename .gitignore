@@ -28,6 +28,7 @@ NashornProfile.txt
 test/benchmarks/**/target
 clear.sh
 run.sh
+.clangd
 debug/
 /src/hotspot/CMakeLists.txt
 /src/hotspot/compile_commands.json
