@@ -1400,12 +1400,11 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ bind(L_done);
   __ jmp(*continuation());
 
-  // Slow paths here. LRB slow path goes first: this allows the short branches from LRB fastpath,
-  // the overwhelmingly major case.
+  // Slow paths here. LRB slow path goes first: this allows the short branches
+  // from LRB fastpath, the overwhelmingly major case.
   if (_needs_load_ref_barrier) {
     __ bind(L_lrb_slow);
-    __ pop(tmp); // Immediately pop tmp to make sure the stack is aligned
-
+    __ pop(tmp); // Immediately pop to make sure the stack is aligned
     dont_preserve(_dst); // For LRB we must not preserve _dst
     lrb_slow(&masm, _dst, _src, _narrow);
     __ jmp(L_lrb_done);
@@ -1414,8 +1413,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   if (_needs_keep_alive_barrier) {
     __ bind(L_keepalive_slow);
     __ pop(tmp); // Immediately pop to make sure the stack is aligned
-
-    preserve(_dst); // For SATB we must preserve _dst
+    preserve(_dst); // For KA we must preserve _dst
     keepalive_slow(&masm, _dst);
     __ jmp(L_keepalive_done);
   }
@@ -1431,9 +1429,8 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
   // We need 2 temp registers for this code to work.
   // _tmp is already allocated and will carry preval for the call.
   // Allocate the other one now.
-  Register tmp2 = select_temp_register(_dst, _src, _tmp);
-
   Register preval = _tmp;
+  Register tmp2 = select_temp_register(_dst, _src, _tmp);
 
   // Load value from memory
   if (_dst_narrow) {
@@ -1465,120 +1462,104 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
 }
 
 void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
+  assert(_expected == rax, "expected must be rax");
+  assert((_node->barrier_data() & ShenandoahBitStrong) != 0, "Only strong references for CASes");
+
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
   __ bind(*entry());
 
-  Label L_final;
-  Label L_succeded;
+  Label L_retry_cas;
+  Label L_keepalive_entry, L_keepalive_slow, L_keepalive_done, L_keepalive_pack_and_done;
 
-  // check if first CAS succeded, if it did we just need to write to SATB
+  // Check if first CAS succeded, if it did we just need to write to SATB
   Register tst = _cae ? _tmp1 : _result;
   __ testq(tst, tst);
-  __ jnz(L_succeded);
+  __ jnz(L_keepalive_entry);
 
+  // CAS has failed because the value held at addr does not match expected.
+  // This may be a false negative because the version in memory might be
+  // the from-space version of the same object we currently hold to-space
+  // reference for. To resolve this, we need to pass the location through
+  // the LRB fixup, this will make sure that the location has only to-space
+  // pointers.
 
-  // LRB + CAS Retry
-            // CAS has failed because the value held at addr does not match expected.
-            // This may be a false negative because the version in memory might be
-            // the from-space version of the same object we currently hold to-space
-            // reference for.
-            //
-            // To resolve this, we need to pass the location through the LRB fixup,
-            // this will make sure that the location has only to-space pointers.
-            // To avoid calling into runtime often, we cset-check the object first.
-            // We can inline most of the work here, but there is little point,
-            // as CAS failures over cset locations must be rare. This fast-slow split
-            // matches what we do for normal LRB.
+  // (Compressed) failure witness is in _expected.
+  if (_narrow) {
+    __ decode_heap_oop(_expected);
+  }
 
-            assert(_expected == rax, "expected must be rax");
+  lrb_fast(&masm, _expected, _tmp1, &L_retry_cas, nullptr);
+  lrb_slow(&masm, _expected, _addr, _narrow);
 
-            // Non-strong references should always go to runtime. We do not expect
-            // CASes over non-strong locations.
-            assert((_node->barrier_data() & ShenandoahBitStrong) != 0, "Only strong references for CASes");
+  // Try to CAS again with the original expected value.
+  // At this point, there can no longer be false negatives.
+  __ bind(L_retry_cas);
 
-            // (Compressed) failure witness is in _expected.
-            // Unpack it and check if it is in collection set.
-            if (_narrow) {
-              __ decode_heap_oop(_expected);
-            }
+  __ movptr(_expected, _tmp2);
+  __ lock();
+  if (_narrow) {
+    __ cmpxchgl(_new_val, _addr);
+  } else {
+    __ cmpxchgptr(_new_val, _addr);
+  }
+  if (!_cae) {
+    assert(_result != noreg, "need result register");
+    __ setcc(Assembler::equal, _result);
+  } else {
+    assert(_result == noreg, "no result expected");
+  }
 
-            lrb_fast(&masm, _expected, _tmp1, &L_final, nullptr);
-            lrb_slow(&masm, _expected, _addr, _narrow);
-            __ bind(L_final);
+  // If the retry did not succeed skip keep-alive
+  __ jcc(Assembler::notEqual, *continuation());
 
-            // Try to CAS again with the original expected value.
-            // At this point, there can no longer be false negatives.
-            __ movptr(_expected, _tmp2);
-            __ lock();
-            if (_narrow) {
-              __ cmpxchgl(_new_val, _addr);
-            } else {
-              __ cmpxchgptr(_new_val, _addr);
-            }
-            if (!_cae) {
-              assert(_result != noreg, "need result register");
-              __ setcc(Assembler::equal, _result);
-            } else {
-              assert(_result == noreg, "no result expected");
-            }
-            // If the retry did not succeed skip SATB
-            __ jcc(Assembler::notEqual, *continuation());
+  // Keep-alive
+  __ bind(L_keepalive_entry);
 
+  // Paranoia: CAS has succeded, so what was in memory is definitely oldval.
+  // Instead of pulling it from other code paths, pull it from stashed value.
+  // TODO: Figure out better way to do this.
+  __ movptr(_expected, _tmp2);
 
+  // Are we dealing with null?
+  __ testptr(_expected, _expected);
+  __ jccb(Assembler::equal, L_keepalive_done);
 
-    // Keep-alive
-    __ bind(L_succeded);
-            Label L_keepalive_done, L_keepalive_pack_and_done, L_keepalive_slow;
+  // We might have entered here for LRB, check if we really need to do KA
+  Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+  __ testb(gc_state, ShenandoahHeap::MARKING);
+  __ jccb(Assembler::zero, L_keepalive_done);
 
-            // Paranoia: CAS has succeded, so what was in memory is definitely oldval.
-            // Instead of pulling it from other code paths, pull it from stashed value.
-            // TODO: Figure out better way to do this.
-            __ movptr(_expected, _tmp2);
+  // If object is narrow, we need to decode it first.
+  if (_narrow) {
+    __ decode_heap_oop_not_null(_expected);
+  }
 
-            // Are we dealing with null?
-            __ testptr(_expected, _expected);
-            __ jccb(Assembler::equal, L_keepalive_done);
+  keepalive_fast(&masm, _expected, _tmp1, &L_keepalive_slow);
 
-            // We might have entered here for LRB, check if we really need to do KA
-            Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-            __ testb(gc_state, ShenandoahHeap::MARKING);
-            __ jccb(Assembler::zero, L_keepalive_done);
+  // Slow-path re-enters here.
+  __ bind(L_keepalive_pack_and_done);
 
-            // If object is narrow, we need to decode it first.
-            if (_narrow) {
-              __ decode_heap_oop_not_null(_expected);
-            }
+  // If object is narrow, we need to encode it at the end.
+  if (_narrow) {
+    __ encode_heap_oop_not_null(_expected);
+  }
 
-            keepalive_fast(&masm, _expected, _tmp1, &L_keepalive_slow);
+  __ bind(L_keepalive_done);
+  __ jmp(*continuation());
 
-            // Slow-path re-enters here.
-            __ bind(L_keepalive_pack_and_done);
+  __ bind(L_keepalive_slow);
 
-            // If object is narrow, we need to encode it at the end.
-            if (_narrow) {
-              __ encode_heap_oop_not_null(_expected);
-            }
-
-            __ bind(L_keepalive_done);
-            __ jmp(*continuation());
-
-            __ bind(L_keepalive_slow);
-
-            // Expected register should not be clobbered.
-            preserve(_expected);
-
-            // Carry the CAS/CAE result over the slowpath call
-            if (_cae) {
-              assert(_result == noreg, "no result expected");
-            } else {
-              assert(_result != noreg, "need result register");
-              preserve(_result);
-            }
-            keepalive_slow(&masm, _expected);
-            __ jmp(L_keepalive_pack_and_done);
-
-    __ jmp(*continuation());
+  // Expected register and CAS resultr should not be clobbered.
+  preserve(_expected);
+  if (_cae) {
+    assert(_result == noreg, "no result expected");
+  } else {
+    assert(_result != noreg, "need result register");
+    preserve(_result);
+  }
+  keepalive_slow(&masm, _expected);
+  __ jmp(L_keepalive_pack_and_done);
 }
 #undef __
 #endif
