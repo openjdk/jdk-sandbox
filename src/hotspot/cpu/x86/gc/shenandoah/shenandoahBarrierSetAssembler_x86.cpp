@@ -1359,7 +1359,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
   __ jccb(Assembler::zero, L_done);
 
-  // If object is narrow, we need to decode it first.
+  // If object is narrow, we need to decode it first: barrier checks need full oops.
   if (_narrow) {
     __ decode_heap_oop_not_null(_dst);
   }
@@ -1390,13 +1390,12 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
     __ bind(L_lrb_done);
   }
 
-  __ bind(L_pack_and_done);
+  // ---- Exits
   // If object is narrow, we need to encode it before exiting.
+  __ bind(L_pack_and_done);
   if (_narrow) {
     __ encode_heap_oop(_dst);
   }
-
-  // ---- Exit
   __ bind(L_done);
   __ jmp(*continuation());
 
@@ -1446,7 +1445,7 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ testptr(preval, preval);
   __ jccb(Assembler::zero, L_done);
 
-  // If preval is narrow, we need to decode it first.
+  // If preval is narrow, we need to decode it first: barrier checks need full oops.
   // Since preval is in temp, we do not need to encode it back on any path.
   if (_dst_narrow) {
     __ decode_heap_oop_not_null(preval);
@@ -1456,14 +1455,14 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
   keepalive_fast(&masm, preval, tmp2, &L_slow, /* short_slow = */ true);
   __ pop(tmp2);
 
-  // ---- Exit
+  // ---- Exits
 
   __ bind(L_done);
   __ jmp(*continuation());
 
   // ---- Slow path
-  // Slow path immediately pop tmp to make sure the stack is aligned for the call.
 
+  // Slow path immediately pop tmp to make sure the stack is aligned for the call.
   __ bind(L_slow);
   __ pop(tmp2);
   keepalive_slow(&masm, preval);
