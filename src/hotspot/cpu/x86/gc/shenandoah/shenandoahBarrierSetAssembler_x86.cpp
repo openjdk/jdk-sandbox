@@ -1450,13 +1450,14 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
   keepalive_fast(&masm, preval, tmp2, &L_slow, /* short_slow = */ true);
   __ pop(tmp2);
 
+  // Exit here.
   __ bind(L_done);
   __ jmp(*continuation());
 
   __ bind(L_slow);
   __ pop(tmp2); // Immediately pop tmp to make sure the stack is aligned
   keepalive_slow(&masm, preval);
-  __ jmp(*continuation());
+  __ jmp(L_done);
 }
 
 void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
