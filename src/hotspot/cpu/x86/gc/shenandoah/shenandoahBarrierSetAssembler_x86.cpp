@@ -1236,12 +1236,16 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(MacroAssembler* masm, Addres
   __ bind(L_done);
 }
 
-void ShenandoahBarrierStubC2::keepalive_fast(MacroAssembler* masm, Register obj, Register tmp, Label* L_slow) {
+void ShenandoahBarrierStubC2::keepalive_fast(MacroAssembler* masm, Register obj, Register tmp, Label* L_slow, bool short_slow) {
   Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
   __ movptr(tmp, index);
   __ testptr(tmp, tmp);
-  __ jcc(Assembler::zero, *L_slow); // TODO: Always short?
+  if (short_slow) {
+    __ jccb(Assembler::zero, *L_slow);
+  } else {
+    __ jcc(Assembler::zero, *L_slow);
+  }
   __ subptr(tmp, wordSize);
   __ movptr(index, tmp);
   __ addptr(tmp, buffer);
@@ -1286,7 +1290,7 @@ void ShenandoahBarrierStubC2::lrb_fast(MacroAssembler* masm, Register obj, Regis
     __ jccb(Assembler::notEqual, *L_slow);
   }
   if (L_fast != nullptr) {
-    __ jcc(Assembler::equal, *L_fast); // FIXME: Should be short?
+    __ jcc(Assembler::equal, *L_fast); // FIXME: Should be short, but lrb_slow is in the way in CAS stub
   }  
 }
 
@@ -1379,7 +1383,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   if (_needs_keep_alive_barrier) {
     __ push(tmp);
-    keepalive_fast(&masm, _dst, tmp, &L_keepalive_slow);
+    keepalive_fast(&masm, _dst, tmp, &L_keepalive_slow, /* short_slow = */ false);
     __ pop(tmp);
     __ bind(L_keepalive_done);
   }
@@ -1449,7 +1453,7 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
 
   __ push(tmp2);
-  keepalive_fast(&masm, preval, tmp2, &L_slow);
+  keepalive_fast(&masm, preval, tmp2, &L_slow, /* short_slow = */ true);
   __ pop(tmp2);
 
   __ bind(L_done);
@@ -1535,7 +1539,7 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
     __ decode_heap_oop_not_null(_expected);
   }
 
-  keepalive_fast(&masm, _expected, _tmp1, &L_keepalive_slow);
+  keepalive_fast(&masm, _expected, _tmp1, &L_keepalive_slow, /* short_slow = */ true);
 
   // Slow-path re-enters here.
   __ bind(L_keepalive_pack_and_done);
