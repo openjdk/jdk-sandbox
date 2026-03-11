@@ -1477,7 +1477,7 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   Label L_done;
   Label L_lrb_done, L_lrb_slow;
-  Label L_keepalive_entry, L_keepalive_slow, L_keepalive_pack_and_done;
+  Label L_keepalive_entry, L_keepalive_slow;
 
   // ---- Initial filters
 
@@ -1540,28 +1540,19 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
   {
     __ bind(L_keepalive_entry);
 
-    // CAS has succeded, so what was in memory is definitely our stashed value.
-    __ movptr(_expected, _tmp2);
-
     // We might have entered here for LRB, check if we really need to do KA
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ testb(gc_state, ShenandoahHeap::MARKING);
     __ jccb(Assembler::zero, L_done);
 
-    // If object is narrow, we need to decode it first.
+    // CAS has succeded, so what was in memory is definitely our stashed value.
+    // If stashed value is narrow, we need to decode it first. At this point,
+    // we can destroy it and not pack it up again.
     if (_narrow) {
-      __ decode_heap_oop_not_null(_expected);
+      __ decode_heap_oop_not_null(_tmp2);
     }
 
-    keepalive_fast(&masm, _expected, _tmp1, &L_keepalive_slow, /* short_slow = */ true);
-
-    // Slow-path re-enters here.
-    __ bind(L_keepalive_pack_and_done);
-
-    // If object is narrow, we need to encode it at the end.
-    if (_narrow) {
-      __ encode_heap_oop_not_null(_expected);
-    }
+    keepalive_fast(&masm, _tmp2, _tmp1, &L_keepalive_slow, /* short_slow = */ true);
   }
 
   // ---- Exit 
@@ -1582,8 +1573,8 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
       assert(_result != noreg, "need result register");
       preserve(_result);
     }
-    keepalive_slow(&masm, _expected);
-    __ jmp(L_keepalive_pack_and_done);
+    keepalive_slow(&masm, _tmp2);
+    __ jmp(L_done);
   }
 
   {
