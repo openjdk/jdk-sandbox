@@ -1121,15 +1121,15 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
 
 void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler* masm,
               Register res, Address addr, Register oldval, Register newval,
-              Register tmp1, Register tmp2, bool exchange, bool maybe_null, bool narrow) {
+              Register tmp, bool exchange, bool maybe_null, bool narrow) {
 
   assert(oldval == rax, "must be in rax for implicit use in cmpxchg");
   assert(narrow == UseCompressedOops, "should match");
 
   // Oldval and newval can be in the same register, but all other registers should be
   // distinct for extra safety, as we shuffle register values around.
-  assert_different_registers(oldval, tmp1, tmp2, addr.base(), addr.index());
-  assert_different_registers(newval, tmp1, tmp2, addr.base(), addr.index());
+  assert_different_registers(oldval, tmp, addr.base(), addr.index());
+  assert_different_registers(newval, tmp, addr.base(), addr.index());
 
   // We want to deal with several issues at the same time:
   //  a. Avoid false positives from CAS encountering to-space memory values.
@@ -1141,7 +1141,7 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
   if (!ShenandoahSkipBarriers && ShenandoahLoadBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
-    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, tmp1, addr, narrow, true);
+    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, tmp, addr, narrow, true);
     char check = 0;
     check |= ShenandoahLoadBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
@@ -1168,7 +1168,7 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
   if (!ShenandoahSkipBarriers && ShenandoahStoreBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
     if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
-      card_barrier_c2(masm, addr, tmp1);
+      card_barrier_c2(masm, addr, tmp);
     }
   }
 }
