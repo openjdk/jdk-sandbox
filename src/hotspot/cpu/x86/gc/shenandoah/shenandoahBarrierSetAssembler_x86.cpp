@@ -1400,7 +1400,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ bind(L_done);
   __ jmp(*continuation());
 
-  // ---- Slow path
+  // ---- Slow paths
   // LRB slow path goes first: this allows the short branches from LRB fastpath,
   // the overwhelmingly major case. Slow paths immediately pop tmp to make sure
   // the stack is aligned for the call.
@@ -1447,6 +1447,7 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ jccb(Assembler::equal, L_done);
 
   // If preval is narrow, we need to decode it first.
+  // Since preval is in temp, we do not need to encode it back on any path.
   if (_dst_narrow) {
     __ decode_heap_oop_not_null(preval);
   }
@@ -1534,7 +1535,7 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
 
     // Failing CAS from null cannot be a false negative.
     __ testptr(_tmp2, _tmp2);
-    __ jcc(Assembler::equal, L_done);
+    __ jccb(Assembler::equal, L_done);
 
     // (Compressed) failure witness is in _expected.
     if (_narrow) {
@@ -1568,6 +1569,8 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ jmp(*continuation());
 
   // ---- Slow paths
+  // KA slow path goes first: this allows the short branches from KA fastpath,
+  // the overwhelmingly major case.
 
   // CAS result should not be clobbered.
   if (_cae) {
