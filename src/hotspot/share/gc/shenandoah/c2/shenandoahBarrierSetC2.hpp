@@ -253,13 +253,17 @@ class ShenandoahCASBarrierStubC2 : public ShenandoahBarrierStubC2 {
   bool     const _maybe_null;
   bool     const _acquire;
   bool     const _weak;
+  bool     const _needs_load_ref_barrier;
+  bool     const _needs_keep_alive_barrier;
 
   explicit ShenandoahCASBarrierStubC2(const MachNode* node, Register addr_reg, Address addr, Register expected,
       Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae, bool maybe_null,
       bool acquire, bool weak) :
     ShenandoahBarrierStubC2(node), _addr_reg(addr_reg), _addr(addr), _expected(expected), _new_val(new_val),
       _result(result), _tmp1(tmp1), _tmp2(tmp2), _narrow(narrow), _cae(cae), _maybe_null(maybe_null),
-      _acquire(acquire),  _weak(weak) {
+      _acquire(acquire),  _weak(weak),
+      _needs_load_ref_barrier(needs_load_ref_barrier(node)),
+      _needs_keep_alive_barrier(needs_keep_alive_barrier(node)) {
       assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
     }
 

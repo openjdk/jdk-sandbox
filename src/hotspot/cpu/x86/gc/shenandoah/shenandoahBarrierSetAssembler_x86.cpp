@@ -1470,6 +1470,7 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
 }
 
 void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
+  assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
   assert(_expected == rax, "expected must be rax");
   assert((_node->barrier_data() & ShenandoahBitStrong) != 0, "Only strong references for CASes");
 
@@ -1487,14 +1488,16 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
   // Fast-path checks two exclusive conditions: MARKING xor HAS_FORWARDED.
   // If we are here, only one of those are true. Therefore, we can figure out which
   // case we have by checking MARKING only.
-  Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-  __ testb(gc_state, ShenandoahHeap::MARKING);
-  __ jccb(Assembler::zero, L_lrb_entry);
-  // Fall-through to KA
+  if (_needs_keep_alive_barrier && _needs_load_ref_barrier) {
+    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+    __ testb(gc_state, ShenandoahHeap::MARKING);
+    __ jccb(Assembler::zero, L_lrb_entry);
+    // Fall-through to KA
+  }
 
   // ---- Mid path: KA or LRB+retry
 
-  {
+  if (_needs_keep_alive_barrier) {
     // Failing CAS does not need KA.
     Register tst = _cae ? _tmp1 : _result;
     __ testptr(tst, tst);
@@ -1514,7 +1517,7 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
     __ jmpb(L_done);
   }
 
-  {
+  if (_needs_load_ref_barrier) {
     __ bind(L_lrb_entry);
 
     // Passing CAS does not need retry.
@@ -1566,22 +1569,22 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   // ---- Slow paths
 
-  {
-    __ bind(L_keepalive_slow);
+  // CAS result should not be clobbered.
+  if (_cae) {
+    assert(_result == noreg, "no result expected");
+  } else {
+    assert(_result != noreg, "need result register");
+    preserve(_result);
+  }
 
-    // Expected register and CAS result should not be clobbered.
+  if (_needs_keep_alive_barrier) {
+    __ bind(L_keepalive_slow);
     preserve(_expected);
-    if (_cae) {
-      assert(_result == noreg, "no result expected");
-    } else {
-      assert(_result != noreg, "need result register");
-      preserve(_result);
-    }
     keepalive_slow(&masm, _tmp2);
     __ jmp(L_keepalive_done);
   }
 
-  {
+  if (_needs_load_ref_barrier) {
     __ bind(L_lrb_slow);
     dont_preserve(_expected);
     lrb_slow(&masm, _expected, _addr, _narrow);
