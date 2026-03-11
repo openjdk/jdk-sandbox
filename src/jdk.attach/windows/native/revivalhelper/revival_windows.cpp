@@ -251,7 +251,7 @@ LONG WINAPI topLevelUnhandledExceptionFilter(struct _EXCEPTION_POINTERS* excepti
     }
     waitHitRet();
 
-    dump();
+    // dump();
     exitForRetry(); // Letting this process fail would send the wrong return code back to JCmd.
     abort(); // not reached
 }
