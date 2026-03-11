@@ -1476,14 +1476,9 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   __ bind(*entry());
 
-  Label L_done;
+  Label L_cas_done, L_done;
   Label L_lrb_entry, L_lrb_slow, L_lrb_done;
   Label L_keepalive_slow, L_keepalive_done;
-
-  // CAS with null failure witness cannot be a false negative,
-  // and also does not require KA.
-  __ testptr(_expected, _expected);
-  __ jccb(Assembler::zero, L_done);
 
   // Fast-path checks two exclusive conditions: MARKING xor HAS_FORWARDED.
   // If we are here, only one of those are true. Therefore, we can figure out which
@@ -1495,17 +1490,21 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
     // Fall-through to KA
   }
 
-  // ---- Mid path: KA or LRB+retry
+  // ---- Mid path
 
   if (_needs_keep_alive_barrier) {
-    // Failing CAS does not need KA.
+    // Failing CAS does not need KA: no stores happened.
     Register tst = _cae ? _tmp1 : _result;
     __ testptr(tst, tst);
     __ jccb(Assembler::zero, L_keepalive_done);
 
-    // CAS has succeded, so what was in memory is definitely our stashed value.
+    // Passing CAS(null, ...): no real oop was overwritten.
+    __ testptr(_tmp2, _tmp2);
+    __ jccb(Assembler::zero, L_keepalive_done);
+
+    // Passing CAS has overwritten memory with oldval that we have in stash.
     // If stashed value is narrow, we need to decode it first. At this point,
-    // we can destroy it and not pack it up again.
+    // we can destroy the stashed value and not pack it up again.
     if (_narrow) {
       __ decode_heap_oop_not_null(_tmp2);
     }
@@ -1520,23 +1519,24 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
   if (_needs_load_ref_barrier) {
     __ bind(L_lrb_entry);
 
-    // Passing CAS does not need retry.
-    Register tst = _cae ? _tmp1 : _result;
-    __ testptr(tst, tst);
-    __ jccb(Assembler::notZero, L_done);
+    // We are here for both passing and failing CASes, when there are forwarded
+    // objects. Therefore, this code has to handle two cases.
+    //
+    // For passing CAS, we have to pass the value read from memory through
+    // LRB, like the normal load. For failing CAS, we need to deal with potential
+    // false negatives, when the version in memory might be the from-space version
+    // of the same _expected we currently hold to-space reference for.
+    //
+    // Fortunately, we can resolve both by passing the _expected after the initial
+    // CAS through the LRB with fixup. This will both sanitize _expected we have from
+    // successful CAS, and make sure that the location has only to-space pointers
+    // for the retry.
 
-    // CAS has failed because the value held at addr does not match expected.
-    // This may be a false negative because the version in memory might be
-    // the from-space version of the same object we currently hold to-space
-    // reference for. To resolve this, we need to pass the location through
-    // the LRB fixup, this will make sure that the location has only to-space
-    // pointers.
+    // Shortcut: null result for passing CAS means no need for LRB, null failure
+    // witness for failing CAS means not a false negative. If so, we are done.
+    __ testptr(_expected, _expected);
+    __ jccb(Assembler::zero, L_cas_done);
 
-    // Failing CAS from null cannot be a false negative.
-    __ testptr(_tmp2, _tmp2);
-    __ jccb(Assembler::zero, L_done);
-
-    // (Compressed) failure witness is in _expected.
     if (_narrow) {
       __ decode_heap_oop_not_null(_expected);
     }
@@ -1545,6 +1545,11 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
 
     // Slow-path re-enters here.
     __ bind(L_lrb_done);
+
+    // Passing CAS does not need retry, and we have LRB-ed the _expected.
+    Register tst = _cae ? _tmp1 : _result;
+    __ testptr(tst, tst);
+    __ jccb(Assembler::notZero, L_cas_done);
 
     // Try to CAS again with the original expected value.
     // At this point, there can no longer be false negatives.
@@ -1561,6 +1566,8 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
     } else {
       assert(_result == noreg, "no result expected");
     }
+
+    __ bind(L_cas_done);
   }
 
   // ---- Exit
