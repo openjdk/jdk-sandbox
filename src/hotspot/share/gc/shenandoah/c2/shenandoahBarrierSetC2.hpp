@@ -152,6 +152,7 @@ protected:
   void keepalive_slow(MacroAssembler* masm, Register obj);
   void lrb_fast(MacroAssembler* masm, Register obj, Register tmp, Label* L_slow, bool short_slow);
   void lrb_slow(MacroAssembler* masm, Register obj, Address addr, bool narrow);
+  void gc_state_check(MacroAssembler* masm, const char state, Label* L_not_set);
 
 public:
   static void gc_state_check_c2(MacroAssembler* masm, Register rscratch, const unsigned char test_state,

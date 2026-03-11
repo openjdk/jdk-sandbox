@@ -1333,6 +1333,12 @@ void ShenandoahBarrierStubC2::lrb_slow(MacroAssembler* masm, Register obj, Addre
   __ movptr(obj, rax);
 }
 
+void ShenandoahBarrierStubC2::gc_state_check(MacroAssembler* masm, const char state, Label* L_not_set) {
+  Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+  __ testb(gc_state, state);
+  __ jccb(Assembler::zero, *L_not_set);
+}
+
 #undef __
 #define __ masm.
 
@@ -1343,9 +1349,9 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   Register tmp = select_temp_register(_src, _dst);
 
-  Label L_lrb_entry, L_lrb_done, L_lrb_slow;
+  Label L_lrb_done, L_lrb_slow;
   Label L_keepalive_done, L_keepalive_slow;
-  Label L_done, L_pack_and_done;
+  Label L_done;
 
   // ---- Mid path
   // The goal is to do quick checks/actions that can be done without going to slowpath.
@@ -1364,26 +1370,22 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
     __ decode_heap_oop_not_null(_dst);
   }
 
-  // Fast-path checks two exclusive conditions: MARKING xor (HAS_FORWARDED | WEAK_ROOTS).
-  // If we are here, only one of those are true. Therefore, we can figure out which
-  // case we have by checking MARKING only.
-  if (_needs_keep_alive_barrier && _needs_load_ref_barrier) {
-    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ testb(gc_state, ShenandoahHeap::MARKING);
-    __ jccb(Assembler::zero, L_lrb_entry);
-    // Fall-through to KA entry
-  }
-
   if (_needs_keep_alive_barrier) {
+    // If both barriers are required (rare), do a runtime check for enabled barrier.
+    if (_needs_load_ref_barrier) {
+      gc_state_check(&masm, ShenandoahHeap::MARKING, &L_keepalive_done);
+    }
     __ push(tmp);
     keepalive_fast(&masm, _dst, tmp, &L_keepalive_slow, /* short_slow = */ false);
     __ pop(tmp);
     __ bind(L_keepalive_done);
-    __ jmpb(L_pack_and_done);
   }
 
   if (_needs_load_ref_barrier) {
-    __ bind(L_lrb_entry);
+    // If both barriers are required (rare), do a runtime check for enabled barrier.
+    if (_needs_keep_alive_barrier) {
+      gc_state_check(&masm, ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::WEAK_ROOTS, &L_lrb_done);
+    }
     __ push(tmp);
     lrb_fast(&masm, _dst, tmp, &L_lrb_slow, /* short_slow = */ true);
     __ pop(tmp);
@@ -1392,7 +1394,6 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   // ---- Exits
   // If object is narrow, we need to encode it before exiting.
-  __ bind(L_pack_and_done);
   if (_narrow) {
     __ encode_heap_oop(_dst);
   }
@@ -1477,22 +1478,18 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ bind(*entry());
 
   Label L_cas_done, L_done;
-  Label L_lrb_entry, L_lrb_slow, L_lrb_done;
+  Label L_lrb_slow, L_lrb_done;
   Label L_keepalive_slow, L_keepalive_done;
-
-  // Fast-path checks two exclusive conditions: MARKING xor HAS_FORWARDED.
-  // If we are here, only one of those are true. Therefore, we can figure out which
-  // case we have by checking MARKING only.
-  if (_needs_keep_alive_barrier && _needs_load_ref_barrier) {
-    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ testb(gc_state, ShenandoahHeap::MARKING);
-    __ jccb(Assembler::zero, L_lrb_entry);
-    // Fall-through to KA
-  }
 
   // ---- Mid path
 
   if (_needs_keep_alive_barrier) {
+    // Do a runtime check for enabled barrier. We only care if another
+    // barrier is also required. Otherwise fast path already checked this.
+    if (_needs_load_ref_barrier) {
+       gc_state_check(&masm, ShenandoahHeap::MARKING, &L_keepalive_done);
+    }
+
     // Failing CAS does not need KA: no stores happened.
     Register tst = _cae ? _tmp1 : _result;
     __ testptr(tst, tst);
@@ -1501,6 +1498,7 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
     // Passing CAS(null, ...): no real oop was overwritten.
     __ testptr(_tmp2, _tmp2);
     __ jccb(Assembler::zero, L_keepalive_done);
+
 
     // Passing CAS has overwritten memory with oldval that we have in stash.
     // If stashed value is narrow, we need to decode it first. At this point,
@@ -1513,11 +1511,14 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
 
     // Slow-path re-enters here.
     __ bind(L_keepalive_done);
-    __ jmpb(L_done);
   }
 
   if (_needs_load_ref_barrier) {
-    __ bind(L_lrb_entry);
+    // Do a runtime check for enabled barrier. We only care if another
+    // barrier is also required. Otherwise fast path already checked this.
+    if (_needs_keep_alive_barrier) {
+      gc_state_check(&masm, ShenandoahHeap::HAS_FORWARDED, &L_cas_done);
+    }
 
     // We are here for both passing and failing CASes, when there are forwarded
     // objects. Therefore, this code has to handle two cases.
