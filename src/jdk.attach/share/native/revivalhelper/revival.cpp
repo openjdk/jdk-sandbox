@@ -341,12 +341,10 @@ int revival_mapping_copy(void* vaddr, size_t length, size_t offset, bool allocat
             return -1;
         }
     }
-    // Check permission
     if (!mem_canwrite_pd(vaddr, length)) {
         warn("  revival_mapping_copy: cannot write at vaddr 0x%p length " SIZE_FORMAT_X_0, vaddr, length);
         return -1;
     }
-    // Copy data to allocation:
     FILE* f = fopen(filename, "rb");
     if (!f) {
         warn("revival_mapping_copy: cannot open: '%s': %d: %s", filename, errno, strerror(errno));
@@ -358,19 +356,15 @@ int revival_mapping_copy(void* vaddr, size_t length, size_t offset, bool allocat
         fclose(f);
         return -1;
     }
-    // Copy bytes from file offset to vaddr (not to a changed/aligned vaddr):
+    // Read at offset and copy bytes vaddr (not to a changed/aligned vaddr):
     int* p = (int*) vaddr;
-    *p = 123;
-
-    // Read.  --> todo: use ptr to destination, read to there directly...
-    int value;
-    for (size_t i = 0; i < length/4; i++) {
-        e = (int) fread(&value, 4, 1, f);
+    *p = 0xd1b5; // Cause a problem if permissions are wrong.  Will overwrite in the loop below...
+    for (size_t i = 0; i < length/8; i++) {
+        e = (int) fread(p++, 8, 1, f);
         if (e != 1) {
-            warn("COPY fread failed: returns %d at %p pos=%zu : %d %s", e, p, i, errno, strerror(errno));
+            warn("revival_mapping_copy: fread failed: returns %d at %p pos=%zu : %d %s", e, p, i, errno, strerror(errno));
             break;
         }
-        *p++ = value;
     }
     fclose(f);
     return 0;
@@ -516,12 +510,12 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
                 warn("mappings_file_read: danger 0x%llx", (unsigned long long) vaddr);
                 exitForRetry();
                 continue;
-            } 
+            }
             if (strstr(s7, "W") != nullptr) {
                 // Write permission: add to record of writable Segments:
                 Segment* thisSeg = new Segment(vaddr, length, offset, length_file);
                 writableSegments.push_back(*thisSeg);
-            } 
+            }
             if (strncmp(s1, "M", 1) == 0) { 
                 // Map memory from core:
                 int e = revival_mapping_mmap(vaddr, length, offset, lines, core_filename, core_fd);

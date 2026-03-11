@@ -81,12 +81,12 @@ unsigned long long max_user_vaddr_pd() {
 void init_pd() {
     // pagesize, expect 0x1000
     long value = sysconf(_SC_PAGESIZE);
-    if (value < 0) {
+    if (value < 1) {
         warn("init_pd: sysconf retuns 0x%lx: %s", value, strerror(errno));
         value = 0x1000; // consider exiting
     }
     vaddr_align = value;
-    logv("revival: init_pd: vaddr_alignment = 0x%llx", (unsigned long long) vaddr_alignment_pd());
+    logv("revival: init_pd: vaddr_alignment (pagesize) = 0x%llx", (unsigned long long) vaddr_alignment_pd());
 }
 
 bool dir_exists_pd(const char* dirname) {
@@ -431,9 +431,9 @@ void install_handler() {
 /**
  * Return the actual load address for a shared object, given its opaque handle
  * (the value returned from dlopen).
- *
- * Actually, this returns the difference from the preferred address.
- * For a file with no preferred address, that IS the loaded address.
+ * More specifically this returns the difference from the preferred address.
+ * For a file with no preferred address, that is the loaded address.
+ * For a file with a specific address, will return zero if loaded at that address.
  */
 void* base_address_for_sharedobject_live(void* h) {
     struct link_map lm;
@@ -457,36 +457,23 @@ void* base_address_for_sharedobject_live(void* h) {
  */
 void* load_sharedobject_pd(const char* name, void* vaddr) {
     void* actual = nullptr;
-    int max_tries = 1; // Retrying, even when allocating to force a new address, is not usually succesfull.
-
-    for (int i = 0; i < max_tries; i++) {
-        void* h = dlopen(name,  RTLD_NOW | RTLD_GLOBAL);
-        if (!h) {
-            warn("load_sharedobject_pd: dlopen failed: %s: %s", name, dlerror());
-            return (void*) -1;
-        }
-
-        actual = base_address_for_sharedobject_live(h);
-        logv("load_sharedobject_pd %d: actual = %p", i, actual);
-        if (actual == (void*) 0 || actual == vaddr) {
-            return h;
-        }
+    void* h = dlopen(name,  RTLD_NOW | RTLD_GLOBAL);
+    if (!h) {
+        warn("load_sharedobject_pd: dlopen failed: %s: %s", name, dlerror());
+        return (void*) -1;
+    }
+    actual = base_address_for_sharedobject_live(h);
+    logv("load_sharedobject_pd: actual = %p", actual);
+    if (actual != (void*) 0 && actual != vaddr) {
         // Wrong address:
         // Most likely, Address Space Layout Randomisation has given us an inhospitable layout,
         // e.g. libc where we want to have libjvm.
         // Trying dlclose and forcing retry is not successful.
         // Terminate with a value that means caller should retry:
         exitForRetry();
-    }
-
-    if (actual != (void*) 0 && actual != vaddr) {
-        warn("load_sharedobject_pd: %s: failed, loads at %p", name, actual);
-        unload_sharedobject_pd(h);
-        return (void*) -1;
-    }
+	}
     return h;
 }
-
 
 int unload_sharedobject_pd(void* h) {
     return dlclose(h); // zero on success
