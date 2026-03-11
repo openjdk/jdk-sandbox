@@ -1337,8 +1337,6 @@ void ShenandoahBarrierStubC2::lrb_slow(MacroAssembler* masm, Register obj, Addre
 #define __ masm.
 
 void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
-  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
-
   __ bind(*entry());
 
   Register tmp = select_temp_register(_src, _dst);
@@ -1422,8 +1420,6 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 }
 
 void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
-  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
-
   __ bind(*entry());
 
   Label L_slow, L_done;
@@ -1464,12 +1460,10 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
 }
 
 void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
+  __ bind(*entry());
+
   assert(_expected == rax, "expected must be rax");
   assert((_node->barrier_data() & ShenandoahBitStrong) != 0, "Only strong references for CASes");
-
-  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
-
-  __ bind(*entry());
 
   Label L_lrb_done, L_lrb_slow;
   Label L_keepalive_entry, L_keepalive_slow, L_keepalive_done, L_keepalive_pack_and_done;
