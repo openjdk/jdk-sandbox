@@ -951,7 +951,7 @@ void ShenandoahLoadBarrierStubC2::check_and_insert(const MachNode* node, MacroAs
   if (!ShenandoahSkipBarriers && ShenandoahLoadBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
-    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, dst, Address(addr, 0));
+    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, dst, Address(addr, 0), is_narrow_result(node), false);
     stub->dont_preserve(regsDontPreserve);
     stub->preserve(regsToPreserve);
 

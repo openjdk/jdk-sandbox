@@ -1058,7 +1058,8 @@ void ShenandoahBarrierSetAssembler::gc_state_check_c2(MacroAssembler* masm, cons
 
 void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src) {
   // Do the actual load. This load is the candidate for implicit null check, and MUST come first.
-  if (node->bottom_type()->isa_narrowoop()) {
+  bool narrow = node->bottom_type()->isa_narrowoop();
+  if (narrow) {
     __ movl(dst, src);
   } else {
     __ movq(dst, src);
@@ -1068,7 +1069,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
   if (!ShenandoahSkipBarriers && ShenandoahLoadBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
-    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, dst, src);
+    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, dst, src, narrow, false);
 
     char check = 0;
     check |= ShenandoahLoadBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
@@ -1130,14 +1131,24 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
   assert_different_registers(oldval, tmp1, tmp2, addr.base(), addr.index());
   assert_different_registers(newval, tmp1, tmp2, addr.base(), addr.index());
 
-  // Remember oldval for retry logic in slow path. We need to do it here,
-  // because it will be overwritten by the fast-path CAS.
-  if (ShenandoahCASBarrierStubC2::needs_barrier(node)) {
+  // We want to deal with several issues at the same time:
+  //  a. Avoid false positives from CAS encountering to-space memory values.
+  //  b. Satisfy the need for LRB for the CAE result.
+  //  c. Record old value for the sake of SATB.
+  //
+  // The easiest way to do this is to go for load barrier stub, which will do LRB+fixup,
+  // and will also handle KA for the value currently in memory.
+  if (!ShenandoahSkipBarriers && ShenandoahLoadBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
-    __ movptr(tmp2, oldval);
+
+    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, tmp1, addr, narrow, true);
+    char check = 0;
+    check |= ShenandoahLoadBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
+    check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
+    gc_state_check_c2(masm, check, stub);
   }
 
-  // Fast-path: Try to CAS optimistically.
+  // CAS!
   __ lock();
   if (narrow) {
     __ cmpxchgl(newval, addr);
@@ -1146,7 +1157,6 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
   }
 
   // If we need a boolean result out of CAS, set the flag appropriately and promote the result.
-  // This would be the final result if we do not go slow.
   if (!exchange) {
     assert(res != noreg, "need result register");
     __ setcc(Assembler::equal, res);
@@ -1154,31 +1164,9 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
     assert(res == noreg, "no result expected");
   }
 
-  if (!ShenandoahSkipBarriers && ShenandoahCASBarrierStubC2::needs_barrier(node)) {
+  // Emit card barrier if needed
+  if (!ShenandoahSkipBarriers && ShenandoahStoreBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
-
-    if (ShenandoahCASBarrierStubC2::needs_load_ref_barrier(node) || ShenandoahCASBarrierStubC2::needs_keep_alive_barrier(node)) {
-      ShenandoahCASBarrierStubC2* const stub = ShenandoahCASBarrierStubC2::create(node, addr, oldval, newval, res, tmp1, tmp2, narrow, exchange, maybe_null, false, false);
-
-      if (res != noreg) {
-        stub->dont_preserve(res);  // set at the end, no need to save
-      }
-      stub->dont_preserve(oldval); // saved explicitly
-      stub->dont_preserve(tmp1);   // temp, no need to save
-      stub->preserve(tmp2);        // carries oldval for final retry, must be saved
-
-      // On success, we need to write to SATB if MARKING is set in GCState.
-      // On failure, we need to run LRB and retry CAS if HAS_FORWARDED is set in GCState.
-      if (exchange) {
-        __ setcc(Assembler::equal, tmp1);
-      }
-
-      char state = 0;
-      state |= ShenandoahCASBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
-      state |= ShenandoahCASBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
-      gc_state_check_c2(masm, state, stub);
-    }
-
     if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
       card_barrier_c2(masm, addr, tmp1);
     }
@@ -1188,7 +1176,8 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
 void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register newval, Address addr, Register tmp) {
   assert_different_registers(newval, tmp, addr.base(), addr.index());
 
-  if (node->bottom_type()->isa_narrowoop()) {
+  bool narrow = node->bottom_type()->isa_narrowoop();
+  if (narrow) {
     __ xchgl(newval, addr);
   } else {
     __ xchgq(newval, addr);
@@ -1198,7 +1187,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
     if (ShenandoahLoadBarrierStubC2::needs_barrier(node)) {
-      ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, newval, addr);
+      ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, newval, addr, narrow, false);
 
       char check = 0;
       check |= ShenandoahLoadBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
@@ -1353,6 +1342,15 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   Label L_keepalive_done, L_keepalive_slow;
   Label L_done;
 
+  // If we need to load ourselves, do it here.
+  if (_do_load) {
+    if (_narrow) {
+      __ movl(_dst, _src);
+    } else {
+      __ movq(_dst, _src);
+    }
+  }
+
   // ---- Mid path
   // The goal is to do quick checks/actions that can be done without going to slowpath.
   // This also allows doing shorter branches, where possible.
@@ -1471,135 +1469,7 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
 }
 
 void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
-  assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
-  assert(_expected == rax, "expected must be rax");
-  assert((_node->barrier_data() & ShenandoahBitStrong) != 0, "Only strong references for CASes");
-
-  __ bind(*entry());
-
-  Label L_cas_done, L_done;
-  Label L_lrb_slow, L_lrb_done;
-  Label L_keepalive_slow, L_keepalive_done;
-
-  // ---- Mid path
-
-  if (_needs_keep_alive_barrier) {
-    // Do a runtime check for enabled barrier. We only care if another
-    // barrier is also required. Otherwise fast path already checked this.
-    if (_needs_load_ref_barrier) {
-       gc_state_check(&masm, ShenandoahHeap::MARKING, &L_keepalive_done);
-    }
-
-    // Failing CAS does not need KA: no stores happened.
-    Register tst = _cae ? _tmp1 : _result;
-    __ testptr(tst, tst);
-    __ jccb(Assembler::zero, L_keepalive_done);
-
-    // Passing CAS(null, ...): no real oop was overwritten.
-    __ testptr(_tmp2, _tmp2);
-    __ jccb(Assembler::zero, L_keepalive_done);
-
-
-    // Passing CAS has overwritten memory with oldval that we have in stash.
-    // If stashed value is narrow, we need to decode it first. At this point,
-    // we can destroy the stashed value and not pack it up again.
-    if (_narrow) {
-      __ decode_heap_oop_not_null(_tmp2);
-    }
-
-    keepalive_fast(&masm, _tmp2, _tmp1, &L_keepalive_slow, /* short_slow = */ true);
-
-    // Slow-path re-enters here.
-    __ bind(L_keepalive_done);
-  }
-
-  if (_needs_load_ref_barrier) {
-    // Do a runtime check for enabled barrier. We only care if another
-    // barrier is also required. Otherwise fast path already checked this.
-    if (_needs_keep_alive_barrier) {
-      gc_state_check(&masm, ShenandoahHeap::HAS_FORWARDED, &L_cas_done);
-    }
-
-    // We are here for both passing and failing CASes, when there are forwarded
-    // objects. Therefore, this code has to handle two cases.
-    //
-    // For passing CAS, we have to pass the value read from memory through
-    // LRB, like the normal load. For failing CAS, we need to deal with potential
-    // false negatives, when the version in memory might be the from-space version
-    // of the same _expected we currently hold to-space reference for.
-    //
-    // Fortunately, we can resolve both by passing the _expected after the initial
-    // CAS through the LRB with fixup. This will both sanitize _expected we have from
-    // successful CAS, and make sure that the location has only to-space pointers
-    // for the retry.
-
-    // Shortcut: null result for passing CAS means no need for LRB, null failure
-    // witness for failing CAS means not a false negative. If so, we are done.
-    __ testptr(_expected, _expected);
-    __ jccb(Assembler::zero, L_cas_done);
-
-    if (_narrow) {
-      __ decode_heap_oop_not_null(_expected);
-    }
-
-    lrb_fast(&masm, _expected, _tmp1, &L_lrb_slow, /* short_slow = */ false);
-
-    // Slow-path re-enters here.
-    __ bind(L_lrb_done);
-
-    // Passing CAS does not need retry, and we have LRB-ed the _expected.
-    Register tst = _cae ? _tmp1 : _result;
-    __ testptr(tst, tst);
-    __ jccb(Assembler::notZero, L_cas_done);
-
-    // Try to CAS again with the original expected value.
-    // At this point, there can no longer be false negatives.
-    __ movptr(_expected, _tmp2);
-    __ lock();
-    if (_narrow) {
-      __ cmpxchgl(_new_val, _addr);
-    } else {
-      __ cmpxchgptr(_new_val, _addr);
-    }
-    if (!_cae) {
-      assert(_result != noreg, "need result register");
-      __ setcc(Assembler::equal, _result);
-    } else {
-      assert(_result == noreg, "no result expected");
-    }
-
-    __ bind(L_cas_done);
-  }
-
-  // ---- Exit
-  __ bind(L_done);
-  __ jmp(*continuation());
-
-  // ---- Slow paths
-  // KA slow path goes first: this allows the short branches from KA fastpath,
-  // the overwhelmingly major case.
-
-  // CAS result should not be clobbered.
-  if (_cae) {
-    assert(_result == noreg, "no result expected");
-  } else {
-    assert(_result != noreg, "need result register");
-    preserve(_result);
-  }
-
-  if (_needs_keep_alive_barrier) {
-    __ bind(L_keepalive_slow);
-    preserve(_expected);
-    keepalive_slow(&masm, _tmp2);
-    __ jmp(L_keepalive_done);
-  }
-
-  if (_needs_load_ref_barrier) {
-    __ bind(L_lrb_slow);
-    dont_preserve(_expected);
-    lrb_slow(&masm, _expected, _addr, _narrow);
-    __ jmp(L_lrb_done);
-  }
+  ShouldNotReachHere();
 }
 #undef __
 #endif
