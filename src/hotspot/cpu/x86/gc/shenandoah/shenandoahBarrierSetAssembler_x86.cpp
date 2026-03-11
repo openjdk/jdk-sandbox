@@ -1345,7 +1345,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   Label L_lrb_entry, L_lrb_done, L_lrb_slow;
   Label L_keepalive_done, L_keepalive_slow;
-  Label L_done;
+  Label L_done, L_pack_and_done;
 
   // ---- Mid path
 
@@ -1380,6 +1380,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
     keepalive_fast(&masm, _dst, tmp, &L_keepalive_slow, /* short_slow = */ false);
     __ pop(tmp);
     __ bind(L_keepalive_done);
+    __ jmpb(L_pack_and_done);
   }
 
   if (_needs_load_ref_barrier) {
@@ -1390,6 +1391,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
     __ bind(L_lrb_done);
   }
 
+  __ bind(L_pack_and_done);
   // If object is narrow, we need to encode it before exiting.
   if (_narrow) {
     __ encode_heap_oop(_dst);
