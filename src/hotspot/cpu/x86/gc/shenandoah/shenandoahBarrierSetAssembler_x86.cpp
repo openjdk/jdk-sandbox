@@ -1476,35 +1476,63 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ bind(*entry());
 
   Label L_done;
-  Label L_lrb_done, L_lrb_slow;
-  Label L_keepalive_entry, L_keepalive_slow;
-
-  // ---- Initial filters
+  Label L_lrb_entry, L_lrb_slow, L_lrb_done;
+  Label L_keepalive_slow, L_keepalive_done;
 
   // CAS with null failure witness cannot be a false negative,
   // and also does not require KA.
   __ testptr(_expected, _expected);
-  __ jcc(Assembler::equal, L_done);
+  __ jccb(Assembler::equal, L_done);
 
-  // Succeeding CAS just needs KA.
-  Register tst = _cae ? _tmp1 : _result;
-  __ testptr(tst, tst);
-  __ jccb(Assembler::notZero, L_keepalive_entry);
+  // Fast-path checks two exclusive conditions: MARKING xor HAS_FORWARDED.
+  // If we are here, only one of those are true. Therefore, we can figure out which
+  // case we have by checking MARKING only.
+  Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+  __ testb(gc_state, ShenandoahHeap::MARKING);
+  __ jccb(Assembler::zero, L_lrb_entry);
+  // Fall-through to KA
 
-  // Failing CAS from null cannot be a false negative.
-  __ testptr(_tmp2, _tmp2);
-  __ jcc(Assembler::equal, L_done);
-
-  // ---- Mid path: LRB -> retry -> KA
-
-  // CAS has failed because the value held at addr does not match expected.
-  // This may be a false negative because the version in memory might be
-  // the from-space version of the same object we currently hold to-space
-  // reference for. To resolve this, we need to pass the location through
-  // the LRB fixup, this will make sure that the location has only to-space
-  // pointers.
+  // ---- Mid path: KA or LRB+retry
 
   {
+    // Failing CAS does not need KA.
+    Register tst = _cae ? _tmp1 : _result;
+    __ testptr(tst, tst);
+    __ jccb(Assembler::zero, L_keepalive_done);
+
+    // CAS has succeded, so what was in memory is definitely our stashed value.
+    // If stashed value is narrow, we need to decode it first. At this point,
+    // we can destroy it and not pack it up again.
+    if (_narrow) {
+      __ decode_heap_oop_not_null(_tmp2);
+    }
+
+    keepalive_fast(&masm, _tmp2, _tmp1, &L_keepalive_slow, /* short_slow = */ true);
+
+    // Slow-path re-enters here.
+    __ bind(L_keepalive_done);
+    __ jmpb(L_done);
+  }
+
+  {
+    __ bind(L_lrb_entry);
+
+    // Passing CAS does not need retry.
+    Register tst = _cae ? _tmp1 : _result;
+    __ testptr(tst, tst);
+    __ jccb(Assembler::notZero, L_done);
+
+    // CAS has failed because the value held at addr does not match expected.
+    // This may be a false negative because the version in memory might be
+    // the from-space version of the same object we currently hold to-space
+    // reference for. To resolve this, we need to pass the location through
+    // the LRB fixup, this will make sure that the location has only to-space
+    // pointers.
+
+    // Failing CAS from null cannot be a false negative.
+    __ testptr(_tmp2, _tmp2);
+    __ jcc(Assembler::equal, L_done);
+
     // (Compressed) failure witness is in _expected.
     if (_narrow) {
       __ decode_heap_oop_not_null(_expected);
@@ -1514,11 +1542,9 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
 
     // Slow-path re-enters here.
     __ bind(L_lrb_done);
-  }
 
-  // Try to CAS again with the original expected value.
-  // At this point, there can no longer be false negatives.
-  {
+    // Try to CAS again with the original expected value.
+    // At this point, there can no longer be false negatives.
     __ movptr(_expected, _tmp2);
     __ lock();
     if (_narrow) {
@@ -1532,31 +1558,9 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
     } else {
       assert(_result == noreg, "no result expected");
     }
-
-    // If the retry did not succeed skip keep-alive
-    __ jccb(Assembler::notEqual, L_done);
   }
 
-  {
-    __ bind(L_keepalive_entry);
-
-    // We might have entered here for LRB, check if we really need to do KA
-    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ testb(gc_state, ShenandoahHeap::MARKING);
-    __ jccb(Assembler::zero, L_done);
-
-    // CAS has succeded, so what was in memory is definitely our stashed value.
-    // If stashed value is narrow, we need to decode it first. At this point,
-    // we can destroy it and not pack it up again.
-    if (_narrow) {
-      __ decode_heap_oop_not_null(_tmp2);
-    }
-
-    keepalive_fast(&masm, _tmp2, _tmp1, &L_keepalive_slow, /* short_slow = */ true);
-  }
-
-  // ---- Exit 
-
+  // ---- Exit
   __ bind(L_done);
   __ jmp(*continuation());
 
@@ -1574,7 +1578,7 @@ void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
       preserve(_result);
     }
     keepalive_slow(&masm, _tmp2);
-    __ jmp(L_done);
+    __ jmp(L_keepalive_done);
   }
 
   {
