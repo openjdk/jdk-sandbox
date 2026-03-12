@@ -105,7 +105,6 @@ public:
 
   // Support for GC barriers emitted during parsing
   virtual bool expand_barriers(Compile* C, PhaseIterGVN& igvn) const;
-  virtual void final_refinement(Compile* C) const;
 
   // Support for macro expanded GC barriers
   virtual void eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) const;
@@ -129,6 +128,8 @@ public:
 
   void elide_dominated_barrier(MachNode* mach) const;
   void analyze_dominating_barriers() const;
+  void strip_extra_data(const Node* node) const;
+  void strip_extra_data(Node_List& accesses) const;
 
   virtual uint estimated_barrier_size(const Node* node) const;
 

@@ -349,12 +349,9 @@ public:
   // Whether the given store can be used to initialize a newly allocated object.
   virtual bool can_initialize_object(const StoreNode* store) const { return true; }
 
-  virtual void final_refinement(Compile* C) const {};
-
   enum CompilePhase {
     BeforeOptimize,
     BeforeMacroExpand,
-    AfterOptimize,
     BeforeCodeGen
   };
 

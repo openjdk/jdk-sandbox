@@ -271,57 +271,6 @@ void ShenandoahBarrierSetC2::refine_load(Node* n) {
   load->set_barrier_data(barrier_data);
 }
 
-void ShenandoahBarrierSetC2::final_refinement(Compile* C) const {
-  ResourceMark rm;
-  VectorSet visited;
-  Node_List worklist;
-  worklist.push(C->root());
-  while (worklist.size() > 0) {
-    Node* n = worklist.pop();
-    if (visited.test_set(n->_idx)) {
-      continue;
-    }
-
-    // Do another pass to catch new opportunities after post-expansion optimizations.
-    switch(n->Opcode()) {
-      case Op_StoreP:
-      case Op_StoreN: {
-        refine_store(n);
-        break;
-      }
-      case Op_LoadN:
-      case Op_LoadP: {
-        refine_load(n);
-        break;
-      }
-    }
-
-    // If there are no real barrier flags on the node, strip away additional fluff.
-    // Matcher does not care about this, and we would like to avoid invoking "barrier_data() != 0"
-    // rules when the only flags are the irrelevant fluff.
-    if (n->is_LoadStore()) {
-      LoadStoreNode* load_store = n->as_LoadStore();
-      uint8_t barrier_data = load_store->barrier_data();
-      if ((barrier_data & ShenandoahBitsReal) == 0) {
-        load_store->set_barrier_data(0);
-      }
-    } else if (n->is_Mem()) {
-      MemNode* mem = n->as_Mem();
-      uint8_t barrier_data = mem->barrier_data();
-      if ((barrier_data & ShenandoahBitsReal) == 0) {
-        mem->set_barrier_data(0);
-      }
-    }
-
-    for (uint j = 0; j < n->req(); j++) {
-      Node* in = n->in(j);
-      if (in != nullptr) {
-        worklist.push(in);
-      }
-    }
-  }
-}
-
 bool ShenandoahBarrierSetC2::expand_barriers(Compile* C, PhaseIterGVN& igvn) const {
   ResourceMark rm;
   VectorSet visited;
@@ -366,6 +315,31 @@ void ShenandoahBarrierSetC2::eliminate_gc_barrier_data(Node* node) const {
   }
 }
 
+// If there are no real barrier flags on the node, strip away additional fluff.
+// Matcher does not care about this, and we would like to avoid invoking "barrier_data() != 0"
+// rules when the only flags are the irrelevant fluff.
+void ShenandoahBarrierSetC2::strip_extra_data(const Node* n) const {
+  if (n->is_LoadStore()) {
+    LoadStoreNode* load_store = n->as_LoadStore();
+    uint8_t barrier_data = load_store->barrier_data();
+    if ((barrier_data & ShenandoahBitsReal) == 0) {
+      load_store->set_barrier_data(0);
+    }
+  } else if (n->is_Mem()) {
+    MemNode* mem = n->as_Mem();
+    uint8_t barrier_data = mem->barrier_data();
+    if ((barrier_data & ShenandoahBitsReal) == 0) {
+      mem->set_barrier_data(0);
+    }
+  }
+}
+
+void ShenandoahBarrierSetC2::strip_extra_data(Node_List& accesses) const {
+  for (uint c = 0; c < accesses.size(); c++) {
+    strip_extra_data(accesses.at(c));
+  }
+}
+
 void ShenandoahBarrierSetC2::eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) const {
   eliminate_gc_barrier_data(node);
 }
@@ -379,7 +353,7 @@ void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
   Compile* const C = Compile::current();
   PhaseCFG* const cfg = C->cfg();
 
-  Node_List loads, stores, atomics;
+  Node_List all_loads, loads, stores, atomics;
   Node_List load_dominators, store_dominators, atomic_dominators;
 
   for (uint i = 0; i < cfg->number_of_blocks(); ++i) {
@@ -408,6 +382,9 @@ void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
         // to deal with dying referents.
         case Op_LoadP:
         case Op_LoadN: {
+          if (mach->barrier_data() != 0) {
+            all_loads.push(mach);
+          }
           if ((mach->barrier_data() & ShenandoahBitStrong) != 0) {
             loads.push(mach);
             load_dominators.push(mach);
@@ -457,6 +434,12 @@ void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
   elide_dominated_barriers(loads, load_dominators);
   elide_dominated_barriers(stores, store_dominators);
   elide_dominated_barriers(atomics, atomic_dominators);
+
+  // Also clean up extra metadata on these nodes. Dominance analysis likely left
+  // many non-elided barriers with extra metadata, which can be stripped away.
+  strip_extra_data(all_loads);
+  strip_extra_data(stores);
+  strip_extra_data(atomics);
 }
 
 uint ShenandoahBarrierSetC2::estimated_barrier_size(const Node* node) const {
@@ -678,7 +661,7 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
     return;
   }
 
-  // Final refinement might have removed the remaining auxiliary flags, making some accesses completely blank.
+  // Optimizations might have removed the remaining auxiliary flags, making some accesses completely blank.
   bool accept_blank = (phase == BeforeCodeGen);
   bool expect_load_barriers       = !accept_blank && ShenandoahLoadRefBarrier;
   bool expect_store_barriers      = !accept_blank && (ShenandoahSATBBarrier || ShenandoahCardBarrier);
