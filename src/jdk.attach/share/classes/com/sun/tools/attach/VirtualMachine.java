@@ -210,14 +210,54 @@ public abstract class VirtualMachine {
     /**
      * Attach to a Java virtual machine.
      *
-     * Takes an optional Map of parameters.
+     * This method accepts a Map of named parameters and values.
      *
-     * @param  id
-     *         The abstract identifier that identifies the Java virtual machine.
+     * @param   id
+     *          The abstract identifier that identifies the Java virtual machine.
      *
-     * @param env
-     *         a map of provider specific properties to configure attach,
-     *         may be null or empty
+     * @param   env
+     *          A map of provider specific properties to configure attach, may be null or empty.
+     *
+     * @return  A VirtualMachine representing the target VM.
+     *
+     * @implNote The Oracle JDK ships with an attach provider which recognises the {@code id} as a
+     * live process ID, or the filename of a core file (on Linux) or MiniDump (Windows).
+     * When reading a core or MiniDump, the following settings are read from the Map:
+     *
+     * <table class="striped">
+     * <caption style="display:none">
+     *     Configurable properties that may be recongised by attach provider.
+     * </caption>
+	 * <thead>
+	 *   <tr>
+	 *     <th scope="col">Property Name</th>
+	 *     <th scope="col">Data Type</th>
+     *     <th scope="col">Default Value</th>
+     *     <th scope="col">Description</th>
+     *   </tr>
+     * </thead>
+     *
+     * <tbody>
+     * <tr>
+     *   <th scope="row">libDirs</th>
+     *   <td>{@link java.lang.String}</td>
+     *   <td>null/unset</td>
+     *   <td>Directory path of where to search for shared libraries when initially reading a core file.
+     *       This may be a list of multiple directories, separated by File.pathSeparator.
+     *       Required when files are transported between machines, or libraries at locations in the dump
+     *       have changed.
+     *   </td>
+     * </tr>
+     * <tr>
+     *   <th scope="row">revivalCachePath</th>
+     *   <td>{@link java.lang.String}</td>
+     *   <td>null/unset</td>
+     *   <td>Directory path of where a cache directory may be created, when initially opening core.
+     *       Used when core file is in a location without write access.
+     *   </td>
+     * </tr>
+     * </tbody>
+     * </table>
      *
      * @since 27
      */
