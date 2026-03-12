@@ -404,7 +404,7 @@ public class CheckAttributedTree {
                         that.hasTag(CLASSDEF);
             }
 
-            private final List<String> excludedFields = Arrays.asList("varargsElement", "targetType");
+            private final List<String> excludedFields = Arrays.asList("varargsElement", "targetType", "factoryProduct");
 
             void check(boolean ok, String label, Info self) {
                 if (!ok) {

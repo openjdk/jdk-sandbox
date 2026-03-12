@@ -43,6 +43,7 @@ public class ModuleOption {
         //      JDK 22.0.1: "java 22.0.1"
         final String versionPattern = "java.[0-9][0-9].*";
         final String subgraphCannotBeUsed = "subgraph jdk.internal.module.ArchivedBootLayer cannot be used because full module graph is disabled";
+        final String noOptimizedModuleHandling = "optimized module handling: disabled because archive was created without optimized module handling";
         String archiveName = TestCommon.getNewArchiveName("module-option");
         TestCommon.setCurrentArchiveName(archiveName);
 
@@ -61,8 +62,10 @@ public class ModuleOption {
             "-version");
         oa.shouldHaveExitValue(0)
           // version of the jdk.httpserver module, e.g. java 22-ea
-          .shouldMatch(versionPattern)
-          .shouldMatch("aot,module.*Restored from archive: entry.0x.*name jdk.httpserver");
+          .shouldMatch(versionPattern);
+        if (!oa.contains(noOptimizedModuleHandling)) {
+            oa.shouldMatch("aot,module.*Restored from archive: entry.0x.*name jdk.httpserver");
+        }
 
         // different module specified during runtime
         oa = TestCommon.execCommon(
@@ -70,16 +73,20 @@ public class ModuleOption {
             "-m", "jdk.compiler/com.sun.tools.javac.Main",
             "-version");
         oa.shouldHaveExitValue(0)
-          .shouldContain("Mismatched values for property jdk.module.main: runtime jdk.compiler dump time jdk.httpserver")
-          .shouldContain(subgraphCannotBeUsed);
+          .shouldContain("Mismatched values for property jdk.module.main: runtime jdk.compiler dump time jdk.httpserver");
+        if (!oa.contains(noOptimizedModuleHandling)) {
+            oa.shouldContain(subgraphCannotBeUsed);
+        }
 
         // no module specified during runtime
         oa = TestCommon.execCommon(
             loggingOption,
             "-version");
         oa.shouldHaveExitValue(0)
-          .shouldContain("Mismatched values for property jdk.module.main: jdk.httpserver specified during dump time but not during runtime")
-          .shouldContain(subgraphCannotBeUsed);
+          .shouldContain("Mismatched values for property jdk.module.main: jdk.httpserver specified during dump time but not during runtime");
+        if (!oa.contains(noOptimizedModuleHandling)) {
+            oa.shouldContain(subgraphCannotBeUsed);
+        }
 
         // dump an archive without the module option
         archiveName = TestCommon.getNewArchiveName("no-module-option");
@@ -98,8 +105,10 @@ public class ModuleOption {
         oa.shouldHaveExitValue(0)
           .shouldContain("Mismatched values for property jdk.module.main: jdk.httpserver specified during runtime but not during dump time")
           // version of the jdk.httpserver module, e.g. java 22-ea
-          .shouldMatch(versionPattern)
-          .shouldContain(subgraphCannotBeUsed);
+          .shouldMatch(versionPattern);
+        if (!oa.contains(noOptimizedModuleHandling)) {
+            oa.shouldContain(subgraphCannotBeUsed);
+        }
 
         // dump an archive with an incubator module, -m jdk.incubator.vector
         archiveName = TestCommon.getNewArchiveName("incubator-module");

@@ -52,7 +52,7 @@ import java.util.Set;
  * PROTECTED    step
  * STATIC       step
  * FINAL        two-step
- * SUPER        invariant
+ * SUPER        step
  * OPEN         step
  * TRANSITIVE   step
  * SYNCHRONIZED invariant
@@ -90,7 +90,7 @@ public class VersionedLocationsTest {
      */
     private static void testInvariantAccessFlags() {
         Set<AccessFlag> invariantAccessFlags =
-            Set.of(SUPER, SYNCHRONIZED, VOLATILE, TRANSIENT, NATIVE);
+            Set.of(SYNCHRONIZED, VOLATILE, TRANSIENT, NATIVE);
         for(var accessFlag : invariantAccessFlags) {
             Set<AccessFlag.Location> expected = accessFlag.locations();
 
@@ -117,6 +117,18 @@ public class VersionedLocationsTest {
             new StepFunctionTC(STATIC,
                                removeInnerClass(STATIC.locations()),
                                ClassFileFormatVersion.RELEASE_1),
+
+            new StepFunctionTC(SUPER,
+                               Set.of(AccessFlag.Location.CLASS),
+                               ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES),
+
+            new StepFunctionTC(IDENTITY,
+                               Set.of(),
+                               ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES),
+
+            new StepFunctionTC(STRICT_INIT,
+                               Set.of(),
+                               ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES),
 
             new StepFunctionTC(OPEN,
                                Set.of(),
@@ -191,7 +203,7 @@ public class VersionedLocationsTest {
                                   ClassFileFormatVersion transition) {
 
         public Set<AccessFlag.Location> finalLocs() {
-            return accessFlag.locations();
+            return accessFlag.locations(ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES);
         }
     }
 
@@ -294,7 +306,7 @@ public class VersionedLocationsTest {
             for (var location : AccessFlag.Location.values()) {
                 if (location.flags().contains(flag) != flag.locations().contains(location)) {
                     throw new RuntimeException(String.format("AccessFlag and Location inconsistency:" +
-                            "flag %s and location %s are inconsistent for the latest version"));
+                            "flag %s and location %s are inconsistent for the latest version", flag, location));
                 }
             }
         }
@@ -303,7 +315,7 @@ public class VersionedLocationsTest {
                 for (var location : AccessFlag.Location.values()) {
                     if (location.flags(cffv).contains(flag) != flag.locations(cffv).contains(location)) {
                         throw new RuntimeException(String.format("AccessFlag and Location inconsistency:" +
-                                "flag %s and location %s are inconsistent for class file version %s"));
+                                "flag %s and location %s are inconsistent for class file version %s", flag, location, cffv));
                     }
                 }
             }

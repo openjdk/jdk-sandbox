@@ -63,6 +63,26 @@ inline InstanceKlass* volatile* InstanceKlass::adr_implementor() const {
   }
 }
 
+inline address InstanceKlass::end_of_instance_klass() const {
+  return (address)end_of_nonstatic_oop_maps() +
+      (is_interface() ? sizeof(InstanceKlass*) : 0);
+}
+
+inline InlineKlass* InstanceKlass::get_inline_type_field_klass(int idx) const {
+  assert(has_inlined_fields(), "Sanity checking");
+  assert(idx < java_fields_count(), "IOOB");
+  InlineKlass* k = inline_layout_info(idx).klass();
+  assert(k != nullptr, "Should always be set before being read");
+  return k;
+}
+
+inline InlineKlass* InstanceKlass::get_inline_type_field_klass_or_null(int idx) const {
+  assert(has_inlined_fields(), "Sanity checking");
+  assert(idx < java_fields_count(), "IOOB");
+  InlineKlass* k = inline_layout_info(idx).klass();
+  return k;
+}
+
 inline ObjArrayKlass* InstanceKlass::array_klasses_acquire() const {
   return AtomicAccess::load_acquire(&_array_klasses);
 }

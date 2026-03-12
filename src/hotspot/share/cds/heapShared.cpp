@@ -63,6 +63,7 @@
 #include "oops/fieldStreams.inline.hpp"
 #include "oops/objArrayOop.inline.hpp"
 #include "oops/oop.inline.hpp"
+#include "oops/oopCast.inline.hpp"
 #include "oops/oopHandle.inline.hpp"
 #include "oops/typeArrayOop.inline.hpp"
 #include "prims/jvmtiExport.hpp"
@@ -596,8 +597,9 @@ void HeapShared::add_scratch_resolved_references(ConstantPool* src, objArrayOop 
   }
 }
 
-objArrayOop HeapShared::scratch_resolved_references(ConstantPool* src) {
-  return (objArrayOop)_scratch_objects_table->get_oop(src);
+refArrayOop HeapShared::scratch_resolved_references(ConstantPool* src) {
+  oop rr = _scratch_objects_table->get_oop(src);
+  return rr == nullptr ? nullptr : oop_cast<refArrayOop>(rr);
 }
 
  void HeapShared::init_dumping() {
@@ -786,12 +788,32 @@ void HeapShared::copy_java_mirror(oop orig_mirror, oop scratch_m) {
       narrowKlass nk = CompressedKlassPointers::encode(orig_mirror->klass());
       scratch_m->set_mark(markWord::prototype().set_narrow_klass(nk).copy_set_hash(src_hash));
     } else {
+      // For valhalla, the prototype header is the same as markWord::prototype();
       scratch_m->set_mark(markWord::prototype().copy_set_hash(src_hash));
     }
     assert(scratch_m->mark().is_unlocked(), "sanity");
 
     DEBUG_ONLY(intptr_t archived_hash = scratch_m->identity_hash());
     assert(src_hash == archived_hash, "Different hash codes: original " INTPTR_FORMAT ", archived " INTPTR_FORMAT, src_hash, archived_hash);
+  }
+
+  Klass* k = java_lang_Class::as_Klass(orig_mirror);
+  if (k != nullptr && k->is_instance_klass()) {
+    InstanceKlass* ik = InstanceKlass::cast(k);
+
+    if (ik->is_inline_klass() && ik->is_initialized()) {
+      // Only concrete value classes need the null_reset field
+      InlineKlass* ilk = InlineKlass::cast(k);
+      if (ilk->supports_nullable_layouts()) {
+        scratch_m->obj_field_put(ilk->null_reset_value_offset(), ilk->null_reset_value());
+      }
+    }
+
+    if (ik->has_acmp_maps_offset()) {
+      int maps_offset = ik->acmp_maps_offset();
+      oop maps = orig_mirror->obj_field(maps_offset);
+      scratch_m->obj_field_put(maps_offset, maps);
+    }
   }
 
   if (CDSConfig::is_dumping_aot_linked_classes()) {
@@ -1008,6 +1030,9 @@ void KlassSubGraphInfo::add_subgraph_object_klass(Klass* orig_k) {
       // Initialized early during Universe::genesis. No need to be added
       // to the list.
       return;
+    }
+    if (orig_k->is_flatArray_klass()) {
+      _subgraph_object_klasses->append_if_missing(FlatArrayKlass::cast(orig_k)->element_klass());
     }
   } else {
     assert(orig_k->is_typeArray_klass(), "must be");
@@ -1441,11 +1466,24 @@ HeapShared::resolve_or_init_classes_for_subgraph_of(Klass* k, bool do_init, TRAP
       log_info(aot, heap)("%s subgraph %s ", do_init ? "init" : "resolve", k->external_name());
     }
 
+    Array<Klass*>* klasses = record->subgraph_object_klasses();
+
+    if (do_init && klasses != nullptr) {
+      // All the classes of the oops in this subgraph are in the klasses array.
+      // Link them first in case any of the oops are used in the <clinit> methods
+      // invoked in the rest of this function.
+      for (int i = 0; i < klasses->length(); i++) {
+        Klass* klass = klasses->at(i);
+        if (klass->in_aot_cache() && klass->is_instance_klass()) {
+          InstanceKlass::cast(klass)->link_class(CHECK_NULL);
+        }
+      }
+    }
+
     resolve_or_init(k, do_init, CHECK_NULL);
 
     // Load/link/initialize the klasses of the objects in the subgraph.
     // nullptr class loader is used.
-    Array<Klass*>* klasses = record->subgraph_object_klasses();
     if (klasses != nullptr) {
       for (int i = 0; i < klasses->length(); i++) {
         Klass* klass = klasses->at(i);
@@ -1477,7 +1515,11 @@ void HeapShared::resolve_or_init(Klass* k, bool do_init, TRAPS) {
   if (!do_init) {
     if (k->class_loader_data() == nullptr) {
       Klass* resolved_k = SystemDictionary::resolve_or_null(k->name(), CHECK);
-      assert(resolved_k == k, "classes used by archived heap must not be replaced by JVMTI ClassFileLoadHook");
+      if (resolved_k->is_array_klass()) {
+        assert(resolved_k == k || resolved_k == k->super(), "classes used by archived heap must not be replaced by JVMTI ClassFileLoadHook");
+      } else {
+        assert(resolved_k == k, "classes used by archived heap must not be replaced by JVMTI ClassFileLoadHook");
+      }
     }
   } else {
     assert(k->class_loader_data() != nullptr, "must have been resolved by HeapShared::resolve_classes");
@@ -1939,7 +1981,8 @@ void HeapShared::check_special_subgraph_classes() {
     for (int i = 0; i < num; i++) {
       Klass* subgraph_k = klasses->at(i);
       Symbol* name = subgraph_k->name();
-      if (subgraph_k->is_instance_klass() &&
+
+      if (subgraph_k->is_identity_class() &&
           name != vmSymbols::java_lang_Class() &&
           name != vmSymbols::java_lang_String() &&
           name != vmSymbols::java_lang_ArithmeticException() &&
@@ -2231,6 +2274,7 @@ void HeapShared::archive_object_subgraphs(ArchivableStaticFieldInfo fields[],
   for (int i = 0; fields[i].valid(); ) {
     ArchivableStaticFieldInfo* info = &fields[i];
     const char* klass_name = info->klass_name;
+
     start_recording_subgraph(info->klass, klass_name, is_full_module_graph);
 
     // If you have specified consecutive fields of the same klass in

@@ -199,6 +199,9 @@ public class ReflectionFactory {
         if (!Externalizable.class.isAssignableFrom(cl)) {
             return null;
         }
+        if (cl.isValue()) {
+            throw new UnsupportedOperationException("newConstructorForExternalization does not support value classes");
+        }
         try {
             Constructor<?> cons = cl.getConstructor();
             cons.setAccessible(true);
@@ -214,6 +217,9 @@ public class ReflectionFactory {
         if (constructorToCall.getDeclaringClass() == cl) {
             constructorToCall.setAccessible(true);
             return constructorToCall;
+        }
+        if (cl.isValue()) {
+            throw new UnsupportedOperationException("newConstructorForSerialization does not support value classes");
         }
         return generateConstructor(cl, constructorToCall);
     }
@@ -274,6 +280,10 @@ public class ReflectionFactory {
      * @return the generated constructor, or null if none is available
      */
     public final Constructor<?> newConstructorForSerialization(Class<?> cl) {
+        if (cl.isValue()) {
+            throw new UnsupportedOperationException("newConstructorForSerialization does not support value classes: " + cl);
+        }
+
         Class<?> initCl = cl;
         while (Serializable.class.isAssignableFrom(initCl)) {
             Class<?> prev = initCl;
@@ -514,13 +524,12 @@ public class ReflectionFactory {
     }
 
     public final Set<AccessFlag> parseAccessFlags(int mask, AccessFlag.Location location, Class<?> classFile) {
-        var cffv = classFileFormatVersion(classFile);
-        return cffv == null ?
-                AccessFlag.maskToAccessFlags(mask, location) :
-                AccessFlag.maskToAccessFlags(mask, location, cffv);
+        return AccessFlag.maskToAccessFlags(mask, location, classFileFormatVersion(classFile));
     }
 
-    private final ClassFileFormatVersion classFileFormatVersion(Class<?> cl) {
+    public final ClassFileFormatVersion classFileFormatVersion(Class<?> cl) {
+        if (cl.isArray() || cl.isPrimitive())
+            return ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES;
         int raw = SharedSecrets.getJavaLangAccess().classFileVersion(cl);
 
         int major = raw & 0xFFFF;
@@ -531,7 +540,7 @@ public class ReflectionFactory {
         if (major >= ClassFile.JAVA_12_VERSION) {
             if (minor == 0)
                 return ClassFileFormatVersion.fromMajor(raw);
-            return null; // preview or old preview, fallback to default handling
+            return ClassFileFormatVersion.CURRENT_PREVIEW_FEATURES;
         } else if (major == ClassFile.JAVA_1_VERSION) {
             return minor < 3 ? ClassFileFormatVersion.RELEASE_0 : ClassFileFormatVersion.RELEASE_1;
         }

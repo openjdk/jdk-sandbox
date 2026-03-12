@@ -61,10 +61,12 @@ import com.sun.tools.javac.file.PathFileObject;
 import com.sun.tools.javac.jvm.ClassFile.Version;
 import com.sun.tools.javac.jvm.PoolConstant.NameAndType;
 import com.sun.tools.javac.main.Option;
+import com.sun.tools.javac.resources.CompilerProperties;
 import com.sun.tools.javac.resources.CompilerProperties.Errors;
 import com.sun.tools.javac.resources.CompilerProperties.Fragments;
 import com.sun.tools.javac.resources.CompilerProperties.LintWarnings;
 import com.sun.tools.javac.resources.CompilerProperties.Warnings;
+import com.sun.tools.javac.tree.JCTree;
 import com.sun.tools.javac.util.*;
 import com.sun.tools.javac.util.ByteBuffer.UnderflowException;
 import com.sun.tools.javac.util.DefinedBy.Api;
@@ -76,6 +78,7 @@ import static com.sun.tools.javac.code.Kinds.Kind.*;
 
 import com.sun.tools.javac.code.Scope.LookupKind;
 
+import static com.sun.tools.javac.code.Scope.LookupKind.NON_RECURSIVE;
 import static com.sun.tools.javac.code.TypeTag.ARRAY;
 import static com.sun.tools.javac.code.TypeTag.CLASS;
 import static com.sun.tools.javac.code.TypeTag.TYPEVAR;
@@ -110,6 +113,10 @@ public class ClassReader {
     /** Switch: allow modules.
      */
     boolean allowModules;
+
+    /** Switch: allow value classes.
+     */
+    boolean allowValueClasses;
 
     /** Switch: allow sealed
      */
@@ -290,6 +297,8 @@ public class ClassReader {
         Source source = Source.instance(context);
         preview = Preview.instance(context);
         allowModules     = Feature.MODULES.allowedInSource(source);
+        allowValueClasses = (!preview.isPreview(Feature.VALUE_CLASSES) || preview.isEnabled()) &&
+                Feature.VALUE_CLASSES.allowedInSource(source);
         allowRecords = Feature.RECORDS.allowedInSource(source);
         allowSealedTypes = Feature.SEALED_CLASSES.allowedInSource(source);
         warnOnIllegalUtf8 = Feature.WARN_ON_ILLEGAL_UTF8.allowedInSource(source);
@@ -582,9 +591,11 @@ public class ClassReader {
                                                          sbp - startSbp));
 
                 try {
-                    return (outer == Type.noType) ?
-                            t.erasure(types) :
-                        new ClassType(outer, List.nil(), t);
+                    if (outer == Type.noType) {
+                        ClassType et = (ClassType) t.erasure(types);
+                        return new ClassType(et.getEnclosingType(), List.nil(), et.tsym, et.getMetadata());
+                    }
+                    return new ClassType(outer, List.nil(), t, List.nil());
                 } finally {
                     sbp = startSbp;
                 }
@@ -606,7 +617,7 @@ public class ClassReader {
                  * could change in the future
                  */
                 final List<Type> actualsCp = actuals;
-                outer = new ClassType(outer, actuals, t) {
+                outer = new ClassType(outer, actuals, t, List.nil()) {
                         boolean completed = false;
                         boolean typeArgsSet = false;
                         @Override @DefinedBy(Api.LANGUAGE_MODEL)
@@ -690,7 +701,7 @@ public class ClassReader {
                     t = enterClass(readName(signatureBuffer,
                                                  startSbp,
                                                  sbp - startSbp));
-                    outer = new ClassType(outer, List.nil(), t);
+                    outer = new ClassType(outer, List.nil(), t, List.nil());
                 }
                 signatureBuffer[sbp++] = (byte)'$';
                 continue;
@@ -1566,7 +1577,7 @@ public class ClassReader {
                     setFlagIfAttributeTrue(proxy, sym, names.reflective, PREVIEW_REFLECTIVE);
                 }  else if (proxy.type.tsym == syms.valueBasedType.tsym && sym.kind == TYP) {
                     sym.flags_field |= VALUE_BASED;
-                }  else if (proxy.type.tsym == syms.restrictedType.tsym) {
+                } else if (proxy.type.tsym == syms.restrictedType.tsym) {
                     Assert.check(sym.kind == MTH);
                     sym.flags_field |= RESTRICTED;
                 }  else if (proxy.type.tsym == syms.requiresIdentityType.tsym) {
@@ -3074,7 +3085,7 @@ public class ClassReader {
 
         // read flags, or skip if this is an inner class
         long f = nextChar();
-        long flags = adjustClassFlags(f);
+        long flags = adjustClassFlags(c, f);
         if ((flags & MODULE) == 0) {
             if (c.owner.kind == PCK || c.owner.kind == ERR) c.flags_field = flags;
             // read own class name and check that it matches
@@ -3166,7 +3177,7 @@ public class ClassReader {
             ClassSymbol outer = optPoolEntry(outerIdx, poolReader::getClass, null);
             Name name = optPoolEntry(nameIdx, poolReader::getName, names.empty);
             if (name == null) name = names.empty;
-            long flags = adjustClassFlags(nextChar());
+            long flags = adjustClassFlags(c, nextChar());
             if (outer != null) { // we have a member class
                 if (name == names.empty)
                     name = names.one;
@@ -3312,6 +3323,11 @@ public class ClassReader {
  ***********************************************************************/
 
     long adjustFieldFlags(long flags) {
+        boolean previewClassFile = minorVersion == ClassFile.PREVIEW_MINOR_VERSION;
+        if (allowValueClasses && previewClassFile && (flags & ACC_STRICT) != 0) {
+            flags &= ~ACC_STRICT;
+            flags |= STRICT;
+        }
         return flags;
     }
 
@@ -3327,12 +3343,35 @@ public class ClassReader {
         return flags;
     }
 
-    long adjustClassFlags(long flags) {
+    long adjustClassFlags(ClassSymbol c, long flags) {
         if ((flags & ACC_MODULE) != 0) {
             flags &= ~ACC_MODULE;
             flags |= MODULE;
         }
-        return flags & ~ACC_SUPER; // SUPER and SYNCHRONIZED bits overloaded
+        if (((flags & ACC_IDENTITY) != 0 && !isMigratedValueClass(flags))
+                || (majorVersion <= Version.MAX().major && minorVersion != PREVIEW_MINOR_VERSION && (flags & INTERFACE) == 0)) {
+            flags |= IDENTITY_TYPE;
+        } else if (needsValueFlag(c, flags)) {
+            flags |= VALUE_CLASS;
+            flags &= ~IDENTITY_TYPE;
+        }
+        flags &= ~ACC_IDENTITY; // ACC_IDENTITY and SYNCHRONIZED bits overloaded
+        return flags;
+    }
+
+    private boolean needsValueFlag(Symbol c, long flags) {
+        boolean previewClassFile = minorVersion == ClassFile.PREVIEW_MINOR_VERSION;
+        if (allowValueClasses) {
+            if (previewClassFile && majorVersion >= V67.major && (flags & INTERFACE) == 0 ||
+                    majorVersion >= V67.major && isMigratedValueClass(flags)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isMigratedValueClass(long flags) {
+        return allowValueClasses && ((flags & MIGRATED_VALUE_CLASS) != 0);
     }
 
     /**

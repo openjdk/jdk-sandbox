@@ -208,10 +208,12 @@ static bool compute_top_frame(const JfrSampleRequest& request, frame& top_frame,
           // We also do not have to worry about stackbanging because we currently have a huge SafepointBlob stub frame
           // on the stack. For extra assurance, we know that we can create this frame size at this
           // very location because we just popped such a frame before we hit the return poll site.
+          // For frames that need stack repair we skip this trick. This is because the stack walking code reads
+          // the frame size from the stack, but the memory has already been overwritten by the SafepointBlob.
           //
           // Let's attempt to correct for the safepoint bias.
           const PcDesc* const pc_desc = get_pc_desc(sampled_nm, sampled_pc);
-          if (is_valid(pc_desc)) {
+          if (is_valid(pc_desc) && !sampled_nm->needs_stack_repair()) {
             intptr_t* const synthetic_sp = sender_sp - sampled_nm->frame_size();
             intptr_t* const synthetic_fp = sender_sp AARCH64_ONLY( - frame::sender_sp_offset);
             top_frame = frame(synthetic_sp, synthetic_sp, synthetic_fp, pc_desc->real_pc(sampled_nm), sampled_nm);

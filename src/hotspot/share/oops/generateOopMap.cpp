@@ -138,8 +138,9 @@ class ComputeCallStack : public SignatureIterator {
     _idx    = 0;
     _effect = effect;
 
-    if (!is_static)
+    if (!is_static) {
       effect[_idx++] = CellTypeState::ref;
+    }
 
     do_parameters_on(this);
 
@@ -1596,11 +1597,11 @@ void GenerateOopMap::interp1(BytecodeStream *itr) {
     case Bytecodes::_getfield:          do_field(true,   false, itr->get_index_u2(), itr->bci(), itr->code()); break;
     case Bytecodes::_putfield:          do_field(false,  false, itr->get_index_u2(), itr->bci(), itr->code()); break;
 
+    case Bytecodes::_invokeinterface:
     case Bytecodes::_invokevirtual:
-    case Bytecodes::_invokespecial:     do_method(false, false, itr->get_index_u2(), itr->bci(), itr->code()); break;
-    case Bytecodes::_invokestatic:      do_method(true,  false, itr->get_index_u2(), itr->bci(), itr->code()); break;
-    case Bytecodes::_invokedynamic:     do_method(true,  false, itr->get_index_u4(), itr->bci(), itr->code()); break;
-    case Bytecodes::_invokeinterface:   do_method(false, true,  itr->get_index_u2(), itr->bci(), itr->code()); break;
+    case Bytecodes::_invokespecial:     do_method(false, itr->get_index_u2(), itr->bci(), itr->code()); break;
+    case Bytecodes::_invokestatic:      do_method(true , itr->get_index_u2(), itr->bci(), itr->code()); break;
+    case Bytecodes::_invokedynamic:     do_method(true , itr->get_index_u4(), itr->bci(), itr->code()); break;
     case Bytecodes::_newarray:
     case Bytecodes::_anewarray:         pp_new_ref(vCTS, itr->bci()); break;
     case Bytecodes::_checkcast:         do_checkcast(); break;
@@ -1620,6 +1621,7 @@ void GenerateOopMap::interp1(BytecodeStream *itr) {
     case Bytecodes::_areturn:           do_return_monitor_check();
                                         ppop1(refCTS);
                                         break;
+
     case Bytecodes::_ifnull:
     case Bytecodes::_ifnonnull:         ppop1(refCTS); break;
     case Bytecodes::_multianewarray:    do_multianewarray(*(itr->bcp()+3), itr->bci()); break;
@@ -1945,13 +1947,15 @@ void GenerateOopMap::do_field(int is_get, int is_static, int idx, int bci, Bytec
     out = epsilonCTS;
     i   = copy_cts(in, eff);
   }
-  if (!is_static) in[i++] = CellTypeState::ref;
+  if (!is_static) {
+    in[i++] = CellTypeState::ref;
+  }
   in[i] = CellTypeState::bottom;
   assert(i<=3, "sanity check");
   pp(in, out);
 }
 
-void GenerateOopMap::do_method(int is_static, int is_interface, int idx, int bci, Bytecodes::Code bc) {
+void GenerateOopMap::do_method(int is_static, int idx, int bci, Bytecodes::Code bc) {
  // Dig up signature for field in constant pool
   ConstantPool* cp  = _method->constants();
   Symbol* signature   = cp->signature_ref_at(idx, bc);

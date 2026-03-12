@@ -3081,8 +3081,18 @@ address StubGenerator::generate_generic_copy(address byte_copy_entry, address sh
   __ cmpq(r10_src_klass, rax);
   __ jcc(Assembler::notEqual, L_failed);
 
+  // Check for flat inline type array -> return -1
+  __ test_flat_array_oop(src, rax, L_failed);
+
+  // Check for null-free (non-flat) inline type array -> handle as object array
+  __ test_null_free_array_oop(src, rax, L_objArray);
+
   const Register rax_lh = rax;  // layout helper
   __ movl(rax_lh, Address(r10_src_klass, lh_offset));
+
+  // Check for flat inline type array -> return -1
+  __ testl(rax_lh, Klass::_lh_array_tag_flat_value_bit_inplace);
+  __ jcc(Assembler::notZero, L_failed);
 
   //  if (!src->is_Array()) return -1;
   __ cmpl(rax_lh, Klass::_lh_neutral_value);
@@ -3093,8 +3103,10 @@ address StubGenerator::generate_generic_copy(address byte_copy_entry, address sh
   {
     BLOCK_COMMENT("assert primitive array {");
     Label L;
-    __ cmpl(rax_lh, (Klass::_lh_array_tag_type_value << Klass::_lh_array_tag_shift));
-    __ jcc(Assembler::greaterEqual, L);
+    __ movl(rklass_tmp, rax_lh);
+    __ sarl(rklass_tmp, Klass::_lh_array_tag_shift);
+    __ cmpl(rklass_tmp, Klass::_lh_array_tag_type_value);
+    __ jcc(Assembler::equal, L);
     __ stop("must be a primitive array");
     __ bind(L);
     BLOCK_COMMENT("} assert primitive array done");
@@ -3202,8 +3214,20 @@ __ BIND(L_checkcast_copy);
   // live at this point:  r10_src_klass, r11_length, rax (dst_klass)
   {
     // Before looking at dst.length, make sure dst is also an objArray.
+    // This check also fails for flat arrays which are not supported.
     __ cmpl(Address(rax, lh_offset), objArray_lh);
     __ jcc(Assembler::notEqual, L_failed);
+
+#ifdef ASSERT
+    {
+      BLOCK_COMMENT("assert not null-free array {");
+      Label L;
+      __ test_non_null_free_array_oop(dst, rklass_tmp, L);
+      __ stop("unexpected null-free array");
+      __ bind(L);
+      BLOCK_COMMENT("} assert not null-free array");
+    }
+#endif
 
     // It is safe to examine both src.length and dst.length.
     arraycopy_range_checks(src, src_pos, dst, dst_pos, r11_length,

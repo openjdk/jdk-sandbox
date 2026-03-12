@@ -1182,10 +1182,11 @@ void CodeInstaller::record_scope(jint pc_offset, HotSpotCompiledCodeStream* stre
       }
 
       // has_ea_local_in_scope and arg_escape should be added to JVMCI
+      const bool return_scalarized     = false;
       const bool has_ea_local_in_scope = false;
       const bool arg_escape            = false;
       _debug_recorder->describe_scope(pc_offset, method, nullptr, bci, reexecute, rethrow_exception, return_oop,
-                                      has_ea_local_in_scope, arg_escape,
+                                      return_scalarized, has_ea_local_in_scope, arg_escape,
                                       locals_token, stack_token, monitors_token);
     }
   }
@@ -1323,6 +1324,8 @@ void CodeInstaller::site_Mark(CodeBuffer& buffer, jint pc_offset, HotSpotCompile
       break;
     case VERIFIED_ENTRY:
       _offsets.set_value(CodeOffsets::Verified_Entry, pc_offset);
+      _offsets.set_value(CodeOffsets::Verified_Inline_Entry, pc_offset);
+      _offsets.set_value(CodeOffsets::Verified_Inline_Entry_RO, pc_offset);
       break;
     case OSR_ENTRY:
       _offsets.set_value(CodeOffsets::OSR_Entry, pc_offset);

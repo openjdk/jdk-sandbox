@@ -199,6 +199,19 @@ const Type* MulNode::Value(PhaseGVN* phase) const {
     if( t2->higher_equal( zero ) ) return zero;
   }
 
+  // TODO 8350865 Still needed? Yes, I think this is from PhaseMacroExpand::expand_mh_intrinsic_return
+  // Code pattern on return from a call that returns an __Value.  Can
+  // be optimized away if the return value turns out to be an oop.
+  if (op == Op_AndX &&
+      in(1) != nullptr &&
+      in(1)->Opcode() == Op_CastP2X &&
+      in(1)->in(1) != nullptr &&
+      phase->type(in(1)->in(1))->isa_oopptr() &&
+      t2->isa_intptr_t()->_lo >= 0 &&
+      t2->isa_intptr_t()->_hi <= MinObjAlignmentInBytesMask) {
+    return add_id();
+  }
+
   // Either input is BOTTOM ==> the result is the local BOTTOM
   if( t1 == Type::BOTTOM || t2 == Type::BOTTOM )
     return bottom_type();
@@ -856,6 +869,47 @@ Node *AndLNode::Ideal(PhaseGVN *phase, bool can_reshape) {
           // Use zero-fill shift instead
           Node *zshift = phase->transform(new URShiftLNode(in1->in(1), in1->in(2)));
           return new AndLNode(zshift, in(2));
+        }
+      }
+    }
+  }
+
+  // Search for GraphKit::mark_word_test patterns and fold the test if the result is statically known
+  Node* load1 = in(1);
+  Node* load2 = nullptr;
+  if (load1->is_Phi() && phase->type(load1)->isa_long()) {
+    load1 = in(1)->in(1);
+    load2 = in(1)->in(2);
+  }
+  if (load1 != nullptr && load1->is_Load() && phase->type(load1)->isa_long() &&
+      (load2 == nullptr || (load2->is_Load() && phase->type(load2)->isa_long()))) {
+    const TypePtr* adr_t1 = phase->type(load1->in(MemNode::Address))->isa_ptr();
+    const TypePtr* adr_t2 = (load2 != nullptr) ? phase->type(load2->in(MemNode::Address))->isa_ptr() : nullptr;
+    if (adr_t1 != nullptr && adr_t1->offset() == oopDesc::mark_offset_in_bytes() &&
+        (load2 == nullptr || (adr_t2 != nullptr && adr_t2->offset() == in_bytes(Klass::prototype_header_offset())))) {
+      if (mask == markWord::inline_type_pattern) {
+        if (adr_t1->is_inlinetypeptr()) {
+          set_req_X(1, in(2), phase);
+          return this;
+        } else if (!adr_t1->can_be_inline_type()) {
+          set_req_X(1, phase->longcon(0), phase);
+          return this;
+        }
+      } else if (mask == markWord::null_free_array_bit_in_place) {
+        if (adr_t1->is_null_free()) {
+          set_req_X(1, in(2), phase);
+          return this;
+        } else if (adr_t1->is_not_null_free()) {
+          set_req_X(1, phase->longcon(0), phase);
+          return this;
+        }
+      } else if (mask == markWord::flat_array_bit_in_place) {
+        if (adr_t1->is_flat()) {
+          set_req_X(1, in(2), phase);
+          return this;
+        } else if (adr_t1->is_not_flat()) {
+          set_req_X(1, phase->longcon(0), phase);
+          return this;
         }
       }
     }

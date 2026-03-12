@@ -1346,6 +1346,7 @@ void AOTCodeAddressTable::init_extrs() {
   SET_ADDRESS(_extrs, SharedRuntime::handle_wrong_method);
   SET_ADDRESS(_extrs, SharedRuntime::handle_wrong_method_abstract);
   SET_ADDRESS(_extrs, SharedRuntime::handle_wrong_method_ic_miss);
+  SET_ADDRESS(_extrs, SharedRuntime::allocate_inline_types);
 #if defined(AARCH64) && !defined(ZERO)
   SET_ADDRESS(_extrs, JavaThread::aarch64_get_thread_helper);
 #endif
@@ -1395,6 +1396,14 @@ void AOTCodeAddressTable::init_extrs() {
     SET_ADDRESS(_extrs, Runtime1::move_appendix_patching);
     SET_ADDRESS(_extrs, Runtime1::predicate_failed_trap);
     SET_ADDRESS(_extrs, Runtime1::unimplemented_entry);
+    SET_ADDRESS(_extrs, Runtime1::new_null_free_array);
+    SET_ADDRESS(_extrs, Runtime1::load_flat_array);
+    SET_ADDRESS(_extrs, Runtime1::store_flat_array);
+    SET_ADDRESS(_extrs, Runtime1::substitutability_check);
+    SET_ADDRESS(_extrs, Runtime1::buffer_inline_args);
+    SET_ADDRESS(_extrs, Runtime1::buffer_inline_args_no_receiver);
+    SET_ADDRESS(_extrs, Runtime1::throw_identity_exception);
+    SET_ADDRESS(_extrs, Runtime1::throw_illegal_monitor_state_exception);
     SET_ADDRESS(_extrs, Thread::current);
     SET_ADDRESS(_extrs, CompressedKlassPointers::base_addr());
 #ifndef PRODUCT
@@ -1422,6 +1431,8 @@ void AOTCodeAddressTable::init_extrs() {
     SET_ADDRESS(_extrs, OptoRuntime::rethrow_C);
     SET_ADDRESS(_extrs, OptoRuntime::slow_arraycopy_C);
     SET_ADDRESS(_extrs, OptoRuntime::register_finalizer_C);
+    SET_ADDRESS(_extrs, OptoRuntime::load_unknown_inline_C);
+    SET_ADDRESS(_extrs, OptoRuntime::store_unknown_inline_C);
     SET_ADDRESS(_extrs, OptoRuntime::vthread_end_first_transition_C);
     SET_ADDRESS(_extrs, OptoRuntime::vthread_start_final_transition_C);
     SET_ADDRESS(_extrs, OptoRuntime::vthread_start_transition_C);
@@ -1452,6 +1463,10 @@ void AOTCodeAddressTable::init_extrs() {
   SET_ADDRESS(_extrs, MacroAssembler::debug64);
 #endif
 #endif // ZERO
+
+  if (UseCompressedOops) {
+    SET_ADDRESS(_extrs, CompressedOops::base_addr());
+  }
 
   // addresses of fields in AOT runtime constants area
   address* p = AOTRuntimeConstants::field_addresses_list();

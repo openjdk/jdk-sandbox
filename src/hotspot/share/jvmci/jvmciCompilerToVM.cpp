@@ -1627,7 +1627,7 @@ C2V_VMENTRY_NULL(jobject, iterateFrames, (JNIEnv* env, jobject compilerToVM, job
             if (objects != nullptr) {
               RegisterMap reg_map(vf->register_map());
               bool realloc_failures = Deoptimization::realloc_objects(thread, vf->frame_pointer(), &reg_map, objects, CHECK_NULL);
-              Deoptimization::reassign_fields(vf->frame_pointer(), &reg_map, objects, realloc_failures, false);
+              Deoptimization::reassign_fields(vf->frame_pointer(), &reg_map, objects, realloc_failures, false, CHECK_NULL);
               realloc_called = true;
             }
 
@@ -1878,7 +1878,7 @@ C2V_VMENTRY(void, materializeVirtualObjects, (JNIEnv* env, jobject, jobject _hs_
   }
 
   bool realloc_failures = Deoptimization::realloc_objects(thread, fstAfterDeopt.current(), fstAfterDeopt.register_map(), objects, CHECK);
-  Deoptimization::reassign_fields(fstAfterDeopt.current(), fstAfterDeopt.register_map(), objects, realloc_failures, false);
+  Deoptimization::reassign_fields(fstAfterDeopt.current(), fstAfterDeopt.register_map(), objects, realloc_failures, false, THREAD);
 
   for (int frame_index = 0; frame_index < virtualFrames->length(); frame_index++) {
     compiledVFrame* cvf = virtualFrames->at(frame_index);
@@ -2206,7 +2206,7 @@ C2V_VMENTRY_NULL(jobjectArray, getDeclaredConstructors, (JNIEnv* env, jobject, A
   GrowableArray<Method*> constructors_array;
   for (int i = 0; i < iklass->methods()->length(); i++) {
     Method* m = iklass->methods()->at(i);
-    if (m->is_object_initializer()) {
+    if (m->is_object_constructor()) {
       constructors_array.append(m);
     }
   }
@@ -2233,7 +2233,7 @@ C2V_VMENTRY_NULL(jobjectArray, getDeclaredMethods, (JNIEnv* env, jobject, ARGUME
   GrowableArray<Method*> methods_array;
   for (int i = 0; i < iklass->methods()->length(); i++) {
     Method* m = iklass->methods()->at(i);
-    if (!m->is_object_initializer() && !m->is_static_initializer() && !m->is_overpass()) {
+    if (!(m->is_object_constructor() || m->is_class_initializer()) && !m->is_overpass()) {
       methods_array.append(m);
     }
   }
@@ -2973,11 +2973,12 @@ C2V_VMENTRY_NULL(jobject, asReflectionExecutable, (JNIEnv* env, jobject, ARGUMEN
   requireInHotSpot("asReflectionExecutable", JVMCI_CHECK_NULL);
   methodHandle m(THREAD, UNPACK_PAIR(Method, method));
   oop executable;
-  if (m->is_object_initializer()) {
+  if (m->is_class_initializer()) {
+      JVMCI_THROW_MSG_NULL(IllegalArgumentException,
+          "Cannot create java.lang.reflect.Method for class initializer");
+  }
+  else if (m->is_object_constructor()) {
     executable = Reflection::new_constructor(m, CHECK_NULL);
-  } else if (m->is_static_initializer()) {
-    JVMCI_THROW_MSG_NULL(IllegalArgumentException,
-        "Cannot create java.lang.reflect.Method for class initializer");
   } else {
     executable = Reflection::new_method(m, false, CHECK_NULL);
   }

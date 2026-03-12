@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.function.BiFunction;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.function.Predicate;
@@ -121,7 +122,12 @@ public class Types {
         capturedName = names.fromString("<captured wildcard>");
         messages = JavacMessages.instance(context);
         diags = JCDiagnostic.Factory.instance(context);
-        noWarnings = new Warner(null);
+        noWarnings = new Warner(null) {
+            @Override
+            public String toString() {
+                return "NO_WARNINGS";
+            }
+        };
         Options options = Options.instance(context);
         dumpStacktraceOnError = options.isSet("dev") || options.isSet(DOE);
     }
@@ -2155,10 +2161,18 @@ public class Types {
      * @return the ArrayType for the given component
      */
     public ArrayType makeArrayType(Type t) {
+        return makeArrayType(t, 1);
+    }
+
+    public ArrayType makeArrayType(Type t, int dimensions) {
         if (t.hasTag(VOID) || t.hasTag(PACKAGE)) {
             Assert.error("Type t must not be a VOID or PACKAGE type, " + t.toString());
         }
-        return new ArrayType(t, syms.arrayClass);
+        ArrayType result = new ArrayType(t, syms.arrayClass);
+        for (int i = 1; i < dimensions; i++) {
+            result = new ArrayType(result, syms.arrayClass);
+        }
+        return result;
     }
     // </editor-fold>
 
@@ -3954,7 +3968,7 @@ public class Types {
             // There is no spec detailing how type annotations are to
             // be inherited.  So set it to noAnnotations for now
             return new ClassType(class1.getEnclosingType(), merged.toList(),
-                                 class1.tsym);
+                                 class1.tsym, List.nil());
         }
 
     /**
@@ -4937,10 +4951,16 @@ public class Types {
     public static class UniqueType {
         public final Type type;
         final Types types;
+        private boolean encodeTypeSig;
 
-        public UniqueType(Type type, Types types) {
+        public UniqueType(Type type, Types types, boolean encodeTypeSig) {
             this.type = type;
             this.types = types;
+            this.encodeTypeSig = encodeTypeSig;
+        }
+
+        public UniqueType(Type type, Types types) {
+            this(type, types, true);
         }
 
         public int hashCode() {
@@ -4950,6 +4970,10 @@ public class Types {
         public boolean equals(Object obj) {
             return (obj instanceof UniqueType uniqueType) &&
                     types.isSameType(type, uniqueType.type);
+        }
+
+        public boolean encodeTypeSig() {
+            return encodeTypeSig;
         }
 
         public String toString() {
