@@ -430,12 +430,12 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
     }
 
     // time:
-    // time of crash or core file generation.  millis since epoch.
+    // timestamp from core file is used for time of crash if nothing better is available from VM.  millis since epoch.
     core_timestamp = 0;
     e = fscanf(f, "time %32s\n", s1);
     if (e == 1) {
         core_timestamp = (long long) strtoll(s1, nullptr, 10);
-        logv("core time: %lld", core_timestamp);
+        logv("core file timestamp: %lld", core_timestamp);
     } else {
         warn("time record not found in file");
     }
@@ -486,7 +486,6 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
         if (e == 1) {
 #ifdef WINDOWS
             core_teb = (uint64_t*) strtoull(s1, nullptr, 16);
-            //tls_fixup_pd(core_teb);
 #else
             warn("TEB line invalid on non-Windows.");
 #endif
@@ -825,7 +824,7 @@ int mappings_file_create(const char* dirname, const char* corename) {
         return fd;
     }
 
-    // Write core file details.  Use base filename, as it can be moved.
+    // Write core file details.  Use base filename (no path), as it can be moved.
     unsigned long long coresize = file_size(corename);
     snprintf(buf, BUFLEN, "core %s %lld\n", basename_pd((char*) corename), coresize);
     write0(fd, buf);
