@@ -322,9 +322,12 @@ int revival_mapping_allocate(void* vaddr, size_t length) {
 /**
  * revival_mapping_copy
  *
- * Create a memory mapping, by allocating memory at an address, then copying bytes from some offset in a file.
+ * Copy bytes from some offset in a file, to memory.  Optionally create the memory allocation first.
  * Used when a mapping cannot be performed directly from the file, usually due to alignment problems
  * (so expect file offset to not be aligned).
+ *
+ * This method is mainly used on Windows, where file alignment hinders direct mapping from MiniDump.
+ * A gdb "gcore" may also need this.
  *
  * Return -1 on error.
  */
@@ -332,9 +335,7 @@ int revival_mapping_copy(void* vaddr, size_t length, size_t offset, bool allocat
     int e = 0;
     logd("  revival_mapping_copy: alloc=%d vaddr " PTR_FORMAT " - " PTR_FORMAT " len=" SIZE_FORMAT_X_0 " from file offset 0x%llx",
          allocate, (uintptr_t) vaddr, (uintptr_t) ((uint64_t) vaddr + length), length, (long long) offset);
-
     if (allocate) {
-        // Need to create a mapping: (not normally true)
         e = revival_mapping_allocate(vaddr, length);
         if (e < 0) {
             warn("  revival_mapping_copy: allocation required at 0x%llx : allocation failed: %d", (unsigned long long) vaddr, e);
@@ -357,8 +358,8 @@ int revival_mapping_copy(void* vaddr, size_t length, size_t offset, bool allocat
         return -1;
     }
     // Read at offset and copy bytes vaddr (not to a changed/aligned vaddr):
-    int* p = (int*) vaddr;
-    *p = 0xd1b5; // Cause a problem if permissions are wrong.  Will overwrite in the loop below...
+    uint64_t* p = (uint64_t*) vaddr;
+    *p = 0xd1b5; // Check we can write.  Overwrite in the loop below.
     for (size_t i = 0; i < length/8; i++) {
         e = (int) fread(p++, 8, 1, f);
         if (e != 1) {
