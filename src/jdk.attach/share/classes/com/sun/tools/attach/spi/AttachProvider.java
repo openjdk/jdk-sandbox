@@ -156,7 +156,7 @@ public abstract class AttachProvider {
     public VirtualMachine attachVirtualMachine(String id, Map<String, ?> env)
         throws AttachNotSupportedException, IOException {
 
-        return attachVirtualMachine(id);
+        throw new UnsupportedOperationException("Not implemented in base AttachProvider class");
     }
 
     /**
