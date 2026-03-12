@@ -59,6 +59,7 @@ uint64_t* core_teb;
 void revival_exit(int e) {
        logv("revival_exit: %d", e);
 #ifdef WINDOWS
+	Sleep(1 * 1000);
     TerminateProcess(GetCurrentProcess(), e);
 #else
     _exit(e);
@@ -187,7 +188,7 @@ void error(const char* format, ...) {
     va_end(args);
     write0(2 /* stderr */, buffer);
     write0(2, "\n");
-    exit(1);
+    revival_exit(1);
 }
 
 /**
@@ -991,7 +992,7 @@ void doVersionCheck(const char* corename, const char* directory, const char* fil
     // Can now read string from address space directly, but want to be specific about
     // reading from core and binary, to compare.
     // Read from core:
-    logv("Version check: ptr = 0x%llx",  (unsigned long long) ptr);
+    logv("Version check: ptr = 0x%llx", (unsigned long long) ptr);
     char* vm_release_core = readstring_from_core_at_vaddr_pd(corename, (uint64_t) *(char**) ver);
     logv("Version check: vm release from core: 0x%llx 0x%llx '%s'",
          (unsigned long long) ver, (unsigned long long) *(uint64_t*) ver, vm_release_core);

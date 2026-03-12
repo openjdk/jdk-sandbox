@@ -120,7 +120,7 @@ uint64_t length_alignment_pd() {
 }
 
 unsigned long long max_user_vaddr_pd() {
-    return 0x7FFF00000000; // end of user space 0x7FFF_FFFFFFFF
+    return 0x7FFFFFFFFFFF;
 }
 
 void tls_initial_save_pd() {
