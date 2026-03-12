@@ -210,7 +210,8 @@ public abstract class VirtualMachine {
     /**
      * Attach to a Java virtual machine.
      *
-     * This method accepts a Map of named parameters and values.
+     * Details as per the {@link attach(String)} method.
+     * This method additionally accepts a Map of named parameters and values.
      *
      * @param   id
      *          The abstract identifier that identifies the Java virtual machine.

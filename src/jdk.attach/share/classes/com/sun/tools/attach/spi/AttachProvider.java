@@ -141,7 +141,8 @@ public abstract class AttachProvider {
     /**
      * Attach to a Java virtual machine.
      *
-     * This method accepts a Map of named parameters and values.
+     * Details as per the {@link attachVirtualMachine(String)} method.
+     * This method additionally accepts a Map of named parameters and values.
      *
      * @param  id
      *         The abstract identifier that identifies the Java virtual machine.
