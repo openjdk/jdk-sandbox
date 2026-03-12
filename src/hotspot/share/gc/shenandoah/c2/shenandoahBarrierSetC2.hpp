@@ -30,8 +30,8 @@
 #include "gc/shenandoah/shenandoahBarrierSetAssembler.hpp"
 #include "gc/shenandoah/shenandoahRuntime.hpp"
 #include "gc/shenandoah/shenandoahThreadLocalData.hpp"
-#include "utilities/growableArray.hpp"
 #include "opto/machnode.hpp"
+#include "utilities/growableArray.hpp"
 
 static const uint8_t ShenandoahBitStrong    = 1 << 0; // Barrier: LRB, strong
 static const uint8_t ShenandoahBitWeak      = 1 << 1; // Barrier: LRB, weak
