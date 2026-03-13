@@ -795,25 +795,26 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   }
 }
 
-void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address addr) {
+void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src) {
   bool acquire = node->memory_order() == MemNode::MemOrd::acquire;
-  bool narrow = node->ideal_Opcode() == Op_DecodeN || node->bottom_type()->isa_narrowoop();
+  bool narrow = node->bottom_type()->isa_narrowoop();
 
+  // Do the actual load. This load is the candidate for implicit null check, and MUST come first.
   if (narrow) {
     if (acquire) {
-      __ ldarw(dst, addr.base());
+      __ ldarw(dst, src.base());
     } else {
-      __ ldrw(dst, addr);
+      __ ldrw(dst, src);
     }
   } else {
     if (acquire) {
-      __ ldar(dst, addr.base());
+      __ ldar(dst, src.base());
     } else {
-      __ ldr(dst, addr);
+      __ ldr(dst, src);
     }
   }
 
-  ShenandoahLoadBarrierStubC2::check_and_insert(node, masm, dst, addr, RegSet::of(addr.base()), RegSet::of(dst));
+  ShenandoahLoadBarrierStubC2::check_and_insert(node, masm, dst, src, RegSet::of(src.base()), RegSet::of(dst));
 }
 
 void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroAssembler* masm, Address address) {
