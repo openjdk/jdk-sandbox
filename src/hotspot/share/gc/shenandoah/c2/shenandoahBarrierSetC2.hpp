@@ -216,16 +216,15 @@ public:
 };
 
 class ShenandoahStoreBarrierStubC2 : public ShenandoahBarrierStubC2 {
-  Register const _addr_reg; // Used on aarch64
-  Address const _dst; // Used on x64
+  Address const _dst;
   Register const _src;
   Register const _tmp;
   const bool _dst_narrow;
   const bool _src_narrow;
 
-  ShenandoahStoreBarrierStubC2(const MachNode* node, Register addr_reg, Address dst, bool dst_narrow, Register src,
+  ShenandoahStoreBarrierStubC2(const MachNode* node, Address dst, bool dst_narrow, Register src,
       bool src_narrow, Register tmp) :
-    ShenandoahBarrierStubC2(node), _addr_reg(addr_reg), _dst(dst), _src(src), _tmp(tmp), _dst_narrow(dst_narrow),
+    ShenandoahBarrierStubC2(node), _dst(dst), _src(src), _tmp(tmp), _dst_narrow(dst_narrow),
       _src_narrow(src_narrow) {
       assert(!_dst_narrow || is_heap_access(node), "Only heap accesses can be narrow");
     }

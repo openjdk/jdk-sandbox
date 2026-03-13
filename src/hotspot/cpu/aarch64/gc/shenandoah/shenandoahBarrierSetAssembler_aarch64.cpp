@@ -759,12 +759,12 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
   card_barrier_c2(node, masm, Address(addr, 0));
 }
 
-void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm, Address addr, bool dst_narrow,
+void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm, Address dst, bool dst_narrow,
     Register src, bool src_narrow) {
 
-  ShenandoahStoreBarrierStubC2::check_and_insert(node, masm, addr, dst_narrow, src, src_narrow, noreg);
+  ShenandoahStoreBarrierStubC2::check_and_insert(node, masm, dst, dst_narrow, src, src_narrow, noreg);
 
-  card_barrier_c2(node, masm, addr);
+  card_barrier_c2(node, masm, dst);
 
   // Do the actual store
   bool is_volatile = node->has_trailing_membar();
@@ -782,15 +782,15 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
     }
 
     if (is_volatile) {
-      __ stlrw(src, addr.base());
+      __ stlrw(src, dst.base());
     } else {
-      __ strw(src, addr);
+      __ strw(src, dst);
     }
   } else {
     if (is_volatile) {
-      __ stlr(src, addr.base());
+      __ stlr(src, dst.base());
     } else {
-      __ str(src, addr);
+      __ str(src, dst);
     }
   }
 }
@@ -856,31 +856,31 @@ void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   Label L_done;
 
-  // We'll use "_addr_reg" register as third scratch register
-  //assert(_addr_reg != noreg, "should be");
-  RegSet saved = RegSet::of(_addr_reg);
-  Register rscratch3 = _addr_reg;
+  // We'll use "_src" register as third scratch register
+  assert(_src != noreg, "should be");
+  RegSet saved = RegSet::of(_src);
+  Register obj = _src;
   __ push(saved, sp);
 
   // Do we need to load the previous value?
-  __ load_heap_oop(rscratch3, _dst, noreg, noreg, AS_RAW);
+  __ load_heap_oop(obj, _dst, noreg, noreg, AS_RAW);
 
   // FIXME: We can merge this on the load above
-  __ cbz(rscratch3, L_done);
+  __ cbz(obj, L_done);
 
-  satb(&masm, this, rscratch1, rscratch2, rscratch3);
+  satb(&masm, this, rscratch1, rscratch2, obj);
 
   __ bind(L_done);
   __ pop(saved, sp);
   __ b(*continuation());
 }
 
-void ShenandoahStoreBarrierStubC2::check_and_insert(const MachNode* node, MacroAssembler* masm, Address addr,
+void ShenandoahStoreBarrierStubC2::check_and_insert(const MachNode* node, MacroAssembler* masm, Address dst,
     bool dst_narrow, Register src, bool src_narrow, Register tmp, RegSet regsToPreserve, RegSet regsDontPreserve) {
   if (!ShenandoahSkipBarriers && ShenandoahStoreBarrierStubC2::needs_keep_alive_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
-    ShenandoahStoreBarrierStubC2* const stub = ShenandoahStoreBarrierStubC2::create(node, addr, dst_narrow, src, src_narrow, tmp);
+    ShenandoahStoreBarrierStubC2* const stub = ShenandoahStoreBarrierStubC2::create(node, dst, dst_narrow, src, src_narrow, tmp);
     stub->dont_preserve(regsDontPreserve);
     stub->preserve(regsToPreserve);
 
