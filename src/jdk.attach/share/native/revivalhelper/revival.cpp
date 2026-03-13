@@ -289,11 +289,11 @@ const char* dangerous(void* vaddr, unsigned long long length) {
  */
 int revival_mapping_mmap(void* vaddr, size_t length, size_t offset, int lines, char* filename, int fd) {
     int e = 0;
-    logv("  revival_mapping_mmap: map %d: " PTR_FORMAT " (to " PTR_FORMAT ") len=0x%zx fileoffset=0x%llx",
+    logv("revival_mapping_mmap: map %d: " PTR_FORMAT " (to " PTR_FORMAT ") len=0x%zx fileoffset=0x%llx",
          lines, (uintptr_t) vaddr, (uintptr_t) ((uint64_t) vaddr + length), length, (long long) offset);
 
     void* mapped_addr = do_mmap_pd(vaddr, length, filename, fd, offset);
-    // Accept the wanted address, or if it was aligned-down:
+    // Accept either the requested address or if it was aligned-down:
     if (mapped_addr != vaddr && mapped_addr != (void*) align_down((uint64_t) vaddr, vaddr_alignment_pd())) {
         logv("  revival_mapping_mmap: line %d: mapping failed: wanted vaddr: %p returned: %p", lines, vaddr, mapped_addr);
         e = -1;
@@ -301,14 +301,12 @@ int revival_mapping_mmap(void* vaddr, size_t length, size_t offset, int lines, c
         logd("  revival_mapping_mmap: line %d: mapping OK %p - %p", lines, vaddr, (void*) ((uint64_t) vaddr + length));
         e = 0;
     }
-#ifdef WINDOWS
-    // Windows: alignment is more difficult as vaddr and file offset must be aligned.  Fallback to alloc and copy:
+	// On failure, try copying.  Used for a Linux gcore (gdb) as file offsets are not aligned.
+    // Also on Windows, vaddr and file offset generally not aligned in MiniDump.
     if (e) {
-        logd("  revival_mapping_mmap: map failed, will retry using alloc + copy");
         e = revival_mapping_copy(vaddr, length, offset, true /* allocate */, filename, core_fd);
         logv("  revival_mapping_mmap: retry using revival_mapping_copy returns: %d", e);
     }
-#endif
     return e;
 }
 
@@ -327,8 +325,8 @@ int revival_mapping_allocate(void* vaddr, size_t length) {
  * Used when a mapping cannot be performed directly from the file, usually due to alignment problems
  * (so expect file offset to not be aligned).
  *
- * This method is mainly used on Windows, where file alignment hinders direct mapping from MiniDump.
- * A gdb "gcore" may also need this.
+ * This method is mainly used on Windows, where file alignment hinders direct mapping from MiniDump,
+ * and on a Linux "gcore" (gdb).
  *
  * Return -1 on error.
  */
@@ -358,7 +356,7 @@ int revival_mapping_copy(void* vaddr, size_t length, size_t offset, bool allocat
         fclose(f);
         return -1;
     }
-    // Read at offset and copy bytes vaddr (not to a changed/aligned vaddr):
+    // Read at offset and copy bytes to vaddr:
     uint64_t* p = (uint64_t*) vaddr;
     *p = 0xd1b5; // Check we can write.  Overwrite in the loop below.
     for (size_t i = 0; i < length/8; i++) {
@@ -925,7 +923,6 @@ int revive_image_cooperative() {
 
 /**
  * Populate the revival cache data directory.
- * Only called when the directory (core.revival) does not exist.
  * Return zero on success.
  */
 int create_revival_cache(const char* corename, const char* javahome, const char* dirname, const char* libdir) {

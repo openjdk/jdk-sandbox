@@ -173,43 +173,13 @@ bool mem_canwrite_pd(void* vaddr, size_t length) {
 void* do_mmap_pd(void* addr, size_t length, char* filename, int fd, size_t offset) {
     int flags = MAP_SHARED | MAP_PRIVATE | MAP_FIXED;
     int prot = PROT_READ | PROT_EXEC;
-    // Try with literal values.  Should work for a regular Linux core file.
+    // Values given should simply work for a regular Linux core file.
+    // Failure with EINVAL is expected on a Linux gcore (gdb) due to unaligned file offsets.
     void* e = mmap(addr, length, prot, flags, fd, offset);
     if (e == (void*) -1L) {
-        if (errno == EINVAL) {
-            // EINVAL is likely on a Linux gcore (gdb) due to unaligned file offsets.
-            // mmap requires offset to be a multiple of pagesize, retry with aligned offset.
-            logv("do_mmap_pd: 1 mmap(%p, %zu, %d, %d, %d, offset %zu) EINVAL", addr, length, prot, flags, fd, offset);
-
-            long align_mask = offset_alignment_pd() - 1;
-            size_t offset_aligned = align_down((uint64_t) offset, align_mask);
-            size_t shift = (offset - offset_aligned);
-            size_t length_aligned = length + shift;
-            void* addr_aligned = (void*) (((unsigned long long) addr) - shift);
-            logv(" offset_alignment = %p offset = %zu offset aligned = %zu shift = %zu new length = %zu new addr = %p",
-                 (void*) align_mask, offset, offset_aligned, shift, length_aligned, addr_aligned);
-            e = mmap(addr_aligned, length_aligned, prot, flags, fd, offset_aligned);
-
-            if (e == (void*) -1L) {
-                if (errno == EINVAL) {
-                    // But the above made the address badly aligned...  Will need to allocate and copy data.
-                    logv("do_mmap_pd: 2 mmap(%p, %zu, %d, %d, %d, offset %zu) EINVAL",
-                         addr_aligned, length_aligned, prot, flags, fd, offset_aligned);
-                    int e2 = revival_mapping_copy(addr, length, offset, true, filename, fd);
-                    if (e2 == -1L) {
-                        warn("do_mmap_pd: called revival_mapping_copy and failed: %d", e2);
-                        e = (void*) -1L;
-                    } else {
-                        e = addr; // meaning ok, mapped at that address
-                    }
-                }
-            }
-        }
-    }
-    if (e == (void*) -1L) {
-        warn("do_mmap_pd: mmap(%p, %zu, %d, %d, %d, offset %zu) failed: returns: %p: errno = %d: %s",
-                addr, length, prot, flags, fd, offset, e, errno, strerror(errno));
-    }
+	    logv("do_mmap_pd: mmap(%p, %zu, %d, %d, %d, offset %zu) failed: errno = %d: %s",
+              addr, length, prot, flags, fd, offset, errno, strerror(errno));
+	}
     return e;
 }
 
@@ -221,9 +191,6 @@ int do_munmap_pd(void* addr, size_t length) {
     return e;
 }
 
-/**
- * Create a memory mapping at a given address, length.
- */
 void* do_map_allocate_pd(void* vaddr, size_t length) {
     int prot = PROT_READ | PROT_WRITE;
     int flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED | MAP_NORESERVE;
@@ -333,9 +300,7 @@ size_t writeTempFileBytes(const char* tempName, Segment seg) {
 }
 
 /**
- * remap a segment
- * Copy bytes from core file to temp file,
- * map writable.
+ * Remap a memory segment.  Copy bytes from core file to temp file, map with write permission.
  */
 void remap(Segment seg) {
     const char* tempName = getCorePageFilename();
