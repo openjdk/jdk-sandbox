@@ -217,7 +217,7 @@ public abstract class VirtualMachine {
      *          The abstract identifier that identifies the Java virtual machine.
      *
      * @param   env
-     *          A map of provider specific properties to configure attach, may be null or empty.
+     *          A Map of provider-specific settings to configure the attach, may be null or empty.
      *
      * @return  A VirtualMachine representing the target VM.
      *
@@ -231,7 +231,7 @@ public abstract class VirtualMachine {
      * </caption>
 	 * <thead>
 	 *   <tr>
-	 *     <th scope="col">Property Name</th>
+	 *     <th scope="col">Name</th>
 	 *     <th scope="col">Data Type</th>
      *     <th scope="col">Default Value</th>
      *     <th scope="col">Description</th>
