@@ -146,6 +146,7 @@ public class BasicDatePickerUI extends DatePickerUI {
                 FormatStyle.LONG));
         formattedTextField = createDateFormatter();
         panel.add(formattedTextField, BorderLayout.CENTER);
+
         popupButton = createPopupButton();
         JComboBox<String> box = new JComboBox<>();
         Object preventHide = box.getClientProperty("doNotCancelPopup");
@@ -153,6 +154,7 @@ public class BasicDatePickerUI extends DatePickerUI {
         popupButton.setMargin(new Insets(0, 0, 0, 0));
         popupButton.setBorder(null);
         panel.add(popupButton, BorderLayout.EAST);
+
         popupButton.setEnabled(datePicker.isEnabled());
         popupButton.setInheritsPopupMenu(true);
         popupButton.addMouseListener(mouseListener);
@@ -192,7 +194,7 @@ public class BasicDatePickerUI extends DatePickerUI {
         JButton b = new JButton(new ApprovePopupAction());
         b.setName("popupButton");
         b.setRolloverEnabled(false);
-        b.setPreferredSize(new Dimension(35, 35));
+        b.setPreferredSize(new Dimension(MIN_HEIGHT, MIN_HEIGHT));
         b.setIcon(datePicker.getCalendarIcon());
         b.setFocusable(true);
         b.requestFocusInWindow();
@@ -610,15 +612,16 @@ public class BasicDatePickerUI extends DatePickerUI {
                 } else {
                     datePicker.setDates(startDate, endDate);
                 }
-            } else if (isValidDate(startDate)) {
-                datePicker.setDates(startDate, startDate);
-            } else if (datePicker.getDates() != null && datePicker.getDates().size() >= 2) {
-                LocalDate setStartDate = datePicker.getDates().first();
-                LocalDate setEndDate = datePicker.getDates().last();
-                datePicker.setDates(setStartDate, setEndDate);
+            } else if (datePicker.getDates() != null) {
+                if (datePicker.getDates().size() >= 2) {
+                    LocalDate setStartDate = datePicker.getDates().first();
+                    LocalDate setEndDate = datePicker.getDates().last();
+                    datePicker.setDates(setStartDate, setEndDate);
+                } else {
+                    datePicker.setDate(datePicker.getDates().first());
+                }
             } else {
-                datePicker.setDates(LocalDate.now(),
-                        LocalDate.now().plusDays(1));
+                datePicker.setDate(LocalDate.now());
             }
         }
     }

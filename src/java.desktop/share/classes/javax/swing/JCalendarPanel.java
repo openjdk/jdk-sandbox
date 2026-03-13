@@ -163,6 +163,7 @@ public class JCalendarPanel extends JComponent implements Accessible {
     private SortedSet<LocalDate> selectableDateRange;
     private SortedSet<Integer> selectableYearRange;
     private boolean enableWeekNumber;
+    private boolean enableCalendarHeaderPanel;
 
     /**
      * Creates a calendar pane with a month view of current date
@@ -623,6 +624,25 @@ public class JCalendarPanel extends JComponent implements Accessible {
      */
     public boolean isWeekNumberEnabled() {
         return enableWeekNumber;
+    }
+
+
+    /**
+     * Enable calendar header panel
+     * @param status enable status
+     */
+    public void enableCalendarHeaderPanel(boolean status) {
+        enableCalendarHeaderPanel = status;
+        firePropertyChange(JCalendarPanel.PANEL_ATTRIBUTES_PROPERTY,
+                null, enableCalendarHeaderPanel);
+    }
+
+    /**
+     * Get calendar header panel enabled status
+     * @return calendar header panel enabled status
+     */
+    public boolean isCalendarHeaderPanelEnabled() {
+        return enableCalendarHeaderPanel;
     }
 
     /**

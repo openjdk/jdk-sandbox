@@ -88,6 +88,7 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
     private DateTableViewModel tableModel;
     private JLabel monthLabel;
     private JLabel yearLabel;
+    private JPanel headerPanel;
     private JTable calendarTable;
     private JButton prevMonth;
     private JButton nextMonth;
@@ -134,7 +135,8 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
         setLayout(new BorderLayout());
         tableModel = new DateTableViewModel(calendarPanel);
         calendarTable = new JTable(tableModel);
-        add(getHeaderPanel(), BorderLayout.NORTH);
+        headerPanel = getHeaderPanel();
+        add(headerPanel, BorderLayout.NORTH);
         setupCalendarTable();
         calendarTable.setFillsViewportHeight(true);
         JScrollPane scrollPane = new JScrollPane(calendarTable);
@@ -370,6 +372,12 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
 
         for (int i = 0; i < calendarTable.getColumnCount(); i++) {
             calendarTable.getColumnModel().getColumn(i).setCellRenderer(tableCellRenderer);
+        }
+
+        if (!calendarPanel.isCalendarHeaderPanelEnabled()) {
+            headerPanel.setVisible(false);
+        } else {
+            headerPanel.setVisible(true);
         }
     }
 

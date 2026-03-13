@@ -94,17 +94,11 @@ public class DefaultDateSelectionModel implements DateSelectionModel {
         if (startDate.isAfter(endDate)) {
             return;
         }
-        if (SelectionMode.SINGLE_SELECTION.equals(selectionMode)) {
-            if (isSelected(startDate)) {
-                return;
-            }
-            endDate = startDate;
 
-        } else {
-            if ((!commit) && isIntervalSelected(startDate, endDate)) {
-                return;
-            }
+        if ((!commit) && isIntervalSelected(startDate, endDate)) {
+            return;
         }
+
         resetSelectedDates();
         if (startDate.isEqual(endDate)) {
             selectionDateRange.add(startDate);
