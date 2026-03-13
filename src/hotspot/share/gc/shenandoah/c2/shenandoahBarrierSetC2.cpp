@@ -443,13 +443,13 @@ void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
 }
 
 uint ShenandoahBarrierSetC2::estimated_barrier_size(const Node* node) const {
-  uint8_t bd = MemNode::barrier_data(node);
-  assert(bd != 0, "Checked by caller");
-  if ((bd & ShenandoahBitElided) != 0) {
-    return 0;
-  }
-  // GC state check is ~4 fast-path nodes: Cmp, Bool, If, If-Proj.
-  return 4;
+  // Barrier impact on fast-path is driven by GC state checks emitted very late.
+  // These checks are tight load-test-branch sequences, with no impact on C2 graph
+  // size. Limiting unrolling in presence of GC barriers might turn some loops 
+  // tighter than with default unrolling, which may benefit performance due to denser
+  // code. Testing shows it is still counter-productive.
+  // Therefore, we report zero barrier size to let C2 do its normal thing.
+  return 0;
 }
 
 bool ShenandoahBarrierSetC2::array_copy_requires_gc_barriers(bool tightly_coupled_alloc, BasicType type, bool is_clone, bool is_clone_instance, ArrayCopyPhase phase) const {
