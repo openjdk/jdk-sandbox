@@ -1119,25 +1119,25 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   }
 }
 
-void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler* masm,
-              Register res, Address addr, Register oldval, Register newval,
-              Register tmp, bool exchange, bool maybe_null, bool narrow) {
+void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, MacroAssembler* masm,
+                                                       Register res, Address addr,
+                                                       Register oldval, Register newval, Register tmp,
+                                                       bool exchange, bool maybe_null, bool narrow) {
 
   assert(oldval == rax, "must be in rax for implicit use in cmpxchg");
-  assert(narrow == UseCompressedOops, "should match");
 
   // Oldval and newval can be in the same register, but all other registers should be
   // distinct for extra safety, as we shuffle register values around.
   assert_different_registers(oldval, tmp, addr.base(), addr.index());
   assert_different_registers(newval, tmp, addr.base(), addr.index());
 
-  // We want to deal with several issues at the same time:
-  //  a. Avoid false positives from CAS encountering to-space memory values.
-  //  b. Satisfy the need for LRB for the CAE result.
-  //  c. Record old value for the sake of SATB.
+  // Pre-barrier covers several things:
+  //  a. Avoids false positives from CAS encountering to-space memory values.
+  //  b. Satisfies the need for LRB for the CAE result.
+  //  c. Records old value for the sake of SATB.
   //
-  // The easiest way to do this is to go for load barrier stub, which will do LRB+fixup,
-  // and will also handle KA for the value currently in memory.
+  // (a) and (b) are covered because load barrier does memory location fixup.
+  // (c) is covered by KA on the current memory value.
   if (!ShenandoahSkipBarriers && ShenandoahLoadBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
@@ -1145,6 +1145,7 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
     char check = 0;
     check |= ShenandoahLoadBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
+    assert(!ShenandoahLoadBarrierStubC2::needs_load_ref_barrier_weak(node), "Not supported for CAS");
     gc_state_check_c2(masm, check, stub);
   }
 
@@ -1164,7 +1165,7 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
     assert(res == noreg, "no result expected");
   }
 
-  // Emit card barrier if needed
+  // Post-barrier deals with card updates.
   if (!ShenandoahSkipBarriers && ShenandoahStoreBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
     if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
@@ -1177,12 +1178,12 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
   assert_different_registers(newval, tmp, addr.base(), addr.index());
   bool narrow = node->bottom_type()->isa_narrowoop();
 
-  // We want to deal with several issues at the same time:
-  //  a. Satisfy the need for LRB for the GAS result.
-  //  b. Record old value for the sake of SATB.
+  // Pre-barrier covers several things:
+  //  a. Satisfies the need for LRB for the GAS result.
+  //  b. Records old value for the sake of SATB.
   //
-  // The easiest way to do this is to go for load barrier stub, which will do LRB+fixup,
-  // and will also handle KA for the value currently in memory.
+  // (a) is covered because load barrier does memory location fixup.
+  // (b) is covered by KA on the current memory value.
   if (!ShenandoahSkipBarriers && ShenandoahLoadBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
@@ -1190,6 +1191,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     char check = 0;
     check |= ShenandoahLoadBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
+    assert(!ShenandoahLoadBarrierStubC2::needs_load_ref_barrier_weak(node), "Not supported for GAS");
     gc_state_check_c2(masm, check, stub);
   }
 
@@ -1199,7 +1201,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     __ xchgq(newval, addr);
   }
 
-  // Emit card barrier if needed
+  // Post-barrier deals with card updates.
   if (!ShenandoahSkipBarriers && ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
     card_barrier_c2(masm, addr, tmp);

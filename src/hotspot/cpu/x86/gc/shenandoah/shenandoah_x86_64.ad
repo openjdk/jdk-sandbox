@@ -128,7 +128,7 @@ instruct compareAndSwapP_shenandoah(rRegI res, memory mem, rRegP tmp, rax_RegP o
   effect(TEMP_DEF res, TEMP tmp, KILL cr, KILL oldval);
   format %{ "shenandoah_cas $mem, $newval\t# ptr" %}
   ins_encode %{
-    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
+    ShenandoahBarrierSet::assembler()->compare_and_set_c2(this, masm,
       $res$$Register,
       $mem$$Address,
       $oldval$$Register,
@@ -149,7 +149,7 @@ instruct compareAndSwapN_shenandoah(rRegI res, memory mem, rRegP tmp, rax_RegN o
   effect(TEMP_DEF res, TEMP tmp, KILL cr, KILL oldval);
   format %{ "shenandoah_cas $mem, $newval\t# compressed ptr" %}
   ins_encode %{
-    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
+    ShenandoahBarrierSet::assembler()->compare_and_set_c2(this, masm,
       $res$$Register,
       $mem$$Address,
       $oldval$$Register,
@@ -170,7 +170,7 @@ instruct compareAndExchangeP_shenandoah(memory mem, rax_RegP oldval, rRegP newva
   ins_cost(1000);
   format %{ "shenandoah_cae $mem, $newval\t# ptr" %}
   ins_encode %{
-    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
+    ShenandoahBarrierSet::assembler()->compare_and_set_c2(this, masm,
       noreg,
       $mem$$Address,
       $oldval$$Register,
@@ -190,7 +190,7 @@ instruct compareAndExchangeN_shenandoah(memory mem, rax_RegN oldval, rRegN newva
   effect(TEMP tmp, KILL cr);
   format %{ "shenandoah_cae $mem, $newval\t# compressed ptr" %}
   ins_encode %{
-    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
+    ShenandoahBarrierSet::assembler()->compare_and_set_c2(this, masm,
       noreg,
       $mem$$Address,
       $oldval$$Register,
