@@ -1041,6 +1041,8 @@ Register ShenandoahBarrierStubC2::select_temp_register(Address addr, Register re
 }
 
 void ShenandoahBarrierSetAssembler::gc_state_check_c2(MacroAssembler* masm, const char test_state, BarrierStubC2* slow_stub) {
+  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+
   if (ShenandoahGCStateCheckRemove) {
     // Unrealistic: remove all barrier fastpath checks.
   } else if (ShenandoahGCStateCheckHotpatch) {
@@ -1067,8 +1069,6 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
 
   // Emit barrier if needed
   if (!ShenandoahSkipBarriers && ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
-    Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
-
     ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, dst, src, narrow, false);
 
     char check = 0;
@@ -1087,8 +1087,6 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   // Pre-barrier deals with SATB: need to KA current memory value.
    assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier(node), "Should not be required for stores");
   if (!ShenandoahSkipBarriers && ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
-    Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
-
     BarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, tmp, dst, dst_narrow, true);
     stub->dont_preserve(tmp); // temp, no need to preserve it
     gc_state_check_c2(masm, ShenandoahHeap::MARKING, stub);
@@ -1115,7 +1113,6 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
 
   // Post-barrier deals with card updates.
   if (!ShenandoahSkipBarriers && ShenandoahBarrierStubC2::needs_card_barrier(node)) {
-    Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
     card_barrier_c2(masm, dst, tmp);
   }
 }
@@ -1140,8 +1137,6 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
   // (a) and (b) are covered because load barrier does memory location fixup.
   // (c) is covered by KA on the current memory value.
   if (!ShenandoahSkipBarriers && ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
-    Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
-
     ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, tmp, addr, narrow, true);
     char check = 0;
     check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
@@ -1168,7 +1163,6 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
 
   // Post-barrier deals with card updates.
   if (!ShenandoahSkipBarriers && ShenandoahBarrierStubC2::needs_card_barrier(node)) {
-    Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
     card_barrier_c2(masm, addr, tmp);
   }
 }
@@ -1184,8 +1178,6 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
   // (a) is covered because load barrier does memory location fixup.
   // (b) is covered by KA on the current memory value.
   if (!ShenandoahSkipBarriers && ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
-    Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
-
     BarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, tmp, addr, narrow, true);
     char check = 0;
     check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
@@ -1202,12 +1194,13 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
 
   // Post-barrier deals with card updates.
   if (!ShenandoahSkipBarriers && ShenandoahBarrierStubC2::needs_card_barrier(node)) {
-    Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
     card_barrier_c2(masm, addr, tmp);
   }
 }
 
 void ShenandoahBarrierSetAssembler::card_barrier_c2(MacroAssembler* masm, Address dst, Register tmp) {
+  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+
   // TODO: Might be a good place to implement some filters here.
   // For example, G1 only flips card marks for stores within a single region.
 
