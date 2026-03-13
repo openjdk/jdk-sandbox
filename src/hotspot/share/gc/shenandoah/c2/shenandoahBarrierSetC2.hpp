@@ -158,7 +158,7 @@ public:
     return (node->barrier_data() & ShenandoahBitNative) == 0;
   }
   static bool needs_slow_barrier(const MachNode* node) {
-    return needs_load_ref_barrier(node) || needs_keep_alive_barrier(node);
+    return !ShenandoahSkipBarriers && (needs_load_ref_barrier(node) || needs_keep_alive_barrier(node));
   }
   static bool needs_load_ref_barrier(const MachNode* node) {
     return (node->barrier_data() & (ShenandoahBitStrong | ShenandoahBitWeak | ShenandoahBitPhantom)) != 0;
@@ -170,7 +170,7 @@ public:
     return (node->barrier_data() & ShenandoahBitKeepAlive) != 0;
   }
   static bool needs_card_barrier(const MachNode* node) {
-    return (node->barrier_data() & ShenandoahBitCardMark) != 0;
+    return !ShenandoahSkipBarriers && ((node->barrier_data() & ShenandoahBitCardMark) != 0);
   }
   static bool src_not_null(const MachNode* node) {
     return (node->barrier_data() & ShenandoahBitNotNull) != 0;
