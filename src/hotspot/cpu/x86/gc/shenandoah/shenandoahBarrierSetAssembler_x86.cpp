@@ -1175,30 +1175,34 @@ void ShenandoahBarrierSetAssembler::cae_c2(const MachNode* node, MacroAssembler*
 
 void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register newval, Address addr, Register tmp) {
   assert_different_registers(newval, tmp, addr.base(), addr.index());
-
   bool narrow = node->bottom_type()->isa_narrowoop();
+
+  // We want to deal with several issues at the same time:
+  //  a. Satisfy the need for LRB for the GAS result.
+  //  b. Record old value for the sake of SATB.
+  //
+  // The easiest way to do this is to go for load barrier stub, which will do LRB+fixup,
+  // and will also handle KA for the value currently in memory.
+  if (!ShenandoahSkipBarriers && ShenandoahLoadBarrierStubC2::needs_barrier(node)) {
+    Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+
+    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, tmp, addr, narrow, true);
+    char check = 0;
+    check |= ShenandoahLoadBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
+    check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
+    gc_state_check_c2(masm, check, stub);
+  }
+
   if (narrow) {
     __ xchgl(newval, addr);
   } else {
     __ xchgq(newval, addr);
   }
 
-  if (!ShenandoahSkipBarriers && (ShenandoahLoadBarrierStubC2::needs_barrier(node) || ShenandoahStoreBarrierStubC2::needs_card_barrier(node))) {
+  // Emit card barrier if needed
+  if (!ShenandoahSkipBarriers && ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
-
-    if (ShenandoahLoadBarrierStubC2::needs_barrier(node)) {
-      ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, newval, addr, narrow, false);
-
-      char check = 0;
-      check |= ShenandoahLoadBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
-      check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
-      check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier_weak(node) ? ShenandoahHeap::WEAK_ROOTS : 0;
-      gc_state_check_c2(masm, check, stub);
-    }
-
-    if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
-      card_barrier_c2(masm, addr, tmp);
-    }
+    card_barrier_c2(masm, addr, tmp);
   }
 }
 
