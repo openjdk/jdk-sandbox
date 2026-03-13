@@ -146,7 +146,7 @@ protected:
     return (node->barrier_data() & ShenandoahBitNative) == 0;
   }
   void satb(MacroAssembler* masm, ShenandoahBarrierStubC2* stub, Register scratch1, Register scratch2, Register scratch3);
-  void lrb(MacroAssembler* masm, ShenandoahBarrierStubC2* stub, Register obj, Register addr, Label* L_done, bool narrow);
+  void lrb(MacroAssembler* masm, ShenandoahBarrierStubC2* stub, Register obj, Address addr, Label* L_done, bool narrow);
   static Register select_temp_register(Address addr, Register reg1 = noreg, Register reg2 = noreg);
 
   void keepalive_fast(MacroAssembler* masm, Register obj, Register tmp, Label* L_slow, bool short_slow);
@@ -163,18 +163,16 @@ public:
 
 class ShenandoahLoadBarrierStubC2 : public ShenandoahBarrierStubC2 {
   Register const _dst;
-  Register _addr_reg; // Used on x64
-  Address  const _src; // Used on aarch64
+  Address  const _src;
   const bool _do_load;
   const bool _narrow;
   const bool _maybe_null;
   const bool _needs_load_ref_barrier;
   const bool _needs_keep_alive_barrier;
 
-  ShenandoahLoadBarrierStubC2(const MachNode* node, Register dst, Register addr_reg, Address src, bool narrow, bool do_load) :
+  ShenandoahLoadBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow, bool do_load) :
     ShenandoahBarrierStubC2(node),
     _dst(dst),
-    _addr_reg(addr_reg),
     _src(src),
     _do_load(do_load),
     _narrow(narrow),
@@ -204,7 +202,7 @@ public:
     return node->bottom_type()->isa_narrowoop() || node->ideal_Opcode() == Op_DecodeN;
   }
   static ShenandoahLoadBarrierStubC2* create(const MachNode* node, Register dst, Address addr, bool narrow, bool do_load);
-  static void check_and_insert(const MachNode* node, MacroAssembler* masm, Register dst, Register addr,
+  static void check_and_insert(const MachNode* node, MacroAssembler* masm, Register dst, Address addr,
       RegSet regsToPreserve = RegSet(), RegSet regsDontPreserve = RegSet());
   void emit_code(MacroAssembler& masm) override;
 };
@@ -239,7 +237,7 @@ public:
   }
   static ShenandoahStoreBarrierStubC2* create(const MachNode* node, Address addr, bool dst_narrow, Register src,
       bool src_narrow, Register tmp);
-  static void check_and_insert(const MachNode* node, MacroAssembler* masm, Register addr, bool dst_narrow, Register src,
+  static void check_and_insert(const MachNode* node, MacroAssembler* masm, Address addr, bool dst_narrow, Register src,
       bool src_narrow, Register tmp, RegSet regsToPreserve = RegSet(), RegSet regsDontPreserve = RegSet());
   void emit_code(MacroAssembler& masm) override;
 };
