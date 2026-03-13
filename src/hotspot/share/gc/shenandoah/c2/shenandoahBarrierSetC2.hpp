@@ -182,18 +182,18 @@ class ShenandoahLoadBarrierStubC2 : public ShenandoahBarrierStubC2 {
   Register const _dst;
   Register _addr_reg; // Used on x64
   Address  const _src; // Used on aarch64
-  const bool _do_load;
+  const bool _self_load;
   const bool _narrow;
   const bool _maybe_null;
   const bool _needs_load_ref_barrier;
   const bool _needs_keep_alive_barrier;
 
-  ShenandoahLoadBarrierStubC2(const MachNode* node, Register dst, Register addr_reg, Address src, bool narrow, bool do_load) :
+  ShenandoahLoadBarrierStubC2(const MachNode* node, Register dst, Register addr_reg, Address src, bool narrow, bool self_load) :
     ShenandoahBarrierStubC2(node),
     _dst(dst),
     _addr_reg(addr_reg),
     _src(src),
-    _do_load(do_load),
+    _self_load(self_load),
     _narrow(narrow),
     _maybe_null(!src_not_null(node)),
     _needs_load_ref_barrier(needs_load_ref_barrier(node)),
@@ -208,7 +208,7 @@ public:
   static bool is_narrow_result(const MachNode* node) {
     return node->bottom_type()->isa_narrowoop() || node->ideal_Opcode() == Op_DecodeN;
   }
-  static ShenandoahLoadBarrierStubC2* create(const MachNode* node, Register dst, Address addr, bool narrow, bool do_load);
+  static ShenandoahLoadBarrierStubC2* create(const MachNode* node, Register dst, Address addr, bool narrow, bool self_load);
   static void check_and_insert(const MachNode* node, MacroAssembler* masm, Register dst, Register addr,
       RegSet regsToPreserve = RegSet(), RegSet regsDontPreserve = RegSet());
   void emit_code(MacroAssembler& masm) override;

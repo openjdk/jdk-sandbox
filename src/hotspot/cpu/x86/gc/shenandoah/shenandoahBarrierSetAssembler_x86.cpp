@@ -1086,6 +1086,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   // Emit barrier if needed
   if (!ShenandoahSkipBarriers && ShenandoahStoreBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+    assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier(node), "Should not be required for stores");
 
     // If we need KA, go for slow stub
     if (ShenandoahBarrierStubC2::needs_keep_alive_barrier(node)) {
@@ -1348,7 +1349,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   Label L_done;
 
   // If we need to load ourselves, do it here.
-  if (_do_load) {
+  if (_self_load) {
     if (_narrow) {
       __ movl(_dst, _src);
     } else {
@@ -1397,7 +1398,8 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   // ---- Exits
   // If object is narrow, we need to encode it before exiting.
-  if (_narrow) {
+  // Unless we performed the load ourselves, which means it is not used by caller.
+  if (_narrow && !_self_load) {
     __ encode_heap_oop(_dst);
   }
   __ bind(L_done);
