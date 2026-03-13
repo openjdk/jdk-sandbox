@@ -1087,7 +1087,6 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
     assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier(node), "Should not be required for stores");
     BarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, tmp, dst, dst_narrow, true);
-    stub->dont_preserve(tmp); // temp, no need to preserve it
     gc_state_check_c2(masm, ShenandoahHeap::MARKING, stub);
   }
 
