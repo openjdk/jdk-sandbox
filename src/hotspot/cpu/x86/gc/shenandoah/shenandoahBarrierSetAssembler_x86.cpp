@@ -1072,9 +1072,9 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
     ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, dst, src, narrow, false);
 
     char check = 0;
-    check |= ShenandoahLoadBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
-    check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
-    check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier_weak(node) ? ShenandoahHeap::WEAK_ROOTS : 0;
+    check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
+    check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
+    check |= ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node) ? ShenandoahHeap::WEAK_ROOTS : 0;
     gc_state_check_c2(masm, check, stub);
   }
 }
@@ -1087,14 +1087,14 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   if (!ShenandoahSkipBarriers && ShenandoahStoreBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
-    if (ShenandoahStoreBarrierStubC2::needs_keep_alive_barrier(node)) {
+    if (ShenandoahBarrierStubC2::needs_keep_alive_barrier(node)) {
       ShenandoahStoreBarrierStubC2* const stub = ShenandoahStoreBarrierStubC2::create(node, dst, dst_narrow, src, src_narrow, tmp);
       stub->dont_preserve(tmp); // temp, no need to preserve it
 
       gc_state_check_c2(masm, ShenandoahHeap::MARKING, stub);
     }
 
-    if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
+    if (ShenandoahBarrierStubC2::needs_card_barrier(node)) {
       card_barrier_c2(masm, dst, tmp);
     }
   }
@@ -1143,9 +1143,9 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
 
     ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, tmp, addr, narrow, true);
     char check = 0;
-    check |= ShenandoahLoadBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
-    check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
-    assert(!ShenandoahLoadBarrierStubC2::needs_load_ref_barrier_weak(node), "Not supported for CAS");
+    check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
+    check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
+    assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node), "Not supported for CAS");
     gc_state_check_c2(masm, check, stub);
   }
 
@@ -1166,11 +1166,9 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
   }
 
   // Post-barrier deals with card updates.
-  if (!ShenandoahSkipBarriers && ShenandoahStoreBarrierStubC2::needs_barrier(node)) {
+  if (!ShenandoahSkipBarriers && ShenandoahBarrierStubC2::needs_card_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
-    if (ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
-      card_barrier_c2(masm, addr, tmp);
-    }
+    card_barrier_c2(masm, addr, tmp);
   }
 }
 
@@ -1189,9 +1187,9 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
 
     ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, tmp, addr, narrow, true);
     char check = 0;
-    check |= ShenandoahLoadBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
-    check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
-    assert(!ShenandoahLoadBarrierStubC2::needs_load_ref_barrier_weak(node), "Not supported for GAS");
+    check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
+    check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
+    assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node), "Not supported for GAS");
     gc_state_check_c2(masm, check, stub);
   }
 
@@ -1202,7 +1200,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
   }
 
   // Post-barrier deals with card updates.
-  if (!ShenandoahSkipBarriers && ShenandoahStoreBarrierStubC2::needs_card_barrier(node)) {
+  if (!ShenandoahSkipBarriers && ShenandoahBarrierStubC2::needs_card_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
     card_barrier_c2(masm, addr, tmp);
   }
