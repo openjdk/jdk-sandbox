@@ -1087,8 +1087,9 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   if (!ShenandoahSkipBarriers && ShenandoahStoreBarrierStubC2::needs_barrier(node)) {
     Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
+    // If we need KA, go for slow stub
     if (ShenandoahBarrierStubC2::needs_keep_alive_barrier(node)) {
-      ShenandoahStoreBarrierStubC2* const stub = ShenandoahStoreBarrierStubC2::create(node, dst, dst_narrow, src, src_narrow, tmp);
+      BarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, tmp, dst, dst_narrow, true);
       stub->dont_preserve(tmp); // temp, no need to preserve it
 
       gc_state_check_c2(masm, ShenandoahHeap::MARKING, stub);
@@ -1425,51 +1426,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 }
 
 void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
-  __ bind(*entry());
-
-  Label L_slow, L_done;
-
-  // We need 2 temp registers for this code to work.
-  // _tmp is already allocated and will carry preval for the call.
-  // Allocate the other one now.
-  Register preval = _tmp;
-  Register tmp2 = select_temp_register(_dst, _src, _tmp);
-
-  // ---- Mid path
-
-  // Load preval from memory.
-  if (_dst_narrow) {
-    __ movl(preval, _dst);
-  } else {
-    __ movq(preval, _dst);
-  }
-
-  // If the preval is null, there is no point in applying barriers.
-  __ testptr(preval, preval);
-  __ jccb(Assembler::zero, L_done);
-
-  // If preval is narrow, we need to decode it first: barrier checks need full oops.
-  // Since preval is in temp, we do not need to encode it back on any path.
-  if (_dst_narrow) {
-    __ decode_heap_oop_not_null(preval);
-  }
-
-  __ push(tmp2);
-  keepalive_fast(&masm, preval, tmp2, &L_slow, /* short_slow = */ true);
-  __ pop(tmp2);
-
-  // ---- Exits
-
-  __ bind(L_done);
-  __ jmp(*continuation());
-
-  // ---- Slow path
-
-  // Slow path immediately pop tmp to make sure the stack is aligned for the call.
-  __ bind(L_slow);
-  __ pop(tmp2);
-  keepalive_slow(&masm, preval);
-  __ jmp(L_done);
+  ShouldNotReachHere();
 }
 
 void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
