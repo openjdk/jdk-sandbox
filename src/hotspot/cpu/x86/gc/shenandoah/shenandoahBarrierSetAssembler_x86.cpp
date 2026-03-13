@@ -1378,7 +1378,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
       gc_state_check(&masm, ShenandoahHeap::MARKING, &L_keepalive_done);
     }
     __ push(tmp);
-    keepalive_fast(&masm, _dst, tmp, &L_keepalive_slow, /* short_slow = */ false);
+    keepalive_fast(&masm, _dst, tmp, &L_keepalive_slow, /* short_slow = */ !_needs_load_ref_barrier);
     __ pop(tmp);
     __ bind(L_keepalive_done);
   }
