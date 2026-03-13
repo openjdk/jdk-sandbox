@@ -801,10 +801,9 @@ ShenandoahCASBarrierStubC2* ShenandoahCASBarrierStubC2::create(const MachNode* n
 }
 
 bool ShenandoahBarrierSetC2State::needs_liveness_data(const MachNode* mach) const {
-  // Must ask all stubs!
-  return ShenandoahLoadBarrierStubC2::needs_barrier(mach) ||
-         ShenandoahStoreBarrierStubC2::needs_barrier(mach) ||
-         ShenandoahCASBarrierStubC2::needs_barrier(mach);
+  // Nodes that require slow-path stubs need liveness data.
+  return ShenandoahBarrierStubC2::needs_keep_alive_barrier(mach) ||
+         ShenandoahBarrierStubC2::needs_load_ref_barrier(mach);
 }
 
 bool ShenandoahBarrierSetC2State::needs_livein_data() const {
