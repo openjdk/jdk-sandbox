@@ -30,7 +30,7 @@ W="-jar $DACAPO/dacapo-23.11-MR2-chopin.jar $*"
 OPTS="-XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions"
 
 # Only C2, only COH
-OPTS="$OPTS -XX:-TieredCompilation -XX:+UseCompactObjectHeaders"
+OPTS="$OPTS -XX:-TieredCompilation -XX:+UseCompactObjectHeaders -XX:+UseCompressedOops"
 
 # Heap config
 OPTS="$OPTS -Xmx10g -Xms10g -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch"
@@ -41,8 +41,13 @@ OPTS="$OPTS -XX:+UseShenandoahGC -XX:ShenandoahGCMode=passive"
 # Mitigate code cache effects
 OPTS="$OPTS -XX:ReservedCodeCacheSize=256M"
 
+# Opts for testing individual barriers
+OPTS_LRB="-XX:+ShenandoahLoadRefBarrier"
+OPTS_SAT="-XX:+ShenandoahSATBBarrier"
+OPTS_CAS="-XX:+ShenandoahCASBarrier"
+OPTS_CLN="-XX:+ShenandoahCloneBarrier"
 
-OPTS_ALL="$OPTS -XX:+ShenandoahLoadRefBarrier -XX:+ShenandoahSATBBarrier -XX:+ShenandoahCASBarrier -XX:+ShenandoahCloneBarrier"
+OPTS_ALL="$OPTS $OPTS_LRB $OPTS_SAT $OPTS_CAS $OPTS_CLN"
 
 run_with() {
 	P=$*
@@ -64,6 +69,22 @@ if [ "x" != "x$J_ML" ]; then
   run_with $J_ML $OPTS
 
   echo
+  echo "Mainline: Only LRB barriers"
+  run_with $J_ML $OPTS $OPTS_LRB
+
+  echo
+  echo "Mainline: Only SAT barriers"
+  run_with $J_ML $OPTS $OPTS_SAT
+
+  echo
+  echo "Mainline: Only CAS barriers"
+  run_with $J_ML $OPTS $OPTS_CAS
+
+  echo
+  echo "Mainline: Only Clone barriers"
+  run_with $J_ML $OPTS $OPTS_CLN
+
+  echo
   echo "Mainline: All barriers"
   run_with $J_ML $OPTS_ALL
 fi
@@ -71,6 +92,22 @@ fi
 echo
 echo "LBE: No barriers"
 run_with $J_LBE $OPTS
+
+echo
+echo "LBE: Only LRB barriers"
+run_with $J_LBE $OPTS $OPTS_LRB
+
+echo
+echo "LBE: Only SAT barriers"
+run_with $J_LBE $OPTS $OPTS_SAT
+
+echo
+echo "LBE: Only CAS barriers"
+run_with $J_LBE $OPTS $OPTS_CAS
+
+echo
+echo "LBE: Only Clone barriers"
+run_with $J_LBE $OPTS $OPTS_CLN
 
 echo
 echo "LBE: All barriers"
