@@ -1416,9 +1416,5 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
     __ jmp(L_keepalive_done);
   }
 }
-
-void ShenandoahCASBarrierStubC2::emit_code(MacroAssembler& masm) {
-  ShouldNotReachHere();
-}
 #undef __
 #endif
