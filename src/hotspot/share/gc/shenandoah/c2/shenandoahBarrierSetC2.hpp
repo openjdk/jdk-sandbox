@@ -215,31 +215,6 @@ public:
   void emit_code(MacroAssembler& masm) override;
 };
 
-class ShenandoahStoreBarrierStubC2 : public ShenandoahBarrierStubC2 {
-  Address const _dst;
-  Register const _src;
-  Register const _tmp;
-  const bool _dst_narrow;
-  const bool _src_narrow;
-
-  ShenandoahStoreBarrierStubC2(const MachNode* node, Address dst, bool dst_narrow, Register src,
-      bool src_narrow, Register tmp) :
-    ShenandoahBarrierStubC2(node), _dst(dst), _src(src), _tmp(tmp), _dst_narrow(dst_narrow),
-      _src_narrow(src_narrow) {
-      assert(!_dst_narrow || is_heap_access(node), "Only heap accesses can be narrow");
-    }
-
-public:
-  static bool needs_barrier(const MachNode* node) {
-    return needs_card_barrier(node) || needs_keep_alive_barrier(node);
-  }
-  static ShenandoahStoreBarrierStubC2* create(const MachNode* node, Address addr, bool dst_narrow, Register src,
-      bool src_narrow, Register tmp);
-  static void check_and_insert(const MachNode* node, MacroAssembler* masm, Address addr, bool dst_narrow, Register src,
-      bool src_narrow, Register tmp, RegSet regsToPreserve = RegSet(), RegSet regsDontPreserve = RegSet());
-  void emit_code(MacroAssembler& masm) override;
-};
-
 class ShenandoahCASBarrierStubC2 : public ShenandoahBarrierStubC2 {
   Register _addr_reg; // Used on aarch64
   Address  _addr; // Used on x64

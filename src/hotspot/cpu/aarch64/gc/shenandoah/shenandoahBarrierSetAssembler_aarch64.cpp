@@ -776,7 +776,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
       // Need to encode into rscratch, because we cannot clobber src.
       // TODO: Maybe there is a matcher way to test that src is unused after this?
       __ mov(rscratch1, src);
-      if (ShenandoahStoreBarrierStubC2::src_not_null(node)) {
+      if (ShenandoahBarrierStubC2::src_not_null(node)) {
         __ encode_heap_oop_not_null(rscratch1);
       } else {
         __ encode_heap_oop(rscratch1);
@@ -857,44 +857,6 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroA
 }
 #undef __
 #define __ masm.
-
-void ShenandoahStoreBarrierStubC2::emit_code(MacroAssembler& masm) {
-  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
-  __ bind(*entry());
-
-  Label L_done;
-
-  // We'll use "_src" register as third scratch register
-  assert(_src != noreg, "should be");
-  RegSet saved = RegSet::of(_src);
-  Register obj = _src;
-  __ push(saved, sp);
-
-  // Do we need to load the previous value?
-  __ load_heap_oop(obj, _dst, noreg, noreg, AS_RAW);
-
-  // FIXME: We can merge this on the load above
-  __ cbz(obj, L_done);
-
-  satb(&masm, this, rscratch1, rscratch2, obj);
-
-  __ bind(L_done);
-  __ pop(saved, sp);
-  __ b(*continuation());
-}
-
-void ShenandoahStoreBarrierStubC2::check_and_insert(const MachNode* node, MacroAssembler* masm, Address dst,
-    bool dst_narrow, Register src, bool src_narrow, Register tmp, RegSet regsToPreserve, RegSet regsDontPreserve) {
-  if (!ShenandoahSkipBarriers && ShenandoahStoreBarrierStubC2::needs_keep_alive_barrier(node)) {
-    Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
-
-    ShenandoahStoreBarrierStubC2* const stub = ShenandoahStoreBarrierStubC2::create(node, dst, dst_narrow, src, src_narrow, tmp);
-    stub->dont_preserve(regsDontPreserve);
-    stub->preserve(regsToPreserve);
-
-    ShenandoahBarrierStubC2::gc_state_check_c2(masm, rscratch1, ShenandoahHeap::MARKING, stub);
-  }
-}
 
 void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
