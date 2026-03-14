@@ -814,6 +814,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
     }
   }
 
+  // Post-barrier: LRB
   ShenandoahLoadBarrierStubC2::check_and_insert(node, masm, dst, src, RegSet::of(src.base()), RegSet::of(dst));
 }
 
@@ -889,15 +890,14 @@ void ShenandoahStoreBarrierStubC2::check_and_insert(const MachNode* node, MacroA
   }
 }
 
-// FIXME: It would probably be a good idea to split the SATB and LRB in
-// separate stubs; if nothing else, it would at least make the code simpler.
 void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
-  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
+  assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
 
   __ bind(*entry());
 
-  Label L_lrb;
+  Label L_keepalive_done, L_lrb_done;
 
+  // If object is narrow, we need to decode it first: barrier checks need full oops.
   if (_narrow) {
     if (_maybe_null) {
       __ decode_heap_oop(_dst, continuation());
@@ -908,30 +908,36 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
     __ cbz(_dst, *continuation());
   }
 
-  { // SATB
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb(rscratch1, gcs_addr);
-    __ tbz(rscratch1, ShenandoahHeap::MARKING_BITPOS, L_lrb);
+  if (_needs_keep_alive_barrier) {
+    // If both barriers are required (rare), do a runtime check for enabled barrier.
+    if (_needs_load_ref_barrier) {
+      Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+      __ ldrb(rscratch1, gcs_addr);
+      __ tbz(rscratch1, ShenandoahHeap::MARKING_BITPOS, L_keepalive_done);
+    }
 
     preserve(_dst);
     satb(&masm, this, rscratch1, rscratch2, _dst);
+    __ bind(L_keepalive_done);
   }
 
-  __ bind(L_lrb); { // LRB
-    Label L_lrb_end;
-
-    if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-      Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-      __ ldrb(rscratch1, gcs_addr);
-      __ tbz(rscratch1, ShenandoahHeap::HAS_FORWARDED_BITPOS, L_lrb_end);
+  if (_needs_load_ref_barrier) {
+    // If both barriers are required (rare), do a runtime check for enabled barrier.
+    if (_needs_keep_alive_barrier) {
+      if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
+        Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+        __ ldrb(rscratch1, gcs_addr);
+        __ tbz(rscratch1, ShenandoahHeap::HAS_FORWARDED_BITPOS, L_lrb_done);
+      }
     }
 
     dont_preserve(_dst);
-    lrb(&masm, this, _dst, _src, &L_lrb_end, _narrow);
+    lrb(&masm, this, _dst, _src, &L_lrb_done, _narrow);
 
-    __ bind(L_lrb_end);
+    __ bind(L_lrb_done);
   }
 
+  // If object is narrow, we need to encode it before exiting.
   if (_narrow) {
     if (_maybe_null) {
       __ encode_heap_oop(_dst);
