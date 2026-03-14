@@ -89,7 +89,7 @@ public:
 
 #ifdef COMPILER2
   // Entry points from Matcher
-  void store_c2(const MachNode* node, MacroAssembler* masm, Address dst, bool dst_narrow, Register src, bool src_narrow);
+  void store_c2(const MachNode* node, MacroAssembler* masm, Address dst, bool dst_narrow, Register src, bool src_narrow, Register tmp);
   void cae_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval, Register newval, bool exchange, bool maybe_null, bool narrow, bool weak);
   void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr);
   void load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address addr);

@@ -28,80 +28,85 @@ source %{
 #include "gc/shenandoah/c2/shenandoahBarrierSetC2.hpp"
 %}
 
-instruct store_P_Normal_shenandoah(memory8 mem, iRegP src, rFlagsReg cr)
+instruct store_P_Normal_shenandoah(memory8 mem, iRegP src, iRegPNoSp tmp, rFlagsReg cr)
 %{
   match(Set mem (StoreP mem src));
   predicate(UseShenandoahGC && !needs_releasing_store(n) && n->as_Store()->barrier_data() != 0);
-  effect(KILL cr);
+  effect(TEMP tmp, KILL cr);
   ins_cost(3*INSN_COST);
   format %{ "str $src, $mem" %}
   ins_encode %{
     const Address addr = mem2address($mem->opcode(), as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
       addr,           /* dst_narrow  = */ false,
-      $src$$Register, /* src_narrow  = */ false);
+      $src$$Register, /* src_narrow  = */ false,
+      $tmp$$Register);
   %}
   ins_pipe(pipe_class_memory);
 %}
 
-instruct store_P_Volatile_shenandoah(indirect mem, iRegP src, rFlagsReg cr)
+instruct store_P_Volatile_shenandoah(indirect mem, iRegP src, iRegPNoSp tmp, rFlagsReg cr)
 %{
   match(Set mem (StoreP mem src));
   predicate(UseShenandoahGC && needs_releasing_store(n) && n->as_Store()->barrier_data() != 0);
-  effect(KILL cr);
+  effect(TEMP tmp, KILL cr);
   ins_cost(VOLATILE_REF_COST);
   format %{ "str $src, $mem" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
       Address($mem$$Register),    /* dst_narrow  = */ false,
-      $src$$Register,             /* src_narrow  = */ false);
+      $src$$Register,             /* src_narrow  = */ false,
+      $tmp$$Register);
   %}
   ins_pipe(pipe_class_memory);
 %}
 
-instruct store_N_Normal_shenandoah(memory4 mem, iRegN src, rFlagsReg cr)
+instruct store_N_Normal_shenandoah(memory4 mem, iRegN src, iRegNNoSp tmp, rFlagsReg cr)
 %{
   match(Set mem (StoreN mem src));
   predicate(UseShenandoahGC && !needs_releasing_store(n) && n->as_Store()->barrier_data() != 0);
-  effect(KILL cr);
+  effect(TEMP tmp, KILL cr);
   ins_cost(3*INSN_COST);
   format %{ "str $src, $mem" %}
   ins_encode %{
     const Address addr = mem2address($mem->opcode(), as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
       addr,           /* dst_narrow  = */ true,
-      $src$$Register, /* src_narrow  = */ true);
+      $src$$Register, /* src_narrow  = */ true,
+      $tmp$$Register);
   %}
   ins_pipe(pipe_class_memory);
 %}
 
-instruct store_N_Volatile_shenandoah(indirect mem, iRegN src, rFlagsReg cr)
+instruct store_N_Volatile_shenandoah(indirect mem, iRegN src, iRegNNoSp tmp, rFlagsReg cr)
 %{
   match(Set mem (StoreN mem src));
   predicate(UseShenandoahGC && needs_releasing_store(n) && n->as_Store()->barrier_data() != 0);
-  effect(KILL cr);
+  effect(TEMP tmp, KILL cr);
   ins_cost(VOLATILE_REF_COST);
   format %{ "str $src, $mem" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
       Address($mem$$Register),    /* dst_narrow  = */ true,
-      $src$$Register,             /* src_narrow  = */ true);
+      $src$$Register,             /* src_narrow  = */ true,
+      $tmp$$Register);
   %}
   ins_pipe(pipe_class_memory);
 %}
 
-instruct encodePAndStoreN_shenandoah(indirect mem, iRegP src, rFlagsReg cr)
+instruct encodePAndStoreN_shenandoah(indirect mem, iRegP src, iRegPNoSp tmp, rFlagsReg cr)
 %{
   match(Set mem (StoreN mem (EncodeP src)));
   predicate(UseShenandoahGC && n->as_Store()->barrier_data() != 0);
-  effect(KILL cr);
+  effect(TEMP tmp, KILL cr);
   ins_cost(4*INSN_COST);
   format %{ "encode_heap_oop tmp, $src\n\t"
             "str  tmp, $mem\t# compressed ptr" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
       Address($mem$$Register), /* dst_narrow  = */ true,
-      $src$$Register,          /* src_narrow  = */ false);
+      $src$$Register,          /* src_narrow  = */ false,
+      $tmp$$Register);
   %}
   ins_pipe(pipe_class_memory);
 %}

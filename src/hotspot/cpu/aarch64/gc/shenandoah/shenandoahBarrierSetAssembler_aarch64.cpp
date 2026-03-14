@@ -760,11 +760,14 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
 }
 
 void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm, Address dst, bool dst_narrow,
-    Register src, bool src_narrow) {
+    Register src, bool src_narrow, Register tmp) {
 
-  ShenandoahStoreBarrierStubC2::check_and_insert(node, masm, dst, dst_narrow, src, src_narrow, noreg);
-
-  card_barrier_c2(node, masm, dst);
+  // Pre-barrier: SATB, keep-alive the current memory value.
+  if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
+    assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier(node), "Should not be required for stores");
+    BarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, tmp, dst, dst_narrow, true);
+    ShenandoahBarrierStubC2::gc_state_check_c2(masm, rscratch1, ShenandoahHeap::MARKING, stub);
+  }
 
   // Do the actual store
   bool is_volatile = node->has_trailing_membar();
@@ -793,6 +796,9 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
       __ str(src, dst);
     }
   }
+
+  // Post-barrier: card updates.
+  card_barrier_c2(node, masm, dst);
 }
 
 void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src) {
@@ -897,15 +903,22 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   Label L_keepalive_done, L_lrb_done;
 
-  // If object is narrow, we need to decode it first: barrier checks need full oops.
-  if (_narrow) {
-    if (_maybe_null) {
-      __ decode_heap_oop(_dst, continuation());
-    } else {
-      __ decode_heap_oop_not_null(_dst);
-    }
-  } else {
+  // If we need to load ourselves, do it here.
+  if (_self_load) {
+    // This does the load and the decode if necessary
+    __ load_heap_oop(_dst, _src, noreg, noreg, AS_RAW);
     __ cbz(_dst, *continuation());
+  } else {
+    // If object is narrow, we need to decode it first: barrier checks need full oops.
+    if (_narrow) {
+      if (_maybe_null) {
+        __ decode_heap_oop(_dst, continuation());
+      } else {
+        __ decode_heap_oop_not_null(_dst);
+      }
+    } else {
+      __ cbz(_dst, *continuation());
+    }
   }
 
   if (_needs_keep_alive_barrier) {
@@ -916,7 +929,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
       __ tbz(rscratch1, ShenandoahHeap::MARKING_BITPOS, L_keepalive_done);
     }
 
-    preserve(_dst);
+    if (!_self_load) preserve(_dst);
     satb(&masm, this, rscratch1, rscratch2, _dst);
     __ bind(L_keepalive_done);
   }
@@ -938,7 +951,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
 
   // If object is narrow, we need to encode it before exiting.
-  if (_narrow) {
+  if (_narrow && !_self_load) {
     if (_maybe_null) {
       __ encode_heap_oop(_dst);
     } else {
