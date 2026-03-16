@@ -1042,16 +1042,35 @@ bool ShenandoahBarrierStubC2::is_live(Register reg) {
   return false;
 }
 
-Register ShenandoahBarrierStubC2::select_temp_register(Address addr, Register reg1, Register reg2) {
+Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Address addr, Register reg1, Register reg2) {
   Register tmp = noreg;
+
+  // Try to select non-live first:
   for (int i = 0; i < 8; i++) {
     Register r = as_Register(i);
+    if (is_live(r)) continue;
     if (r != rsp && r != rbp && r != reg1 && r != reg2 && r != addr.base() && r != addr.index()) {
       if (tmp == noreg) {
         tmp = r;
         break;
       }
     }
+  }
+
+  // If unsuccessful, select any register, likely live one.
+  if (tmp == noreg) {
+    for (int i = 0; i < 8; i++) {
+      Register r = as_Register(i);
+      if (r != rsp && r != rbp && r != reg1 && r != reg2 && r != addr.base() && r != addr.index()) {
+        if (tmp == noreg) {
+          tmp = r;
+          break;
+        }
+      }
+    }
+    selected_live = true;
+  } else {
+    selected_live = false;
   }
 
   assert(tmp != noreg, "successfully allocated");
@@ -1380,7 +1399,8 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   __ bind(*entry());
 
-  Register tmp = select_temp_register(_src, _dst);
+  bool tmp_live;
+  Register tmp = select_temp_register(tmp_live, _src, _dst);
 
   Label L_lrb_done, L_lrb_slow;
   Label L_keepalive_done, L_keepalive_slow;
@@ -1417,9 +1437,9 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
     if (_needs_load_ref_barrier) {
       gc_state_check(&masm, ShenandoahHeap::MARKING, &L_keepalive_done);
     }
-    __ push(tmp);
+    if (tmp_live) __ push(tmp);
     keepalive_fast(&masm, _dst, tmp, &L_keepalive_slow, /* short_slow = */ !_needs_load_ref_barrier);
-    __ pop(tmp);
+    if (tmp_live) __ pop(tmp);
     __ bind(L_keepalive_done);
   }
 
@@ -1428,9 +1448,9 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
     if (_needs_keep_alive_barrier) {
       gc_state_check(&masm, ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::WEAK_ROOTS, &L_lrb_done);
     }
-    __ push(tmp);
+    if (tmp_live) __ push(tmp);
     lrb_fast(&masm, _dst, tmp, &L_lrb_slow, /* short_slow = */ true);
-    __ pop(tmp);
+    if (tmp_live) __ pop(tmp);
     __ bind(L_lrb_done);
   }
 
@@ -1450,7 +1470,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   if (_needs_load_ref_barrier) {
     __ bind(L_lrb_slow);
-    __ pop(tmp);
+    if (tmp_live) __ pop(tmp);
     dont_preserve(_dst); // For LRB we must not preserve _dst
     lrb_slow(&masm, _dst, _src, _narrow);
     __ jmp(L_lrb_done);
@@ -1458,7 +1478,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   if (_needs_keep_alive_barrier) {
     __ bind(L_keepalive_slow);
-    __ pop(tmp);
+    if (tmp_live) __ pop(tmp);
     preserve(_dst); // For KA we must preserve _dst
     keepalive_slow(&masm, _dst);
     __ jmp(L_keepalive_done);
