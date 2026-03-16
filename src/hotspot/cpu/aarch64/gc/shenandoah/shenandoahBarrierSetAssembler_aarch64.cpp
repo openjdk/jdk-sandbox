@@ -984,8 +984,23 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, ShenandoahBarrierStubC2*
   {
     SaveLiveRegisters save_registers(masm, stub);
 
-    masm->mov(c_rarg0, obj);
-    masm->lea(c_rarg1, addr);
+    // Shuffle in the arguments. The end result should be:
+    //   c_rarg0 <-- obj
+    //   c_rarg1 <-- lea(addr)
+    if (c_rarg0 == obj) {
+      masm->lea(c_rarg1, addr);
+    } else if (c_rarg1 == obj) {
+      // Set up arguments in reverse, and then flip them
+      masm->lea(c_rarg0, addr);
+      // flip them
+      masm->mov(rscratch1, c_rarg0);
+      masm->mov(c_rarg0, c_rarg1);
+      masm->mov(c_rarg1, rscratch1);
+    } else {
+      assert_different_registers(c_rarg1, obj);
+      masm->lea(c_rarg1, addr);
+      masm->mov(c_rarg0, obj);
+    }
 
     if (narrow) {
       if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
