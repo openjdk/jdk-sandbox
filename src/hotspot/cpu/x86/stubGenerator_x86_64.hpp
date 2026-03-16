@@ -629,7 +629,7 @@ class StubGenerator: public StubCodeGenerator {
   address generate_lookup_secondary_supers_table_slow_path_stub();
 
   address generate_shenandoah_keepalive_stub();
-  address generate_shenandoah_lrb_stub(int flavor);
+  address generate_shenandoah_lrb_stub(StubId stub_id);
 
   void create_control_words();
 

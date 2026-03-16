@@ -1238,11 +1238,16 @@ void ShenandoahBarrierStubC2::keepalive_fast(MacroAssembler* masm, Register obj,
 }
 
 void ShenandoahBarrierStubC2::keepalive_slow(MacroAssembler* masm, Register obj) {
-  SaveLiveRegisters save_registers(masm, this);
+  // StubGen stub is responsible for dealing with call clobbered registers.
+  // Here, we just stash away anything that we clobbered while preparing the arguments.
   if (c_rarg0 != obj) {
+    __ push(c_rarg0);
     __ mov(c_rarg0, obj);
   }
   __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_keepalive_stub())), rax);
+  if (c_rarg0 != obj) {
+    __ pop(c_rarg0);
+  }
 }
 
 void ShenandoahBarrierStubC2::lrb_fast(MacroAssembler* masm, Register obj, Register tmp, Label* L_slow, bool short_slow) {
@@ -1278,7 +1283,18 @@ void ShenandoahBarrierStubC2::lrb_fast(MacroAssembler* masm, Register obj, Regis
 }
 
 void ShenandoahBarrierStubC2::lrb_slow(MacroAssembler* masm, Register obj, Address addr, bool narrow) {
-  SaveLiveRegisters save_registers(masm, this);
+  // StubGen stub is responsible for dealing with call clobbered registers.
+  // Here, we just stash away anything that we clobbered while preparing the arguments.
+  assert_different_registers(rax, c_rarg0, c_rarg1);
+  if (obj != c_rarg0) {
+    __ push(c_rarg0);
+  }
+  if (obj != c_rarg1) {
+    __ push(c_rarg1);
+  }
+  if (obj != rax) {
+    __ push(rax);
+  }
 
   // Shuffle in the arguments. The end result should be:
   //   c_rarg0 <-- obj
@@ -1295,7 +1311,7 @@ void ShenandoahBarrierStubC2::lrb_slow(MacroAssembler* masm, Register obj, Addre
     __ movptr(c_rarg0, obj);
   }
 
-  address entry;
+  address entry = nullptr;
   if (narrow) {
     if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
       entry = CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_lrb_strong_narrow_stub());
@@ -1314,8 +1330,17 @@ void ShenandoahBarrierStubC2::lrb_slow(MacroAssembler* masm, Register obj, Addre
     }
   }
   __ call(RuntimeAddress(entry), rax);
-  assert(!save_registers.contains(obj), "must not save result register");
-  __ movptr(obj, rax);
+
+  if (obj != rax) {
+    __ movptr(obj, rax);
+    __ pop(rax);
+  }
+  if (obj != c_rarg1) {
+    __ pop(c_rarg1);
+  }
+  if (obj != c_rarg0) {
+    __ pop(c_rarg0);
+  }
 }
 
 void ShenandoahBarrierStubC2::gc_state_check(MacroAssembler* masm, const char state, Label* L_not_set) {
