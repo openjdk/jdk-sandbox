@@ -3996,11 +3996,11 @@ address StubGenerator::generate_shenandoah_keepalive_stub() {
   __ testl(rsp, 15);
   __ jccb(Assembler::zero, L_stack_aligned);
     __ subq(rsp, 8);
-    __ call(RuntimeAddress(stub_addr));
+    __ call(RuntimeAddress(stub_addr), rax);
     __ addq(rsp, 8);
   __ jmpb(L_done);
   __ bind(L_stack_aligned);
-    __ call(RuntimeAddress(stub_addr));
+    __ call(RuntimeAddress(stub_addr), rax);
   __ bind(L_done);
 
   __ pop_call_clobbered_registers();
@@ -4053,11 +4053,11 @@ address StubGenerator::generate_shenandoah_lrb_stub(StubId stub_id) {
   __ testl(rsp, 15);
   __ jccb(Assembler::zero, L_stack_aligned);
     __ subq(rsp, 8);
-    __ call(RuntimeAddress(stub_addr));
+    __ call(RuntimeAddress(stub_addr), rax);
     __ addq(rsp, 8);
   __ jmpb(L_done);
   __ bind(L_stack_aligned);
-    __ call(RuntimeAddress(stub_addr));
+    __ call(RuntimeAddress(stub_addr), rax);
   __ bind(L_done);
 
   __ pop_call_clobbered_registers_except(RegSet::of(rax));
