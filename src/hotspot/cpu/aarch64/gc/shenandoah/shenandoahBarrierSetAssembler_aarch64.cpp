@@ -733,9 +733,24 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
 }
 
 void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval,
-    Register newval, Register addr) {
+    Register newval, Register addr, Register tmp) {
   bool acquire = needs_acquiring_load_exclusive(node);
   bool narrow = node->bottom_type()->isa_narrowoop();
+
+  // Pre-barrier covers several things:
+  //  a. Satisfies the need for LRB for the GAS result.
+  //  b. Records old value for the sake of SATB.
+  //
+  // (a) is covered because load barrier does memory location fixup.
+  // (b) is covered by KA on the current memory value.
+  if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
+    BarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, tmp, addr, narrow, true);
+    char check = 0;
+    check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
+    check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
+    assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node), "Not supported for GAS");
+    ShenandoahBarrierStubC2::gc_state_check_c2(masm, rscratch1, check, stub);
+  }
 
   if (narrow) {
     if (acquire) {
@@ -751,8 +766,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     }
   }
 
-  ShenandoahLoadBarrierStubC2::check_and_insert(node, masm, preval, Address(addr, 0));
-
+  // Post-barrier deals with card updates.
   card_barrier_c2(node, masm, Address(addr, 0));
 }
 
@@ -818,7 +832,14 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
   }
 
   // Post-barrier: LRB
-  ShenandoahLoadBarrierStubC2::check_and_insert(node, masm, dst, src, RegSet::of(src.base()), RegSet::of(dst));
+  if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
+    BarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, dst, src, narrow, false);
+    char check = 0;
+    check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
+    check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
+    check |= ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node) ? ShenandoahHeap::WEAK_ROOTS : 0;
+    ShenandoahBarrierStubC2::gc_state_check_c2(masm, rscratch1, check, stub);
+  }
 }
 
 void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroAssembler* masm, Address address) {
@@ -919,23 +940,6 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
 
   __ b(*continuation());
-}
-
-void ShenandoahLoadBarrierStubC2::check_and_insert(const MachNode* node, MacroAssembler* masm, Register dst,
-    Address addr, RegSet regsToPreserve, RegSet regsDontPreserve) {
-  if (!ShenandoahSkipBarriers && ShenandoahLoadBarrierStubC2::needs_barrier(node)) {
-    Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
-
-    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, dst, addr, is_narrow_result(node), false);
-    stub->dont_preserve(regsDontPreserve);
-    stub->preserve(regsToPreserve);
-
-    char check = 0;
-    check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
-    check |= ShenandoahLoadBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
-    check |= ShenandoahLoadBarrierStubC2::needs_load_ref_barrier_weak(node) ? ShenandoahHeap::WEAK_ROOTS : 0;
-    gc_state_check_c2(masm, rscratch1, check, stub);
-  }
 }
 
 void ShenandoahBarrierStubC2::satb(MacroAssembler* masm, ShenandoahBarrierStubC2* stub, Register scratch1, Register scratch2, Register scratch3) {

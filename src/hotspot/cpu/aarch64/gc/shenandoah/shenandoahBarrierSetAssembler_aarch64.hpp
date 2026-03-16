@@ -93,7 +93,8 @@ public:
       bool src_narrow, Register tmp);
   void compare_and_set_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval,
       Register newval, Register tmp, bool exchange, bool maybe_null, bool narrow, bool weak);
-  void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr);
+  void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval,
+      Register addr, Register tmp);
   void load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address addr);
   void gc_state_check_c2(MacroAssembler* masm, Register rscratch, const unsigned char test_state, BarrierStubC2* slow_stub);
   void card_barrier_c2(const MachNode* node, MacroAssembler* masm, Address addr);

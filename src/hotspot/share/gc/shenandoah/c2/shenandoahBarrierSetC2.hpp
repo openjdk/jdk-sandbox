@@ -210,8 +210,6 @@ public:
     return node->bottom_type()->isa_narrowoop() || node->ideal_Opcode() == Op_DecodeN;
   }
   static ShenandoahLoadBarrierStubC2* create(const MachNode* node, Register dst, Address addr, bool narrow, bool self_load);
-  static void check_and_insert(const MachNode* node, MacroAssembler* masm, Register dst, Address addr,
-      RegSet regsToPreserve = RegSet(), RegSet regsDontPreserve = RegSet());
   void emit_code(MacroAssembler& masm) override;
 };
 
