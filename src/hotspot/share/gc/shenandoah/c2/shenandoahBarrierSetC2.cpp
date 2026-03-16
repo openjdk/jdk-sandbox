@@ -48,6 +48,7 @@ ShenandoahBarrierSetC2* ShenandoahBarrierSetC2::bsc2() {
 ShenandoahBarrierSetC2State::ShenandoahBarrierSetC2State(Arena* comp_arena) :
     BarrierSetC2State(comp_arena),
     _stubs(new (comp_arena) GrowableArray<ShenandoahBarrierStubC2*>(comp_arena, 8,  0, nullptr)),
+    _trampoline_stubs_count(0),
     _stubs_start_offset(0) {
 }
 
@@ -776,15 +777,30 @@ void ShenandoahBarrierSetC2::emit_stubs(CodeBuffer& cb) const {
   masm.flush();
 }
 
-void ShenandoahBarrierStubC2::register_stub() {
+// FIXME / REVISIT: does this method and the following really need to be static?
+void ShenandoahBarrierStubC2::register_stub(ShenandoahBarrierStubC2* stub) {
   if (!Compile::current()->output()->in_scratch_emit_size()) {
-    barrier_set_state()->stubs()->append(this);
+    barrier_set_state()->stubs()->append(stub);
   }
 }
 
-ShenandoahLoadBarrierStubC2* ShenandoahLoadBarrierStubC2::create(const MachNode* node, Register dst, Address addr, bool narrow, bool self_load) {
-  auto* stub = new (Compile::current()->comp_arena()) ShenandoahLoadBarrierStubC2(node, dst, addr, narrow, self_load);
-  stub->register_stub();
+void ShenandoahBarrierStubC2::inc_trampoline_stubs_count() {
+  if (!Compile::current()->output()->in_scratch_emit_size()) {
+    barrier_set_state()->inc_trampoline_stubs_count();
+  }
+}
+
+int ShenandoahBarrierStubC2::trampoline_stubs_count() {
+  return barrier_set_state()->trampoline_stubs_count();
+}
+
+int ShenandoahBarrierStubC2::stubs_start_offset() {
+  return barrier_set_state()->stubs_start_offset();
+}
+
+ShenandoahLoadBarrierStubC2* ShenandoahLoadBarrierStubC2::create(const MachNode* node, Register dst, Address addr, bool narrow, bool self_load, int offset) {
+  auto* stub = new (Compile::current()->comp_arena()) ShenandoahLoadBarrierStubC2(node, dst, addr, narrow, self_load, offset);
+  ShenandoahLoadBarrierStubC2::register_stub(stub);
   return stub;
 }
 
