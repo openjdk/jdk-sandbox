@@ -147,6 +147,7 @@ protected:
   void lrb(MacroAssembler* masm, ShenandoahBarrierStubC2* stub, Register obj, Address addr, Label* L_done, bool narrow);
   static Register select_temp_register(Address addr, Register reg1 = noreg, Register reg2 = noreg);
 
+  bool is_live(Register reg);
   void keepalive_fast(MacroAssembler* masm, Register obj, Register tmp, Label* L_slow, bool short_slow);
   void keepalive_slow(MacroAssembler* masm, Register obj);
   void lrb_fast(MacroAssembler* masm, Register obj, Register tmp, Label* L_slow, bool short_slow);

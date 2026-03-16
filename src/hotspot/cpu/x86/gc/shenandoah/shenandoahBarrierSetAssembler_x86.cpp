@@ -1021,6 +1021,27 @@ void ShenandoahBarrierSetAssembler::generate_c1_load_reference_barrier_runtime_s
 #undef __
 #define __ masm->
 
+bool ShenandoahBarrierStubC2::is_live(Register reg) {
+  // TODO: Precompute the generic register map for faster lookups.
+  RegMaskIterator rmi(preserve_set());
+  while (rmi.has_next()) {
+    const OptoReg::Name opto_reg = rmi.next();
+    const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
+    if (vm_reg->is_Register()) {
+      if (reg == vm_reg->as_Register()) {
+        return true;
+      }
+    } else if (vm_reg->is_KRegister()) {
+      // Do not care, skip.
+    } else if (vm_reg->is_XMMRegister()) {
+      // Do not care, skip.
+    } else {
+      fatal("Unexpected register type");
+    }
+  }
+  return false;
+}
+
 Register ShenandoahBarrierStubC2::select_temp_register(Address addr, Register reg1, Register reg2) {
   Register tmp = noreg;
   for (int i = 0; i < 8; i++) {
@@ -1286,13 +1307,13 @@ void ShenandoahBarrierStubC2::lrb_slow(MacroAssembler* masm, Register obj, Addre
   // StubGen stub is responsible for dealing with call clobbered registers.
   // Here, we just stash away anything that we clobbered while preparing the arguments.
   assert_different_registers(rax, c_rarg0, c_rarg1);
-  if (obj != c_rarg0) {
+  if (obj != c_rarg0 && is_live(c_rarg0)) {
     __ push(c_rarg0);
   }
-  if (obj != c_rarg1) {
+  if (obj != c_rarg1 && is_live(c_rarg1)) {
     __ push(c_rarg1);
   }
-  if (obj != rax) {
+  if (obj != rax && is_live(rax)) {
     __ push(rax);
   }
 
@@ -1333,12 +1354,14 @@ void ShenandoahBarrierStubC2::lrb_slow(MacroAssembler* masm, Register obj, Addre
 
   if (obj != rax) {
     __ movptr(obj, rax);
-    __ pop(rax);
+    if (is_live(rax)) {
+      __ pop(rax);
+    }
   }
-  if (obj != c_rarg1) {
+  if (obj != c_rarg1 && is_live(c_rarg1)) {
     __ pop(c_rarg1);
   }
-  if (obj != c_rarg0) {
+  if (obj != c_rarg0 && is_live(c_rarg0)) {
     __ pop(c_rarg0);
   }
 }
