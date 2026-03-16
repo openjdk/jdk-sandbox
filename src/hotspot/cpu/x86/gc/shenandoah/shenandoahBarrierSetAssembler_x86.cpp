@@ -1284,20 +1284,14 @@ void ShenandoahBarrierStubC2::keepalive_slow(MacroAssembler* masm, Register obj)
   if (c_rarg0 != obj && is_live(c_rarg0)) {
     __ push(c_rarg0);
   }
-  if (is_live(rax)) {
-    __ push(rax);
-  }
 
   // Shuffle in the arguments.
   if (c_rarg0 != obj) {
     __ mov(c_rarg0, obj);
   }
 
-  __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_keepalive_stub())), rax);
+  __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_keepalive_stub())));
 
-  if (is_live(rax)) {
-    __ pop(rax);
-  }
   if (c_rarg0 != obj && is_live(c_rarg0)) {
     __ pop(c_rarg0);
   }
@@ -1382,7 +1376,7 @@ void ShenandoahBarrierStubC2::lrb_slow(MacroAssembler* masm, Register obj, Addre
       entry = CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_lrb_phantom_stub());
     }
   }
-  __ call(RuntimeAddress(entry), rax);
+  __ call(RuntimeAddress(entry));
 
   if (obj != rax) {
     __ movptr(obj, rax);
