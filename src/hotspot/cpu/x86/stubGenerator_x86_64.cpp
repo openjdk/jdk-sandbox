@@ -43,6 +43,7 @@
 #include "opto/runtime.hpp"
 #include "opto/c2_globals.hpp"
 #endif
+#include "gc/shenandoah/shenandoahRuntime.hpp"
 #if INCLUDE_JVMCI
 #include "jvmci/jvmci_globals.hpp"
 #endif
@@ -3979,6 +3980,100 @@ address StubGenerator::generate_upcall_stub_load_target() {
   return start;
 }
 
+address StubGenerator::generate_shenandoah_keepalive_stub() {
+  assert(UseShenandoahGC, "Only generate when Shenandoah is enabled");
+
+  StubId stub_id = StubId::stubgen_shenandoah_keepalive_id;
+  address stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre);
+
+  StubCodeMark mark(this, stub_id);
+  address start = __ pc();
+
+  __ push_call_clobbered_registers();
+
+  // Align stack if necessary
+  Label L, E;
+  __ testl(rsp, 15);
+  __ jccb(Assembler::zero, L);
+  __ subq(rsp, 8);
+  __ call(RuntimeAddress(stub_addr));
+  __ addq(rsp, 8);
+  __ jmpb(E);
+  __ bind(L);
+  __ call(RuntimeAddress(stub_addr));
+  __ bind(E);
+
+  __ pop_call_clobbered_registers();
+
+  __ ret(0);
+
+  return start;
+}
+
+address StubGenerator::generate_shenandoah_lrb_stub(int flavor) {
+  assert(UseShenandoahGC, "Only generate when Shenandoah is enabled");
+
+  StubId stub_id;
+  address stub_addr;
+  switch (flavor) {
+    case 0: {
+      stub_id = StubId::stubgen_shenandoah_lrb_strong_id;
+      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong);
+      break;
+    }
+    case 1: {
+      stub_id = StubId::stubgen_shenandoah_lrb_weak_id;
+      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak);
+      break;
+    }
+    case 2: {
+      stub_id = StubId::stubgen_shenandoah_lrb_phantom_id;
+      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom);
+      break;
+    }
+    case 3: {
+      stub_id = StubId::stubgen_shenandoah_lrb_strong_narrow_id;
+      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow);
+      break;
+    }
+    case 4: {
+      stub_id = StubId::stubgen_shenandoah_lrb_weak_narrow_id;
+      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow);
+      break;
+    }
+    case 5: {
+      stub_id = StubId::stubgen_shenandoah_lrb_phantom_narrow_id;
+      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow);
+      break;
+    }
+    default:
+      ShouldNotReachHere();
+  }
+
+  StubCodeMark mark(this, stub_id);
+  address start = __ pc();
+
+  __ push_call_clobbered_registers_except(RegSet::of(rax));
+
+  // Align stack if necessary
+  Label L, E;
+  __ testl(rsp, 15);
+  __ jccb(Assembler::zero, L);
+  __ subq(rsp, 8);
+  __ call(RuntimeAddress(stub_addr));
+  __ addq(rsp, 8);
+  __ jmpb(E);
+  __ bind(L);
+  __ call(RuntimeAddress(stub_addr));
+  __ bind(E);
+
+  __ pop_call_clobbered_registers_except(RegSet::of(rax));
+
+  __ ret(0);
+
+  return start;
+}
+
 void StubGenerator::generate_lookup_secondary_supers_table_stub() {
   StubId stub_id = StubId::stubgen_lookup_secondary_supers_table_id;
   StubCodeMark mark(this, stub_id);
@@ -4139,6 +4234,17 @@ void StubGenerator::generate_final_stubs() {
 
   StubRoutines::_upcall_stub_exception_handler = generate_upcall_stub_exception_handler();
   StubRoutines::_upcall_stub_load_target = generate_upcall_stub_load_target();
+
+  if (UseShenandoahGC) {
+    StubRoutines::_shenandoah_keepalive_stub          = generate_shenandoah_keepalive_stub();
+
+    StubRoutines::_shenandoah_lrb_strong_stub         = generate_shenandoah_lrb_stub(0);
+    StubRoutines::_shenandoah_lrb_weak_stub           = generate_shenandoah_lrb_stub(1);
+    StubRoutines::_shenandoah_lrb_phantom_stub        = generate_shenandoah_lrb_stub(2);
+    StubRoutines::_shenandoah_lrb_strong_narrow_stub  = generate_shenandoah_lrb_stub(3);
+    StubRoutines::_shenandoah_lrb_weak_narrow_stub    = generate_shenandoah_lrb_stub(4);
+    StubRoutines::_shenandoah_lrb_phantom_narrow_stub = generate_shenandoah_lrb_stub(5);
+  }
 }
 
 void StubGenerator::generate_compiler_stubs() {

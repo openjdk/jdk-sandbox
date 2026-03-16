@@ -1242,7 +1242,7 @@ void ShenandoahBarrierStubC2::keepalive_slow(MacroAssembler* masm, Register obj)
   if (c_rarg0 != obj) {
     __ mov(c_rarg0, obj);
   }
-  __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre)), rax);
+  __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_keepalive_stub())), rax);
 }
 
 void ShenandoahBarrierStubC2::lrb_fast(MacroAssembler* masm, Register obj, Register tmp, Label* L_slow, bool short_slow) {
@@ -1298,19 +1298,19 @@ void ShenandoahBarrierStubC2::lrb_slow(MacroAssembler* masm, Register obj, Addre
   address entry;
   if (narrow) {
     if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-      entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow);
+      entry = CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_lrb_strong_narrow_stub());
     } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
-      entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow);
+      entry = CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_lrb_weak_narrow_stub());
     } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
-      entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow);
+      entry = CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_lrb_phantom_narrow_stub());
     }
   } else {
     if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-      entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong);
+      entry = CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_lrb_strong_stub());
     } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
-      entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak);
+      entry = CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_lrb_weak_stub());
     } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
-      entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom);
+      entry = CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_lrb_phantom_stub());
     }
   }
   __ call(RuntimeAddress(entry), rax);
