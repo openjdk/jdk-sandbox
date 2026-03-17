@@ -128,7 +128,7 @@ instruct compareAndSwapP_shenandoah(rRegI res, memory mem, rRegP tmp, rax_RegP o
   match(Set res (CompareAndSwapP mem (Binary oldval newval)));
   match(Set res (WeakCompareAndSwapP mem (Binary oldval newval)));
   predicate(UseShenandoahGC && n->as_LoadStore()->barrier_data() != 0);
-  effect(TEMP_DEF res, TEMP tmp, KILL cr, KILL oldval);
+  effect(TEMP_DEF res, TEMP tmp, KILL oldval, KILL cr);
   format %{ "shenandoah_cas $mem, $newval\t# ptr" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->compare_and_set_c2(this, masm,
@@ -148,7 +148,7 @@ instruct compareAndSwapN_shenandoah(rRegI res, memory mem, rRegP tmp, rax_RegN o
   match(Set res (CompareAndSwapN mem (Binary oldval newval)));
   match(Set res (WeakCompareAndSwapN mem (Binary oldval newval)));
   predicate(UseShenandoahGC && n->as_LoadStore()->barrier_data() != 0);
-  effect(TEMP_DEF res, TEMP tmp, KILL cr, KILL oldval);
+  effect(TEMP_DEF res, TEMP tmp, KILL oldval, KILL cr);
   format %{ "shenandoah_cas $mem, $newval\t# compressed ptr" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->compare_and_set_c2(this, masm,
@@ -167,7 +167,7 @@ instruct compareAndExchangeP_shenandoah(memory mem, rax_RegP oldval, rRegP newva
 %{
   match(Set oldval (CompareAndExchangeP mem (Binary oldval newval)));
   predicate(UseShenandoahGC && n->as_LoadStore()->barrier_data() != 0);
-  effect(KILL cr, TEMP tmp);
+  effect(TEMP tmp, KILL cr);
   ins_cost(1000);
   format %{ "shenandoah_cae $mem, $newval\t# ptr" %}
   ins_encode %{
