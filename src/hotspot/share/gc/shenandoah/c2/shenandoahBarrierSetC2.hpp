@@ -189,6 +189,7 @@ class ShenandoahLoadBarrierStubC2 : public ShenandoahBarrierStubC2 {
   const bool _narrow;
   const bool _maybe_null;
   const bool _needs_load_ref_barrier;
+  const bool _needs_load_ref_weak_barrier;
   const bool _needs_keep_alive_barrier;
 
   ShenandoahLoadBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow, bool self_load) :
@@ -199,6 +200,7 @@ class ShenandoahLoadBarrierStubC2 : public ShenandoahBarrierStubC2 {
     _narrow(narrow),
     _maybe_null(!src_not_null(node)),
     _needs_load_ref_barrier(needs_load_ref_barrier(node)),
+    _needs_load_ref_weak_barrier(needs_load_ref_barrier_weak(node)),
     _needs_keep_alive_barrier(needs_keep_alive_barrier(node)) {
       assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
     }

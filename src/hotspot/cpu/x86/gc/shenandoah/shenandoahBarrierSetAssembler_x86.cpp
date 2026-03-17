@@ -1473,9 +1473,15 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
 
   // If object is narrow, we need to encode it before exiting.
-  // Unless we performed the load ourselves, which means it is not used by caller.
+  // For encoding, dst can only turn null if we are dealing with weak loads.
+  // Otherwise, we have already null-checked. We can skip all this if we performed
+  // the load ourselves, which means the value is not used by caller.
   if (_narrow && !_self_load) {
-    __ encode_heap_oop(_dst);
+    if (_needs_load_ref_weak_barrier) {
+      __ encode_heap_oop(_dst);
+    } else {
+      __ encode_heap_oop_not_null(_dst);
+    }
   }
   __ bind(L_done);
   __ jmp(*continuation());
