@@ -250,7 +250,13 @@ public class JCmdRevival {
     static void testJCmd(String coreFileName, String type, String command) throws Throwable {
 		System.out.println("TEST: core: " + coreFileName + " Test type: " + type + " Command: " + command);
 
+        String coreBaseName = coreFileName;
+        int index = coreFileName.lastIndexOf(File.separator);
+        if (index >= 0) {
+            coreBaseName= coreFileName.substring(index + 1);
+        }
         String heapDumpName = null;
+
         JDKToolLauncher launcher = JDKToolLauncher.createUsingTestJDK("jcmd");
         // Run jcmd with -J-Dprop=value to pass any System property we care about: the verbose setting.
         String verbose = System.getProperty("jdk.attach.core.verbose");
@@ -263,7 +269,7 @@ public class JCmdRevival {
         // This method just takes a command name to test.  For some commands add a further argument:
         if (command.equals("GC.heap_dump")) {
             launcher.addToolArg(command);
-            heapDumpName = "heapdump.hprof";
+            heapDumpName = "heapdump_" + coreBaseName + ".hprof";
             launcher.addToolArg(heapDumpName);
         } else if (command.equals("VM.version_UNEXPECTED_ARG")) {
             // Test additional args when none are expected:
