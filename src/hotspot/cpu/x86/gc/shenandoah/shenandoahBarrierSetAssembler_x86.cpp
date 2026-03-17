@@ -1413,9 +1413,6 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   __ bind(*entry());
 
-  bool tmp_live;
-  Register tmp = select_temp_register(tmp_live, _src, _dst);
-
   Label L_lrb_done, L_lrb_slow;
   Label L_keepalive_done, L_keepalive_slow;
   Label L_done;
@@ -1429,10 +1426,6 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
     }
   }
 
-  // ---- Mid path
-  // The goal is to do quick checks/actions that can be done without going to slowpath.
-  // This also allows doing shorter branches, where possible.
-
   // If the object is null, there is no point in applying barriers.
   if (_narrow) {
     __ testl(_dst, _dst);
@@ -1445,34 +1438,40 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
     __ jccb(Assembler::zero, L_done);
   }
 
+  // Barriers need temp to work, allocate one now.
+  bool tmp_live;
+  Register tmp = select_temp_register(tmp_live, _src, _dst);
+  if (tmp_live) {
+    __ push(tmp);
+  }
+
   // If object is narrow, we need to decode it first: barrier checks need full oops.
   if (_narrow) {
     __ decode_heap_oop_not_null(_dst);
   }
 
+  // Go for barriers. If both barriers are required (rare), do a runtime check for enabled barrier.
+
   if (_needs_keep_alive_barrier) {
-    // If both barriers are required (rare), do a runtime check for enabled barrier.
     if (_needs_load_ref_barrier) {
       gc_state_check(&masm, ShenandoahHeap::MARKING, &L_keepalive_done);
     }
-    if (tmp_live) __ push(tmp);
     keepalive(&masm, _dst, tmp);
-    if (tmp_live) __ pop(tmp);
     __ bind(L_keepalive_done);
   }
 
   if (_needs_load_ref_barrier) {
-    // If both barriers are required (rare), do a runtime check for enabled barrier.
     if (_needs_keep_alive_barrier) {
       gc_state_check(&masm, ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::WEAK_ROOTS, &L_lrb_done);
     }
-    if (tmp_live) __ push(tmp);
     lrb(&masm, _dst, _src, tmp, _narrow);
-    if (tmp_live) __ pop(tmp);
     __ bind(L_lrb_done);
   }
 
-  // ---- Exits
+  if (tmp_live) {
+    __ pop(tmp);
+  }
+
   // If object is narrow, we need to encode it before exiting.
   // Unless we performed the load ourselves, which means it is not used by caller.
   if (_narrow && !_self_load) {
