@@ -803,12 +803,6 @@ ShenandoahLoadBarrierStubC2* ShenandoahLoadBarrierStubC2::create(const MachNode*
   return stub;
 }
 
-ShenandoahFarLoadBarrierStubC2* ShenandoahFarLoadBarrierStubC2::create(const MachNode* node, Register dst, Address addr, bool narrow, bool self_load, int offset) {
-  auto* stub = new (Compile::current()->comp_arena()) ShenandoahFarLoadBarrierStubC2(node, dst, addr, narrow, self_load, offset);
-  ShenandoahFarLoadBarrierStubC2::register_stub(stub);
-  return stub;
-}
-
 bool ShenandoahBarrierSetC2State::needs_liveness_data(const MachNode* mach) const {
   // Nodes that require slow-path stubs need liveness data.
   return ShenandoahBarrierStubC2::needs_keep_alive_barrier(mach) ||

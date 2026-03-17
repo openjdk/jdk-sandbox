@@ -734,7 +734,7 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
   // (a) and (b) are covered because load barrier does memory location fixup.
   // (c) is covered by KA on the current memory value.
   if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
-    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, tmp, addr, narrow, true, __ offset());
+    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, tmp, addr, narrow, /* self_load: */ true, __ offset());
     char check = 0;
     check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
@@ -767,7 +767,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
   // (a) is covered because load barrier does memory location fixup.
   // (b) is covered by KA on the current memory value.
   if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
-    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, tmp, addr, narrow, true, __ offset());
+    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, tmp, addr, narrow, /* self_load: */ true, __ offset());
     char check = 0;
     check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
@@ -799,7 +799,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   // Pre-barrier: SATB, keep-alive the current memory value.
   if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
     assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier(node), "Should not be required for stores");
-    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, tmp, dst, dst_narrow, true, __ offset());
+    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, tmp, dst, dst_narrow, /* self_load: */ true, __ offset());
     ShenandoahBarrierStubC2::gc_state_check_c2(masm, rscratch1, ShenandoahHeap::MARKING, stub);
   }
 
@@ -856,7 +856,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
 
   // Post-barrier: LRB
   if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
-    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, dst, src, narrow, false, __ offset());
+    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, dst, src, narrow, /* self_load: */ false, __ offset());
     char check = 0;
     check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
@@ -924,53 +924,71 @@ ShenandoahLoadBarrierStubC2::ShenandoahLoadBarrierStubC2(const MachNode* node, R
   _needs_keep_alive_barrier(needs_keep_alive_barrier(node)) {
     assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
 
+  // If we are in scratch emit mode we assume worse case by leaving
+  // _test_and_branch_reachable false.
   PhaseOutput* const output = Compile::current()->output();
   if (output->in_scratch_emit_size()) {
     return;
   }
+
+  // Assume that each trampoline is one single instruction and that the stubs
+  // will follow immediatelly after the _code section. Therefore, we are
+  // checking if the distance between the fastpath branch and the
+  // trampoline/entry of the current Stub is less than 32K.
   const int code_size = output->buffer_sizing_data()->_code;
-  // Assumption that the stub can always be reached from a branch immediate. (128 M Product, 2 M Debug)
   const int trampoline_offset = trampoline_stubs_count() * NativeInstruction::instruction_size;
-  _test_and_branch_reachable = aarch64_test_and_branch_reachable(_offset, code_size + trampoline_offset);
+  _test_and_branch_reachable = aarch64_test_and_branch_reachable(_fastpath_branch_offset, code_size + trampoline_offset);
   if (_test_and_branch_reachable) {
     inc_trampoline_stubs_count();
   }
 }
 
 void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
-  PhaseOutput* const output = Compile::current()->output();
-  const int branch_offset = _offset;
-  const int target_offset = __ offset();
-  const int code_size = output->buffer_sizing_data()->_code;
-
-  // Deferred emission, emit actual stub
-  if (_deferred_emit) {
-    emit_code2(masm);
+  // If we reach here with _skip_trampoline set it means that earlier we
+  // emitted a trampoline to this stub and now we need to emit the actual stub.
+  if (_skip_trampoline) {
+    emit_code_actual(masm);
     return;
   }
-  _deferred_emit = true;
+  _skip_trampoline = true;
 
-  // No trampoline used, defer emission to after trampolines
+  // The fastpath executes two branch instructions to reach this stub, let's
+  // just emit the stub here and not add a third one.
   if (!_test_and_branch_reachable) {
+    // By registering the stub again, after setting _skip_trampoline, we'll
+    // effectivelly cause the stub to be emitted the next time ::emit_code is
+    // called.
     register_stub(this);
     return;
   }
 
-  // Current assumption is that the barrier stubs are the first stubs emitted after the actual code
-  assert(stubs_start_offset() <= output->buffer_sizing_data()->_code, "stubs are assumed to be emitted directly after code and code_size is a hard limit on where it can start");
-
+  // This is entry point when coming from fastpath, IFF it's able to reach here
+  // with a test and branch instruction, otherwise the entry is
+  // ShenandoahBarrierStubC2::entry();
+  const int target_offset = __ offset();
   __ bind(_test_and_branch_reachable_entry);
 
-  // Next branch's offset is unknown, but is > branch_offset
-  const int next_branch_offset = branch_offset + NativeInstruction::instruction_size;
+#ifdef ASSERT
+  // Current assumption is that the barrier stubs are the first stubs emitted
+  // after the actual code
+  PhaseOutput* const output = Compile::current()->output();
+  assert(stubs_start_offset() <= output->buffer_sizing_data()->_code, "stubs are assumed to be emitted directly after code and code_size is a hard limit on where it can start");
+  assert(aarch64_test_and_branch_reachable(_fastpath_branch_offset, target_offset), "trampoline should be reachable");
+#endif
 
-  // If emitting the stub directly does not interfere with emission of the next trampoline then do it to avoid a double jump.
+  // Next fastpath branch's offset is unknown, but it's > current _fastpath_branch_offset
+  const int next_branch_offset = _fastpath_branch_offset + NativeInstruction::instruction_size;
+
+  // If emitting the current stub directly does not interfere with emission of
+  // the next potential trampoline then do it to avoid executing additional
+  // branch when coming from fastpath.
   if (aarch64_test_and_branch_reachable(next_branch_offset, target_offset + get_stub_size())) {
-    // The next potential trampoline will still be reachable even if we emit the whole stub
-    emit_code2(masm);
+    emit_code_actual(masm);
   } else {
-    assert(aarch64_test_and_branch_reachable(branch_offset, target_offset), "trampoline should be reachable");
     __ b(*ShenandoahBarrierStubC2::entry());
+    // By registering the stub again, after setting _skip_trampoline to true,
+    // we'll effectivelly cause the stub to be emitted the next time
+    // ::emit_code is called.
     register_stub(this);
   }
 }
@@ -989,12 +1007,12 @@ int ShenandoahLoadBarrierStubC2::get_stub_size() {
   CodeBuffer cb(blob->content_begin(), (address)output->scratch_locs_memory() - blob->content_begin());
   MacroAssembler masm(&cb);
   output->set_in_scratch_emit_size(true);
-  emit_code2(masm);
+  emit_code_actual(masm);
   output->set_in_scratch_emit_size(false);
   return cb.insts_size();
 }
 
-void ShenandoahLoadBarrierStubC2::emit_code2(MacroAssembler& masm) {
+void ShenandoahLoadBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
   assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
 
   // Stub entry
@@ -1061,80 +1079,6 @@ void ShenandoahLoadBarrierStubC2::emit_code2(MacroAssembler& masm) {
   }
 
   __ b(*continuation());
-}
-
-void ShenandoahFarLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
-  assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
-
-  __ bind(*entry());
-
-  Label L_keepalive_done, L_lrb_done;
-
-  // If we need to load ourselves, do it here.
-  if (_self_load) {
-    // This does the load and the decode if necessary
-    __ load_heap_oop(_dst, _src, noreg, noreg, AS_RAW);
-    __ cbz(_dst, *continuation());
-  } else {
-    // If object is narrow, we need to decode it first: barrier checks need full oops.
-    if (_narrow) {
-      if (_maybe_null) {
-        __ decode_heap_oop(_dst, continuation());
-      } else {
-        __ decode_heap_oop_not_null(_dst);
-      }
-    } else {
-      __ cbz(_dst, *continuation());
-    }
-  }
-
-  if (_needs_keep_alive_barrier) {
-    // If both barriers are required (rare), do a runtime check for enabled barrier.
-    if (_needs_load_ref_barrier) {
-      Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-      __ ldrb(rscratch1, gcs_addr);
-      __ tbz(rscratch1, ShenandoahHeap::MARKING_BITPOS, L_keepalive_done);
-    }
-
-    if (!_self_load) preserve(_dst);
-    satb(&masm, this, rscratch1, rscratch2, _dst);
-    __ bind(L_keepalive_done);
-  }
-
-  if (_needs_load_ref_barrier) {
-    // If both barriers are required (rare), do a runtime check for enabled barrier.
-    if (_needs_keep_alive_barrier) {
-      if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-        Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-        __ ldrb(rscratch1, gcs_addr);
-        __ tbz(rscratch1, ShenandoahHeap::HAS_FORWARDED_BITPOS, L_lrb_done);
-      }
-    }
-
-    dont_preserve(_dst);
-    lrb(&masm, this, _dst, _src, &L_lrb_done, _narrow);
-
-    __ bind(L_lrb_done);
-  }
-
-  // If object is narrow, we need to encode it before exiting.
-  if (_narrow && !_self_load) {
-    if (_maybe_null) {
-      __ encode_heap_oop(_dst);
-    } else {
-      __ encode_heap_oop_not_null(_dst);
-    }
-  }
-
-  __ b(*continuation());
-}
-
-Label* ShenandoahFarLoadBarrierStubC2::entry() {
-  // The _entry will never be bound when in_scratch_emit_size() is true.
-  // However, we still need to return a label that is not bound now, but
-  // will eventually be bound. Any eventually bound label will do, as it
-  // will only act as a placeholder, so we return the _continuation label.
-  return Compile::current()->output()->in_scratch_emit_size() ? &_continuation : &_entry;
 }
 
 void ShenandoahBarrierStubC2::satb(MacroAssembler* masm, ShenandoahBarrierStubC2* stub, Register scratch1, Register scratch2, Register scratch3) {
