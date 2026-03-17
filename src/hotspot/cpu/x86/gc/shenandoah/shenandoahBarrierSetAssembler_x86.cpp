@@ -1042,16 +1042,18 @@ bool ShenandoahBarrierStubC2::is_live(Register reg) {
   return false;
 }
 
-Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Address addr, Register reg1, Register reg2) {
+Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Address addr, Register reg1) {
   Register tmp = noreg;
 
   // Try to select non-live first:
-  for (int i = 0; i < 8; i++) {
+  for (int i = 0; i < 16; i++) {
     Register r = as_Register(i);
     if (is_live(r)) continue;
-    if (r != rsp && r != rbp && r != reg1 && r != reg2 && r != addr.base() && r != addr.index()) {
+    if (r != rsp && r != rbp && r != r12_heapbase && r != r15_thread &&
+        r != reg1 && r != addr.base() && r != addr.index()) {
       if (tmp == noreg) {
         tmp = r;
+        selected_live = false;
         break;
       }
     }
@@ -1059,22 +1061,21 @@ Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Addr
 
   // If unsuccessful, select any register, likely live one.
   if (tmp == noreg) {
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < 16; i++) {
       Register r = as_Register(i);
-      if (r != rsp && r != rbp && r != reg1 && r != reg2 && r != addr.base() && r != addr.index()) {
+    if (r != rsp && r != rbp && r != r12_heapbase && r != r15_thread &&
+        r != reg1 && r != addr.base() && r != addr.index()) {
         if (tmp == noreg) {
           tmp = r;
+          selected_live = true;
           break;
         }
       }
     }
-    selected_live = true;
-  } else {
-    selected_live = false;
   }
 
   assert(tmp != noreg, "successfully allocated");
-  assert_different_registers(tmp, reg1, reg2);
+  assert_different_registers(tmp, reg1);
   assert_different_registers(tmp, addr.base());
   assert_different_registers(tmp, addr.index());
   return tmp;
