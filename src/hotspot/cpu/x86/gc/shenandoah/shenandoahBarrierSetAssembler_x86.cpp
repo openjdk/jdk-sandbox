@@ -1305,7 +1305,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address ad
   Label L_done, L_slow;
 
   // Weak/phantom loads are handled in slow path.
-  bool is_weak = (_node->barrier_data() & ShenandoahBitStrong) == 0;
+  bool is_weak = (_node->barrier_data() & (ShenandoahBitWeak | ShenandoahBitPhantom)) != 0;
   if (is_weak) {
     lrb_slow(masm, obj, addr, narrow);
     return;
@@ -1462,7 +1462,8 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   if (_needs_load_ref_barrier) {
     if (_needs_keep_alive_barrier) {
-      gc_state_check(&masm, ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::WEAK_ROOTS, &L_lrb_done);
+      char check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
+      gc_state_check(&masm, check, &L_lrb_done);
     }
     lrb(&masm, _dst, _src, tmp, _narrow);
     __ bind(L_lrb_done);
