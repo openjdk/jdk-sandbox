@@ -272,7 +272,7 @@ inline oop PSPromotionManager::copy_unmarked_to_survivor_space(oop o,
   assert(new_obj_addr != nullptr, "allocation should have succeeded");
 
   // Copy obj
-  Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(o), new_obj_addr, new_obj_size);
+  Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(o), new_obj_addr, old_obj_size);
 
   // Now we have to CAS in the header.
   // Because the forwarding is done with memory_order_relaxed there is no
