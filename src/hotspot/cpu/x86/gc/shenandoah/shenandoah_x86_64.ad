@@ -25,7 +25,6 @@
 source %{
 #include "gc/shenandoah/shenandoahBarrierSet.hpp"
 #include "gc/shenandoah/shenandoahBarrierSetAssembler_x86.hpp"
-#include "gc/shenandoah/c2/shenandoahBarrierSetC2.hpp"
 %}
 
 // ---------------------------------- LOADS ---------------------------------------
@@ -98,7 +97,8 @@ instruct storeN_shenandoah(memory mem, rRegN src, rRegP tmp, rFlagsReg cr)
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
       $mem$$Address,  /* dst_narrow = */ true,
       $src$$Register, /* src_narrow = */ true,
-      $tmp$$Register);
+      $tmp$$Register
+    );
   %}
   ins_cost(125);
   ins_pipe(ialu_cr_reg_mem);
@@ -114,7 +114,8 @@ instruct encodePAndStoreN_shenandoah(memory mem, any_RegP src, rRegP tmp, rFlags
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
       $mem$$Address,  /* dst_narrow = */ true,
       $src$$Register, /* src_narrow = */ false,
-      $tmp$$Register);
+      $tmp$$Register
+    );
   %}
   ins_cost(125);
   ins_pipe(ialu_cr_reg_mem);
@@ -136,7 +137,8 @@ instruct compareAndSwapP_shenandoah(rRegI res, memory mem, rRegP tmp, rax_RegP o
       $oldval$$Register,
       $newval$$Register,
       $tmp$$Register,
-      /* narrow = */ false);
+      /* narrow = */ false
+    );
   %}
   ins_pipe(pipe_cmpxchg);
 %}
@@ -155,7 +157,8 @@ instruct compareAndSwapN_shenandoah(rRegI res, memory mem, rRegP tmp, rax_RegN o
       $oldval$$Register,
       $newval$$Register,
       $tmp$$Register,
-      /* narrow = */ true);
+      /* narrow = */ true
+    );
   %}
   ins_pipe(pipe_cmpxchg);
 %}
@@ -174,7 +177,8 @@ instruct compareAndExchangeP_shenandoah(memory mem, rax_RegP oldval, rRegP newva
       $oldval$$Register,
       $newval$$Register,
       $tmp$$Register,
-      /* narrow = */ false);
+      /* narrow = */ false
+    );
   %}
   ins_pipe(pipe_cmpxchg);
 %}
@@ -192,7 +196,8 @@ instruct compareAndExchangeN_shenandoah(memory mem, rax_RegN oldval, rRegN newva
       $oldval$$Register,
       $newval$$Register,
       $tmp$$Register,
-      /* narrow = */ true);
+      /* narrow = */ true
+    );
   %}
   ins_pipe(pipe_cmpxchg);
 %}
