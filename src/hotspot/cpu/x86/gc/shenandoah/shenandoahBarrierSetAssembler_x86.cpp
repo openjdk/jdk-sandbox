@@ -1098,9 +1098,8 @@ void ShenandoahBarrierSetAssembler::gc_state_check_c2(MacroAssembler* masm, cons
   }
 }
 
-void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src) {
+void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src, bool narrow) {
   // Do the actual load. This load is the candidate for implicit null check, and MUST come first.
-  bool narrow = node->bottom_type()->isa_narrowoop();
   if (narrow) {
     __ movl(dst, src);
   } else {
@@ -1205,9 +1204,8 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
   }
 }
 
-void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register newval, Address addr, Register tmp) {
+void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register newval, Address addr, Register tmp, bool narrow) {
   assert_different_registers(newval, tmp, addr.base(), addr.index());
-  bool narrow = node->bottom_type()->isa_narrowoop();
 
   // Pre-barrier covers several things:
   //  a. Satisfies the need for LRB for the GAS result.
