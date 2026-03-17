@@ -136,7 +136,6 @@ instruct compareAndSwapP_shenandoah(rRegI res, memory mem, rRegP tmp, rax_RegP o
       $oldval$$Register,
       $newval$$Register,
       $tmp$$Register,
-      /* exchange = */ false,
       /* narrow = */ false);
   %}
   ins_pipe(pipe_cmpxchg);
@@ -156,7 +155,6 @@ instruct compareAndSwapN_shenandoah(rRegI res, memory mem, rRegP tmp, rax_RegN o
       $oldval$$Register,
       $newval$$Register,
       $tmp$$Register,
-      /* exchange = */ false,
       /* narrow = */ true);
   %}
   ins_pipe(pipe_cmpxchg);
@@ -176,7 +174,6 @@ instruct compareAndExchangeP_shenandoah(memory mem, rax_RegP oldval, rRegP newva
       $oldval$$Register,
       $newval$$Register,
       $tmp$$Register,
-      /* exchange = */ true,
       /* narrow = */ false);
   %}
   ins_pipe(pipe_cmpxchg);
@@ -195,7 +192,6 @@ instruct compareAndExchangeN_shenandoah(memory mem, rax_RegN oldval, rRegN newva
       $oldval$$Register,
       $newval$$Register,
       $tmp$$Register,
-      /* exchange = */ true,
       /* narrow = */ true);
   %}
   ins_pipe(pipe_cmpxchg);

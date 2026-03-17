@@ -1152,7 +1152,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
 void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, MacroAssembler* masm,
                                                        Register res, Address addr,
                                                        Register oldval, Register newval, Register tmp,
-                                                       bool exchange, bool narrow) {
+                                                       bool narrow) {
 
   assert(oldval == rax, "must be in rax for implicit use in cmpxchg");
 
@@ -1186,11 +1186,8 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
   }
 
   // If we need a boolean result out of CAS, set the flag appropriately and promote the result.
-  if (!exchange) {
-    assert(res != noreg, "need result register");
+  if (res != noreg) {
     __ setcc(Assembler::equal, res);
-  } else {
-    assert(res == noreg, "no result expected");
   }
 
   // Post-barrier deals with card updates.
