@@ -777,7 +777,6 @@ void ShenandoahBarrierSetC2::emit_stubs(CodeBuffer& cb) const {
   masm.flush();
 }
 
-// FIXME / REVISIT: does this method and the following really need to be static?
 void ShenandoahBarrierStubC2::register_stub(ShenandoahBarrierStubC2* stub) {
   if (!Compile::current()->output()->in_scratch_emit_size()) {
     barrier_set_state()->stubs()->append(stub);
@@ -801,6 +800,12 @@ int ShenandoahBarrierStubC2::stubs_start_offset() {
 ShenandoahLoadBarrierStubC2* ShenandoahLoadBarrierStubC2::create(const MachNode* node, Register dst, Address addr, bool narrow, bool self_load, int offset) {
   auto* stub = new (Compile::current()->comp_arena()) ShenandoahLoadBarrierStubC2(node, dst, addr, narrow, self_load, offset);
   ShenandoahLoadBarrierStubC2::register_stub(stub);
+  return stub;
+}
+
+ShenandoahFarLoadBarrierStubC2* ShenandoahFarLoadBarrierStubC2::create(const MachNode* node, Register dst, Address addr, bool narrow, bool self_load, int offset) {
+  auto* stub = new (Compile::current()->comp_arena()) ShenandoahFarLoadBarrierStubC2(node, dst, addr, narrow, self_load, offset);
+  ShenandoahFarLoadBarrierStubC2::register_stub(stub);
   return stub;
 }
 

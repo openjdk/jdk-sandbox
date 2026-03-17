@@ -146,6 +146,8 @@ public:
   static void print_barrier_data(outputStream* os, uint8_t data);
 };
 
+class ShenandoahLoadBarrierStubC2;
+
 class ShenandoahBarrierStubC2 : public BarrierStubC2 {
 protected:
   explicit ShenandoahBarrierStubC2(const MachNode* node, int offset = 0) : BarrierStubC2(node),
@@ -201,6 +203,9 @@ public:
     return (node->barrier_data() & ShenandoahBitNotNull) != 0;
   }
 
+  static void gc_state_check_c2_new(MacroAssembler* masm, Register rscratch, const unsigned char test_state,
+      ShenandoahLoadBarrierStubC2* slow_stub);
+
   static void gc_state_check_c2(MacroAssembler* masm, Register rscratch, const unsigned char test_state,
       ShenandoahBarrierStubC2* slow_stub);
   virtual void emit_code(MacroAssembler& masm) = 0;
@@ -218,19 +223,7 @@ class ShenandoahLoadBarrierStubC2 : public ShenandoahBarrierStubC2 {
   const bool _needs_load_ref_barrier;
   const bool _needs_keep_alive_barrier;
 
-  ShenandoahLoadBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow, bool self_load) :
-    ShenandoahBarrierStubC2(node),
-    _dst(dst),
-    _src(src),
-    _self_load(self_load),
-    _narrow(narrow),
-    _maybe_null(!src_not_null(node)),
-    _needs_load_ref_barrier(needs_load_ref_barrier(node)),
-    _needs_keep_alive_barrier(needs_keep_alive_barrier(node)) {
-      assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
-    }
-
-  ShenandoahLoadBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow, bool self_load, int offset);
+  ShenandoahLoadBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow, bool self_load, int offset = 0);
 
 public:
   static bool needs_barrier(const MachNode* node) {
@@ -241,6 +234,44 @@ public:
   }
   static ShenandoahLoadBarrierStubC2* create(const MachNode* node, Register dst, Address addr, bool narrow, bool self_load, int offset = 0);
   void emit_code(MacroAssembler& masm) override;
+  void emit_code2(MacroAssembler& masm);
+  int get_stub_size();
+  Label* entry();
+};
+
+class ShenandoahFarLoadBarrierStubC2 : public ShenandoahBarrierStubC2 {
+  Register const _dst;
+  Address  const _src;
+  const bool _self_load;
+  const bool _narrow;
+  const bool _maybe_null;
+  const bool _needs_load_ref_barrier;
+  const bool _needs_keep_alive_barrier;
+
+  ShenandoahFarLoadBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow, bool self_load, int offset) :
+    ShenandoahBarrierStubC2(node, offset),
+    _dst(dst),
+    _src(src),
+    _self_load(self_load),
+    _narrow(narrow),
+    _maybe_null(!src_not_null(node)),
+    _needs_load_ref_barrier(needs_load_ref_barrier(node)),
+    _needs_keep_alive_barrier(needs_keep_alive_barrier(node)) {
+      assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
+    }
+
+public:
+  static bool needs_barrier(const MachNode* node) {
+    return needs_load_ref_barrier(node) || needs_keep_alive_barrier(node);
+  }
+  static bool is_narrow_result(const MachNode* node) {
+    return node->bottom_type()->isa_narrowoop() || node->ideal_Opcode() == Op_DecodeN;
+  }
+  static ShenandoahFarLoadBarrierStubC2* create(const MachNode* node, Register dst, Address addr, bool narrow, bool self_load, int offset = 0);
+  void emit_code(MacroAssembler& masm) override;
+
+  // Entry point to the stub.
+  Label* entry();
 };
 
 #endif // SHARE_GC_SHENANDOAH_C2_SHENANDOAHBARRIERSETC2_HPP
