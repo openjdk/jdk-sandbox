@@ -1157,7 +1157,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
 void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, MacroAssembler* masm,
                                                        Register res, Address addr,
                                                        Register oldval, Register newval, Register tmp,
-                                                       bool exchange, bool maybe_null, bool narrow) {
+                                                       bool exchange, bool narrow) {
 
   assert(oldval == rax, "must be in rax for implicit use in cmpxchg");
 
