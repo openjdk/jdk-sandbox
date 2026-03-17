@@ -1479,5 +1479,22 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ bind(L_done);
   __ jmp(*continuation());
 }
+
+Label* ShenandoahLoadBarrierStubC2::entry() {
+  return ShenandoahBarrierStubC2::entry();
+}
+
+ShenandoahLoadBarrierStubC2::ShenandoahLoadBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow, bool self_load, int offset) :
+  ShenandoahBarrierStubC2(node, offset),
+  _dst(dst),
+  _src(src),
+  _self_load(self_load),
+  _narrow(narrow),
+  _maybe_null(!src_not_null(node)),
+  _needs_load_ref_barrier(needs_load_ref_barrier(node)),
+  _needs_load_ref_weak_barrier(needs_load_ref_barrier_weak(node)),
+  _needs_keep_alive_barrier(needs_keep_alive_barrier(node)) {
+  ShenandoahLoadBarrierStubC2(node, dst, src, narrow, self_load);
+}
 #undef __
 #endif

@@ -243,7 +243,8 @@ public:
   static bool is_narrow_result(const MachNode* node) {
     return node->bottom_type()->isa_narrowoop() || node->ideal_Opcode() == Op_DecodeN;
   }
-  static ShenandoahLoadBarrierStubC2* create(const MachNode* node, Register dst, Address addr, bool narrow, bool self_load, int offset = 0);
+  static ShenandoahLoadBarrierStubC2* create(const MachNode* node, Register dst, Address addr, bool narrow, bool self_load);
+  static ShenandoahLoadBarrierStubC2* create(const MachNode* node, Register dst, Address addr, bool narrow, bool self_load, int offset);
   void emit_code(MacroAssembler& masm) override;
   void emit_code_actual(MacroAssembler& masm);
   int get_stub_size();
