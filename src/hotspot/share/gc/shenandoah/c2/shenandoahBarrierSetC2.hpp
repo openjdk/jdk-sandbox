@@ -146,30 +146,27 @@ public:
   static void print_barrier_data(outputStream* os, uint8_t data);
 };
 
-class ShenandoahLoadBarrierStubC2;
-
 class ShenandoahBarrierStubC2 : public BarrierStubC2 {
-protected:
-  explicit ShenandoahBarrierStubC2(const MachNode* node, int offset = 0) : BarrierStubC2(node),
-    _test_and_branch_reachable_entry(),
-    _fastpath_branch_offset(offset),
-    _skip_trampoline(false),
-    _test_and_branch_reachable(false){
-    assert(!ShenandoahSkipBarriers, "Do not touch stubs when disabled");
-  }
-  void register_stub();
+  Register const _dst;
+  Address  const _src;
+  const bool _self_load;
+  const bool _narrow;
+  const bool _maybe_null;
+  const bool _needs_load_ref_barrier;
+  const bool _needs_load_ref_weak_barrier;
+  const bool _needs_keep_alive_barrier;
+  const int _fastpath_branch_offset;
+  bool _test_and_branch_reachable;
+  bool _skip_trampoline;
+  Label _test_and_branch_reachable_entry;
+
   static void register_stub(ShenandoahBarrierStubC2* stub);
   static void inc_trampoline_stubs_count();
   static int trampoline_stubs_count();
   static int stubs_start_offset();
 
-  Label _test_and_branch_reachable_entry;
-  const int _fastpath_branch_offset;
-  bool _skip_trampoline;
-  bool _test_and_branch_reachable;
-
-  void satb(MacroAssembler* masm, ShenandoahBarrierStubC2* stub, Register scratch1, Register scratch2, Register scratch3);
-  void lrb(MacroAssembler* masm, ShenandoahBarrierStubC2* stub, Register obj, Address addr, Label* L_done, bool narrow);
+  void satb(MacroAssembler* masm, Register scratch1, Register scratch2, Register scratch3);
+  void lrb(MacroAssembler* masm, Register obj, Address addr, Label* L_done, bool narrow);
 
   bool is_live(Register reg);
   Register select_temp_register(bool& selected_live, Address addr, Register reg1);
@@ -180,8 +177,28 @@ protected:
   void lrb_slow(MacroAssembler* masm, Register obj, Address addr, bool narrow);
   void gc_state_check(MacroAssembler* masm, const char state, Label* L_not_set);
 
-
 public:
+  ShenandoahBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow, bool self_load) :
+    BarrierStubC2(node),
+    _dst(dst),
+    _src(src),
+    _self_load(self_load),
+    _narrow(narrow),
+    _maybe_null(!src_not_null(node)),
+    _needs_load_ref_barrier(needs_load_ref_barrier(node)),
+    _needs_load_ref_weak_barrier(needs_load_ref_barrier_weak(node)),
+    _needs_keep_alive_barrier(needs_keep_alive_barrier(node)),
+    _fastpath_branch_offset(),
+    _test_and_branch_reachable(),
+    _skip_trampoline(),
+    _test_and_branch_reachable_entry() {
+
+    assert(!ShenandoahSkipBarriers, "Do not touch stubs when disabled");
+    assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
+  }
+
+  ShenandoahBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow, bool self_load, int offset);
+
   static bool is_heap_access(const MachNode* node) {
     return (node->barrier_data() & ShenandoahBitNative) == 0;
   }
@@ -203,52 +220,21 @@ public:
   static bool src_not_null(const MachNode* node) {
     return (node->barrier_data() & ShenandoahBitNotNull) != 0;
   }
-  static void gc_state_check_c2(MacroAssembler* masm, Register rscratch, const unsigned char test_state,
-      ShenandoahLoadBarrierStubC2* slow_stub);
-  virtual void emit_code(MacroAssembler& masm) = 0;
   bool is_test_and_branch_reachable() {
     return _test_and_branch_reachable;
   }
-};
-
-class ShenandoahLoadBarrierStubC2 : public ShenandoahBarrierStubC2 {
-  Register const _dst;
-  Address  const _src;
-  const bool _self_load;
-  const bool _narrow;
-  const bool _maybe_null;
-  const bool _needs_load_ref_barrier;
-  const bool _needs_load_ref_weak_barrier;
-  const bool _needs_keep_alive_barrier;
-
-  ShenandoahLoadBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow, bool self_load, int offset);
-
-  ShenandoahLoadBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow, bool self_load) :
-    ShenandoahBarrierStubC2(node),
-    _dst(dst),
-    _src(src),
-    _self_load(self_load),
-    _narrow(narrow),
-    _maybe_null(!src_not_null(node)),
-    _needs_load_ref_barrier(needs_load_ref_barrier(node)),
-    _needs_load_ref_weak_barrier(needs_load_ref_barrier_weak(node)),
-    _needs_keep_alive_barrier(needs_keep_alive_barrier(node)) {
-      assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
-    }
-
-public:
   static bool needs_barrier(const MachNode* node) {
     return needs_load_ref_barrier(node) || needs_keep_alive_barrier(node);
   }
   static bool is_narrow_result(const MachNode* node) {
     return node->bottom_type()->isa_narrowoop() || node->ideal_Opcode() == Op_DecodeN;
   }
-  static ShenandoahLoadBarrierStubC2* create(const MachNode* node, Register dst, Address addr, bool narrow, bool self_load);
-  static ShenandoahLoadBarrierStubC2* create(const MachNode* node, Register dst, Address addr, bool narrow, bool self_load, int offset);
-  void emit_code(MacroAssembler& masm) override;
+  static void gc_state_check_c2(MacroAssembler* masm, Register rscratch, const unsigned char test_state, ShenandoahBarrierStubC2* slow_stub);
+  static ShenandoahBarrierStubC2* create(const MachNode* node, Register dst, Address addr, bool narrow, bool self_load);
+  static ShenandoahBarrierStubC2* create(const MachNode* node, Register dst, Address addr, bool narrow, bool self_load, int offset);
+  void emit_code(MacroAssembler& masm);
   void emit_code_actual(MacroAssembler& masm);
   int get_stub_size();
   Label* entry();
 };
-
 #endif // SHARE_GC_SHENANDOAH_C2_SHENANDOAHBARRIERSETC2_HPP

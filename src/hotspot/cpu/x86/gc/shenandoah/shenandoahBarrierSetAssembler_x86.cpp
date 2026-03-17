@@ -1103,7 +1103,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
 
   // Post-barrier: LRB
   if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
-    ShenandoahBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, dst, src, narrow, false);
+    ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, dst, src, narrow, false);
     char check = 0;
     check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
@@ -1120,7 +1120,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   // Pre-barrier: SATB, keep-alive the current memory value.
   if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
     assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier(node), "Should not be required for stores");
-    ShenandoahBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, tmp, dst, dst_narrow, true);
+    ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, tmp, dst, dst_narrow, true);
     gc_state_check_c2(masm, ShenandoahHeap::MARKING, stub);
   }
 
@@ -1169,7 +1169,7 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
   // (a) and (b) are covered because load barrier does memory location fixup.
   // (c) is covered by KA on the current memory value.
   if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
-    ShenandoahBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, tmp, addr, narrow, true);
+    ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, tmp, addr, narrow, true);
     char check = 0;
     check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
@@ -1206,7 +1206,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
   // (a) is covered because load barrier does memory location fixup.
   // (b) is covered by KA on the current memory value.
   if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
-    ShenandoahBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, tmp, addr, narrow, true);
+    ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, tmp, addr, narrow, true);
     char check = 0;
     check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
@@ -1400,7 +1400,7 @@ void ShenandoahBarrierStubC2::gc_state_check(MacroAssembler* masm, const char st
 #undef __
 #define __ masm.
 
-void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
+void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
 
   __ bind(*entry());
@@ -1480,12 +1480,15 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ jmp(*continuation());
 }
 
-Label* ShenandoahLoadBarrierStubC2::entry() {
+Label* ShenandoahBarrierStubC2::entry() {
   return ShenandoahBarrierStubC2::entry();
 }
 
-ShenandoahLoadBarrierStubC2::ShenandoahLoadBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow, bool self_load, int offset) :
-  ShenandoahBarrierStubC2(node, offset),
+ShenandoahBarrierStubC2::ShenandoahBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow, bool self_load, int offset) : BarrierStubC2(node),
+  _test_and_branch_reachable_entry(),
+  _fastpath_branch_offset(),
+  _skip_trampoline(),
+  _test_and_branch_reachable(),
   _dst(dst),
   _src(src),
   _self_load(self_load),
@@ -1494,7 +1497,8 @@ ShenandoahLoadBarrierStubC2::ShenandoahLoadBarrierStubC2(const MachNode* node, R
   _needs_load_ref_barrier(needs_load_ref_barrier(node)),
   _needs_load_ref_weak_barrier(needs_load_ref_barrier_weak(node)),
   _needs_keep_alive_barrier(needs_keep_alive_barrier(node)) {
-  ShenandoahLoadBarrierStubC2(node, dst, src, narrow, self_load);
+
+  ShenandoahBarrierStubC2(node, dst, src, narrow, self_load);
 }
 #undef __
 #endif
