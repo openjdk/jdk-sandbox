@@ -644,7 +644,7 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop(MacroAssembler* masm,
 }
 
 #ifdef COMPILER2
-void ShenandoahBarrierStubC2::gc_state_check_c2_new(MacroAssembler* masm, Register rscratch, const unsigned char test_state, ShenandoahLoadBarrierStubC2* slow_stub) {
+void ShenandoahBarrierStubC2::gc_state_check_c2(MacroAssembler* masm, Register gcstate, const unsigned char test_state, ShenandoahLoadBarrierStubC2* slow_stub) {
   if (ShenandoahGCStateCheckRemove) {
     // Unrealistic: remove all barrier fastpath checks.
   } else if (ShenandoahGCStateCheckHotpatch) {
@@ -666,22 +666,24 @@ void ShenandoahBarrierStubC2::gc_state_check_c2_new(MacroAssembler* masm, Regist
     char no_weak_set = (test_state & (~ShenandoahHeap::WEAK_ROOTS));
 
     Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb(rscratch, gcs_addr);
+    __ ldrb(gcstate, gcs_addr);
+
+    // FIXME: Below will be refactored to be a single bit test and a tbnz
 
     // if only one bit is required then we can always use tbz
     if (one_bit) {
       int bit = __builtin_ctz((unsigned)test_state);
       if (!tb_reachable) {
-        __ tbz(rscratch, bit, *slow_stub->continuation());
+        __ tbz(gcstate, bit, *slow_stub->continuation());
       } else {
-        __ tbnz(rscratch, bit, *slow_stub->entry());
+        __ tbnz(gcstate, bit, *slow_stub->entry());
       }
     } else if (no_weak_set == test_state) {
-      __ ands(rscratch, rscratch, test_state);
+      __ ands(gcstate, gcstate, test_state);
       if (!tb_reachable) {
-        __ cbz(rscratch, *slow_stub->continuation());
+        __ cbz(gcstate, *slow_stub->continuation());
       } else {
-        __ cbnz(rscratch, *slow_stub->entry());
+        __ cbnz(gcstate, *slow_stub->entry());
       }
     } else {
       if (!tb_reachable) {
@@ -692,17 +694,17 @@ void ShenandoahBarrierStubC2::gc_state_check_c2_new(MacroAssembler* masm, Regist
         // We'll tackle this by breaking the problem in two parts. First we only
         // check for weak_roots and then we check for the other flags using
         // 'ands' without the weak bit set.
-        __ tbnz(rscratch, ShenandoahHeap::WEAK_ROOTS_BITPOS, L_short_branch);
+        __ tbnz(gcstate, ShenandoahHeap::WEAK_ROOTS_BITPOS, L_short_branch);
 
         // We cleared the weak bit earlier on
-        __ ands(rscratch, rscratch, no_weak_set);
-        __ cbz(rscratch, *slow_stub->continuation());
+        __ ands(gcstate, gcstate, no_weak_set);
+        __ cbz(gcstate, *slow_stub->continuation());
       } else {
-        __ tbnz(rscratch, ShenandoahHeap::WEAK_ROOTS_BITPOS, *slow_stub->entry());
+        __ tbnz(gcstate, ShenandoahHeap::WEAK_ROOTS_BITPOS, *slow_stub->entry());
 
         // We cleared the weak bit earlier on
-        __ ands(rscratch, rscratch, no_weak_set);
-        __ cbnz(rscratch, *slow_stub->entry());
+        __ ands(gcstate, gcstate, no_weak_set);
+        __ cbnz(gcstate, *slow_stub->entry());
       }
     }
 
@@ -712,61 +714,6 @@ void ShenandoahBarrierStubC2::gc_state_check_c2_new(MacroAssembler* masm, Regist
     } else {
       // nothing to do here
     }
-
-    // This is were the stub will return to or the code above will jump to if
-    // the checks are false
-    __ bind(*slow_stub->continuation());
-  }
-}
-
-void ShenandoahBarrierStubC2::gc_state_check_c2(MacroAssembler* masm, Register rscratch, const unsigned char test_state, ShenandoahBarrierStubC2* slow_stub) {
-  if (ShenandoahGCStateCheckRemove) {
-    // Unrealistic: remove all barrier fastpath checks.
-  } else if (ShenandoahGCStateCheckHotpatch) {
-    // In the ideal world, we would hot-patch the branch to slow stub with a single
-    // (unconditional) jump or nop, based on our current GC state.
-    __ nop();
-  } else {
-#ifdef ASSERT
-    const unsigned char allowed = (unsigned char)(ShenandoahHeap::MARKING | ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::WEAK_ROOTS);
-    const unsigned char only_valid_flags = test_state & (unsigned char) ~allowed;
-    assert(test_state > 0x0, "Invalid test_state asked: %x", test_state);
-    assert(only_valid_flags == 0x0, "Invalid test_state asked: %x", test_state);
-#endif
-
-    Label L_short_branch;
-
-    bool tb_reachable = slow_stub->is_test_and_branch_reachable();
-    bool one_bit = (test_state & (test_state - 1)) == 0;
-    char no_weak_set = (test_state & (~ShenandoahHeap::WEAK_ROOTS));
-
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb(rscratch, gcs_addr);
-
-    // if only one bit is required then we can always use tbz
-    if (one_bit) {
-      int bit = __builtin_ctz((unsigned)test_state);
-      __ tbz(rscratch, bit, *slow_stub->continuation());
-    } else if (no_weak_set == test_state) {
-      __ ands(rscratch, rscratch, test_state);
-      __ cbz(rscratch, *slow_stub->continuation());
-    } else {
-      // One single 'ands' isn't possible because weak is set, making the
-      // immediate pattern invalid. One single tbz/tbnz doesn't work because we
-      // have 2 or more bits set.
-      //
-      // We'll tackle this by breaking the problem in two parts. First we only
-      // check for weak_roots and then we check for the other flags using
-      // 'ands' without the weak bit set.
-      __ tbnz(rscratch, ShenandoahHeap::WEAK_ROOTS_BITPOS, L_short_branch);
-
-      // We cleared the weak bit earlier on
-      __ ands(rscratch, rscratch, no_weak_set);
-      __ cbz(rscratch, *slow_stub->continuation());
-    }
-
-    __ bind(L_short_branch);
-    __ b(*slow_stub->entry());
 
     // This is were the stub will return to or the code above will jump to if
     // the checks are false
@@ -787,7 +734,7 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
   // (a) and (b) are covered because load barrier does memory location fixup.
   // (c) is covered by KA on the current memory value.
   if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
-    ShenandoahBarrierStubC2* const stub = ShenandoahFarLoadBarrierStubC2::create(node, tmp, addr, narrow, true);
+    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, tmp, addr, narrow, true, __ offset());
     char check = 0;
     check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
@@ -820,7 +767,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
   // (a) is covered because load barrier does memory location fixup.
   // (b) is covered by KA on the current memory value.
   if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
-    ShenandoahBarrierStubC2* const stub = ShenandoahFarLoadBarrierStubC2::create(node, tmp, addr, narrow, true);
+    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, tmp, addr, narrow, true, __ offset());
     char check = 0;
     check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
@@ -852,7 +799,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   // Pre-barrier: SATB, keep-alive the current memory value.
   if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
     assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier(node), "Should not be required for stores");
-    ShenandoahBarrierStubC2* const stub = ShenandoahFarLoadBarrierStubC2::create(node, tmp, dst, dst_narrow, true);
+    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, tmp, dst, dst_narrow, true, __ offset());
     ShenandoahBarrierStubC2::gc_state_check_c2(masm, rscratch1, ShenandoahHeap::MARKING, stub);
   }
 
@@ -888,7 +835,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   card_barrier_c2(node, masm, dst);
 }
 
-void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src, int offset) {
+void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src) {
   bool acquire = node->memory_order() == MemNode::MemOrd::acquire;
   bool narrow = node->bottom_type()->isa_narrowoop();
 
@@ -909,12 +856,12 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
 
   // Post-barrier: LRB
   if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
-    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, dst, src, narrow, false, offset);
+    ShenandoahLoadBarrierStubC2* const stub = ShenandoahLoadBarrierStubC2::create(node, dst, src, narrow, false, __ offset());
     char check = 0;
     check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node) ? ShenandoahHeap::WEAK_ROOTS : 0;
-    ShenandoahBarrierStubC2::gc_state_check_c2_new(masm, rscratch1, check, stub);
+    ShenandoahBarrierStubC2::gc_state_check_c2(masm, rscratch1, check, stub);
   }
 }
 
@@ -983,7 +930,6 @@ ShenandoahLoadBarrierStubC2::ShenandoahLoadBarrierStubC2(const MachNode* node, R
   }
   const int code_size = output->buffer_sizing_data()->_code;
   // Assumption that the stub can always be reached from a branch immediate. (128 M Product, 2 M Debug)
-  // Same assumption is made in z_aarch64.ad
   const int trampoline_offset = trampoline_stubs_count() * NativeInstruction::instruction_size;
   _test_and_branch_reachable = aarch64_test_and_branch_reachable(_offset, code_size + trampoline_offset);
   if (_test_and_branch_reachable) {
@@ -995,6 +941,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   PhaseOutput* const output = Compile::current()->output();
   const int branch_offset = _offset;
   const int target_offset = __ offset();
+  const int code_size = output->buffer_sizing_data()->_code;
 
   // Deferred emission, emit actual stub
   if (_deferred_emit) {
@@ -1023,7 +970,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
     emit_code2(masm);
   } else {
     assert(aarch64_test_and_branch_reachable(branch_offset, target_offset), "trampoline should be reachable");
-    __ b(*entry());
+    __ b(*ShenandoahBarrierStubC2::entry());
     register_stub(this);
   }
 }

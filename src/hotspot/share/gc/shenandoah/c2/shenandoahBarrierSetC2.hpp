@@ -202,12 +202,8 @@ public:
   static bool src_not_null(const MachNode* node) {
     return (node->barrier_data() & ShenandoahBitNotNull) != 0;
   }
-
-  static void gc_state_check_c2_new(MacroAssembler* masm, Register rscratch, const unsigned char test_state,
-      ShenandoahLoadBarrierStubC2* slow_stub);
-
   static void gc_state_check_c2(MacroAssembler* masm, Register rscratch, const unsigned char test_state,
-      ShenandoahBarrierStubC2* slow_stub);
+      ShenandoahLoadBarrierStubC2* slow_stub);
   virtual void emit_code(MacroAssembler& masm) = 0;
   bool is_test_and_branch_reachable() {
     return _test_and_branch_reachable;
