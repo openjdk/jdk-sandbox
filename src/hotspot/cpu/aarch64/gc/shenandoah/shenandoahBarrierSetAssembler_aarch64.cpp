@@ -921,6 +921,7 @@ ShenandoahLoadBarrierStubC2::ShenandoahLoadBarrierStubC2(const MachNode* node, R
   _narrow(narrow),
   _maybe_null(!src_not_null(node)),
   _needs_load_ref_barrier(needs_load_ref_barrier(node)),
+  _needs_load_ref_weak_barrier(needs_load_ref_barrier_weak(node)),
   _needs_keep_alive_barrier(needs_keep_alive_barrier(node)) {
     assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
 

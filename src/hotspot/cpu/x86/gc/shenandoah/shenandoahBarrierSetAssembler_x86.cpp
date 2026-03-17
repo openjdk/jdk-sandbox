@@ -1042,39 +1042,34 @@ bool ShenandoahBarrierStubC2::is_live(Register reg) {
   return false;
 }
 
-Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Address addr, Register reg1, Register reg2) {
+Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Address addr, Register reg1) {
   Register tmp = noreg;
+  Register fallback_live = noreg;
 
   // Try to select non-live first:
-  for (int i = 0; i < 8; i++) {
+  for (int i = 0; i < Register::available_gp_registers(); i++) {
     Register r = as_Register(i);
-    if (is_live(r)) continue;
-    if (r != rsp && r != rbp && r != reg1 && r != reg2 && r != addr.base() && r != addr.index()) {
-      if (tmp == noreg) {
+    if (r != rsp && r != rbp && r != r12_heapbase && r != r15_thread &&
+        r != reg1 && r != addr.base() && r != addr.index()) {
+      if (!is_live(r)) {
         tmp = r;
         break;
+      } else if (fallback_live == noreg) {
+        fallback_live = r;
       }
     }
   }
 
-  // If unsuccessful, select any register, likely live one.
+  // If we could not find a non-live register, select the live fallback:
   if (tmp == noreg) {
-    for (int i = 0; i < 8; i++) {
-      Register r = as_Register(i);
-      if (r != rsp && r != rbp && r != reg1 && r != reg2 && r != addr.base() && r != addr.index()) {
-        if (tmp == noreg) {
-          tmp = r;
-          break;
-        }
-      }
-    }
+    tmp = fallback_live;
     selected_live = true;
   } else {
     selected_live = false;
   }
 
-  assert(tmp != noreg, "successfully allocated");
-  assert_different_registers(tmp, reg1, reg2);
+  assert(tmp != noreg, "successfully selected");
+  assert_different_registers(tmp, reg1);
   assert_different_registers(tmp, addr.base());
   assert_different_registers(tmp, addr.index());
   return tmp;
@@ -1098,9 +1093,8 @@ void ShenandoahBarrierSetAssembler::gc_state_check_c2(MacroAssembler* masm, cons
   }
 }
 
-void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src) {
+void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src, bool narrow) {
   // Do the actual load. This load is the candidate for implicit null check, and MUST come first.
-  bool narrow = node->bottom_type()->isa_narrowoop();
   if (narrow) {
     __ movl(dst, src);
   } else {
@@ -1158,7 +1152,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
 void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, MacroAssembler* masm,
                                                        Register res, Address addr,
                                                        Register oldval, Register newval, Register tmp,
-                                                       bool exchange, bool maybe_null, bool narrow) {
+                                                       bool narrow) {
 
   assert(oldval == rax, "must be in rax for implicit use in cmpxchg");
 
@@ -1192,11 +1186,8 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
   }
 
   // If we need a boolean result out of CAS, set the flag appropriately and promote the result.
-  if (!exchange) {
-    assert(res != noreg, "need result register");
+  if (res != noreg) {
     __ setcc(Assembler::equal, res);
-  } else {
-    assert(res == noreg, "no result expected");
   }
 
   // Post-barrier deals with card updates.
@@ -1205,9 +1196,8 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
   }
 }
 
-void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register newval, Address addr, Register tmp) {
+void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register newval, Address addr, Register tmp, bool narrow) {
   assert_different_registers(newval, tmp, addr.base(), addr.index());
-  bool narrow = node->bottom_type()->isa_narrowoop();
 
   // Pre-barrier covers several things:
   //  a. Satisfies the need for LRB for the GAS result.
@@ -1261,26 +1251,32 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(MacroAssembler* masm, Addres
   __ bind(L_done);
 }
 
-void ShenandoahBarrierStubC2::keepalive_fast(MacroAssembler* masm, Register obj, Register tmp, Label* L_slow, bool short_slow) {
+void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Register tmp) {
   Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
+
+  Label L_fast, L_done;
+
+  // Check if buffer is already full. Go slow, if so.
   __ movptr(tmp, index);
   __ testptr(tmp, tmp);
-  if (short_slow) {
-    __ jccb(Assembler::zero, *L_slow);
-  } else {
-    __ jcc(Assembler::zero, *L_slow);
-  }
+  __ jccb(Assembler::notZero, L_fast);
+  keepalive_slow(masm, obj);
+  __ jmpb(L_done);
+
+  // Fast-path: put object into buffer.
+  __ bind(L_fast);
   __ subptr(tmp, wordSize);
   __ movptr(index, tmp);
   __ addptr(tmp, buffer);
   __ movptr(Address(tmp, 0), obj);
+
+  __ bind(L_done);
 }
 
 void ShenandoahBarrierStubC2::keepalive_slow(MacroAssembler* masm, Register obj) {
-  // StubGen stub is responsible for dealing with call clobbered registers.
+  // Stub routine is responsible for dealing with call clobbered registers.
   // Here, we just stash away anything that we clobbered while preparing the arguments.
-  assert_different_registers(rax, c_rarg0);
   if (c_rarg0 != obj && is_live(c_rarg0)) {
     __ push(c_rarg0);
   }
@@ -1290,6 +1286,7 @@ void ShenandoahBarrierStubC2::keepalive_slow(MacroAssembler* masm, Register obj)
     __ mov(c_rarg0, obj);
   }
 
+  // Go for stub routine call. Stub routine would deal with stack alignment as well.
   __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_keepalive_stub())));
 
   if (c_rarg0 != obj && is_live(c_rarg0)) {
@@ -1297,11 +1294,11 @@ void ShenandoahBarrierStubC2::keepalive_slow(MacroAssembler* masm, Register obj)
   }
 }
 
-void ShenandoahBarrierStubC2::lrb_fast(MacroAssembler* masm, Register obj, Register tmp, Label* L_slow, bool short_slow) {
+void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address addr, Register tmp, bool narrow) {
   // Weak/phantom loads are handled in slow path.
-  bool is_weak = (_node->barrier_data() & ShenandoahBitStrong) == 0;
+  bool is_weak = (_node->barrier_data() & (ShenandoahBitWeak | ShenandoahBitPhantom)) != 0;
   if (is_weak) {
-    __ jmpb(*L_slow);
+    lrb_slow(masm, obj, addr, narrow);
     return;
   }
 
@@ -1320,17 +1317,16 @@ void ShenandoahBarrierStubC2::lrb_fast(MacroAssembler* masm, Register obj, Regis
     cset_addr_arg = Address(tmp, 0);
   }
 
-  // Go test.
+  // Cset-check. Go slow if in collection set.
+  Label L_done;
   __ cmpb(cset_addr_arg, 0);
-  if (short_slow) {
-    __ jccb(Assembler::notEqual, *L_slow);
-  } else {
-    __ jcc(Assembler::notEqual, *L_slow);
-  }
+  __ jccb(Assembler::equal, L_done);
+  lrb_slow(masm, obj, addr, narrow);
+  __ bind(L_done);
 }
 
 void ShenandoahBarrierStubC2::lrb_slow(MacroAssembler* masm, Register obj, Address addr, bool narrow) {
-  // StubGen stub is responsible for dealing with call clobbered registers.
+  // Stub routine is responsible for dealing with call clobbered registers.
   // Here, we just stash away anything that we clobbered while preparing the arguments.
   assert_different_registers(rax, c_rarg0, c_rarg1);
   if (obj != c_rarg0 && is_live(c_rarg0)) {
@@ -1358,6 +1354,7 @@ void ShenandoahBarrierStubC2::lrb_slow(MacroAssembler* masm, Register obj, Addre
     __ movptr(c_rarg0, obj);
   }
 
+  // Go for stub routine call. Stub routine would deal with stack alignment as well.
   address entry = nullptr;
   if (narrow) {
     if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
@@ -1378,11 +1375,13 @@ void ShenandoahBarrierStubC2::lrb_slow(MacroAssembler* masm, Register obj, Addre
   }
   __ call(RuntimeAddress(entry));
 
+  // Save the result where needed.
   if (obj != rax) {
     __ movptr(obj, rax);
-    if (is_live(rax)) {
-      __ pop(rax);
-    }
+  }
+
+  if (obj != rax && is_live(rax)) {
+    __ pop(rax);
   }
   if (obj != c_rarg1 && is_live(c_rarg1)) {
     __ pop(c_rarg1);
@@ -1406,11 +1405,6 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   __ bind(*entry());
 
-  bool tmp_live;
-  Register tmp = select_temp_register(tmp_live, _src, _dst);
-
-  Label L_lrb_done, L_lrb_slow;
-  Label L_keepalive_done, L_keepalive_slow;
   Label L_done;
 
   // If we need to load ourselves, do it here.
@@ -1422,74 +1416,68 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
     }
   }
 
-  // ---- Mid path
-  // The goal is to do quick checks/actions that can be done without going to slowpath.
-  // This also allows doing shorter branches, where possible.
-
   // If the object is null, there is no point in applying barriers.
   if (_narrow) {
     __ testl(_dst, _dst);
   } else {
     __ testptr(_dst, _dst);
   }
-  __ jccb(Assembler::zero, L_done);
+  if (_needs_keep_alive_barrier && _needs_load_ref_barrier) {
+    __ jcc(Assembler::zero, L_done);
+  } else {
+    __ jccb(Assembler::zero, L_done);
+  }
+
+  // Barriers need temp to work, allocate one now.
+  bool tmp_live;
+  Register tmp = select_temp_register(tmp_live, _src, _dst);
+  if (tmp_live) {
+    __ push(tmp);
+  }
 
   // If object is narrow, we need to decode it first: barrier checks need full oops.
   if (_narrow) {
     __ decode_heap_oop_not_null(_dst);
   }
 
+  // Go for barriers. If both barriers are required (rare), do a runtime check for enabled barrier.
+
   if (_needs_keep_alive_barrier) {
-    // If both barriers are required (rare), do a runtime check for enabled barrier.
+    Label L_keepalive_done;
     if (_needs_load_ref_barrier) {
       gc_state_check(&masm, ShenandoahHeap::MARKING, &L_keepalive_done);
     }
-    if (tmp_live) __ push(tmp);
-    keepalive_fast(&masm, _dst, tmp, &L_keepalive_slow, /* short_slow = */ !_needs_load_ref_barrier);
-    if (tmp_live) __ pop(tmp);
+    keepalive(&masm, _dst, tmp);
     __ bind(L_keepalive_done);
   }
 
   if (_needs_load_ref_barrier) {
-    // If both barriers are required (rare), do a runtime check for enabled barrier.
+    Label L_lrb_done;
     if (_needs_keep_alive_barrier) {
-      gc_state_check(&masm, ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::WEAK_ROOTS, &L_lrb_done);
+      char check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
+      gc_state_check(&masm, check, &L_lrb_done);
     }
-    if (tmp_live) __ push(tmp);
-    lrb_fast(&masm, _dst, tmp, &L_lrb_slow, /* short_slow = */ true);
-    if (tmp_live) __ pop(tmp);
+    lrb(&masm, _dst, _src, tmp, _narrow);
     __ bind(L_lrb_done);
   }
 
-  // ---- Exits
+  if (tmp_live) {
+    __ pop(tmp);
+  }
+
   // If object is narrow, we need to encode it before exiting.
-  // Unless we performed the load ourselves, which means it is not used by caller.
+  // For encoding, dst can only turn null if we are dealing with weak loads.
+  // Otherwise, we have already null-checked. We can skip all this if we performed
+  // the load ourselves, which means the value is not used by caller.
   if (_narrow && !_self_load) {
-    __ encode_heap_oop(_dst);
+    if (_needs_load_ref_weak_barrier) {
+      __ encode_heap_oop(_dst);
+    } else {
+      __ encode_heap_oop_not_null(_dst);
+    }
   }
   __ bind(L_done);
   __ jmp(*continuation());
-
-  // ---- Slow paths
-  // LRB slow path goes first: this allows the short branches from LRB fastpath,
-  // the overwhelmingly major case. Slow paths immediately pop tmp to make sure
-  // the stack is aligned for the call.
-
-  if (_needs_load_ref_barrier) {
-    __ bind(L_lrb_slow);
-    if (tmp_live) __ pop(tmp);
-    dont_preserve(_dst); // For LRB we must not preserve _dst
-    lrb_slow(&masm, _dst, _src, _narrow);
-    __ jmp(L_lrb_done);
-  }
-
-  if (_needs_keep_alive_barrier) {
-    __ bind(L_keepalive_slow);
-    if (tmp_live) __ pop(tmp);
-    preserve(_dst); // For KA we must preserve _dst
-    keepalive_slow(&masm, _dst);
-    __ jmp(L_keepalive_done);
-  }
 }
 #undef __
 #endif

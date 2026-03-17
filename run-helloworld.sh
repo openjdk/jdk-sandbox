@@ -62,8 +62,6 @@ echo
 echo "LBE: All barriers"
 run_with $J_LBE $OPTS_ALL
 
-exit
-
 echo
 echo "LBE: All barriers, hot-patchable GC state checks in fast-path"
 run_with $J_LBE $OPTS_ALL -XX:+ShenandoahGCStateCheckHotpatch

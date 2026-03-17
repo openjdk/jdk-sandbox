@@ -170,12 +170,13 @@ protected:
 
   void satb(MacroAssembler* masm, ShenandoahBarrierStubC2* stub, Register scratch1, Register scratch2, Register scratch3);
   void lrb(MacroAssembler* masm, ShenandoahBarrierStubC2* stub, Register obj, Address addr, Label* L_done, bool narrow);
-  Register select_temp_register(bool& selected_live, Address addr, Register reg1 = noreg, Register reg2 = noreg);
 
   bool is_live(Register reg);
-  void keepalive_fast(MacroAssembler* masm, Register obj, Register tmp, Label* L_slow, bool short_slow);
+  Register select_temp_register(bool& selected_live, Address addr, Register reg1);
+
+  void keepalive(MacroAssembler* masm, Register obj, Register tmp);
   void keepalive_slow(MacroAssembler* masm, Register obj);
-  void lrb_fast(MacroAssembler* masm, Register obj, Register tmp, Label* L_slow, bool short_slow);
+  void lrb(MacroAssembler* masm, Register obj, Address addr, Register tmp, bool narrow);
   void lrb_slow(MacroAssembler* masm, Register obj, Address addr, bool narrow);
   void gc_state_check(MacroAssembler* masm, const char state, Label* L_not_set);
 
@@ -217,9 +218,23 @@ class ShenandoahLoadBarrierStubC2 : public ShenandoahBarrierStubC2 {
   const bool _narrow;
   const bool _maybe_null;
   const bool _needs_load_ref_barrier;
+  const bool _needs_load_ref_weak_barrier;
   const bool _needs_keep_alive_barrier;
 
-  ShenandoahLoadBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow, bool self_load, int offset = 0);
+  ShenandoahLoadBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow, bool self_load, int offset);
+
+  ShenandoahLoadBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow, bool self_load) :
+    ShenandoahBarrierStubC2(node),
+    _dst(dst),
+    _src(src),
+    _self_load(self_load),
+    _narrow(narrow),
+    _maybe_null(!src_not_null(node)),
+    _needs_load_ref_barrier(needs_load_ref_barrier(node)),
+    _needs_load_ref_weak_barrier(needs_load_ref_barrier_weak(node)),
+    _needs_keep_alive_barrier(needs_keep_alive_barrier(node)) {
+      assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
+    }
 
 public:
   static bool needs_barrier(const MachNode* node) {
