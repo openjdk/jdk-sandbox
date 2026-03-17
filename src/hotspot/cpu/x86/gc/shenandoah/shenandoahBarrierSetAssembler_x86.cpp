@@ -1261,20 +1261,24 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(MacroAssembler* masm, Addres
   __ bind(L_done);
 }
 
-void ShenandoahBarrierStubC2::keepalive_fast(MacroAssembler* masm, Register obj, Register tmp, Label* L_slow, bool short_slow) {
+void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Register tmp) {
+  Label L_fast, L_done;
+
   Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
   __ movptr(tmp, index);
   __ testptr(tmp, tmp);
-  if (short_slow) {
-    __ jccb(Assembler::zero, *L_slow);
-  } else {
-    __ jcc(Assembler::zero, *L_slow);
-  }
+  __ jccb(Assembler::notZero, L_fast);
+  keepalive_slow(masm, obj);
+  __ jmpb(L_done);
+
+  __ bind(L_fast);
   __ subptr(tmp, wordSize);
   __ movptr(index, tmp);
   __ addptr(tmp, buffer);
   __ movptr(Address(tmp, 0), obj);
+
+  __ bind(L_done);
 }
 
 void ShenandoahBarrierStubC2::keepalive_slow(MacroAssembler* masm, Register obj) {
@@ -1297,11 +1301,13 @@ void ShenandoahBarrierStubC2::keepalive_slow(MacroAssembler* masm, Register obj)
   }
 }
 
-void ShenandoahBarrierStubC2::lrb_fast(MacroAssembler* masm, Register obj, Register tmp, Label* L_slow, bool short_slow) {
+void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address addr, Register tmp, bool narrow) {
+  Label L_done, L_slow;
+
   // Weak/phantom loads are handled in slow path.
   bool is_weak = (_node->barrier_data() & ShenandoahBitStrong) == 0;
   if (is_weak) {
-    __ jmpb(*L_slow);
+    lrb_slow(masm, obj, addr, narrow);
     return;
   }
 
@@ -1322,11 +1328,12 @@ void ShenandoahBarrierStubC2::lrb_fast(MacroAssembler* masm, Register obj, Regis
 
   // Go test.
   __ cmpb(cset_addr_arg, 0);
-  if (short_slow) {
-    __ jccb(Assembler::notEqual, *L_slow);
-  } else {
-    __ jcc(Assembler::notEqual, *L_slow);
-  }
+  __ jccb(Assembler::equal, L_done);
+ 
+  // Go slow.
+  lrb_slow(masm, obj, addr, narrow);
+
+  __ bind(L_done);
 }
 
 void ShenandoahBarrierStubC2::lrb_slow(MacroAssembler* masm, Register obj, Address addr, bool narrow) {
@@ -1432,7 +1439,11 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   } else {
     __ testptr(_dst, _dst);
   }
-  __ jccb(Assembler::zero, L_done);
+  if (_needs_keep_alive_barrier && _needs_load_ref_barrier) {
+    __ jcc(Assembler::zero, L_done);
+  } else {
+    __ jccb(Assembler::zero, L_done);
+  }
 
   // If object is narrow, we need to decode it first: barrier checks need full oops.
   if (_narrow) {
@@ -1445,7 +1456,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
       gc_state_check(&masm, ShenandoahHeap::MARKING, &L_keepalive_done);
     }
     if (tmp_live) __ push(tmp);
-    keepalive_fast(&masm, _dst, tmp, &L_keepalive_slow, /* short_slow = */ !_needs_load_ref_barrier);
+    keepalive(&masm, _dst, tmp);
     if (tmp_live) __ pop(tmp);
     __ bind(L_keepalive_done);
   }
@@ -1456,7 +1467,7 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
       gc_state_check(&masm, ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::WEAK_ROOTS, &L_lrb_done);
     }
     if (tmp_live) __ push(tmp);
-    lrb_fast(&masm, _dst, tmp, &L_lrb_slow, /* short_slow = */ true);
+    lrb(&masm, _dst, _src, tmp, _narrow);
     if (tmp_live) __ pop(tmp);
     __ bind(L_lrb_done);
   }
@@ -1469,27 +1480,6 @@ void ShenandoahLoadBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
   __ bind(L_done);
   __ jmp(*continuation());
-
-  // ---- Slow paths
-  // LRB slow path goes first: this allows the short branches from LRB fastpath,
-  // the overwhelmingly major case. Slow paths immediately pop tmp to make sure
-  // the stack is aligned for the call.
-
-  if (_needs_load_ref_barrier) {
-    __ bind(L_lrb_slow);
-    if (tmp_live) __ pop(tmp);
-    dont_preserve(_dst); // For LRB we must not preserve _dst
-    lrb_slow(&masm, _dst, _src, _narrow);
-    __ jmp(L_lrb_done);
-  }
-
-  if (_needs_keep_alive_barrier) {
-    __ bind(L_keepalive_slow);
-    if (tmp_live) __ pop(tmp);
-    preserve(_dst); // For KA we must preserve _dst
-    keepalive_slow(&masm, _dst);
-    __ jmp(L_keepalive_done);
-  }
 }
 #undef __
 #endif

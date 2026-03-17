@@ -148,9 +148,9 @@ protected:
   Register select_temp_register(bool& selected_live, Address addr, Register reg1 = noreg, Register reg2 = noreg);
 
   bool is_live(Register reg);
-  void keepalive_fast(MacroAssembler* masm, Register obj, Register tmp, Label* L_slow, bool short_slow);
+  void keepalive(MacroAssembler* masm, Register obj, Register tmp);
   void keepalive_slow(MacroAssembler* masm, Register obj);
-  void lrb_fast(MacroAssembler* masm, Register obj, Register tmp, Label* L_slow, bool short_slow);
+  void lrb(MacroAssembler* masm, Register obj, Address addr, Register tmp, bool narrow);
   void lrb_slow(MacroAssembler* masm, Register obj, Address addr, bool narrow);
   void gc_state_check(MacroAssembler* masm, const char state, Label* L_not_set);
 
