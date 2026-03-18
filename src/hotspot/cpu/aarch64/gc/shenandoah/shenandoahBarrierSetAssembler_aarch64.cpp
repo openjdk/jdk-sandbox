@@ -1023,7 +1023,7 @@ void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
   assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
 
   // Stub entry
-  if (!Compile::current()->output()->in_scratch_emit_size()) {
+  if (!Compile::current()->output()->in_scratch_emit_size() && !_test_and_branch_reachable) {
     __ bind(*ShenandoahBarrierStubC2::entry());
   }
 
