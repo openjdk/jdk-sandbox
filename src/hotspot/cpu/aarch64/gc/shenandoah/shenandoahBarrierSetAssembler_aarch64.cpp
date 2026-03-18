@@ -1031,18 +1031,17 @@ void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
   if (_do_load) {
     // This does the load and the decode if necessary
     __ load_heap_oop(_obj, _addr, noreg, noreg, AS_RAW);
-    __ cbz(_obj, *continuation());
-  } else {
+  } else if (_narrow) {
     // If object is narrow, we need to decode it first: barrier checks need full oops.
-    if (_narrow) {
-      if (_maybe_null) {
-        __ decode_heap_oop(_obj, continuation());
-      } else {
-        __ decode_heap_oop_not_null(_obj);
-      }
+    if (_maybe_null) {
+      __ decode_heap_oop(_obj);
     } else {
-      __ cbz(_obj, *continuation());
+      __ decode_heap_oop_not_null(_obj);
     }
+  }
+
+  if (_maybe_null) {
+    __ cbz(_obj, *continuation());
   }
 
   if (_needs_keep_alive_barrier) {
@@ -1054,14 +1053,18 @@ void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
   }
 
   // If object is narrow, we need to encode it before exiting.
+  // For encoding, dst can only turn null if we are dealing with weak loads.
+  // Otherwise, we have already null-checked. We can skip all this if we performed
+  // the load ourselves, which means the value is not used by caller.
   if (_narrow && !_do_load) {
-    if (_maybe_null) {
+    if (_needs_load_ref_weak_barrier) {
       __ encode_heap_oop(_obj);
     } else {
       __ encode_heap_oop_not_null(_obj);
     }
   }
 
+  // Go back to fast path
   __ b(*continuation());
 }
 
@@ -1110,19 +1113,17 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Regi
 void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address addr, Register tmp, bool check_gc_state, bool narrow) {
   Label L_done;
 
-  bool is_strong_ref = (_node->barrier_data() & ShenandoahBitStrong) != 0;
+  if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
+    // If both LRB and KeepAlive barriers are required (rare), do a runtime
+    // check for enabled barrier.
+    if (check_gc_state) {
+      Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+      __ ldrb(rscratch1, gcs_addr);
+      __ tbz(rscratch1, ShenandoahHeap::HAS_FORWARDED_BITPOS, L_done);
+    }
 
-  // If both LRB and KeepAlive barriers are required (rare), do a runtime check
-  // for enabled barrier.
-  if (check_gc_state && is_strong_ref) {
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb(rscratch1, gcs_addr);
-    __ tbz(rscratch1, ShenandoahHeap::HAS_FORWARDED_BITPOS, L_done);
-  }
-
-  // Weak/phantom loads always need to go to runtime, otherwise check for
-  // object in cset.
-  if (is_strong_ref) {
+    // Weak/phantom loads always need to go to runtime. For strong refs we
+    // check if the object in cset, if they are not, then we are done with LRB.
     __ mov(rscratch2, ShenandoahHeap::in_cset_fast_test_addr());
     __ lsr(rscratch1, obj, ShenandoahHeapRegion::region_size_bytes_shift_jint());
     __ ldrb(rscratch2, Address(rscratch2, rscratch1));
@@ -1151,23 +1152,8 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address ad
       __ mov(c_rarg0, obj);
     }
 
-    if (narrow) {
-      if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-        __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow));
-      } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
-        __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow));
-      } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
-        __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow));
-      }
-    } else {
-      if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-        __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong));
-      } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
-        __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak));
-      } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
-        __ mov(rscratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom));
-      }
-    }
+    // Get address of runtime LRB entry and call it
+    __ mov(rscratch1, lrb_runtime_entry_addr(narrow));
     __ blr(rscratch1);
 
     // If we loaded the object in the stub it means we don't need to return it

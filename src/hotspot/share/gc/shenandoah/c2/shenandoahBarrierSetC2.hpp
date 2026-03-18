@@ -220,6 +220,7 @@ public:
   static void gc_state_check_c2(MacroAssembler* masm, Register rscratch, const unsigned char test_state, ShenandoahBarrierStubC2* slow_stub);
   static ShenandoahBarrierStubC2* create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load);
   static ShenandoahBarrierStubC2* create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load, int offset);
+  address lrb_runtime_entry_addr(bool is_narrow);
   void emit_code(MacroAssembler& masm);
   void emit_code_actual(MacroAssembler& masm);
   int get_stub_size();

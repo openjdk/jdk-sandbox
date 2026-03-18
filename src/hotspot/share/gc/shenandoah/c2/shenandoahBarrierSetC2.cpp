@@ -809,6 +809,33 @@ ShenandoahBarrierStubC2* ShenandoahBarrierStubC2::create(const MachNode* node, R
   return stub;
 }
 
+address ShenandoahBarrierStubC2::lrb_runtime_entry_addr(bool is_narrow) {
+  bool is_strong_ref = (_node->barrier_data() & ShenandoahBitStrong) != 0;
+  bool is_weak_ref = (_node->barrier_data() & ShenandoahBitWeak) != 0;
+  bool is_phantom_ref = (_node->barrier_data() & ShenandoahBitPhantom) != 0;
+
+  if (is_narrow) {
+    if (is_strong_ref) {
+      return CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow);
+    } else if (is_weak_ref) {
+      return CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow);
+    } else if (is_phantom_ref) {
+      return CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow);
+    }
+  } else {
+    if (is_strong_ref) {
+      return CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong);
+    } else if (is_weak_ref) {
+      return CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak);
+    } else if (is_phantom_ref) {
+      return CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom);
+    }
+  }
+
+  assert(false, "sanity");
+  return nullptr;
+}
+
 bool ShenandoahBarrierSetC2State::needs_liveness_data(const MachNode* mach) const {
   // Nodes that require slow-path stubs need liveness data.
   return ShenandoahBarrierStubC2::needs_slow_barrier(mach);
