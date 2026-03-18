@@ -1040,7 +1040,7 @@ void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
     }
   }
 
-  if (_maybe_null) {
+  if (_do_load || _maybe_null) {
     __ cbz(_obj, *continuation());
   }
 
@@ -1099,7 +1099,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Regi
   // Runtime call
   __ bind(L_runtime);
 
-  preserve(_obj);
+  preserve(obj);
   {
     SaveLiveRegisters save_registers(masm, this);
     __ mov(c_rarg0, obj);
@@ -1130,7 +1130,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address ad
     __ cbz(rscratch2, L_done);
   }
 
-  dont_preserve(_obj);
+  dont_preserve(obj);
   {
     SaveLiveRegisters save_registers(masm, this);
 
