@@ -797,14 +797,14 @@ int ShenandoahBarrierStubC2::stubs_start_offset() {
   return barrier_set_state()->stubs_start_offset();
 }
 
-ShenandoahBarrierStubC2* ShenandoahBarrierStubC2::create(const MachNode* node, Register dst, Address addr, bool narrow, bool self_load, int offset) {
-  auto* stub = new (Compile::current()->comp_arena()) ShenandoahBarrierStubC2(node, dst, addr, narrow, self_load, offset);
+ShenandoahBarrierStubC2* ShenandoahBarrierStubC2::create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load, int offset) {
+  auto* stub = new (Compile::current()->comp_arena()) ShenandoahBarrierStubC2(node, obj, addr, narrow, do_load, offset);
   ShenandoahBarrierStubC2::register_stub(stub);
   return stub;
 }
 
-ShenandoahBarrierStubC2* ShenandoahBarrierStubC2::create(const MachNode* node, Register dst, Address addr, bool narrow, bool self_load) {
-  auto* stub = new (Compile::current()->comp_arena()) ShenandoahBarrierStubC2(node, dst, addr, narrow, self_load);
+ShenandoahBarrierStubC2* ShenandoahBarrierStubC2::create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load) {
+  auto* stub = new (Compile::current()->comp_arena()) ShenandoahBarrierStubC2(node, obj, addr, narrow, do_load);
   ShenandoahBarrierStubC2::register_stub(stub);
   return stub;
 }

@@ -1415,19 +1415,19 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   Label L_done;
 
   // If we need to load ourselves, do it here.
-  if (_self_load) {
+  if (_do_load) {
     if (_narrow) {
-      __ movl(_dst, _src);
+      __ movl(_obj, _addr);
     } else {
-      __ movq(_dst, _src);
+      __ movq(_obj, _addr);
     }
   }
 
   // If the object is null, there is no point in applying barriers.
   if (_narrow) {
-    __ testl(_dst, _dst);
+    __ testl(_obj, _obj);
   } else {
-    __ testptr(_dst, _dst);
+    __ testptr(_obj, _obj);
   }
   if (_needs_keep_alive_barrier && _needs_load_ref_barrier) {
     __ jcc(Assembler::zero, L_done);
@@ -1437,24 +1437,22 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   // Barriers need temp to work, allocate one now.
   bool tmp_live;
-  Register tmp = select_temp_register(tmp_live, _src, _dst);
+  Register tmp = select_temp_register(tmp_live, _addr, _obj);
   if (tmp_live) {
     __ push(tmp);
   }
 
   // If object is narrow, we need to decode it first: barrier checks need full oops.
   if (_narrow) {
-    __ decode_heap_oop_not_null(_dst);
+    __ decode_heap_oop_not_null(_obj);
   }
 
   // Go for barriers. If both barriers are required (rare), do a runtime check for enabled barrier.
-
   if (_needs_keep_alive_barrier) {
-    keepalive(&masm, _dst, tmp, _needs_load_ref_barrier);
+    keepalive(&masm, _obj, tmp, _needs_load_ref_barrier);
   }
-
   if (_needs_load_ref_barrier) {
-    lrb(&masm, _dst, _src, tmp, _needs_keep_alive_barrier, _narrow);
+    lrb(&masm, _obj, _addr, tmp, _needs_keep_alive_barrier, _narrow);
   }
 
   if (tmp_live) {
@@ -1465,11 +1463,11 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   // For encoding, dst can only turn null if we are dealing with weak loads.
   // Otherwise, we have already null-checked. We can skip all this if we performed
   // the load ourselves, which means the value is not used by caller.
-  if (_narrow && !_self_load) {
+  if (_narrow && !_do_load) {
     if (_needs_load_ref_weak_barrier) {
-      __ encode_heap_oop(_dst);
+      __ encode_heap_oop(_obj);
     } else {
-      __ encode_heap_oop_not_null(_dst);
+      __ encode_heap_oop_not_null(_obj);
     }
   }
   __ bind(L_done);
@@ -1480,10 +1478,10 @@ Label* ShenandoahBarrierStubC2::entry() {
   return BarrierStubC2::entry();
 }
 
-ShenandoahBarrierStubC2::ShenandoahBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow, bool self_load, int offset) : BarrierStubC2(node),
-  _dst(dst),
-  _src(src),
-  _self_load(self_load),
+ShenandoahBarrierStubC2::ShenandoahBarrierStubC2(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load, int offset) : BarrierStubC2(node),
+  _obj(obj),
+  _addr(addr),
+  _do_load(do_load),
   _narrow(narrow),
   _maybe_null(!src_not_null(node)),
   _needs_load_ref_barrier(needs_load_ref_barrier(node)),
@@ -1494,7 +1492,7 @@ ShenandoahBarrierStubC2::ShenandoahBarrierStubC2(const MachNode* node, Register 
   _skip_trampoline(),
   _test_and_branch_reachable_entry() {
 
-  ShenandoahBarrierStubC2(node, dst, src, narrow, self_load);
+  ShenandoahBarrierStubC2(node, obj, addr, narrow, do_load);
 }
 #undef __
 #endif

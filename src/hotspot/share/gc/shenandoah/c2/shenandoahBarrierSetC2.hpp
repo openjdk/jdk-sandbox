@@ -147,9 +147,9 @@ public:
 };
 
 class ShenandoahBarrierStubC2 : public BarrierStubC2 {
-  Register const _dst;
-  Address  const _src;
-  const bool _self_load;
+  Register const _obj;
+  Address  const _addr;
+  const bool _do_load;
   const bool _narrow;
   const bool _maybe_null;
   const bool _needs_load_ref_barrier;
@@ -177,11 +177,11 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   void lrb_slow(MacroAssembler* masm, Register obj, Address addr, bool narrow);
 
 public:
-  ShenandoahBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow, bool self_load) :
+  ShenandoahBarrierStubC2(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load) :
     BarrierStubC2(node),
-    _dst(dst),
-    _src(src),
-    _self_load(self_load),
+    _obj(obj),
+    _addr(addr),
+    _do_load(do_load),
     _narrow(narrow),
     _maybe_null(!src_not_null(node)),
     _needs_load_ref_barrier(needs_load_ref_barrier(node)),
@@ -196,7 +196,7 @@ public:
     assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
   }
 
-  ShenandoahBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow, bool self_load, int offset);
+  ShenandoahBarrierStubC2(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load, int offset);
 
   static bool is_heap_access(const MachNode* node) {
     return (node->barrier_data() & ShenandoahBitNative) == 0;
@@ -224,8 +224,8 @@ public:
   }
 
   static void gc_state_check_c2(MacroAssembler* masm, Register rscratch, const unsigned char test_state, ShenandoahBarrierStubC2* slow_stub);
-  static ShenandoahBarrierStubC2* create(const MachNode* node, Register dst, Address addr, bool narrow, bool self_load);
-  static ShenandoahBarrierStubC2* create(const MachNode* node, Register dst, Address addr, bool narrow, bool self_load, int offset);
+  static ShenandoahBarrierStubC2* create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load);
+  static ShenandoahBarrierStubC2* create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load, int offset);
   void emit_code(MacroAssembler& masm);
   void emit_code_actual(MacroAssembler& masm);
   int get_stub_size();
