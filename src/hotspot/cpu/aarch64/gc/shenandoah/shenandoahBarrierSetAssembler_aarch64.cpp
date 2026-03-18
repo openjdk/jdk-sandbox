@@ -992,7 +992,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   if (aarch64_test_and_branch_reachable(next_branch_offset, target_offset + get_stub_size())) {
     emit_code_actual(masm);
   } else {
-    __ b(*ShenandoahBarrierStubC2::entry());
+    __ b(*BarrierStubC2::entry());
     // By registering the stub again, after setting _skip_trampoline to true,
     // we'll effectivelly cause the stub to be emitted the next time
     // ::emit_code is called.
@@ -1044,13 +1044,12 @@ void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
     __ cbz(_obj, *continuation());
   }
 
-  if (_needs_keep_alive_barrier) {
-    keepalive(&masm, _obj, rscratch1, rscratch2, _needs_load_ref_barrier);
-  }
+  // FIXME: the method below can assume that rscratch1 still contains the gc state just loaded in fastpath
+  keepalive(&masm, _obj, rscratch1, rscratch2);
 
-  if (_needs_load_ref_barrier) {
-    lrb(&masm, _obj, _addr, noreg, _needs_keep_alive_barrier, _narrow);
-  }
+  // FIXME: I'm wondering if we can force _obj to be on c_rarg0 so we don't
+  // need to do the argument shuffling before the runtime calls. Would that improve perf?
+  lrb(&masm, _obj, _addr, noreg);
 
   // If object is narrow, we need to encode it before exiting.
   // For encoding, dst can only turn null if we are dealing with weak loads.
@@ -1071,15 +1070,20 @@ void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
 #undef __
 #define __ masm->
 
-void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Register tmp1, Register tmp2, bool check_gc_state) {
+void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Register tmp1, Register tmp2) {
   Address index(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
   Label L_runtime;
   Label L_done;
 
+  // The node doesn't even need keepalive barrier, just don't check anything else
+  if (!_needs_keep_alive_barrier) {
+    return ;
+  }
+
   // If both LRB and KeepAlive barriers are required (rare), do a runtime check
   // for enabled barrier.
-  if (check_gc_state) {
+  if (_needs_load_ref_barrier) {
     Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ ldrb(rscratch1, gcs_addr);
     __ tbz(rscratch1, ShenandoahHeap::MARKING_BITPOS, L_done);
@@ -1110,13 +1114,18 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Regi
   __ bind(L_done);
 }
 
-void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address addr, Register tmp, bool check_gc_state, bool narrow) {
+void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address addr, Register tmp) {
   Label L_done;
+
+  // The node doesn't even need LRB barrier, just don't check anything else
+  if (!_needs_load_ref_barrier) {
+    return ;
+  }
 
   if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
     // If both LRB and KeepAlive barriers are required (rare), do a runtime
     // check for enabled barrier.
-    if (check_gc_state) {
+    if (_needs_keep_alive_barrier) {
       Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
       __ ldrb(rscratch1, gcs_addr);
       __ tbz(rscratch1, ShenandoahHeap::HAS_FORWARDED_BITPOS, L_done);
@@ -1153,7 +1162,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address ad
     }
 
     // Get address of runtime LRB entry and call it
-    __ mov(rscratch1, lrb_runtime_entry_addr(narrow));
+    __ mov(rscratch1, lrb_runtime_entry_addr());
     __ blr(rscratch1);
 
     // If we loaded the object in the stub it means we don't need to return it

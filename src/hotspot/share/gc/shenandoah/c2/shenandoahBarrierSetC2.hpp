@@ -168,10 +168,10 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   bool is_live(Register reg);
   Register select_temp_register(bool& selected_live, Address addr, Register reg1);
 
-  void keepalive(MacroAssembler* masm, Register obj, Register tmp1, Register tmp2, bool check_gc_state);
+  void keepalive(MacroAssembler* masm, Register obj, Register tmp1, Register tmp2);
   void keepalive_slow(MacroAssembler* masm, Register obj);
-  void lrb(MacroAssembler* masm, Register obj, Address addr, Register tmp, bool check_gc_state, bool narrow);
-  void lrb_slow(MacroAssembler* masm, Register obj, Address addr, bool narrow);
+  void lrb(MacroAssembler* masm, Register obj, Address addr, Register tmp);
+  void lrb_slow(MacroAssembler* masm, Register obj, Address addr);
 
 public:
   ShenandoahBarrierStubC2(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load) :
@@ -220,7 +220,7 @@ public:
   static void gc_state_check_c2(MacroAssembler* masm, Register rscratch, const unsigned char test_state, ShenandoahBarrierStubC2* slow_stub);
   static ShenandoahBarrierStubC2* create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load);
   static ShenandoahBarrierStubC2* create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load, int offset);
-  address lrb_runtime_entry_addr(bool is_narrow);
+  address lrb_runtime_entry_addr();
   void emit_code(MacroAssembler& masm);
   void emit_code_actual(MacroAssembler& masm);
   int get_stub_size();

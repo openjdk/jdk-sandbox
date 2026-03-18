@@ -809,12 +809,12 @@ ShenandoahBarrierStubC2* ShenandoahBarrierStubC2::create(const MachNode* node, R
   return stub;
 }
 
-address ShenandoahBarrierStubC2::lrb_runtime_entry_addr(bool is_narrow) {
+address ShenandoahBarrierStubC2::lrb_runtime_entry_addr() {
   bool is_strong_ref = (_node->barrier_data() & ShenandoahBitStrong) != 0;
   bool is_weak_ref = (_node->barrier_data() & ShenandoahBitWeak) != 0;
   bool is_phantom_ref = (_node->barrier_data() & ShenandoahBitPhantom) != 0;
 
-  if (is_narrow) {
+  if (_narrow) {
     if (is_strong_ref) {
       return CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow);
     } else if (is_weak_ref) {
