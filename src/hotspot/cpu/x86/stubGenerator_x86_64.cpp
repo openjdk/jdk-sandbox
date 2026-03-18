@@ -3981,6 +3981,8 @@ address StubGenerator::generate_upcall_stub_load_target() {
 }
 
 address StubGenerator::generate_shenandoah_keepalive_stub() {
+  __ align(CodeEntryAlignment);
+
   assert(UseShenandoahGC, "Only generate when Shenandoah is enabled");
 
   StubId stub_id = StubId::stubgen_shenandoah_keepalive_id;
@@ -3989,6 +3991,7 @@ address StubGenerator::generate_shenandoah_keepalive_stub() {
   StubCodeMark mark(this, stub_id);
   address start = __ pc();
 
+  __ enter();
   __ push_call_clobbered_registers();
 
   // Align stack if necessary
@@ -4004,13 +4007,15 @@ address StubGenerator::generate_shenandoah_keepalive_stub() {
   __ bind(L_done);
 
   __ pop_call_clobbered_registers();
-
+  __ leave();
   __ ret(0);
 
   return start;
 }
 
 address StubGenerator::generate_shenandoah_lrb_stub(StubId stub_id) {
+  __ align(CodeEntryAlignment);
+
   assert(UseShenandoahGC, "Only generate when Shenandoah is enabled");
 
   address stub_addr;
@@ -4046,6 +4051,7 @@ address StubGenerator::generate_shenandoah_lrb_stub(StubId stub_id) {
   StubCodeMark mark(this, stub_id);
   address start = __ pc();
 
+  __ enter();
   __ push_call_clobbered_registers_except(RegSet::of(rax));
 
   // Align stack if necessary
@@ -4061,7 +4067,7 @@ address StubGenerator::generate_shenandoah_lrb_stub(StubId stub_id) {
   __ bind(L_done);
 
   __ pop_call_clobbered_registers_except(RegSet::of(rax));
-
+  __ leave();
   __ ret(0);
 
   return start;
