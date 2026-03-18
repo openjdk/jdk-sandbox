@@ -1485,10 +1485,6 @@ Label* ShenandoahBarrierStubC2::entry() {
 }
 
 ShenandoahBarrierStubC2::ShenandoahBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow, bool self_load, int offset) : BarrierStubC2(node),
-  _test_and_branch_reachable_entry(),
-  _fastpath_branch_offset(),
-  _skip_trampoline(),
-  _test_and_branch_reachable(),
   _dst(dst),
   _src(src),
   _self_load(self_load),
@@ -1496,7 +1492,11 @@ ShenandoahBarrierStubC2::ShenandoahBarrierStubC2(const MachNode* node, Register 
   _maybe_null(!src_not_null(node)),
   _needs_load_ref_barrier(needs_load_ref_barrier(node)),
   _needs_load_ref_weak_barrier(needs_load_ref_barrier_weak(node)),
-  _needs_keep_alive_barrier(needs_keep_alive_barrier(node)) {
+  _needs_keep_alive_barrier(needs_keep_alive_barrier(node)),
+  _fastpath_branch_offset(),
+  _test_and_branch_reachable(),
+  _skip_trampoline(),
+  _test_and_branch_reachable_entry() {
 
   ShenandoahBarrierStubC2(node, dst, src, narrow, self_load);
 }
