@@ -1481,7 +1481,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
 }
 
 Label* ShenandoahBarrierStubC2::entry() {
-  return ShenandoahBarrierStubC2::entry();
+  return BarrierStubC2::entry();
 }
 
 ShenandoahBarrierStubC2::ShenandoahBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow, bool self_load, int offset) : BarrierStubC2(node),
