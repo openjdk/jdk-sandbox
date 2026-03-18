@@ -165,8 +165,6 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   static int trampoline_stubs_count();
   static int stubs_start_offset();
 
-  void lrb(MacroAssembler* masm, Register obj, Address addr, Label* L_done, bool narrow);
-
   bool is_live(Register reg);
   Register select_temp_register(bool& selected_live, Address addr, Register reg1);
 

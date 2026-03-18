@@ -1027,8 +1027,6 @@ void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
     __ bind(*ShenandoahBarrierStubC2::entry());
   }
 
-  Label L_lrb_done;
-
   // If we need to load ourselves, do it here.
   if (_do_load) {
     // This does the load and the decode if necessary
@@ -1048,24 +1046,11 @@ void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
   }
 
   if (_needs_keep_alive_barrier) {
-    if (!_do_load) preserve(_obj);
     keepalive(&masm, _obj, rscratch1, rscratch2, _needs_load_ref_barrier);
   }
 
   if (_needs_load_ref_barrier) {
-    // If both barriers are required (rare), do a runtime check for enabled barrier.
-    if (_needs_keep_alive_barrier) {
-      if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-        Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-        __ ldrb(rscratch1, gcs_addr);
-        __ tbz(rscratch1, ShenandoahHeap::HAS_FORWARDED_BITPOS, L_lrb_done);
-      }
-    }
-
-    dont_preserve(_obj);
-    lrb(&masm, _obj, _addr, &L_lrb_done, _narrow);
-
-    __ bind(L_lrb_done);
+    lrb(&masm, _obj, _addr, noreg, _needs_keep_alive_barrier, _narrow);
   }
 
   // If object is narrow, we need to encode it before exiting.
@@ -1089,7 +1074,8 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Regi
   Label L_runtime;
   Label L_done;
 
-  // If both barriers are required (rare), do a runtime check for enabled barrier.
+  // If both LRB and KeepAlive barriers are required (rare), do a runtime check
+  // for enabled barrier.
   if (check_gc_state) {
     Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ ldrb(rscratch1, gcs_addr);
@@ -1109,6 +1095,8 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Regi
 
   // Runtime call
   __ bind(L_runtime);
+
+  preserve(_obj);
   {
     SaveLiveRegisters save_registers(masm, this);
     __ mov(c_rarg0, obj);
@@ -1119,16 +1107,29 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Regi
   __ bind(L_done);
 }
 
-void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address addr, Label* L_done, bool narrow) {
+void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address addr, Register tmp, bool check_gc_state, bool narrow) {
+  Label L_done;
+
+  bool is_strong_ref = (_node->barrier_data() & ShenandoahBitStrong) != 0;
+
+  // If both LRB and KeepAlive barriers are required (rare), do a runtime check
+  // for enabled barrier.
+  if (check_gc_state && is_strong_ref) {
+    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+    __ ldrb(rscratch1, gcs_addr);
+    __ tbz(rscratch1, ShenandoahHeap::HAS_FORWARDED_BITPOS, L_done);
+  }
+
   // Weak/phantom loads always need to go to runtime, otherwise check for
   // object in cset.
-  if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
+  if (is_strong_ref) {
     __ mov(rscratch2, ShenandoahHeap::in_cset_fast_test_addr());
     __ lsr(rscratch1, obj, ShenandoahHeapRegion::region_size_bytes_shift_jint());
     __ ldrb(rscratch2, Address(rscratch2, rscratch1));
-    __ cbz(rscratch2, *L_done);
+    __ cbz(rscratch2, L_done);
   }
 
+  dont_preserve(_obj);
   {
     SaveLiveRegisters save_registers(masm, this);
 
@@ -1168,8 +1169,15 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address ad
       }
     }
     __ blr(rscratch1);
-    __ mov(obj, r0);
+
+    // If we loaded the object in the stub it means we don't need to return it
+    // to fastpath, so no need to make this mov.
+    if (!_do_load) {
+      __ mov(obj, r0);
+    }
   }
+
+  __ bind(L_done);
 }
 
 #endif // COMPILER2
