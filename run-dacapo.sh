@@ -70,19 +70,19 @@ if [ "x" != "x$J_ML" ]; then
 
   echo
   echo "Mainline: Only LRB barriers"
-  run_with $J_ML $OPTS $OPTS_LRB
+#  run_with $J_ML $OPTS $OPTS_LRB
 
   echo
   echo "Mainline: Only SAT barriers"
-  run_with $J_ML $OPTS $OPTS_SAT
+#  run_with $J_ML $OPTS $OPTS_SAT
 
   echo
   echo "Mainline: Only CAS barriers"
-  run_with $J_ML $OPTS $OPTS_CAS
+#  run_with $J_ML $OPTS $OPTS_CAS
 
   echo
   echo "Mainline: Only Clone barriers"
-  run_with $J_ML $OPTS $OPTS_CLN
+#  run_with $J_ML $OPTS $OPTS_CLN
 
   echo
   echo "Mainline: All barriers"
@@ -95,19 +95,19 @@ run_with $J_LBE $OPTS
 
 echo
 echo "LBE: Only LRB barriers"
-run_with $J_LBE $OPTS $OPTS_LRB
+#run_with $J_LBE $OPTS $OPTS_LRB
 
 echo
 echo "LBE: Only SAT barriers"
-run_with $J_LBE $OPTS $OPTS_SAT
+#run_with $J_LBE $OPTS $OPTS_SAT
 
 echo
 echo "LBE: Only CAS barriers"
-run_with $J_LBE $OPTS $OPTS_CAS
+#run_with $J_LBE $OPTS $OPTS_CAS
 
 echo
 echo "LBE: Only Clone barriers"
-run_with $J_LBE $OPTS $OPTS_CLN
+#run_with $J_LBE $OPTS $OPTS_CLN
 
 echo
 echo "LBE: All barriers"
