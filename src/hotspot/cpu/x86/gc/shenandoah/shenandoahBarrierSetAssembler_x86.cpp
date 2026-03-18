@@ -1251,7 +1251,7 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(MacroAssembler* masm, Addres
   __ bind(L_done);
 }
 
-void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Register tmp, bool check_gc_state) {
+void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Register tmp1, Register tmp2, bool check_gc_state) {
   Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
 
@@ -1264,18 +1264,18 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Regi
   }
 
   // Check if buffer is already full. Go slow, if so.
-  __ movptr(tmp, index);
-  __ testptr(tmp, tmp);
+  __ movptr(tmp1, index);
+  __ testptr(tmp1, tmp1);
   __ jccb(Assembler::notZero, L_fast);
   keepalive_slow(masm, obj);
   __ jmpb(L_done);
 
   // Fast-path: put object into buffer.
   __ bind(L_fast);
-  __ subptr(tmp, wordSize);
-  __ movptr(index, tmp);
-  __ addptr(tmp, buffer);
-  __ movptr(Address(tmp, 0), obj);
+  __ subptr(tmp1, wordSize);
+  __ movptr(index, tmp1);
+  __ addptr(tmp1, buffer);
+  __ movptr(Address(tmp1, 0), obj);
 
   __ bind(L_done);
 }
@@ -1449,7 +1449,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   // Go for barriers. If both barriers are required (rare), do a runtime check for enabled barrier.
   if (_needs_keep_alive_barrier) {
-    keepalive(&masm, _obj, tmp, _needs_load_ref_barrier);
+    keepalive(&masm, _obj, tmp, noreg, _needs_load_ref_barrier);
   }
   if (_needs_load_ref_barrier) {
     lrb(&masm, _obj, _addr, tmp, _needs_keep_alive_barrier, _narrow);

@@ -165,13 +165,12 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   static int trampoline_stubs_count();
   static int stubs_start_offset();
 
-  void satb(MacroAssembler* masm, Register scratch1, Register scratch2, Register scratch3);
   void lrb(MacroAssembler* masm, Register obj, Address addr, Label* L_done, bool narrow);
 
   bool is_live(Register reg);
   Register select_temp_register(bool& selected_live, Address addr, Register reg1);
 
-  void keepalive(MacroAssembler* masm, Register obj, Register tmp, bool check_gc_state);
+  void keepalive(MacroAssembler* masm, Register obj, Register tmp1, Register tmp2, bool check_gc_state);
   void keepalive_slow(MacroAssembler* masm, Register obj);
   void lrb(MacroAssembler* masm, Register obj, Address addr, Register tmp, bool check_gc_state, bool narrow);
   void lrb_slow(MacroAssembler* masm, Register obj, Address addr, bool narrow);
@@ -218,9 +217,6 @@ public:
   }
   static bool src_not_null(const MachNode* node) {
     return (node->barrier_data() & ShenandoahBitNotNull) != 0;
-  }
-  bool is_test_and_branch_reachable() {
-    return _test_and_branch_reachable;
   }
 
   static void gc_state_check_c2(MacroAssembler* masm, Register rscratch, const unsigned char test_state, ShenandoahBarrierStubC2* slow_stub);

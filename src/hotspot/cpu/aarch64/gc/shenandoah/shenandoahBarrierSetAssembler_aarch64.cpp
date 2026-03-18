@@ -649,7 +649,7 @@ void ShenandoahBarrierStubC2::gc_state_check_c2(MacroAssembler* masm, Register g
 
     Label L_short_branch;
 
-    bool tb_reachable = slow_stub->is_test_and_branch_reachable();
+    bool tb_reachable = slow_stub->_test_and_branch_reachable;
     bool one_bit = (test_state & (test_state - 1)) == 0;
     char no_weak_set = (test_state & (~ShenandoahHeap::WEAK_ROOTS));
 
@@ -1027,7 +1027,7 @@ void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
     __ bind(*ShenandoahBarrierStubC2::entry());
   }
 
-  Label L_keepalive_done, L_lrb_done;
+  Label L_lrb_done;
 
   // If we need to load ourselves, do it here.
   if (_do_load) {
@@ -1048,16 +1048,8 @@ void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
   }
 
   if (_needs_keep_alive_barrier) {
-    // If both barriers are required (rare), do a runtime check for enabled barrier.
-    if (_needs_load_ref_barrier) {
-      Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-      __ ldrb(rscratch1, gcs_addr);
-      __ tbz(rscratch1, ShenandoahHeap::MARKING_BITPOS, L_keepalive_done);
-    }
-
     if (!_do_load) preserve(_obj);
-    satb(&masm, rscratch1, rscratch2, _obj);
-    __ bind(L_keepalive_done);
+    keepalive(&masm, _obj, rscratch1, rscratch2, _needs_load_ref_barrier);
   }
 
   if (_needs_load_ref_barrier) {
@@ -1091,30 +1083,37 @@ void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
 #undef __
 #define __ masm->
 
-void ShenandoahBarrierStubC2::satb(MacroAssembler* masm, Register scratch1, Register scratch2, Register scratch3) {
+void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Register tmp1, Register tmp2, bool check_gc_state) {
   Address index(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
   Label L_runtime;
   Label L_done;
 
+  // If both barriers are required (rare), do a runtime check for enabled barrier.
+  if (check_gc_state) {
+    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+    __ ldrb(rscratch1, gcs_addr);
+    __ tbz(rscratch1, ShenandoahHeap::MARKING_BITPOS, L_done);
+  }
+
   // If buffer is full, call into runtime.
-  __ ldr(scratch1, index);
-  __ cbz(scratch1, L_runtime);
+  __ ldr(tmp1, index);
+  __ cbz(tmp1, L_runtime);
 
   // The buffer is not full, store value into it.
-  __ sub(scratch1, scratch1, wordSize);
-  __ str(scratch1, index);
-  __ ldr(scratch2, buffer);
-  __ str(scratch3, Address(scratch2, scratch1));
+  __ sub(tmp1, tmp1, wordSize);
+  __ str(tmp1, index);
+  __ ldr(tmp2, buffer);
+  __ str(obj, Address(tmp2, tmp1));
   __ b(L_done);
 
   // Runtime call
   __ bind(L_runtime);
   {
     SaveLiveRegisters save_registers(masm, this);
-    __ mov(c_rarg0, scratch3);
-    __ mov(scratch1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre));
-    __ blr(scratch1);
+    __ mov(c_rarg0, obj);
+    __ mov(tmp1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre));
+    __ blr(tmp1);
   }
 
   __ bind(L_done);
