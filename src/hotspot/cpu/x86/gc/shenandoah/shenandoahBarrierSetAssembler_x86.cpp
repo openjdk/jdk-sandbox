@@ -1251,11 +1251,17 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(MacroAssembler* masm, Addres
   __ bind(L_done);
 }
 
-void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Register tmp) {
+void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Register tmp, bool check_gc_state) {
   Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
 
   Label L_fast, L_done;
+
+  if (check_gc_state) {
+    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+    __ testb(gc_state, ShenandoahHeap::MARKING);
+    __ jccb(Assembler::zero, L_done);
+  }
 
   // Check if buffer is already full. Go slow, if so.
   __ movptr(tmp, index);
@@ -1294,11 +1300,19 @@ void ShenandoahBarrierStubC2::keepalive_slow(MacroAssembler* masm, Register obj)
   }
 }
 
-void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address addr, Register tmp, bool narrow) {
+void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address addr, Register tmp, bool check_gc_state, bool narrow) {
+  Label L_done;
+
+  if (check_gc_state) {
+    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+    __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0));
+    __ jccb(Assembler::zero, L_done);
+  }
+
   // Weak/phantom loads are handled in slow path.
-  bool is_weak = (_node->barrier_data() & (ShenandoahBitWeak | ShenandoahBitPhantom)) != 0;
-  if (is_weak) {
+  if (_needs_load_ref_weak_barrier) {
     lrb_slow(masm, obj, addr, narrow);
+    __ bind(L_done);
     return;
   }
 
@@ -1318,7 +1332,6 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address ad
   }
 
   // Cset-check. Go slow if in collection set.
-  Label L_done;
   __ cmpb(cset_addr_arg, 0);
   __ jccb(Assembler::equal, L_done);
   lrb_slow(masm, obj, addr, narrow);
@@ -1391,12 +1404,6 @@ void ShenandoahBarrierStubC2::lrb_slow(MacroAssembler* masm, Register obj, Addre
   }
 }
 
-void ShenandoahBarrierStubC2::gc_state_check(MacroAssembler* masm, const char state, Label* L_not_set) {
-  Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-  __ testb(gc_state, state);
-  __ jccb(Assembler::zero, *L_not_set);
-}
-
 #undef __
 #define __ masm.
 
@@ -1443,22 +1450,11 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   // Go for barriers. If both barriers are required (rare), do a runtime check for enabled barrier.
 
   if (_needs_keep_alive_barrier) {
-    Label L_keepalive_done;
-    if (_needs_load_ref_barrier) {
-      gc_state_check(&masm, ShenandoahHeap::MARKING, &L_keepalive_done);
-    }
-    keepalive(&masm, _dst, tmp);
-    __ bind(L_keepalive_done);
+    keepalive(&masm, _dst, tmp, _needs_load_ref_barrier);
   }
 
   if (_needs_load_ref_barrier) {
-    Label L_lrb_done;
-    if (_needs_keep_alive_barrier) {
-      char check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
-      gc_state_check(&masm, check, &L_lrb_done);
-    }
-    lrb(&masm, _dst, _src, tmp, _narrow);
-    __ bind(L_lrb_done);
+    lrb(&masm, _dst, _src, tmp, _needs_keep_alive_barrier, _narrow);
   }
 
   if (tmp_live) {

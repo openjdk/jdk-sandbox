@@ -171,11 +171,10 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   bool is_live(Register reg);
   Register select_temp_register(bool& selected_live, Address addr, Register reg1);
 
-  void keepalive(MacroAssembler* masm, Register obj, Register tmp);
+  void keepalive(MacroAssembler* masm, Register obj, Register tmp, bool check_gc_state);
   void keepalive_slow(MacroAssembler* masm, Register obj);
-  void lrb(MacroAssembler* masm, Register obj, Address addr, Register tmp, bool narrow);
+  void lrb(MacroAssembler* masm, Register obj, Address addr, Register tmp, bool check_gc_state, bool narrow);
   void lrb_slow(MacroAssembler* masm, Register obj, Address addr, bool narrow);
-  void gc_state_check(MacroAssembler* masm, const char state, Label* L_not_set);
 
 public:
   ShenandoahBarrierStubC2(const MachNode* node, Register dst, Address src, bool narrow, bool self_load) :
