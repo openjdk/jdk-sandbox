@@ -223,12 +223,7 @@ public:
   bool is_test_and_branch_reachable() {
     return _test_and_branch_reachable;
   }
-  static bool needs_barrier(const MachNode* node) {
-    return needs_load_ref_barrier(node) || needs_keep_alive_barrier(node);
-  }
-  static bool is_narrow_result(const MachNode* node) {
-    return node->bottom_type()->isa_narrowoop() || node->ideal_Opcode() == Op_DecodeN;
-  }
+
   static void gc_state_check_c2(MacroAssembler* masm, Register rscratch, const unsigned char test_state, ShenandoahBarrierStubC2* slow_stub);
   static ShenandoahBarrierStubC2* create(const MachNode* node, Register dst, Address addr, bool narrow, bool self_load);
   static ShenandoahBarrierStubC2* create(const MachNode* node, Register dst, Address addr, bool narrow, bool self_load, int offset);
