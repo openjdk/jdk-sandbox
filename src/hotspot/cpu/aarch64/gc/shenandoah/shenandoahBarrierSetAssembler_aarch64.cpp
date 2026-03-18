@@ -1004,7 +1004,7 @@ Label* ShenandoahBarrierStubC2::entry() {
   if (_test_and_branch_reachable) {
     return &_test_and_branch_reachable_entry;
   }
-  return ShenandoahBarrierStubC2::entry();
+  return BarrierStubC2::entry();
 }
 
 int ShenandoahBarrierStubC2::get_stub_size() {
