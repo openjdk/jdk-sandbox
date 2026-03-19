@@ -821,6 +821,8 @@ public:
   }
 
   static bool verify_gc_state(char actual, char expected) {
+    // Clear the FORMA bit which is a byproduct of other bits
+    actual = actual & ~ShenandoahHeap::FORMA;
     // Old generation marking is allowed in all states.
     if (ShenandoahHeap::heap()->mode()->is_generational()) {
       return ((actual & ~(ShenandoahHeap::OLD_MARKING | ShenandoahHeap::MARKING)) == expected);

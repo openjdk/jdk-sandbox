@@ -45,6 +45,8 @@
 #ifdef COMPILER2
 #include "gc/shenandoah/c2/shenandoahBarrierSetC2.hpp"
 #include "opto/output.hpp"
+#include "utilities/population_count.hpp"
+#include "utilities/powerOfTwo.hpp"
 #endif
 
 #define __ masm->
@@ -647,64 +649,30 @@ void ShenandoahBarrierStubC2::gc_state_check_c2(MacroAssembler* masm, Register g
     assert(only_valid_flags == 0x0, "Invalid test_state asked: %x", test_state);
 #endif
 
-    Label L_short_branch;
-
-    bool tb_reachable = slow_stub->_test_and_branch_reachable;
-    bool one_bit = (test_state & (test_state - 1)) == 0;
-    char no_weak_set = (test_state & (~ShenandoahHeap::WEAK_ROOTS));
+    int num_bits_set = population_count(test_state);
+    bool is_weak_set = (test_state & ShenandoahHeap::WEAK_ROOTS) != 0;
+    int bit_to_check = ShenandoahHeap::FORMA_BITPOS;
 
     Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ ldrb(gcstate, gcs_addr);
 
-    // FIXME: Below will be refactored to be a single bit test and a tbnz
-
-    // if only one bit is required then we can always use tbz
-    if (one_bit) {
-      int bit = __builtin_ctz((unsigned)test_state);
-      if (!tb_reachable) {
-        __ tbz(gcstate, bit, *slow_stub->continuation());
-      } else {
-        __ tbnz(gcstate, bit, *slow_stub->entry());
-      }
-    } else if (no_weak_set == test_state) {
-      __ ands(gcstate, gcstate, test_state);
-      if (!tb_reachable) {
-        __ cbz(gcstate, *slow_stub->continuation());
-      } else {
-        __ cbnz(gcstate, *slow_stub->entry());
-      }
-    } else {
-      if (!tb_reachable) {
-        // One single 'ands' isn't possible because weak is set, making the
-        // immediate pattern invalid. One single tbz/tbnz doesn't work because we
-        // have 2 or more bits set.
-        //
-        // We'll tackle this by breaking the problem in two parts. First we only
-        // check for weak_roots and then we check for the other flags using
-        // 'ands' without the weak bit set.
-        __ tbnz(gcstate, ShenandoahHeap::WEAK_ROOTS_BITPOS, L_short_branch);
-
-        // We cleared the weak bit earlier on
-        __ ands(gcstate, gcstate, no_weak_set);
-        __ cbz(gcstate, *slow_stub->continuation());
-      } else {
-        __ tbnz(gcstate, ShenandoahHeap::WEAK_ROOTS_BITPOS, *slow_stub->entry());
-
-        // We cleared the weak bit earlier on
-        __ ands(gcstate, gcstate, no_weak_set);
-        __ cbnz(gcstate, *slow_stub->entry());
-      }
+    if (num_bits_set == 1) {
+      bit_to_check = log2i_exact(test_state);
+    } else if (is_weak_set) {
+      // Weak is set and at least one of the others, we'll do an OR with FORMA
+      // and WEAK_ROOTS putting the result in FORMA and use that position in tbz/tbnz
+      __ orr(gcstate, gcstate, gcstate, Assembler::LSL, ShenandoahHeap::FORMA_BITPOS - ShenandoahHeap::WEAK_ROOTS_BITPOS);
     }
 
-    if (!tb_reachable) {
-      __ bind(L_short_branch);
+    if (slow_stub->_test_and_branch_reachable) {
+      __ tbnz(gcstate, bit_to_check, *slow_stub->entry());
+    } else {
+      __ tbz(gcstate, bit_to_check, *slow_stub->continuation());
       __ b(*slow_stub->entry());
-    } else {
-      // nothing to do here
     }
 
-    // This is were the stub will return to or the code above will jump to if
-    // the checks are false
+    // This is were the slowpath stub will return to or the code above will
+    // jump to if the checks are false
     __ bind(*slow_stub->continuation());
   }
 }
@@ -1128,6 +1096,9 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address ad
     if (_needs_keep_alive_barrier) {
       Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
       __ ldrb(rscratch1, gcs_addr);
+      if (_needs_load_ref_weak_barrier) {
+        __ orr(rscratch1, rscratch1, rscratch1, Assembler::LSR, ShenandoahHeap::WEAK_ROOTS_BITPOS);
+      }
       __ tbz(rscratch1, ShenandoahHeap::HAS_FORWARDED_BITPOS, L_done);
     }
 

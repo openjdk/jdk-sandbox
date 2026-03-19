@@ -2063,6 +2063,7 @@ void ShenandoahHeap::propagate_gc_state_to_all_threads() {
 void ShenandoahHeap::set_gc_state_at_safepoint(uint mask, bool value) {
   assert(ShenandoahSafepoint::is_at_shenandoah_safepoint(), "Must be at Shenandoah safepoint");
   _gc_state.set_cond(mask, value);
+  _gc_state.set_cond(FORMA, _gc_state.is_set(HAS_FORWARDED) || _gc_state.is_set(MARKING));
   _gc_state_changed = true;
 }
 
@@ -2074,6 +2075,7 @@ void ShenandoahHeap::set_gc_state_concurrent(uint mask, bool value) {
   // safepoint).
   assert(Threads_lock->is_locked(), "Must hold thread lock for concurrent gc state change");
   _gc_state.set_cond(mask, value);
+  _gc_state.set_cond(FORMA, _gc_state.is_set(HAS_FORWARDED) || _gc_state.is_set(MARKING));
 }
 
 void ShenandoahHeap::set_concurrent_young_mark_in_progress(bool in_progress) {
