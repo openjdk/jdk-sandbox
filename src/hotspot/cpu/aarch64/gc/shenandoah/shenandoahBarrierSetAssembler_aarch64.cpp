@@ -1012,11 +1012,8 @@ void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
     __ cbz(_obj, *continuation());
   }
 
-  // FIXME: the method below can assume that rscratch1 still contains the gc state just loaded in fastpath
   keepalive(&masm, _obj, rscratch1, rscratch2);
 
-  // FIXME: I'm wondering if we can force _obj to be on c_rarg0 so we don't
-  // need to do the argument shuffling before the runtime calls. Would that improve perf?
   lrb(&masm, _obj, _addr, noreg);
 
   // If object is narrow, we need to encode it before exiting.
