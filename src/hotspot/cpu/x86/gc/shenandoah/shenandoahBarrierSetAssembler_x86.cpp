@@ -1260,13 +1260,13 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Regi
   if (_needs_load_ref_barrier) {
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ testb(gc_state, ShenandoahHeap::MARKING);
-    __ jccb(Assembler::zero, L_done);
+    __ jcc(Assembler::zero, L_done);
   }
 
   // Check if buffer is already full. Go slow, if so.
   __ movptr(tmp1, index);
   __ testptr(tmp1, tmp1);
-  __ jccb(Assembler::notZero, L_fast);
+  __ jcc(Assembler::notZero, L_fast);
   keepalive_slow(masm, obj);
   __ jmpb(L_done);
 
@@ -1281,23 +1281,17 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Regi
 }
 
 void ShenandoahBarrierStubC2::keepalive_slow(MacroAssembler* masm, Register obj) {
-  // Stub routine is responsible for dealing with call clobbered registers.
-  // Here, we just stash away anything that we clobbered while preparing the arguments.
-  if (c_rarg0 != obj && is_live(c_rarg0)) {
-    __ push(c_rarg0);
-  }
+  preserve(obj); // cannot clobber
+  SaveLiveRegisters save_regs(masm, this);
 
   // Shuffle in the arguments.
   if (c_rarg0 != obj) {
     __ mov(c_rarg0, obj);
   }
 
-  // Go for stub routine call. Stub routine would deal with stack alignment as well.
-  __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_keepalive_stub())));
-
-  if (c_rarg0 != obj && is_live(c_rarg0)) {
-    __ pop(c_rarg0);
-  }
+  // Go slow.
+  address entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre);
+  __ call_VM_leaf(entry, 1);
 }
 
 void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address addr, Register tmp) {
@@ -1306,7 +1300,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address ad
   if (_needs_keep_alive_barrier) {
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0));
-    __ jccb(Assembler::zero, L_done);
+    __ jcc(Assembler::zero, L_done);
   }
 
   // Weak/phantom loads are handled in slow path.
@@ -1333,24 +1327,14 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address ad
 
   // Cset-check. Go slow if in collection set.
   __ cmpb(cset_addr_arg, 0);
-  __ jccb(Assembler::equal, L_done);
+  __ jcc(Assembler::equal, L_done);
   lrb_slow(masm, obj, addr);
   __ bind(L_done);
 }
 
 void ShenandoahBarrierStubC2::lrb_slow(MacroAssembler* masm, Register obj, Address addr) {
-  // Stub routine is responsible for dealing with call clobbered registers.
-  // Here, we just stash away anything that we clobbered while preparing the arguments.
-  assert_different_registers(rax, c_rarg0, c_rarg1);
-  if (obj != c_rarg0 && is_live(c_rarg0)) {
-    __ push(c_rarg0);
-  }
-  if (obj != c_rarg1 && is_live(c_rarg1)) {
-    __ push(c_rarg1);
-  }
-  if (obj != rax && is_live(rax)) {
-    __ push(rax);
-  }
+  dont_preserve(obj); // result, do not overwrite
+  SaveLiveRegisters save_regs(masm, this);
 
   // Shuffle in the arguments. The end result should be:
   //   c_rarg0 <-- obj
@@ -1367,40 +1351,30 @@ void ShenandoahBarrierStubC2::lrb_slow(MacroAssembler* masm, Register obj, Addre
     __ movptr(c_rarg0, obj);
   }
 
-  // Go for stub routine call. Stub routine would deal with stack alignment as well.
+  // Go slow.
   address entry = nullptr;
   if (_narrow) {
     if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-      entry = CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_lrb_strong_narrow_stub());
+      entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow);
     } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
-      entry = CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_lrb_weak_narrow_stub());
+      entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow);
     } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
-      entry = CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_lrb_phantom_narrow_stub());
+      entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow);
     }
   } else {
     if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-      entry = CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_lrb_strong_stub());
+      entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong);
     } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
-      entry = CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_lrb_weak_stub());
+      entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak);
     } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
-      entry = CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_lrb_phantom_stub());
+      entry = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom);
     }
   }
-  __ call(RuntimeAddress(entry));
+  __ call_VM_leaf(entry, 2);
 
   // Save the result where needed.
   if (obj != rax) {
     __ movptr(obj, rax);
-  }
-
-  if (obj != rax && is_live(rax)) {
-    __ pop(rax);
-  }
-  if (obj != c_rarg1 && is_live(c_rarg1)) {
-    __ pop(c_rarg1);
-  }
-  if (obj != c_rarg0 && is_live(c_rarg0)) {
-    __ pop(c_rarg0);
   }
 }
 
@@ -1429,11 +1403,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   } else {
     __ testptr(_obj, _obj);
   }
-  if (_needs_keep_alive_barrier && _needs_load_ref_barrier) {
-    __ jcc(Assembler::zero, L_done);
-  } else {
-    __ jccb(Assembler::zero, L_done);
-  }
+  __ jcc(Assembler::zero, L_done);
 
   // Barriers need temp to work, allocate one now.
   bool tmp_live;
