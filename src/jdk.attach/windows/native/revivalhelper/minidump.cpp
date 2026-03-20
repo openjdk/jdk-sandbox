@@ -218,10 +218,7 @@ void MiniDump::read_sharedlibs() {
     if (md == nullptr) {
         error("MiniDump::read_sharedlibs: ModuleListStream not found.");
     }
-
-    int count = 0;
-    // Use MINIDUMP_LOCATION_DESCRIPTOR
-    ULONG32 size = md->Location.DataSize;
+    ULONG32 size = md->Location.DataSize; // Use MINIDUMP_LOCATION_DESCRIPTOR
     ULONG32 n;
     int e = read(fd, &n, sizeof(n));
     if (e != sizeof(n)) {
@@ -232,7 +229,7 @@ void MiniDump::read_sharedlibs() {
         MINIDUMP_MODULE module;
         e = read(fd, &module, sizeof(module));
         if (e != sizeof(module)) {
-            error("MiniDump::read_sharedlibs: read wants %d got %d", sizeof(module), e);
+            error("MiniDump::read_sharedlibs: read MINIDUMP_MODULE expects %d got %d", sizeof(module), e);
         }
         char *name = string_at_offset_minidump(fd, module.ModuleNameRva);
         if (name == nullptr) {
@@ -240,9 +237,8 @@ void MiniDump::read_sharedlibs() {
                  j, module.BaseOfImage, module.ModuleNameRva);
             continue;
         }
-        logd("MiniDump::read_shared_libs MODULE 0x%llx: '%s'", module.BaseOfImage, name);
-        // Populate Segment list of modules/sharedlibs.
-        // Adjust name using libdir if needed.
+        logd("MiniDump::read_shared_libs MODULE 0x%llx: (size 0x%lx) '%s'", module.BaseOfImage, module.SizeOfImage, name);
+        // Possibly adjust name using libdir if set:
         if (libdir != nullptr) {
             char *alt_name = find_filename_in_libdir(libdir, name);
             if (alt_name != nullptr) {
@@ -250,10 +246,10 @@ void MiniDump::read_sharedlibs() {
                 name = alt_name;
             }
         }
-
-        Segment *seg = new Segment(name, (void *) module.BaseOfImage, (size_t) module.SizeOfImage);
+        // Populate Segment list of modules/sharedlibs.
+        // Extend library size to avoid choosing to map the data immediately after a library.
+        Segment *seg = new Segment(name, (void *) module.BaseOfImage, (size_t) module.SizeOfImage + 0x1000);
         libs.push_back(seg);
-        count++;
     }
     logd("MiniDump::read_sharedlibs: NumberOfStreams = %d StreamDirectoryRva = %d", hdr.NumberOfStreams, hdr.StreamDirectoryRva);
     free(md);
@@ -349,11 +345,15 @@ Segment* MiniDump::readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentR
 }
 
 /**
- * Read a Segment from the MiniDump, for the purpose of building a list of regions for process revival.
+ * Read a Segment from the MiniDump.
+ * Call prepare_memory_ranges() first, then keep calling this method until it returns nullptr.
+ * 
+ * Use skipLibraries false to simple retrieve the list of memory segments.
+ * Call with skipLibraries true for the purpose of building a list of regions for process revival.
  *
  * Handle skipping of clashes with libraries/modules (DLLs), they are the "avoid list".
  *
- * Return a Segment* and update the output parameters.  current RVA will be the dump file offset of the next segment.
+ * Return a Segment* and update the output parameters.  currentRVA will be the dump file offset of the next segment.
  * Return nullptr when no further memory descriptors are found.
  */
 Segment* MiniDump::readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA, boolean skipLibraries) {
@@ -370,22 +370,20 @@ Segment* MiniDump::readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRV
             retry = true; // Memory from kernel we can't map.  Ignore, go to next segment.
             continue;
         }
-
         // Simple check for clashes.  Comparing module list from dump, with memory list from dump,
         // so complex overlaps not possible.
-        // Module extents (iter) likely to be larger than individual memory descriptors.
-        for (std::list<Segment>::iterator iter = libs.begin(); iter != libs.end(); iter++) {
-            if (skipLibraries &&
-                (seg->start() >= iter->start() && seg->end() <= iter->end())
-              ) {
-                // Seg clashes with some module.  Avoid, unless it is the JVM .data Section.
-                if (jvm_data_seg != nullptr && (seg->contains(jvm_data_seg) || jvm_data_seg->contains(seg))) {
-                    logd("readSegment: Using (JVM .data) seg: 0x%llx - 0x%llx", seg->start(), seg->end());
-                } else {
-                    logd("readSegment: Skipping seg 0x%llx - 0x%llx due to hit in module list", seg->start(), seg->end());
-                    retry = true;
+        if (skipLibraries) {
+            for (std::list<Segment>::iterator iter = libs.begin(); iter != libs.end(); iter++) {
+                if (seg->start() >= iter->start() && seg->end() <= iter->end()) {
+                    // seg clashes with some module.  Skip, unless it is the JVM .data Section.
+                    if (jvm_data_seg != nullptr && (seg->contains(jvm_data_seg) || jvm_data_seg->contains(seg))) {
+                        logd("readSegment: Using (JVM .data) seg: 0x%llx - 0x%llx", seg->start(), seg->end());
+                    } else {
+                        logd("readSegment: Skipping seg 0x%llx - 0x%llx due to hit in module list", seg->start(), seg->end());
+                        retry = true;
+                    }
+                    break; // out of this for loop, possibly retry readSegment0
                 }
-                break; // out of this for loop, possibly retry readSegment0
             }
         }
     } while (retry);

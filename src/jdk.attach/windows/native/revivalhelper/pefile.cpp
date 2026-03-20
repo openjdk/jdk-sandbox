@@ -182,7 +182,7 @@ bool PEFile::remove_dynamicbase(const char* filename) {
     return TRUE;
 }
 
-bool PEFile::find_data_segs(void* address, Segment** _data, Segment** _rdata, Segment** _iat) {
+bool PEFile::find_data_segs(void* address, Segment** _data, Segment** _rdata) {
     logv("PEFile::find_data_segs");
     imageLoad();
 
@@ -192,7 +192,6 @@ bool PEFile::find_data_segs(void* address, Segment** _data, Segment** _rdata, Se
     }
     Segment* data = nullptr;
     Segment* rdata = nullptr;
-    // Segment* iat = nullptr;
     // Create a Segment from a Section, and use the next Section to set its end address.
     for (unsigned int i = 0; i < image->NumberOfSections; i++) {
         IMAGE_SECTION_HEADER section = image->Sections[i];

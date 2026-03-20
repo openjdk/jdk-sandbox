@@ -287,25 +287,19 @@ const char* dangerous(void* vaddr, unsigned long long length) {
  * Create a memory mapping, at some virtual address, directly from a file/offset/length.
  * Return -1 on failure.
  */
-int revival_mapping_mmap(void* vaddr, size_t length, size_t offset, int lines, char* filename, int fd) {
+int revival_mapping_mmap(void* vaddr, size_t length, size_t offset, char* filename, int fd) {
     int e = 0;
-    logv("revival_mapping_mmap: map %d: " PTR_FORMAT " (to " PTR_FORMAT ") len=0x%zx fileoffset=0x%llx",
-         lines, (uintptr_t) vaddr, (uintptr_t) ((uint64_t) vaddr + length), length, (long long) offset);
+    logv("revival_mapping_mmap: " PTR_FORMAT " (to " PTR_FORMAT ") len=0x%zx fileoffset=0x%llx",
+         (uintptr_t) vaddr, (uintptr_t) ((uint64_t) vaddr + length), length, (long long) offset);
 
     void* mapped_addr = do_mmap_pd(vaddr, length, filename, fd, offset);
     // Accept either the requested address or if it was aligned-down:
     if (mapped_addr != vaddr && mapped_addr != (void*) align_down((uint64_t) vaddr, vaddr_alignment_pd())) {
-        logv("  revival_mapping_mmap: line %d: mapping failed: wanted vaddr: %p returned: %p", lines, vaddr, mapped_addr);
+        logv("  revival_mapping_mmap: mapping failed: wanted vaddr: %p returned: %p", vaddr, mapped_addr);
         e = -1;
     } else {
-        logd("  revival_mapping_mmap: line %d: mapping OK %p - %p", lines, vaddr, (void*) ((uint64_t) vaddr + length));
+        logd("  revival_mapping_mmap: mapping OK %p - %p", vaddr, (void*) ((uint64_t) vaddr + length));
         e = 0;
-    }
-	// On failure, try copying.  Used for a Linux gcore (gdb) as file offsets are not aligned.
-    // Also on Windows, vaddr and file offset generally not aligned in MiniDump.
-    if (e) {
-        e = revival_mapping_copy(vaddr, length, offset, true /* allocate */, filename, core_fd);
-        logv("  revival_mapping_mmap: retry using revival_mapping_copy returns: %d", e);
     }
     return e;
 }
@@ -319,14 +313,12 @@ int revival_mapping_allocate(void* vaddr, size_t length) {
 }
 
 /**
- * revival_mapping_copy
- *
  * Copy bytes from some offset in a file, to memory.  Optionally create the memory allocation first.
  * Used when a mapping cannot be performed directly from the file, usually due to alignment problems
  * (so expect file offset to not be aligned).
  *
  * This method is mainly used on Windows, where file alignment hinders direct mapping from MiniDump,
- * and on a Linux "gcore" (gdb).
+ * and also on a Linux "gcore" (gdb).
  *
  * Return -1 on error.
  */
@@ -363,7 +355,7 @@ int revival_mapping_copy(void* vaddr, size_t length, size_t offset, bool allocat
         e = (int) fread(p++, 8, 1, f);
         if (e != 1) {
             warn("revival_mapping_copy: fread failed: returns %d at %p pos=%zu : %d %s", e, p, i, errno, strerror(errno));
-            break;
+            return -1;
         }
     }
     fclose(f);
@@ -389,7 +381,7 @@ void* load_sharedlibrary_fromdir(const char* dirname, const char* libname, void*
  *
  * The core.mappings little language:
  *
- * M 	map directly from core                      revival_mapping_mmap(vaddr, length, offset, lines, core_filename, core_fd);
+ * M 	map directly from core                      revival_mapping_mmap(vaddr, length, offset, core_filename, core_fd);
  * m 	map allocation, not backed by core          revival_mapping_allocate(void* vaddr, size_t length);
  * C 	copy data (into an earlier "m" allocation)  revival_mapping_copy(vaddr, length, offset, false, core_filename, core_fd);
  */
@@ -517,10 +509,18 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
             }
             if (strncmp(s1, "M", 1) == 0) { 
                 // Map memory from core:
-                int e = revival_mapping_mmap(vaddr, length, offset, lines, core_filename, core_fd);
-                // Windows: will try revival_mapping_copy (allocate) on failure.
+                int e = revival_mapping_mmap(vaddr, length, offset, core_filename, core_fd);
                 if (e < 0) {
-                    M_bad++;
+                    // On failure, try copying.  Used for a Linux gcore (gdb) as file offsets are not aligned.
+                    // Also on Windows, vaddr and file offset generally not aligned in MiniDump.
+                    e  = revival_mapping_copy(vaddr, length, offset, true /* allocate */, core_filename, core_fd);
+                    logv("  revival_mapping_mmap: retry using revival_mapping_copy returns: %d", e);
+                    if (e < 0 ) {
+                        M_bad++;
+                        //exitForRetry();
+                    } else {
+                        M_good++;
+                    }
                 } else {
                     M_good++;
                 }
@@ -530,7 +530,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
                 if (e < 0) {
                     m_bad++;
                     warn("mappings_file_read: m 0x%llx failed!", (unsigned long long) vaddr);
-//                    exitForRetry();
+                    exitForRetry();
                 } else {
                     m_good++;
                 }
@@ -540,11 +540,11 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
                 if (e < 0) {
                     warn("mappings_file_read: copy failed for seg at 0x%llx", (unsigned long long) vaddr);
                     C_bad++;
+                    // exitForRetry();
                 } else {
                     C_good++;
                 }
             } else {
-                // Not recognised:
                 error("mappings_file_read: unrecognised mapping line %d: '%s'", lines, s1);
             }
             continue;
