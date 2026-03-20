@@ -824,7 +824,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
     }
   }
 
-  // Post-barrier: LRB
+  // Post-barrier: LRB / KA / weak-root processing.
   if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
     ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, dst, src, narrow, /* do_load: */ false, __ offset());
     char check = 0;
@@ -842,7 +842,6 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroA
 
   assert(CardTable::dirty_card_val() == 0, "must be");
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
-  Label L_skip;
 
   // rscratch2 = addr >> CardTable::card_shift()
   __ lea(rscratch2, address);
@@ -864,7 +863,6 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroA
   } else {
     __ strb(zr, Address(rscratch2));
   }
-  __ bind(L_skip);
 }
 #undef __
 #define __ masm.
@@ -1014,11 +1012,8 @@ void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
     __ cbz(_obj, *continuation());
   }
 
-  // FIXME: the method below can assume that rscratch1 still contains the gc state just loaded in fastpath
   keepalive(&masm, _obj, rscratch1, rscratch2);
 
-  // FIXME: I'm wondering if we can force _obj to be on c_rarg0 so we don't
-  // need to do the argument shuffling before the runtime calls. Would that improve perf?
   lrb(&masm, _obj, _addr, noreg);
 
   // If object is narrow, we need to encode it before exiting.
