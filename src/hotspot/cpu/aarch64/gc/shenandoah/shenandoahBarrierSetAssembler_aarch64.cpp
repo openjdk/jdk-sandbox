@@ -657,7 +657,7 @@ void ShenandoahBarrierStubC2::gc_state_check_c2(MacroAssembler* masm, Register g
       // Simple, check the gc-state bit directly.
       gcs_addr = Address(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
       bit_to_check = log2i_exact(test_state);
-    } else if (num_bits_set <= 2 && num_bits_set <= 3) {
+    } else if (2 <= num_bits_set && num_bits_set <= 3) {
       // More complicated, check the compound gc-state bit.
       gcs_addr = Address(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_compound_offset()));
       bit_to_check = ShenandoahThreadLocalData::compound_to_bit(test_state);

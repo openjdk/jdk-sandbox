@@ -125,33 +125,20 @@ public:
   };
 
   static char compound_to_bit(char compound) {
-    if (compound == FORWARDED_OR_MARKING) {
-      return FORWARDED_OR_MARKING_BITPOS;
-    } else if (compound == FORWARDED_OR_WEAK) {
-      return FORWARDED_OR_WEAK_BITPOS;
-    } else if (compound == MARKING_OR_WEAK) {
-      return MARKING_OR_WEAK_BITPOS;
-    } else if (compound == FORWARDED_OR_MARKING_OR_WEAK) {
-      return FORWARDED_OR_MARKING_OR_WEAK_BITPOS;
-    } else {
-      ShouldNotReachHere();
-    }
+    if (compound == FORWARDED_OR_MARKING)         return FORWARDED_OR_MARKING_BITPOS;
+    if (compound == FORWARDED_OR_WEAK)            return FORWARDED_OR_WEAK_BITPOS;
+    if (compound == MARKING_OR_WEAK)              return MARKING_OR_WEAK_BITPOS;
+    if (compound == FORWARDED_OR_MARKING_OR_WEAK) return FORWARDED_OR_MARKING_OR_WEAK_BITPOS;
+    ShouldNotReachHere();
+    return 0;
   }
 
   static char gc_state_to_compound(char gc_state) {
     char compound = 0;
-    if ((gc_state & FORWARDED_OR_MARKING) > 0) {
-      compound |= (1 << FORWARDED_OR_MARKING_BITPOS);
-    }
-    if ((gc_state & FORWARDED_OR_WEAK) > 0) {
-      compound |= (1 << FORWARDED_OR_WEAK_BITPOS);
-    }
-    if ((gc_state & MARKING_OR_WEAK) > 0) {
-      compound |= (1 << MARKING_OR_WEAK_BITPOS);
-    }
-    if ((gc_state & FORWARDED_OR_MARKING_OR_WEAK) > 0) {
-      compound |= (1 << FORWARDED_OR_MARKING_OR_WEAK_BITPOS);
-    }
+    if ((gc_state & FORWARDED_OR_MARKING) > 0)         compound |= (1 << FORWARDED_OR_MARKING_BITPOS);
+    if ((gc_state & FORWARDED_OR_WEAK) > 0)            compound |= (1 << FORWARDED_OR_WEAK_BITPOS);
+    if ((gc_state & MARKING_OR_WEAK) > 0)              compound |= (1 << MARKING_OR_WEAK_BITPOS);
+    if ((gc_state & FORWARDED_OR_MARKING_OR_WEAK) > 0) compound |= (1 << FORWARDED_OR_MARKING_OR_WEAK_BITPOS);
     return compound;
   }
 
