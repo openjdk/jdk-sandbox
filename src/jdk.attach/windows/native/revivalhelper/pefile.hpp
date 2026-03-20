@@ -59,7 +59,7 @@ class PEFile {
     uint64_t file_offset_for_reladdr(uint64_t reladdr);
 
     // Locate data segments in named file.  Populate output parameters.
-    bool find_data_segs(void* address, Segment** _data, Segment** _rdata, Segment** _iat);
+    bool find_data_segs(void* address, Segment** _data, Segment** _rdata);
 
     // Rebase a file to a new absolute load address.
     // *Destructive*: changes the actual named file.

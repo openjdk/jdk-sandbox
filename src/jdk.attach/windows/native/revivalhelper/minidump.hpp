@@ -69,10 +69,9 @@ class MiniDump {
     uint64_t file_offset_for_vaddr(uint64_t addr);
     char* readstring_at_address(uint64_t addr);
 
-    void set_jvm_data(Segment* data, Segment* rdata, Segment* iat) {
+    void set_jvm_data(Segment* data, Segment* rdata) {
         this->jvm_rdata_seg = rdata;
         this->jvm_data_seg = data;
-        this->jvm_iat_seg = iat;
     }
 
   private:
@@ -91,5 +90,4 @@ class MiniDump {
     // jvm_data_segs
     Segment* jvm_rdata_seg;
     Segment* jvm_data_seg;
-    Segment* jvm_iat_seg;
 };

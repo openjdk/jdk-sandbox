@@ -96,6 +96,25 @@ static void install_kernelbase_1803_symbol_or_exit(Fn*& fn, const char* name) {
     }
 }
 
+void printMemBasicInfo(MEMORY_BASIC_INFORMATION meminfo) {
+    uint64_t end = (uint64_t) meminfo.BaseAddress + meminfo.RegionSize;
+    fprintf(stderr, "Meminfo: AllocationBase: 0x%016llx   BaseAddress: 0x%016llx - 0x%016llx  "
+            "RegionSize: 0x%08llx  AllocProt: 0x%08lx Prot: 0x%08lx, State: 0x%lx\n",
+            (uint64_t) meminfo.AllocationBase, (uint64_t) meminfo.BaseAddress, end,
+            (uint64_t) meminfo.RegionSize, meminfo.AllocationProtect, meminfo.Protect, meminfo.State
+        );
+}
+
+void printMemBasicInfo(void* addr) {
+    HANDLE hProc = GetCurrentProcess();
+    MEMORY_BASIC_INFORMATION meminfo;
+    size_t s = VirtualQueryEx(hProc, (PVOID) addr, &meminfo, sizeof(meminfo));
+    if (s == sizeof(meminfo)) {
+        printMemBasicInfo(meminfo);
+    } else {
+        warn("%p: VirtualQueryEx returns %d (!= %d)", addr, s, sizeof(meminfo));
+    }
+}
 
 char* basename_pd(char* s) {
     for (char* p = s + strlen(s); p != s; p--) {
@@ -123,6 +142,14 @@ unsigned long long max_user_vaddr_pd() {
     return 0x7FFFFFFFFFFF;
 }
 
+uint64_t get_peb() {
+     return (uint64_t) __readgsqword(0x60);
+}
+
+uint64_t get_ReadOnlySharedMemoryBase() {
+     return *(uint64_t*)(get_peb() + 0x88);
+}
+
 void tls_initial_save_pd() {
     cur_teb = (uint64_t*) NtCurrentTeb();           // TEB pointer on x64 in GS reg.
     cur_tls = (uint64_t*) ((char*) cur_teb + 0x58); // Read TLS ptr at offset. Or: tls =  __readgsqword(0x58);
@@ -139,7 +166,7 @@ void tls_fixup_pd(void *teb) {
 
     // Replace current TLS with that from MiniDump:
     *cur_tls = *core_tls;
-    warn("tls_fixup: fixed, cur teb = 0x%llx new tls = 0x%llx contains 0x%llx", cur_teb, cur_tls, *cur_tls);
+    logv("tls_fixup: fixed, cur teb = 0x%llx new tls = 0x%llx contains 0x%llx", cur_teb, cur_tls, *cur_tls);
     waitHitRet();
 }
 
@@ -158,6 +185,11 @@ void tls_revert_pd() {
 void init_pd() {
     int x;
     warn("init_pd: PID %ld thread: 0x%lx", _getpid(), GetCurrentThreadId());
+
+    warn("tls_fixup: new process PEB addr: 0x%llx ReadOnlySharedMemoryBase: 0x%llx", get_peb(), get_ReadOnlySharedMemoryBase());
+    //printMemBasicInfo((void*) get_peb());
+    //printMemBasicInfo((void*) get_ReadOnlySharedMemoryBase());
+
     tls_initial_save_pd(); // Save before JVM is loaded
 
     _SYSTEM_INFO systemInfo;
@@ -267,25 +299,6 @@ void remove_handler() {
     }
 }
 
-void printMemBasicInfo(MEMORY_BASIC_INFORMATION meminfo) {
-
-    uint64_t end = (uint64_t) meminfo.BaseAddress + meminfo.RegionSize;
-
-    fprintf(stderr, "AllocBase: 0x%016llx   Base: 0x%016llx - 0x%016llx len 0x%08llx  AllocProt: 0x%08lx Prot: 0x%08lx\n",
-            (uint64_t) meminfo.AllocationBase,
-            (uint64_t) meminfo.BaseAddress, end, (uint64_t) meminfo.RegionSize, meminfo.AllocationProtect, meminfo.Protect);
-
-}
-
-void printMemBasicInfo(void* addr) {
-    HANDLE hProc = GetCurrentProcess();
-    MEMORY_BASIC_INFORMATION meminfo;
-    size_t q = VirtualQueryEx(hProc, (PVOID) addr, &meminfo, sizeof(meminfo));
-    if (q == sizeof(meminfo)) {
-        printMemBasicInfo(meminfo);
-    }
-}
-
 void *symbol_dynamiclookup_pd(void *h, const char*str) {
     FARPROC s = GetProcAddress((HMODULE) h, str);
     logv("symbol_dynamiclookup: %s = %p", str, s);
@@ -368,9 +381,8 @@ bool mem_canwrite_pd(void *vaddr, size_t length) {
             logd("    mem_canwrite_pd: %p protect: 0x%lx: YES", vaddr, meminfo.Protect);
             return true;
         } else {
-            logd("    mem_canwrite_pd: %p protect: 0x%lx: NO", vaddr, meminfo.Protect);
-            //fprintf(stderr, "    ");
-            //printMemBasicInfo(meminfo);
+            warn("    mem_canwrite_pd: %p protect: 0x%lx: NO", vaddr, meminfo.Protect);
+            printMemBasicInfo(meminfo);
             // set_prot(vaddr, length);
             return false;
         }
@@ -380,10 +392,6 @@ bool mem_canwrite_pd(void *vaddr, size_t length) {
     return false;
 }
 
-/**
- * Map a file into memory.
- * Can be complicated if file offset is not aligned as required.
- */
 void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offset) {
     // Fail quickly if unaligned:
     uint64_t offsetAligned = align_down(offset, vaddr_alignment_pd());
@@ -451,65 +459,20 @@ void *do_map_allocate_pd_MapViewOfFile(void *vaddr, size_t length) {
         warn("    do_map_allocate_pd_MapViewOfFile: CreateFileMapping returns = 0x%p : error = 0x%lx", h, GetLastError());
         return (void *) -1;
     }
-
     LPVOID p = MapViewOfFileEx(h, mapViewAccess, 0, 0, length, (void *) vaddr);
-
+    logv("do_map_allocate_pd: MapViewOfFile 0x%llx 0x%llx gets 0x%llx", (unsigned long long) vaddr, length, (unsigned long long) p);
     if ((void*) p == vaddr) {
-        logd("do_map_allocate_pd: MapViewOfFile 0x%llx 0x%llx OK", (unsigned long long) vaddr, length);
         return vaddr;
     }
-
-    logv("do_map_allocate_pd: MapViewOfFile 0x%llx 0x%llx bad, gets 0x%llx", (unsigned long long) vaddr, length, (unsigned long long) p);
-
-    /*
-       if ((void*) p != (void*) vaddrAligned) {
-    // Retry if access denied:
-    if (GetLastError() == ERROR_ACCESS_DENIED) { // 0x5
-    mapViewAccess ^= FILE_MAP_WRITE;
-    mapViewAccess ^= FILE_MAP_EXECUTE;
-    printf("    Access denied, retry\n");
-    p = MapViewOfFileEx(h, mapViewAccess, 0, 0, length, (void *) vaddrAligned);
-    }
-    if ((void*) p != (void*) vaddrAligned) {
-
-    printf("    do_map_allocate_pd_MapViewOfFile: first alloc attempt 0x%p len 0x%zx : returns = 0x%p, error = 0x%lx\n",
-    (void *) vaddrAligned, length, p, GetLastError());
-
-    if (GetLastError() == ERROR_INVALID_ADDRESS) {// 0x1e7
-    // Already mapped, or conflict.
-
-    p = MapViewOfFileEx(h, mapViewAccess, 0, 0, length, (void *) vaddrAligned);
-    if ((void*) p != (void*) vaddrAligned) {
-    if (GetLastError() == ERROR_INVALID_ADDRESS) { // 0x1e7
-    printf("    do_map_allocate_pd_MapViewOfFile: MapViewOfFileEx 0x%p len 0x%zx : returns = 0x%p, error = 0x%lx\n",
-    (void *) vaddrAligned, length, p, GetLastError());
     return (void*) -1;
-    }
-    }
-    }
-    }
-    }
-    if ((void*) p == (void*) vaddrAligned) {
-    if (verbose) {
-    printf("    do_map_allocate_pd_MapViewOfFile: OK at requested 0x%p len 0x%zx (called with 0x%p, length 0x%zx), returns 0x%p : error = 0x%lx\n",
-    (void *) vaddrAligned, length, vaddrAligned, length, p, GetLastError());
-    }
-    }
-    if ((void*) p != (void *) vaddrAligned) {
-    waitHitRet();
-    return (void*) -1;
-    }  */
-    return p;
 }
 
 void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length) {
     HANDLE hProc = GetCurrentProcess();
-    //DWORD prot = PAGE_READWRITE;
-    DWORD prot = PAGE_EXECUTE_READWRITE;
+    DWORD prot = PAGE_EXECUTE_READWRITE; // PAGE_READWRITE;
 
     void* p = pVirtualAlloc2(hProc, (PVOID) addr, length, MEM_RESERVE | MEM_COMMIT, prot, nullptr, 0);
-    logv("    do_map_allocate_pd_VirtualAlloc2: first alloc attempt 0x%p len 0x%zx : returns = 0x%p, error = 0x%lx",
-         (void *) addr, length, p, GetLastError());
+    logd("    do_map_allocate_pd_VirtualAlloc2: first alloc attempt 0x%p len 0x%zx : returns = 0x%p, error = 0x%lx", (void *) addr, length, p, GetLastError());
 
         MEMORY_BASIC_INFORMATION meminfo;
         size_t q = VirtualQueryEx(hProc, addr, &meminfo, sizeof(meminfo));
@@ -520,8 +483,7 @@ void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length) {
         uint64_t requested_end = (uint64_t) addr + (uint64_t) length;
         uint64_t existing_end = (uint64_t) meminfo.BaseAddress + (uint64_t) meminfo.RegionSize;
         uint64_t remaining = requested_end - existing_end;
-        logv("    do_map_allocate_pd_VirtualAlloc2: meminfo: base 0x%llx len 0x%llx end: 0x%llx",
-             meminfo.BaseAddress, meminfo.RegionSize, existing_end);
+        logd("    do_map_allocate_pd_VirtualAlloc2: meminfo: base 0x%llx len 0x%llx end: 0x%llx", meminfo.BaseAddress, meminfo.RegionSize, existing_end);
 
     if ((void*) p != (void*) addr) {
         // Did not get requested address
@@ -546,9 +508,9 @@ void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length) {
             }
 
         } else if (GetLastError() == ERROR_INVALID_ADDRESS) { // 0x1e7
-            logv("do_map_allocate: requested 0x%llx got 0x%lx not valid, already mapped?", addr, p);
             // Already mapped, conflict?
             // Return success to proceed with copy.
+            logv("do_map_allocate: requested 0x%llx got 0x%lx not valid, already mapped?", addr, p);
             logv("    VirtualQueryEx: 1 base 0x%llx len 0x%llx allocationprotect: 0x%lx protect: 0x%lx",
                  (uint64_t) meminfo.BaseAddress, (uint64_t) meminfo.RegionSize, meminfo.AllocationProtect, meminfo.Protect);
 
@@ -577,14 +539,13 @@ void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length) {
 
 void *do_map_allocate_pd(void *vaddr, size_t length) {
     // mappings file is created with minidump addresses, not necessarily 64k aligned.
-
     uint64_t vaddr_aligned = align_down((uint64_t) vaddr, vaddr_alignment_pd());
     uint64_t diff = (uint64_t) vaddr - (uint64_t) vaddr_aligned;
     size_t length_aligned = length + diff;
     length_aligned = align_up(length_aligned, vaddr_alignment_pd());
 
     if (vaddr_aligned != (uint64_t) vaddr) {
-        logv("    do_map_allocate_pd: vaddr 0x%p aligns -> 0x%p  len 0x%p adjusts -> 0x%p",
+        logd("    do_map_allocate_pd: vaddr 0x%p aligns -> 0x%p  len 0x%p adjusts -> 0x%p",
             (void*) vaddr, (void*) vaddr_aligned, length, length_aligned);
     }
     uint64_t r = (uint64_t) do_map_allocate_pd_VirtualAlloc2((void*) vaddr_aligned, length_aligned);
@@ -689,7 +650,7 @@ int relocate_sharedlib_pd(const char *filename, const void *addr) {
 }
 
 void write_mem_mappings(MiniDump* dump, int fd, const char *corename,
-                       Segment* jvm_data_seg, Segment* jvm_rdata_seg, Segment* jvm_iat_seg) {
+                       Segment* jvm_data_seg, Segment* jvm_rdata_seg) {
 
     // Read minidump memory list, create text of mappings list.
     // Plan to map data directly from core where possible.
@@ -707,6 +668,7 @@ void write_mem_mappings(MiniDump* dump, int fd, const char *corename,
     Segment* seg = nullptr;
     Segment* segNext = nullptr;
 
+    warn("write_mem_mappings: %p", get_peb());
     while (true) {
         if (seg == nullptr || segNext == nullptr) {
             // First iteration, or no segNext waiting:
@@ -976,14 +938,12 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
         PEFile pefile(jvm_mapping->name); // Narrow scope means the jvm file gets closed
         Segment* jvm_data_seg = new Segment();
         Segment* jvm_rdata_seg = new Segment();
-        Segment* jvm_iat_seg = new Segment();
-        if (!pefile.find_data_segs(jvm_mapping->vaddr, &jvm_data_seg, &jvm_rdata_seg, &jvm_iat_seg)) {
+        if (!pefile.find_data_segs(jvm_mapping->vaddr, &jvm_data_seg, &jvm_rdata_seg)) {
             error("Failed to find JVM data segments.");
         }
         logv("JVM .rdata SEG: 0x%llx - 0x%llx", jvm_rdata_seg->start(), jvm_rdata_seg->end());
         logv("JVM .data  SEG: 0x%llx - 0x%llx", jvm_data_seg->start(),  jvm_data_seg->end());
-        // logv("JVM iat    SEG: 0x%llx - 0x%llx", jvm_iat_seg->start(),   jvm_iat_seg->end());
-        dump.set_jvm_data(jvm_data_seg, jvm_rdata_seg, jvm_iat_seg);
+        dump.set_jvm_data(jvm_data_seg, jvm_rdata_seg);
 
         // Create mappings file:
         // Normalize corename so basename works (if we were given forward slashes, basename fails).
@@ -996,7 +956,7 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
         }
         // Write mappings file:
         write_sharedlib_mappings(mappings_fd, &dump);
-        write_mem_mappings(&dump, mappings_fd, corename_n, jvm_data_seg, jvm_rdata_seg, jvm_iat_seg);
+        write_mem_mappings(&dump, mappings_fd, corename_n, jvm_data_seg, jvm_rdata_seg);
         close(mappings_fd);
         free(corename_n);
     }

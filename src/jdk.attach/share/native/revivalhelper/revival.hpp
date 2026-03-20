@@ -245,7 +245,7 @@ uint64_t length_alignment_pd();
 void init_pd();
 
 /**
- * Create a memory mapping, from a file.
+ * Create a memory mapping at some vaddr, of some length in bytes, from a file at some offset.
  * Return address of allocation, or -1 for failure.
 */
 void* do_mmap_pd(void* addr, size_t length, char* filename, int fd, size_t offset);
