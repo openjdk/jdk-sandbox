@@ -375,6 +375,8 @@ class AbstractAssembler : public ResourceObj  {
   void      set_oop_recorder(OopRecorder* r) { _oop_recorder = r; }
 
   void   register_skipped(int size) { code_section()->register_skipped(size); }
+  void   set_skipped(int size)      { code_section()->set_skipped(size);      }
+  int    get_skipped()              { return code_section()->get_skipped();   }
 
   address       inst_mark() const         { return code_section()->mark();          }
   void      set_inst_mark()               {        code_section()->set_mark();      }

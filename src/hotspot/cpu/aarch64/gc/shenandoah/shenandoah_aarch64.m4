@@ -32,29 +32,20 @@ instruct store_$1_$2_shenandoah(indirect mem, iReg$1 src, iRegPNoSp tmp, rFlagsR
   predicate(UseShenandoahGC && ifelse($2,Volatile,'needs_releasing_store(n)`,'!needs_releasing_store(n)`) && n->as_Store()->barrier_data() != 0);
   effect(TEMP tmp, KILL cr);
   ins_cost(ifelse($2,Volatile,VOLATILE_REF_COST,3*INSN_COST));
-  format %{ "$3  $src, $mem" %}
+  format %{ "str  $src, $mem" %}
   ins_encode %{
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb($tmp$$Register, gcs_addr);
-
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                        $mem$$Register /* addr, used in slow path only */,
-                                                        noreg          /* pre_val, used in slow path only */,
-                                                        $tmp$$Register /* gc_state on fas path */,
-                                                        false           /* unused in this case */);
-
-    __ $3($src$$Register, $mem$$Register);
-
-    ShenandoahBarrierSet::assembler()->card_barrier_c2(this, masm,
-                                                       $mem$$Register /* addr */,
-                                                       $tmp$$Register /* tmp */);
+    ShenandoahBarrierSet::assembler()->store_c2(this, masm,
+      $mem$$Register, /* dst_narrow  = */ ifelse($1,N,'true`,'false`),
+      $src$$Register, /* src_narrow  = */ ifelse($1,N,'true`,'false`),
+      $tmp$$Register, /* pre_val     = */ noreg,
+                      /* is_volatile = */ ifelse($2,Volatile,'true`,'false`));
   %}
   ins_pipe(pipe_class_memory);
 %}')dnl
-STORE_INSN(P,Normal,str)
-STORE_INSN(P,Volatile,stlr)
-STORE_INSN(N,Normal,strw)
-STORE_INSN(N,Volatile,stlrw)
+STORE_INSN(P,Normal)
+STORE_INSN(P,Volatile)
+STORE_INSN(N,Normal)
+STORE_INSN(N,Volatile)
 
 
 
@@ -75,33 +66,18 @@ instruct encodePAndStoreN_$1_shenandoah(indirect mem, iRegP src, iRegPNoSp tmp, 
   effect(TEMP tmp, KILL cr);
   ins_cost(ifelse($1,Volatile,VOLATILE_REF_COST,4*INSN_COST));
   format %{ "encode_heap_oop $tmp, $src\n\t"
-            "$2  $tmp, $mem\t# compressed ptr" %}
+            "str  $tmp, $mem\t# compressed ptr" %}
   ins_encode %{
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb($tmp$$Register, gcs_addr);
-
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                        $mem$$Register /* addr, used in slow path only */,
-                                                        noreg /* pre_val, used in slow path only */,
-                                                        $tmp$$Register /* gc_state on fas path */,
-                                                        false           /* encoded_preval */);
-
-    if ((barrier_data() & ShenandoahBarrierCardMarkNotNull) == 0) {
-      __ encode_heap_oop($tmp$$Register, $src$$Register);
-    } else {
-      __ encode_heap_oop_not_null($tmp$$Register, $src$$Register);
-    }
-
-    __ $2($tmp$$Register, $mem$$Register);
-
-    ShenandoahBarrierSet::assembler()->card_barrier_c2(this, masm,
-                                                       $mem$$Register /* addr */,
-                                                       $tmp$$Register /* tmp */);
+    ShenandoahBarrierSet::assembler()->store_c2(this, masm,
+      $mem$$Register, /* dst_narrow  = */ true,
+      $src$$Register, /* src_narrow  = */ false,
+      $tmp$$Register, /* pre_val     = */ noreg,
+                      /* is_volatile = */ ifelse($1,Volatile,'true`,'false`));
   %}
   ins_pipe(pipe_class_memory);
 %}')dnl
-ENCODEP_AND_STORE_INSN(Normal,strw)
-ENCODEP_AND_STORE_INSN(Volatile,stlrw)
+ENCODEP_AND_STORE_INSN(Normal)
+ENCODEP_AND_STORE_INSN(Volatile)
 
 
 
@@ -128,32 +104,19 @@ instruct compareAndSwap_$1_$2_shenandoah(iRegINoSp res, indirect mem, iReg$1NoSp
     assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb($tmp1$$Register, gcs_addr);
-
-    bool is_narrow = ifelse($1,N,'true`,'false`);
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                        noreg             /* addr */,
-                                                        $oldval$$Register /* pre_val, only used in slow path */,
-                                                        $tmp1$$Register   /* gc_state */,
-                                                        is_narrow         /* encoded_preval */);
-
-    bool is_acquire = ifelse($2,Volatile,'true`,'false`);
-    ShenandoahBarrierSet::assembler()->cmpxchg_oop_c2(this, masm,
-                                                        $mem$$base$$Register,
-                                                        $oldval$$Register,
-                                                        $newval$$Register,
-                                                        $res$$Register,
-                                                        $tmp1$$Register,    /* gc_state */
-                                                        $tmp2$$Register,
-                                                        /*acquire*/ is_acquire,
-                                                        /*release*/ true,
-                                                        /*weak*/ false,
-                                                        /*is_cae*/ false);
-
-    ShenandoahBarrierSet::assembler()->card_barrier_c2(this, masm,
-                                                       $mem$$Register /* addr */,
-                                                       $tmp1$$Register /* tmp */);
+    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
+      $res$$Register,
+      $mem$$base$$Register,
+      $oldval$$Register,
+      $newval$$Register,
+      $tmp1$$Register,
+      $tmp2$$Register,
+      /* exchange */ false,
+      /* maybe_null */ false,
+      /* is_narrow */ ifelse($1,N,'true`,'false`),
+      /* acquire */ ifelse($2,Volatile,'true`,'false`),
+      /* release */ true,
+      /* weak */ false);
   %}
 
   ins_pipe(pipe_slow);
@@ -178,46 +141,25 @@ instruct compareAndExchange_$1_$2_shenandoah(iReg$1NoSp res, indirect mem, iReg$
   ins_cost(ifelse($2,Volatile,VOLATILE_REF_COST + 3*INSN_COST,2*VOLATILE_REF_COST));
   effect(TEMP_DEF res, TEMP tmp1, TEMP tmp2, KILL cr);
   format %{
-    "cmpxchg_$1_$2_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
+    "cae_$1_$2_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
   %}
   ins_encode %{
     assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb($tmp1$$Register, gcs_addr);
-
-    bool is_narrow = ifelse($1,N,'true`,'false`);
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                        noreg             /* addr */,
-                                                        $oldval$$Register /* pre_val */,
-                                                        $tmp1$$Register   /* gc_state */,
-                                                        is_narrow         /* encoded_preval */);
-
-    bool is_acquire = ifelse($2,Volatile,'true`,'false`);
-    ShenandoahBarrierSet::assembler()->cmpxchg_oop_c2(this, masm,
-                                                        $mem$$base$$Register,
-                                                        $oldval$$Register,
-                                                        $newval$$Register,
-                                                        $res$$Register,
-                                                        $tmp1$$Register,        /* gc_state */
-                                                        $tmp2$$Register,
-                                                        /*acquire*/ is_acquire,
-                                                        /*release*/ true,
-                                                        /*weak*/ false,
-                                                        /*is_cae*/ true);
-
-    bool maybe_null = (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull);
-    ShenandoahBarrierSet::assembler()->load_ref_barrier_c2(this, masm,
-                                                           $res$$Register     /* obj */,
-                                                           $mem$$Register     /* addr */,
-                                                           is_narrow          /* narrow */,
-                                                           maybe_null,
-                                                           $tmp1$$Register    /* gc_state */);
-
-    ShenandoahBarrierSet::assembler()->card_barrier_c2(this, masm,
-                                                       $mem$$Register         /* addr */,
-                                                       $tmp1$$Register        /* tmp */);
+    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
+      $res$$Register,
+      $mem$$base$$Register,
+      $oldval$$Register,
+      $newval$$Register,
+      $tmp1$$Register,
+      $tmp2$$Register,
+      /* exchange */ true,
+      /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
+      /* is_narrow */ ifelse($1,N,'true`,'false`),
+      /* acquire */ ifelse($2,Volatile,'true`,'false`),
+      /* release */ true,
+      /* weak */ false);
   %}
   ins_pipe(pipe_slow);
 %}')dnl
@@ -243,39 +185,26 @@ instruct weakCompareAndSwap_$1_$2_shenandoah(iRegINoSp res, indirect mem, iReg$1
   ins_cost(VOLATILE_REF_COST);
   effect(TEMP_DEF res, TEMP tmp1, TEMP tmp2, KILL cr);
   format %{
-    "cmpxchg_oop_c2 $res = $mem, $oldval, $newval\t# ($1, weak, $2) if $mem == $oldval then $mem <-- $newval\n\t"
+    "cae_$1_$2_weak_shenandoah $res = $mem, $oldval, $newval\t# ($1, weak, $2) if $mem == $oldval then $mem <-- $newval\n\t"
     "csetw $res, EQ\t# $res <-- (EQ ? 1 : 0)"
   %}
   ins_encode %{
     assert_different_registers($tmp1$$Register, $tmp2$$Register);
     guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb($tmp1$$Register, gcs_addr);
-
-    bool is_narrow = ifelse($1,N,'true`,'false`);
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                        noreg             /* addr */,
-                                                        $oldval$$Register /* pre_val */,
-                                                        $tmp1$$Register   /* gc_state */,
-                                                        is_narrow         /* encoded_preval */);
-
-    bool is_acquire = ifelse($2,Volatile,'true`,'false`);
-    ShenandoahBarrierSet::assembler()->cmpxchg_oop_c2(this, masm,
-                                                        $mem$$base$$Register,
-                                                        $oldval$$Register,
-                                                        $newval$$Register,
-                                                        $res$$Register,
-                                                        $tmp1$$Register,
-                                                        $tmp2$$Register,
-                                                        /*acquire*/ is_acquire,
-                                                        /*release*/ true,
-                                                        /*weak*/ true,
-                                                        /*is_cae*/ false);
-
-    ShenandoahBarrierSet::assembler()->card_barrier_c2(this, masm,
-                                                       $mem$$Register /* addr */,
-                                                       $tmp1$$Register /* tmp */);
+    ShenandoahBarrierSet::assembler()->cae_c2(this, masm,
+      $res$$Register,
+      $mem$$base$$Register,
+      $oldval$$Register,
+      $newval$$Register,
+      $tmp1$$Register,
+      $tmp2$$Register,
+      /* exchange */ false,
+      /* maybe_null */ false,
+      /* is_narrow */ ifelse($1,N,'true`,'false`),
+      /* acquire */ ifelse($2,Volatile,'true`,'false`),
+      /* release */ true,
+      /* weak */ true);
   %}
   ins_pipe(pipe_slow);
 %}')dnl
@@ -289,44 +218,28 @@ define(`GETANDSET_INSN',
 `
 // This pattern is generated automatically from shenandoah_aarch64.m4.
 // DO NOT EDIT ANYTHING IN THIS SECTION OF THE FILE
-instruct getAndSet_$1_$2_shenandoah(indirect mem, iReg$1 newval, iReg$1NoSp preval, iRegPNoSp tmp, rFlagsReg cr)
+instruct getAndSet_$1_$2_shenandoah(indirect mem, iReg$1 newval, iReg$1NoSp preval, rFlagsReg cr)
 %{
   match(Set preval (GetAndSet$1 mem newval));
   predicate(UseShenandoahGC && ifelse($2,Volatile,'needs_acquiring_load_exclusive(n)`,'!needs_acquiring_load_exclusive(n)`) && n->as_LoadStore()->barrier_data() != 0);
-  effect(TEMP_DEF preval, TEMP tmp, KILL cr);
+  effect(TEMP_DEF preval, KILL cr);
   ins_cost(ifelse($2,Volatile,VOLATILE_REF_COST + 3*INSN_COST,2*VOLATILE_REF_COST));
-  format %{ "$3 $preval, $newval, [$mem]" %}
+  format %{ "get_and_set_$1_$2 $preval, $newval, [$mem]" %}
   ins_encode %{
-    __ $3($preval$$Register, $newval$$Register, $mem$$Register);
-
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb($tmp$$Register, gcs_addr);
-
-    bool is_narrow = ifelse($1,N,'true`,'false`);
-    ShenandoahBarrierSet::assembler()->satb_barrier_c2(this, masm,
-                                                        noreg             /* addr */,
-                                                        $preval$$Register /* pre_val */,
-                                                        $tmp$$Register    /* gc_state */,
-                                                        is_narrow         /* encoded_preval */);
-
-    bool maybe_null = (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull);
-    ShenandoahBarrierSet::assembler()->load_ref_barrier_c2(this, masm,
-                                                        $preval$$Register /* obj */,
-                                                        $mem$$Register    /* addr */,
-                                                        is_narrow         /* narrow */,
-                                                        maybe_null,
-                                                        $tmp$$Register    /* gc_state */);
-
-    ShenandoahBarrierSet::assembler()->card_barrier_c2(this, masm,
-                                                       $mem$$Register     /* addr */,
-                                                       $tmp$$Register     /* tmp */);
+    ShenandoahBarrierSet::assembler()->get_and_set_c2(this, masm,
+      $preval$$Register,
+      $newval$$base$$Register,
+      $mem$$Register,
+      /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
+      /* is_narrow */ ifelse($1,N,'true`,'false`),
+      /* acquire */ ifelse($2,Volatile,'true`,'false`));
   %}
   ins_pipe(pipe_serial);
 %}')dnl
-GETANDSET_INSN(P,Normal,atomic_xchg)
-GETANDSET_INSN(P,Volatile,atomic_xchgal)
-GETANDSET_INSN(N,Normal,atomic_xchgw)
-GETANDSET_INSN(N,Volatile,atomic_xchgalw)
+GETANDSET_INSN(P,Normal)
+GETANDSET_INSN(P,Volatile)
+GETANDSET_INSN(N,Normal)
+GETANDSET_INSN(N,Volatile)
 
 define(`LOAD_INSN',
 `

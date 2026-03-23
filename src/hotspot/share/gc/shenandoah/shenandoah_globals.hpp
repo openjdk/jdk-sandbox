@@ -514,6 +514,24 @@
   product(bool, ShenandoahStackWatermarkBarrier, true, DIAGNOSTIC,          \
           "Turn on/off stack watermark barriers in Shenandoah")             \
                                                                             \
+  product(bool, ShenandoahCloneRuntime, false, DIAGNOSTIC,                  \
+          "Handle clone in runtime instead of in copy stubs.")              \
+                                                                            \
+  product(bool, ShenandoahGCStateCheckHotpatch, false, EXPERIMENTAL,        \
+          "DANGEROUS, USE ONLY WITH PASSIVE MODE: Replace GC state checks " \
+          "with hot-patchable sequence in barrier fast-paths. Measures "    \
+          "potential improvement from GC state hot-patching.")              \
+                                                                            \
+  product(bool, ShenandoahGCStateCheckRemove, false, EXPERIMENTAL,          \
+          "DANGEROUS, USE ONLY WITH PASSIVE MODE: Remove GC state checks "  \
+          "in barrier fast-paths. Measures code density impact from GC "    \
+          "state checks.")                                                  \
+                                                                            \
+  product(bool, ShenandoahSkipBarriers, false, EXPERIMENTAL,                \
+          "DANGEROUS, USE ONLY WITH PASSIVE MODE: Skip all barriers after " \
+          "expansion. Measures code density impact from additional code "   \
+          "at both fast- and slow-paths.")                                  \
+                                                                            \
   develop(bool, ShenandoahVerifyOptoBarriers, trueInDebug,                  \
           "Verify no missing barriers in C2.")                              \
                                                                             \

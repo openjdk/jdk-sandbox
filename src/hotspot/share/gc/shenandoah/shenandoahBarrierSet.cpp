@@ -25,7 +25,6 @@
 
 #include "gc/shared/barrierSetNMethod.hpp"
 #include "gc/shenandoah/shenandoahBarrierSetAssembler.hpp"
-#include "gc/shenandoah/shenandoahBarrierSetClone.inline.hpp"
 #include "gc/shenandoah/shenandoahBarrierSetNMethod.hpp"
 #include "gc/shenandoah/shenandoahBarrierSetStackChunk.hpp"
 #include "gc/shenandoah/shenandoahCardTable.hpp"
@@ -74,19 +73,31 @@ void ShenandoahBarrierSet::print_on(outputStream* st) const {
 
 bool ShenandoahBarrierSet::need_load_reference_barrier(DecoratorSet decorators, BasicType type) {
   if (!ShenandoahLoadRefBarrier) return false;
-  // Only needed for references
   return is_reference_type(type);
 }
 
 bool ShenandoahBarrierSet::need_keep_alive_barrier(DecoratorSet decorators, BasicType type) {
   if (!ShenandoahSATBBarrier) return false;
-  // Only needed for references
   if (!is_reference_type(type)) return false;
-
   bool keep_alive = (decorators & AS_NO_KEEPALIVE) == 0;
   bool unknown = (decorators & ON_UNKNOWN_OOP_REF) != 0;
   bool on_weak_ref = (decorators & (ON_WEAK_OOP_REF | ON_PHANTOM_OOP_REF)) != 0;
   return (on_weak_ref || unknown) && keep_alive;
+}
+
+bool ShenandoahBarrierSet::need_satb_barrier(DecoratorSet decorators, BasicType type) {
+  if (!ShenandoahSATBBarrier) return false;
+  if (!is_reference_type(type)) return false;
+  bool as_normal = (decorators & AS_NORMAL) != 0;
+  bool dest_uninitialized = (decorators & IS_DEST_UNINITIALIZED) != 0;
+  return as_normal && !dest_uninitialized;
+}
+
+bool ShenandoahBarrierSet::need_card_barrier(DecoratorSet decorators, BasicType type) {
+  if (!ShenandoahCardBarrier) return false;
+  if (!is_reference_type(type)) return false;
+  bool in_heap = (decorators & IN_HEAP) != 0;
+  return in_heap;
 }
 
 void ShenandoahBarrierSet::on_slowpath_allocation_exit(JavaThread* thread, oop new_obj) {
@@ -172,12 +183,6 @@ void ShenandoahBarrierSet::on_thread_detach(Thread *thread) {
         StackWatermarkSet::finish_processing(JavaThread::cast(thread), &oops, StackWatermarkKind::gc);
       }
     }
-  }
-}
-
-void ShenandoahBarrierSet::clone_barrier_runtime(oop src) {
-  if (_heap->has_forwarded_objects()) {
-    clone_barrier(src);
   }
 }
 

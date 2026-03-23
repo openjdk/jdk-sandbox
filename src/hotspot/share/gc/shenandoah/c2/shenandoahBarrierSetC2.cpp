@@ -51,291 +51,114 @@ ShenandoahBarrierSetC2State::ShenandoahBarrierSetC2State(Arena* comp_arena) :
     _stubs_start_offset(0) {
 }
 
-#define __ kit->
-
-static bool satb_can_remove_pre_barrier(GraphKit* kit, PhaseValues* phase, Node* adr,
-                                        BasicType bt, uint adr_idx) {
-  intptr_t offset = 0;
-  Node* base = AddPNode::Ideal_base_and_offset(adr, phase, offset);
-  AllocateNode* alloc = AllocateNode::Ideal_allocation(base);
-
-  if (offset == Type::OffsetBot) {
-    return false; // cannot unalias unless there are precise offsets
-  }
-
-  if (alloc == nullptr) {
-    return false; // No allocation found
-  }
-
-  intptr_t size_in_bytes = type2aelembytes(bt);
-
-  Node* mem = __ memory(adr_idx); // start searching here...
-
-  for (int cnt = 0; cnt < 50; cnt++) {
-
-    if (mem->is_Store()) {
-
-      Node* st_adr = mem->in(MemNode::Address);
-      intptr_t st_offset = 0;
-      Node* st_base = AddPNode::Ideal_base_and_offset(st_adr, phase, st_offset);
-
-      if (st_base == nullptr) {
-        break; // inscrutable pointer
-      }
-
-      // Break we have found a store with same base and offset as ours so break
-      if (st_base == base && st_offset == offset) {
-        break;
-      }
-
-      if (st_offset != offset && st_offset != Type::OffsetBot) {
-        const int MAX_STORE = BytesPerLong;
-        if (st_offset >= offset + size_in_bytes ||
-            st_offset <= offset - MAX_STORE ||
-            st_offset <= offset - mem->as_Store()->memory_size()) {
-          // Success:  The offsets are provably independent.
-          // (You may ask, why not just test st_offset != offset and be done?
-          // The answer is that stores of different sizes can co-exist
-          // in the same sequence of RawMem effects.  We sometimes initialize
-          // a whole 'tile' of array elements with a single jint or jlong.)
-          mem = mem->in(MemNode::Memory);
-          continue; // advance through independent store memory
-        }
-      }
-
-      if (st_base != base
-          && MemNode::detect_ptr_independence(base, alloc, st_base,
-                                              AllocateNode::Ideal_allocation(st_base),
-                                              phase)) {
-        // Success:  The bases are provably independent.
-        mem = mem->in(MemNode::Memory);
-        continue; // advance through independent store memory
-      }
-    } else if (mem->is_Proj() && mem->in(0)->is_Initialize()) {
-
-      InitializeNode* st_init = mem->in(0)->as_Initialize();
-      AllocateNode* st_alloc = st_init->allocation();
-
-      // Make sure that we are looking at the same allocation site.
-      // The alloc variable is guaranteed to not be null here from earlier check.
-      if (alloc == st_alloc) {
-        // Check that the initialization is storing null so that no previous store
-        // has been moved up and directly write a reference
-        Node* captured_store = st_init->find_captured_store(offset,
-                                                            type2aelembytes(T_OBJECT),
-                                                            phase);
-        if (captured_store == nullptr || captured_store == st_init->zero_memory()) {
-          return true;
-        }
-      }
-    }
-
-    // Unless there is an explicit 'continue', we must bail out here,
-    // because 'mem' is an inscrutable memory state (e.g., a call).
-    break;
-  }
-
-  return false;
-}
-
-static bool shenandoah_can_remove_post_barrier(GraphKit* kit, PhaseValues* phase, Node* store_ctrl, Node* adr) {
-  intptr_t      offset = 0;
-  Node*         base   = AddPNode::Ideal_base_and_offset(adr, phase, offset);
-  AllocateNode* alloc  = AllocateNode::Ideal_allocation(base);
-
-  if (offset == Type::OffsetBot) {
-    return false; // Cannot unalias unless there are precise offsets.
-  }
-  if (alloc == nullptr) {
-    return false; // No allocation found.
-  }
-
-  Node* mem = store_ctrl;   // Start search from Store node.
-  if (mem->is_Proj() && mem->in(0)->is_Initialize()) {
-    InitializeNode* st_init = mem->in(0)->as_Initialize();
-    AllocateNode*  st_alloc = st_init->allocation();
-    // Make sure we are looking at the same allocation
-    if (alloc == st_alloc) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-bool ShenandoahBarrierSetC2::is_shenandoah_clone_call(Node* call) {
-  return call->is_CallLeaf() &&
-         call->as_CallLeaf()->entry_point() == CAST_FROM_FN_PTR(address, ShenandoahRuntime::clone_barrier);
-}
-
-const TypeFunc* ShenandoahBarrierSetC2::clone_barrier_Type() {
-  const Type **fields = TypeTuple::fields(1);
-  fields[TypeFunc::Parms+0] = TypeOopPtr::NOTNULL; // src oop
-  const TypeTuple *domain = TypeTuple::make(TypeFunc::Parms+1, fields);
-
-  // create result type (range)
-  fields = TypeTuple::fields(0);
-  const TypeTuple *range = TypeTuple::make(TypeFunc::Parms+0, fields);
-
-  return TypeFunc::make(domain, range);
-}
-
-static uint8_t get_store_barrier(C2Access& access) {
-  if (!access.is_parse_access()) {
-    // Only support for eliding barriers at parse time for now.
-    return ShenandoahBarrierSATB | ShenandoahBarrierCardMark;
-  }
-  GraphKit* kit = (static_cast<C2ParseAccess&>(access)).kit();
-  Node* ctl = kit->control();
-  Node* adr = access.addr().node();
-  uint adr_idx = kit->C->get_alias_index(access.addr().type());
-  assert(adr_idx != Compile::AliasIdxTop, "use other store_to_memory factory");
-
-  bool can_remove_pre_barrier = satb_can_remove_pre_barrier(kit, &kit->gvn(), adr, access.type(), adr_idx);
-
-  // We can skip marks on a freshly-allocated object in Eden. Keep this code in
-  // sync with CardTableBarrierSet::on_slowpath_allocation_exit. That routine
-  // informs GC to take appropriate compensating steps, upon a slow-path
-  // allocation, so as to make this card-mark elision safe.
-  // The post-barrier can also be removed if null is written. This case is
-  // handled by ShenandoahBarrierSetC2::expand_barriers, which runs at the end of C2's
-  // platform-independent optimizations to exploit stronger type information.
-  bool can_remove_post_barrier = ReduceInitialCardMarks &&
-    ((access.base() == kit->just_allocated_object(ctl)) ||
-     shenandoah_can_remove_post_barrier(kit, &kit->gvn(), ctl, adr));
-
-  int barriers = 0;
-  if (!can_remove_pre_barrier) {
-    barriers |= ShenandoahBarrierSATB;
-  } else {
-    barriers |= ShenandoahBarrierElided;
-  }
-
-  if (!can_remove_post_barrier) {
-    barriers |= ShenandoahBarrierCardMark;
-  } else {
-    barriers |= ShenandoahBarrierElided;
-  }
-
-  return barriers;
-}
-
-Node* ShenandoahBarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& val) const {
-  DecoratorSet decorators = access.decorators();
-  bool anonymous = (decorators & ON_UNKNOWN_OOP_REF) != 0;
-  bool in_heap = (decorators & IN_HEAP) != 0;
-  bool tightly_coupled_alloc = (decorators & C2_TIGHTLY_COUPLED_ALLOC) != 0;
-  bool needs_pre_barrier = access.is_oop() && (in_heap || anonymous);
-  // Pre-barriers are unnecessary for tightly-coupled initialization stores.
-  bool can_be_elided = needs_pre_barrier && tightly_coupled_alloc && ReduceInitialCardMarks;
-  bool no_keepalive = (decorators & AS_NO_KEEPALIVE) != 0;
-  if (needs_pre_barrier) {
-    if (can_be_elided) {
-      access.set_barrier_data(access.barrier_data() & ~ShenandoahBarrierSATB);
-      access.set_barrier_data(access.barrier_data() | ShenandoahBarrierElided);
-    } else {
-      access.set_barrier_data(get_store_barrier(access));
-    }
-  }
-  if (no_keepalive) {
-    // No keep-alive means no need for the pre-barrier.
-    access.set_barrier_data(access.barrier_data() & ~ShenandoahBarrierSATB);
-  }
-  return BarrierSetC2::store_at_resolved(access, val);
-}
-
-static void set_barrier_data(C2Access& access) {
+static void set_barrier_data(C2Access& access, bool load, bool store) {
   if (!access.is_oop()) {
     return;
   }
 
-  if (access.decorators() & C2_TIGHTLY_COUPLED_ALLOC) {
-    access.set_barrier_data(ShenandoahBarrierElided);
+  DecoratorSet decorators = access.decorators();
+  bool tightly_coupled = (decorators & C2_TIGHTLY_COUPLED_ALLOC) != 0;
+  bool in_heap = (decorators & IN_HEAP) != 0;
+  bool on_weak = (decorators & ON_WEAK_OOP_REF) != 0;
+  bool on_phantom = (decorators & ON_PHANTOM_OOP_REF) != 0;
+
+  if (tightly_coupled) {
+    access.set_barrier_data(ShenandoahBitElided);
     return;
   }
 
   uint8_t barrier_data = 0;
 
-  if (access.decorators() & ON_PHANTOM_OOP_REF) {
-    barrier_data |= ShenandoahBarrierPhantom;
-  } else if (access.decorators() & ON_WEAK_OOP_REF) {
-    barrier_data |= ShenandoahBarrierWeak;
-  } else {
-    barrier_data |= ShenandoahBarrierStrong;
+  if (load) {
+    if (ShenandoahLoadRefBarrier) {
+      if (on_phantom) {
+        barrier_data |= ShenandoahBitPhantom;
+      } else if (on_weak) {
+        barrier_data |= ShenandoahBitWeak;
+      } else {
+        barrier_data |= ShenandoahBitStrong;
+      }
+    }
   }
 
-  if (access.decorators() & IN_NATIVE) {
-    barrier_data |= ShenandoahBarrierNative;
+  if (store) {
+    if (ShenandoahSATBBarrier) {
+      barrier_data |= ShenandoahBitKeepAlive;
+    }
+    if (ShenandoahCardBarrier && in_heap) {
+      barrier_data |= ShenandoahBitCardMark;
+    }
+  }
+
+  if (!in_heap) {
+    barrier_data |= ShenandoahBitNative;
   }
 
   access.set_barrier_data(barrier_data);
 }
 
 Node* ShenandoahBarrierSetC2::load_at_resolved(C2Access& access, const Type* val_type) const {
-  // 1: non-reference load, no additional barrier is needed
+  // 1: Non-reference load, no additional barrier is needed
   if (!access.is_oop()) {
     return BarrierSetC2::load_at_resolved(access, val_type);
   }
 
-  // 2. Set barrier data for LRB.
-  set_barrier_data(access);
+  // 2. Set barrier data for load
+  set_barrier_data(access, /* load = */ true, /* store = */ false);
 
-  // 3. If we are reading the value of the referent field of a Reference object, we
-  // need to record the referent in an SATB log buffer using the pre-barrier
-  // mechanism.
+  // 3. Correction: If we are reading the value of the referent field of
+  // a Reference object, we need to record the referent resurrection.
   DecoratorSet decorators = access.decorators();
   bool on_weak = (decorators & ON_WEAK_OOP_REF) != 0;
   bool on_phantom = (decorators & ON_PHANTOM_OOP_REF) != 0;
   bool no_keepalive = (decorators & AS_NO_KEEPALIVE) != 0;
-  bool needs_read_barrier = ((on_weak || on_phantom) && !no_keepalive);
-  if (needs_read_barrier) {
-    uint8_t barriers = access.barrier_data() | ShenandoahBarrierSATB;
+  bool needs_keepalive = ((on_weak || on_phantom) && !no_keepalive);
+  if (needs_keepalive) {
+    uint8_t barriers = access.barrier_data() | (ShenandoahSATBBarrier ? ShenandoahBitKeepAlive : 0);
     access.set_barrier_data(barriers);
   }
 
   return BarrierSetC2::load_at_resolved(access, val_type);
 }
 
-Node* ShenandoahBarrierSetC2::atomic_cmpxchg_val_at_resolved(C2AtomicParseAccess& access, Node* expected_val,
-                                                             Node* new_val, const Type* value_type) const {
-  if (ShenandoahCASBarrier) {
-    set_barrier_data(access);
+Node* ShenandoahBarrierSetC2::store_at_resolved(C2Access& access, C2AccessValue& val) const {
+  // 1: Non-reference store, no additional barrier is needed
+  if (!access.is_oop()) {
+    return BarrierSetC2::store_at_resolved(access, val);
   }
 
-  if (access.is_oop()) {
-    access.set_barrier_data(access.barrier_data() | ShenandoahBarrierSATB | ShenandoahBarrierCardMark);
+  // 2. Set barrier data for store
+  set_barrier_data(access, /* load = */ false, /* store = */ true);
+
+  // 3. Correction: avoid keep-alive barriers that should not do keep-alive.
+  DecoratorSet decorators = access.decorators();
+  bool no_keepalive = (decorators & AS_NO_KEEPALIVE) != 0;
+  if (no_keepalive) {
+    access.set_barrier_data(access.barrier_data() & ~ShenandoahBitKeepAlive);
   }
+
+  return BarrierSetC2::store_at_resolved(access, val);
+}
+
+Node* ShenandoahBarrierSetC2::atomic_cmpxchg_val_at_resolved(C2AtomicParseAccess& access, Node* expected_val,
+                                                             Node* new_val, const Type* value_type) const {
+  set_barrier_data(access, /* load = */ true, /* store = */ true);
   return BarrierSetC2::atomic_cmpxchg_val_at_resolved(access, expected_val, new_val, value_type);
 }
 
 Node* ShenandoahBarrierSetC2::atomic_cmpxchg_bool_at_resolved(C2AtomicParseAccess& access, Node* expected_val,
                                                               Node* new_val, const Type* value_type) const {
-  if (ShenandoahCASBarrier) {
-    set_barrier_data(access);
-  }
-  GraphKit* kit = access.kit();
-  if (access.is_oop()) {
-    access.set_barrier_data(access.barrier_data() | ShenandoahBarrierSATB | ShenandoahBarrierCardMark);
-  }
+  set_barrier_data(access, /* load = */ true, /* store = */ true);
   return BarrierSetC2::atomic_cmpxchg_bool_at_resolved(access, expected_val, new_val, value_type);
 }
 
 Node* ShenandoahBarrierSetC2::atomic_xchg_at_resolved(C2AtomicParseAccess& access, Node* val, const Type* value_type) const {
-  if (access.is_oop()) {
-    access.set_barrier_data(ShenandoahBarrierStrong | ShenandoahBarrierSATB | ShenandoahBarrierCardMark);
-  }
+  set_barrier_data(access, /* load = */ true, /* store = */ true);
   return BarrierSetC2::atomic_xchg_at_resolved(access, val, value_type);
 }
 
-bool ShenandoahBarrierSetC2::is_gc_barrier_node(Node* node) const {
-  return is_shenandoah_clone_call(node);
-}
-
-static void refine_barrier_by_new_val_type(const Node* n) {
-  if (n->Opcode() != Op_StoreP && n->Opcode() != Op_StoreN) {
-    return;
-  }
-  MemNode* store = n->as_Mem();
+void ShenandoahBarrierSetC2::refine_store(const Node* n) {
+  MemNode* store = n->as_Store();
   const Node* newval = n->in(MemNode::ValueIn);
   assert(newval != nullptr, "");
   const Type* newval_bottom = newval->bottom_type();
@@ -353,17 +176,150 @@ static void refine_barrier_by_new_val_type(const Node* n) {
     return;
   }
   if (newval_type == TypePtr::Null) {
+    barrier_data &= ~ShenandoahBitNotNull;
     // Simply elide post-barrier if writing null.
-    barrier_data &= ~ShenandoahBarrierCardMark;
-    barrier_data &= ~ShenandoahBarrierCardMarkNotNull;
-  } else if ((barrier_data & ShenandoahBarrierCardMark) != 0 &&
-             newval_type == TypePtr::NotNull) {
-    // If the post-barrier has not been elided yet (e.g. due to newval being
-    // freshly allocated), mark it as not-null (simplifies barrier tests and
-    // compressed OOPs logic).
-    barrier_data |= ShenandoahBarrierCardMarkNotNull;
+    barrier_data &= ~ShenandoahBitCardMark;
+  } else if (newval_type == TypePtr::NotNull) {
+    barrier_data |= ShenandoahBitNotNull;
   }
   store->set_barrier_data(barrier_data);
+}
+
+bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* n) {
+  // Check if all outs feed into nodes that do not expose the oops to the rest
+  // of the runtime system. In this case, we can elide the LRB barrier. We bail
+  // out with false at the first sight of trouble.
+
+  ResourceMark rm;
+  VectorSet visited;
+  Node_List worklist;
+  worklist.push(n);
+
+  while (worklist.size() > 0) {
+    Node* n = worklist.pop();
+    if (visited.test_set(n->_idx)) {
+      continue;
+    }
+
+    for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
+      Node* out = n->fast_out(i);
+      switch (out->Opcode()) {
+        case Op_CmpN: {
+          if (out->in(1) == n &&
+              out->in(2)->Opcode() == Op_ConN &&
+              out->in(2)->get_narrowcon() == 0) {
+            // Null check, no oop is exposed.
+            break;
+          } else {
+            return false;
+          }
+        }
+        case Op_CmpP: {
+          if (out->in(1) == n &&
+              out->in(2)->Opcode() == Op_ConP &&
+              out->in(2)->get_ptr() == 0) {
+            // Null check, no oop is exposed.
+            break;
+          } else {
+            return false;
+          }
+        }
+        case Op_DecodeN:
+        case Op_CastPP: {
+          // Check if any other outs are escaping.
+          worklist.push(out);
+          break;
+        }
+        case Op_CallStaticJava: {
+          if (out->as_CallStaticJava()->is_uncommon_trap()) {
+            // Local feeds into uncommon trap. Deopt machinery handles barriers itself.
+            break;
+          } else {
+            return false;
+          }
+        }
+
+        default: {
+          // Paranoidly distrust any other nodes.
+          // TODO: Check if there are other patterns that benefit from this elision.
+          return false;
+        }
+      }
+    }
+  }
+
+  // Nothing troublesome found.
+  return true;
+}
+
+void ShenandoahBarrierSetC2::refine_load(Node* n) {
+  MemNode* load = n->as_Load();
+
+  uint8_t barrier_data = load->barrier_data();
+
+  // Do not touch weak LRBs at all: they are responsible for shielding from
+  // Reference.referent resurrection.
+  if ((barrier_data & (ShenandoahBitWeak | ShenandoahBitPhantom)) != 0) {
+    return;
+  }
+
+  if (can_remove_load_barrier(n)) {
+    barrier_data &= ~ShenandoahBitStrong;
+    barrier_data |= ShenandoahBitElided;
+  }
+
+  load->set_barrier_data(barrier_data);
+}
+
+void ShenandoahBarrierSetC2::final_refinement(Compile* C) const {
+  ResourceMark rm;
+  VectorSet visited;
+  Node_List worklist;
+  worklist.push(C->root());
+  while (worklist.size() > 0) {
+    Node* n = worklist.pop();
+    if (visited.test_set(n->_idx)) {
+      continue;
+    }
+
+    // Do another pass to catch new opportunities after post-expansion optimizations.
+    switch(n->Opcode()) {
+      case Op_StoreP:
+      case Op_StoreN: {
+        refine_store(n);
+        break;
+      }
+      case Op_LoadN:
+      case Op_LoadP: {
+        refine_load(n);
+        break;
+      }
+    }
+
+    // If there are no real barrier flags on the node, strip away additional fluff.
+    // Matcher does not care about this, and we would like to avoid invoking "barrier_data() != 0"
+    // rules when the only flags are the irrelevant fluff.
+    if (n->is_LoadStore()) {
+      LoadStoreNode* load_store = n->as_LoadStore();
+      uint8_t barrier_data = load_store->barrier_data();
+      if ((barrier_data & ShenandoahBitsReal) == 0) {
+        load_store->set_barrier_data(0);
+      }
+    } else if (n->is_Mem()) {
+      MemNode* mem = n->as_Mem();
+      uint8_t barrier_data = mem->barrier_data();
+      if ((barrier_data & ShenandoahBitsReal) == 0) {
+        mem->set_barrier_data(0);
+      }
+    }
+
+    for (uint j = 0; j < n->req(); j++) {
+      Node* in = n->in(j);
+      if (in != nullptr) {
+        worklist.push(in);
+      }
+    }
+  }
 }
 
 bool ShenandoahBarrierSetC2::expand_barriers(Compile* C, PhaseIterGVN& igvn) const {
@@ -376,7 +332,19 @@ bool ShenandoahBarrierSetC2::expand_barriers(Compile* C, PhaseIterGVN& igvn) con
     if (visited.test_set(n->_idx)) {
       continue;
     }
-    refine_barrier_by_new_val_type(n);
+    switch(n->Opcode()) {
+      case Op_StoreP:
+      case Op_StoreN: {
+        refine_store(n);
+        break;
+      }
+      case Op_LoadN:
+      case Op_LoadP: {
+        refine_load(n);
+        break;
+      }
+    }
+
     for (uint j = 0; j < n->req(); j++) {
       Node* in = n->in(j);
       if (in != nullptr) {
@@ -385,121 +353,6 @@ bool ShenandoahBarrierSetC2::expand_barriers(Compile* C, PhaseIterGVN& igvn) con
     }
   }
   return false;
-}
-
-bool ShenandoahBarrierSetC2::array_copy_requires_gc_barriers(bool tightly_coupled_alloc, BasicType type, bool is_clone, bool is_clone_instance, ArrayCopyPhase phase) const {
-  bool is_oop = is_reference_type(type);
-  if (!is_oop) {
-    return false;
-  }
-  if (ShenandoahSATBBarrier && tightly_coupled_alloc) {
-    if (phase == Optimization) {
-      return false;
-    }
-    return !is_clone;
-  }
-  return true;
-}
-
-bool ShenandoahBarrierSetC2::clone_needs_barrier(Node* src, PhaseGVN& gvn) {
-  const TypeOopPtr* src_type = gvn.type(src)->is_oopptr();
-  if (src_type->isa_instptr() != nullptr) {
-    ciInstanceKlass* ik = src_type->is_instptr()->instance_klass();
-    if ((src_type->klass_is_exact() || !ik->has_subklass()) && !ik->has_injected_fields()) {
-      if (ik->has_object_fields()) {
-        return true;
-      } else {
-        if (!src_type->klass_is_exact()) {
-          Compile::current()->dependencies()->assert_leaf_type(ik);
-        }
-      }
-    } else {
-      return true;
-        }
-  } else if (src_type->isa_aryptr()) {
-    BasicType src_elem = src_type->isa_aryptr()->elem()->array_element_basic_type();
-    if (is_reference_type(src_elem, true)) {
-      return true;
-    }
-  } else {
-    return true;
-  }
-  return false;
-}
-
-void ShenandoahBarrierSetC2::clone_at_expansion(PhaseMacroExpand* phase, ArrayCopyNode* ac) const {
-  Node* ctrl = ac->in(TypeFunc::Control);
-  Node* mem = ac->in(TypeFunc::Memory);
-  Node* src_base = ac->in(ArrayCopyNode::Src);
-  Node* src_offset = ac->in(ArrayCopyNode::SrcPos);
-  Node* dest_base = ac->in(ArrayCopyNode::Dest);
-  Node* dest_offset = ac->in(ArrayCopyNode::DestPos);
-  Node* length = ac->in(ArrayCopyNode::Length);
-
-  Node* src = phase->basic_plus_adr(src_base, src_offset);
-  Node* dest = phase->basic_plus_adr(dest_base, dest_offset);
-
-  if (ShenandoahCloneBarrier && clone_needs_barrier(src, phase->igvn())) {
-    // Check if heap is has forwarded objects. If it does, we need to call into the special
-    // routine that would fix up source references before we can continue.
-
-    enum { _heap_stable = 1, _heap_unstable, PATH_LIMIT };
-    Node* region = new RegionNode(PATH_LIMIT);
-    Node* mem_phi = new PhiNode(region, Type::MEMORY, TypeRawPtr::BOTTOM);
-
-    Node* thread = phase->transform_later(new ThreadLocalNode());
-    Node* offset = phase->igvn().MakeConX(in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    Node* gc_state_addr = phase->transform_later(new AddPNode(phase->C->top(), thread, offset));
-
-    uint gc_state_idx = Compile::AliasIdxRaw;
-    const TypePtr* gc_state_adr_type = nullptr; // debug-mode-only argument
-    DEBUG_ONLY(gc_state_adr_type = phase->C->get_adr_type(gc_state_idx));
-
-    Node* gc_state    = phase->transform_later(new LoadBNode(ctrl, mem, gc_state_addr, gc_state_adr_type, TypeInt::BYTE, MemNode::unordered));
-    Node* stable_and  = phase->transform_later(new AndINode(gc_state, phase->igvn().intcon(ShenandoahHeap::HAS_FORWARDED)));
-    Node* stable_cmp  = phase->transform_later(new CmpINode(stable_and, phase->igvn().zerocon(T_INT)));
-    Node* stable_test = phase->transform_later(new BoolNode(stable_cmp, BoolTest::ne));
-
-    IfNode* stable_iff  = phase->transform_later(new IfNode(ctrl, stable_test, PROB_UNLIKELY(0.999), COUNT_UNKNOWN))->as_If();
-    Node* stable_ctrl   = phase->transform_later(new IfFalseNode(stable_iff));
-    Node* unstable_ctrl = phase->transform_later(new IfTrueNode(stable_iff));
-
-    // Heap is stable, no need to do anything additional
-    region->init_req(_heap_stable, stable_ctrl);
-    mem_phi->init_req(_heap_stable, mem);
-
-    // Heap is unstable, call into clone barrier stub
-    Node* call = phase->make_leaf_call(unstable_ctrl, mem,
-                                       ShenandoahBarrierSetC2::clone_barrier_Type(),
-                                       CAST_FROM_FN_PTR(address, ShenandoahRuntime::clone_barrier),
-                                       "shenandoah_clone",
-                                       TypeRawPtr::BOTTOM,
-                                       src_base);
-    call = phase->transform_later(call);
-
-    ctrl = phase->transform_later(new ProjNode(call, TypeFunc::Control));
-    mem = phase->transform_later(new ProjNode(call, TypeFunc::Memory));
-    region->init_req(_heap_unstable, ctrl);
-    mem_phi->init_req(_heap_unstable, mem);
-
-    // Wire up the actual arraycopy stub now
-    ctrl = phase->transform_later(region);
-    mem = phase->transform_later(mem_phi);
-
-    const char* name = "arraycopy";
-    call = phase->make_leaf_call(ctrl, mem,
-                                 OptoRuntime::fast_arraycopy_Type(),
-                                 phase->basictype2arraycopy(T_LONG, nullptr, nullptr, true, name, true),
-                                 name, TypeRawPtr::BOTTOM,
-                                 src, dest, length
-                                 LP64_ONLY(COMMA phase->top()));
-    call = phase->transform_later(call);
-
-    // Hook up the whole thing into the graph
-    phase->igvn().replace_node(ac, call);
-  } else {
-    BarrierSetC2::clone_at_expansion(phase, ac);
-  }
 }
 
 // Support for macro expanded GC barriers
@@ -517,6 +370,237 @@ void ShenandoahBarrierSetC2::eliminate_gc_barrier(PhaseMacroExpand* macro, Node*
   eliminate_gc_barrier_data(node);
 }
 
+void ShenandoahBarrierSetC2::elide_dominated_barrier(MachNode* mach) const {
+  mach->set_barrier_data(0);
+}
+
+void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
+  ResourceMark rm;
+  Compile* const C = Compile::current();
+  PhaseCFG* const cfg = C->cfg();
+
+  Node_List loads, stores, atomics;
+  Node_List load_dominators, store_dominators, atomic_dominators;
+
+  for (uint i = 0; i < cfg->number_of_blocks(); ++i) {
+    const Block* const block = cfg->get_block(i);
+    for (uint j = 0; j < block->number_of_nodes(); ++j) {
+      Node* const node = block->get_node(j);
+
+      // Everything that happens in allocations does not need barriers.
+      if (node->is_Phi() && is_allocation(node)) {
+        load_dominators.push(node);
+        store_dominators.push(node);
+        atomic_dominators.push(node);
+        continue;
+      }
+
+      if (!node->is_Mach()) {
+        continue;
+      }
+
+      MachNode* const mach = node->as_Mach();
+      switch (mach->ideal_Opcode()) {
+
+        // Dominating loads have already passed through LRB and their load
+        // locations got fixed. Subsequent barriers are no longer required.
+        // The only exception are weak loads that have to go through LRB
+        // to deal with dying referents.
+        case Op_LoadP:
+        case Op_LoadN: {
+          if ((mach->barrier_data() & ShenandoahBitStrong) != 0) {
+            loads.push(mach);
+            load_dominators.push(mach);
+          }
+          break;
+        }
+
+        // Dominating stores have recorded the old value in SATB, and made the
+        // card table update for a location. Subsequent barriers are no longer
+        // required.
+        case Op_StoreP:
+        case Op_StoreN: {
+          if (mach->barrier_data() != 0) {
+            stores.push(mach);
+            load_dominators.push(mach);
+            store_dominators.push(mach);
+            atomic_dominators.push(mach);
+          }
+          break;
+        }
+
+        // Dominating atomics have dealt with false positives, and made the card
+        // table updates for a location. Even though CAS barriers are conditional,
+        // they perform all needed barriers when memory access is successful.
+        // Therefore, subsequent barriers are no longer required.
+        case Op_CompareAndExchangeN:
+        case Op_CompareAndExchangeP:
+        case Op_CompareAndSwapN:
+        case Op_CompareAndSwapP:
+        case Op_GetAndSetP:
+        case Op_GetAndSetN: {
+          if (mach->barrier_data() != 0) {
+            atomics.push(mach);
+            load_dominators.push(mach);
+            store_dominators.push(mach);
+            atomic_dominators.push(mach);
+          }
+          break;
+        }
+
+      default:
+        break;
+      }
+    }
+  }
+
+  elide_dominated_barriers(loads, load_dominators);
+  elide_dominated_barriers(stores, store_dominators);
+  elide_dominated_barriers(atomics, atomic_dominators);
+}
+
+uint ShenandoahBarrierSetC2::estimated_barrier_size(const Node* node) const {
+  uint8_t bd = MemNode::barrier_data(node);
+  assert(bd != 0, "Checked by caller");
+  if ((bd & ShenandoahBitElided) != 0) {
+    return 0;
+  }
+  // GC state check is ~4 fast-path nodes: Cmp, Bool, If, If-Proj.
+  return 4;
+}
+
+bool ShenandoahBarrierSetC2::array_copy_requires_gc_barriers(bool tightly_coupled_alloc, BasicType type, bool is_clone, bool is_clone_instance, ArrayCopyPhase phase) const {
+  bool is_oop = is_reference_type(type);
+  if (!is_oop) {
+    return false;
+  }
+  if (ShenandoahSATBBarrier && tightly_coupled_alloc) {
+    if (phase == Optimization) {
+      return false;
+    }
+    return !is_clone;
+  }
+  return true;
+}
+
+bool ShenandoahBarrierSetC2::clone_needs_barrier(const TypeOopPtr* src_type, bool& is_oop_array) {
+  if (!ShenandoahCloneBarrier) {
+    return false;
+  }
+
+  if (src_type->isa_instptr() != nullptr) {
+    // Instance: need barrier only if there is a possibility of having an oop anywhere in it.
+    ciInstanceKlass* ik = src_type->is_instptr()->instance_klass();
+    if ((src_type->klass_is_exact() || !ik->has_subklass()) &&
+        !ik->has_injected_fields() && !ik->has_object_fields()) {
+      if (!src_type->klass_is_exact()) {
+        // Class is *currently* the leaf in the hierarchy.
+        // Record the dependency so that we deopt if this does not hold in future.
+        Compile::current()->dependencies()->assert_leaf_type(ik);
+      }
+      return false;
+    }
+  } else if (src_type->isa_aryptr() != nullptr) {
+    // Array: need barrier only if array is oop-bearing.
+    BasicType src_elem = src_type->isa_aryptr()->elem()->array_element_basic_type();
+    if (is_reference_type(src_elem, true)) {
+      is_oop_array = true;
+    } else {
+      return false;
+    }
+  }
+
+  // Assume the worst.
+  return true;
+}
+
+void ShenandoahBarrierSetC2::clone(GraphKit* kit, Node* src_base, Node* dst_base, Node* size, bool is_array) const {
+  const TypeOopPtr* src_type = kit->gvn().type(src_base)->is_oopptr();
+
+  bool is_oop_array = false;
+  if (!clone_needs_barrier(src_type, is_oop_array)) {
+    // No barrier is needed? Just do what common BarrierSetC2 wants with it.
+    BarrierSetC2::clone(kit, src_base, dst_base, size, is_array);
+    return;
+  }
+
+  if (ShenandoahCloneRuntime || !is_array || !is_oop_array) {
+    // Looks like an instance? Prepare the instance clone. This would either
+    // be exploded into individual accesses or be left as runtime call.
+    // Common BarrierSetC2 prepares everything for both cases.
+    BarrierSetC2::clone(kit, src_base, dst_base, size, is_array);
+    return;
+  }
+
+  // We are cloning the oop array. Prepare to call the normal arraycopy stub
+  // after the expansion. Normal stub takes the number of actual type-sized
+  // elements to copy after the base, compute the count here.
+  Node* offset = kit->MakeConX(arrayOopDesc::base_offset_in_bytes(UseCompressedOops ? T_NARROWOOP : T_OBJECT));
+  size = kit->gvn().transform(new SubXNode(size, offset));
+  size = kit->gvn().transform(new URShiftXNode(size, kit->intcon(LogBytesPerHeapOop)));
+  ArrayCopyNode* ac = ArrayCopyNode::make(kit, false, src_base, offset, dst_base, offset, size, true, false);
+  ac->set_clone_array();
+  Node* n = kit->gvn().transform(ac);
+  if (n == ac) {
+    ac->set_adr_type(TypeRawPtr::BOTTOM);
+    kit->set_predefined_output_for_runtime_call(ac, ac->in(TypeFunc::Memory), TypeRawPtr::BOTTOM);
+  } else {
+    kit->set_all_memory(n);
+  }
+}
+
+void ShenandoahBarrierSetC2::clone_at_expansion(PhaseMacroExpand* phase, ArrayCopyNode* ac) const {
+  Node* const ctrl        = ac->in(TypeFunc::Control);
+  Node* const mem         = ac->in(TypeFunc::Memory);
+  Node* const src         = ac->in(ArrayCopyNode::Src);
+  Node* const src_offset  = ac->in(ArrayCopyNode::SrcPos);
+  Node* const dest        = ac->in(ArrayCopyNode::Dest);
+  Node* const dest_offset = ac->in(ArrayCopyNode::DestPos);
+  Node* length            = ac->in(ArrayCopyNode::Length);
+
+  const TypeOopPtr* src_type = phase->igvn().type(src)->is_oopptr();
+
+  bool is_oop_array = false;
+  if (!clone_needs_barrier(src_type, is_oop_array)) {
+    // No barrier is needed? Expand to normal HeapWord-sized arraycopy.
+    BarrierSetC2::clone_at_expansion(phase, ac);
+    return;
+  }
+
+  if (ShenandoahCloneRuntime || !ac->is_clone_array() || !is_oop_array) {
+    // Still looks like an instance? Likely a large instance or reflective
+    // clone with unknown length. Go to runtime and handle it there.
+    clone_in_runtime(phase, ac, CAST_FROM_FN_PTR(address, ShenandoahRuntime::clone_addr()), "ShenandoahRuntime::clone");
+    return;
+  }
+
+  // We are cloning the oop array. Call into normal oop array copy stubs.
+  // Those stubs would call BarrierSetAssembler to handle GC barriers.
+
+  // This is the full clone, so offsets should equal each other and be at array base.
+  assert(src_offset == dest_offset, "should be equal");
+  const jlong offset = src_offset->get_long();
+  const TypeAryPtr* const ary_ptr = src->get_ptr_type()->isa_aryptr();
+  BasicType bt = ary_ptr->elem()->array_element_basic_type();
+  assert(offset == arrayOopDesc::base_offset_in_bytes(bt), "should match");
+
+  const char*   copyfunc_name = "arraycopy";
+  const address copyfunc_addr = phase->basictype2arraycopy(T_OBJECT, nullptr, nullptr, true, copyfunc_name, true);
+
+  Node* const call = phase->make_leaf_call(ctrl, mem,
+      OptoRuntime::fast_arraycopy_Type(),
+      copyfunc_addr, copyfunc_name,
+      TypeRawPtr::BOTTOM,
+      phase->basic_plus_adr(src, src_offset),
+      phase->basic_plus_adr(dest, dest_offset),
+      length,
+      phase->top()
+  );
+  phase->transform_later(call);
+
+  phase->igvn().replace_node(ac, call);
+}
+
 void* ShenandoahBarrierSetC2::create_barrier_state(Arena* comp_arena) const {
   return new(comp_arena) ShenandoahBarrierSetC2State(comp_arena);
 }
@@ -525,13 +609,67 @@ ShenandoahBarrierSetC2State* ShenandoahBarrierSetC2::state() const {
   return reinterpret_cast<ShenandoahBarrierSetC2State*>(Compile::current()->barrier_set_state());
 }
 
+void ShenandoahBarrierSetC2::print_barrier_data(outputStream* os, uint8_t data) {
+  os->print(" Node barriers: ");
+  if ((data & ShenandoahBitStrong) != 0) {
+    data &= ~ShenandoahBitStrong;
+    os->print("strong ");
+  }
+
+  if ((data & ShenandoahBitWeak) != 0) {
+    data &= ~ShenandoahBitWeak;
+    os->print("weak ");
+  }
+
+  if ((data & ShenandoahBitPhantom) != 0) {
+    data &= ~ShenandoahBitPhantom;
+    os->print("phantom ");
+  }
+
+  if ((data & ShenandoahBitElided) != 0) {
+    data &= ~ShenandoahBitElided;
+    os->print("elided ");
+  }
+
+  if ((data & ShenandoahBitKeepAlive) != 0) {
+    data &= ~ShenandoahBitKeepAlive;
+    os->print("keepalive ");
+  }
+
+  if ((data & ShenandoahBitCardMark) != 0) {
+    data &= ~ShenandoahBitCardMark;
+    os->print("cardmark ");
+  }
+
+  if ((data & ShenandoahBitNotNull) != 0) {
+    data &= ~ShenandoahBitNotNull;
+    os->print("not-null ");
+  }
+  os->cr();
+
+  if (data > 0) {
+    fatal("Unknown bit!");
+  }
+
+  os->print_cr(" GC configuration: %sLRB %sSATB %sCAS %sClone %sCard",
+    (ShenandoahLoadRefBarrier ? "+" : "-"),
+    (ShenandoahSATBBarrier    ? "+" : "-"),
+    (ShenandoahCASBarrier     ? "+" : "-"),
+    (ShenandoahCloneBarrier   ? "+" : "-"),
+    (ShenandoahCardBarrier    ? "+" : "-")
+  );
+}
+
 #ifdef ASSERT
-void ShenandoahBarrierSetC2::report_verify_failure(bool failed, const char* msg, Node* n) {
-  if (failed) {
-    tty->print_cr("----------------------------------- IDX  %d -----------------------------------", n->_idx);
-    n->dump(3);
-    tty->print_cr("---------------------------------------------------------------------------------");
-    fatal("%s", msg);
+void ShenandoahBarrierSetC2::verify_gc_barrier_assert(bool cond, const char* msg, uint8_t bd, Node* n) {
+  if (!cond) {
+    stringStream ss;
+    ss.print_cr("%s", msg);
+    ss.print_cr("-----------------");
+    print_barrier_data(&ss, bd);
+    ss.print_cr("-----------------");
+    n->dump_bfs(1, nullptr, "", &ss);
+    report_vm_error(__FILE__, __LINE__, ss.as_string());
   }
 }
 
@@ -539,6 +677,12 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
   if (!ShenandoahVerifyOptoBarriers) {
     return;
   }
+
+  // Final refinement might have removed the remaining auxiliary flags, making some accesses completely blank.
+  bool accept_blank = (phase == BeforeCodeGen);
+  bool expect_load_barriers       = !accept_blank && ShenandoahLoadRefBarrier;
+  bool expect_store_barriers      = !accept_blank && (ShenandoahSATBBarrier || ShenandoahCardBarrier);
+  bool expect_load_store_barriers = !accept_blank && ShenandoahCASBarrier;
 
   Unique_Node_List wq;
   Node_Stack phis(0);
@@ -550,27 +694,53 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
     int opc = n->Opcode();
 
     if (opc == Op_LoadP || opc == Op_LoadN) {
-      const TypePtr* adr_type = n->as_Load()->adr_type();
+      uint8_t bd = n->as_Load()->barrier_data();
 
-      if (!adr_type->isa_oopptr()) {
-        continue;
-      } else if (adr_type->isa_instptr() &&
-                  adr_type->is_instptr()->instance_klass()->is_subtype_of(Compile::current()->env()->Reference_klass()) &&
-                  adr_type->is_instptr()->offset() == java_lang_ref_Reference::referent_offset()) {
-        continue;
+      const TypePtr* adr_type = n->as_Load()->adr_type();
+      if (adr_type->isa_oopptr() || adr_type->isa_narrowoop()) {
+        verify_gc_barrier_assert(!expect_load_barriers || (bd != 0), "Oop load should have barrier data", bd, n);
+
+        bool is_weak = ((bd & (ShenandoahBitWeak | ShenandoahBitPhantom)) != 0);
+        bool is_referent = adr_type->isa_instptr() &&
+            adr_type->is_instptr()->instance_klass()->is_subtype_of(Compile::current()->env()->Reference_klass()) &&
+            adr_type->is_instptr()->offset() == java_lang_ref_Reference::referent_offset();
+
+        verify_gc_barrier_assert(!is_weak || is_referent, "Weak load only for Reference.referent", bd, n);
+      } else if (adr_type->isa_rawptr() || adr_type->isa_klassptr()) {
+        // Some LoadP-s are used for T_ADDRESS loads from raw pointers. These are not oops.
+        // Some LoadP-s are used to load class data.
+        // TODO: Verify their barrier data.
       } else {
-        report_verify_failure(n->as_Load()->barrier_data() == 0, "Load should have barriers.", n);
+        verify_gc_barrier_assert(false, "Unclassified access type", bd, n);
       }
     } else if (opc == Op_StoreP || opc == Op_StoreN) {
+      uint8_t bd = n->as_Store()->barrier_data();
       const TypePtr* adr_type = n->as_Store()->adr_type();
-      if (adr_type->isa_oopptr() && n->in(MemNode::ValueIn)->bottom_type()->make_oopptr()) {
-        const TypePtr* adr_type = n->as_Store()->in(MemNode::Memory)->adr_type();
-        if (adr_type->isa_oopptr()) {
-          report_verify_failure(n->as_Store()->barrier_data() == 0, "Store should have barrier data.", n);
+      if (adr_type->isa_oopptr() || adr_type->isa_narrowoop()) {
+        // Reference.clear stores null
+        bool is_referent = adr_type->isa_instptr() &&
+             adr_type->is_instptr()->instance_klass()->is_subtype_of(Compile::current()->env()->Reference_klass()) &&
+             adr_type->is_instptr()->offset() == java_lang_ref_Reference::referent_offset();
+
+        const TypePtr* val_type = n->as_Store()->in(MemNode::Memory)->adr_type();
+        if (!is_referent && (val_type->isa_oopptr() || val_type->isa_narrowoop())) {
+          verify_gc_barrier_assert(!expect_store_barriers || (bd != 0), "Oop store should have barrier data", bd, n);
         }
+      } else if (adr_type->isa_rawptr() || adr_type->isa_klassptr()) {
+        // Similar to LoadP-s, some of these accesses are raw, and some are handling oops.
+        // TODO: Verify their barrier data.
+      } else {
+        verify_gc_barrier_assert(false, "Unclassified access type", bd, n);
       }
-    } else if (n->is_LoadStore()) {
-      report_verify_failure(n->bottom_type()->make_oopptr() && n->as_LoadStore()->barrier_data() == 0, "LoadStore should have barrier data.", n);
+    } else if (opc == Op_WeakCompareAndSwapP || opc == Op_WeakCompareAndSwapN ||
+               opc == Op_CompareAndExchangeP || opc == Op_CompareAndExchangeN ||
+               opc == Op_CompareAndSwapP     || opc == Op_CompareAndSwapN ||
+               opc == Op_GetAndSetP          || opc == Op_GetAndSetN) {
+      uint8_t bd = n->as_LoadStore()->barrier_data();
+      verify_gc_barrier_assert(!expect_load_store_barriers || (bd != 0), "Oop load-store should have barrier data", bd, n);
+    } else if (n->is_Mem()) {
+      uint8_t bd = MemNode::barrier_data(n); // FIXME: LOL HotSpot, why not n->as_Mem()? LoadStore is both is_Mem() and not as_Mem().
+      verify_gc_barrier_assert(bd == 0, "Other mem nodes should have no barrier data", bd, n);
     }
 
     for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
@@ -586,25 +756,21 @@ static ShenandoahBarrierSetC2State* barrier_set_state() {
 }
 
 int ShenandoahBarrierSetC2::estimate_stub_size() const {
-  Compile* const C = Compile::current();
-  BufferBlob* const blob = C->output()->scratch_buffer_blob();
   GrowableArray<ShenandoahBarrierStubC2*>* const stubs = barrier_set_state()->stubs();
-  int size = 0;
-
-  for (int i = 0; i < stubs->length(); i++) {
-    CodeBuffer cb(blob->content_begin(), checked_cast<CodeBuffer::csize_t>((address)C->output()->scratch_locs_memory() - blob->content_begin()));
-    MacroAssembler masm(&cb);
-    stubs->at(i)->emit_code(masm);
-    size += cb.insts_size();
-  }
-
-  return size;
+  assert(stubs->is_empty(), "Lifecycle: no stubs were yet created");
+  return 0;
 }
 
 void ShenandoahBarrierSetC2::emit_stubs(CodeBuffer& cb) const {
   MacroAssembler masm(&cb);
   GrowableArray<ShenandoahBarrierStubC2*>* const stubs = barrier_set_state()->stubs();
   barrier_set_state()->set_stubs_start_offset(masm.offset());
+
+  // Stub generation uses nested skipped counters that can double-count.
+  // Calculate the actual skipped amount by the real PC before/after stub generation.
+  // FIXME: This should be handled upstream.
+  int offset_before = masm.offset();
+  int skipped_before = masm.get_skipped();
 
   for (int i = 0; i < stubs->length(); i++) {
     // Make sure there is enough space in the code buffer
@@ -616,8 +782,15 @@ void ShenandoahBarrierSetC2::emit_stubs(CodeBuffer& cb) const {
     stubs->at(i)->emit_code(masm);
   }
 
-  masm.flush();
+  int offset_after = masm.offset();
 
+  // The real stubs section is coming up after this, so we have to account for alignment
+  // padding there. See CodeSection::alignment().
+  offset_after = align_up(offset_after, HeapWordSize);
+
+  masm.set_skipped(skipped_before + (offset_after - offset_before));
+
+  masm.flush();
 }
 
 void ShenandoahBarrierStubC2::register_stub() {
@@ -626,33 +799,29 @@ void ShenandoahBarrierStubC2::register_stub() {
   }
 }
 
-ShenandoahLoadRefBarrierStubC2* ShenandoahLoadRefBarrierStubC2::create(const MachNode* node, Register obj, Register addr, Register tmp1, Register tmp2, Register tmp3, bool narrow) {
-  auto* stub = new (Compile::current()->comp_arena()) ShenandoahLoadRefBarrierStubC2(node, obj, addr, tmp1, tmp2, tmp3, narrow);
+ShenandoahLoadBarrierStubC2* ShenandoahLoadBarrierStubC2::create(const MachNode* node, Register dst, Address addr) {
+  auto* stub = new (Compile::current()->comp_arena()) ShenandoahLoadBarrierStubC2(node, dst, addr.base(), addr);
   stub->register_stub();
   return stub;
 }
 
-ShenandoahSATBBarrierStubC2* ShenandoahSATBBarrierStubC2::create(const MachNode* node, Register addr, Register preval, Register tmp, bool encoded_preval) {
-  auto* stub = new (Compile::current()->comp_arena()) ShenandoahSATBBarrierStubC2(node, addr, preval, tmp, encoded_preval);
+ShenandoahStoreBarrierStubC2* ShenandoahStoreBarrierStubC2::create(const MachNode* node, Address addr, bool dst_narrow, Register src, bool src_narrow, Register tmp) {
+  auto* stub = new (Compile::current()->comp_arena()) ShenandoahStoreBarrierStubC2(node, addr.base(), addr, dst_narrow, src, src_narrow, tmp);
   stub->register_stub();
   return stub;
 }
 
-ShenandoahCASBarrierSlowStubC2* ShenandoahCASBarrierSlowStubC2::create(const MachNode* node, Register addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool cae, bool acquire, bool release, bool weak) {
-  auto* stub = new (Compile::current()->comp_arena()) ShenandoahCASBarrierSlowStubC2(node, addr, Address(), expected, new_val, result, tmp1, tmp2, cae, acquire, release, weak);
-  stub->register_stub();
-  return stub;
-}
-
-ShenandoahCASBarrierSlowStubC2* ShenandoahCASBarrierSlowStubC2::create(const MachNode* node, Address addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool cae) {
-  auto* stub = new (Compile::current()->comp_arena()) ShenandoahCASBarrierSlowStubC2(node, noreg, addr, expected, new_val, result, tmp1, tmp2, cae, false, false, false);
+ShenandoahCASBarrierStubC2* ShenandoahCASBarrierStubC2::create(const MachNode* node, Address addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae, bool maybe_null, bool acquire, bool release, bool weak) {
+  auto* stub = new (Compile::current()->comp_arena()) ShenandoahCASBarrierStubC2(node, addr.base(), addr, expected, new_val, result, tmp1, tmp1, narrow, cae, maybe_null, acquire, release, weak);
   stub->register_stub();
   return stub;
 }
 
 bool ShenandoahBarrierSetC2State::needs_liveness_data(const MachNode* mach) const {
-  return ShenandoahSATBBarrierStubC2::needs_barrier(mach) ||
-         ShenandoahLoadRefBarrierStubC2::needs_barrier(mach);
+  // Must ask all stubs!
+  return ShenandoahLoadBarrierStubC2::needs_barrier(mach) ||
+         ShenandoahStoreBarrierStubC2::needs_barrier(mach) ||
+         ShenandoahCASBarrierStubC2::needs_barrier(mach);
 }
 
 bool ShenandoahBarrierSetC2State::needs_livein_data() const {

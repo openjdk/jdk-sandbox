@@ -1472,7 +1472,7 @@ Node* GraphKit::cast_not_null(Node* obj, bool do_replace_in_map) {
 // In that case that data path will die and we need the control path
 // to become dead as well to keep the graph consistent. So we have to
 // add a check for null for which one branch can't be taken. It uses
-// an OpaqueNotNull node that will cause the check to be removed after loop
+// an OpaqueConstantBool node that will cause the check to be removed after loop
 // opts so the test goes away and the compiled code doesn't execute a
 // useless check.
 Node* GraphKit::must_be_not_null(Node* value, bool do_replace_in_map) {
@@ -1481,7 +1481,7 @@ Node* GraphKit::must_be_not_null(Node* value, bool do_replace_in_map) {
   }
   Node* chk = _gvn.transform(new CmpPNode(value, null()));
   Node* tst = _gvn.transform(new BoolNode(chk, BoolTest::ne));
-  Node* opaq = _gvn.transform(new OpaqueNotNullNode(C, tst));
+  Node* opaq = _gvn.transform(new OpaqueConstantBoolNode(C, tst, true));
   IfNode* iff = new IfNode(control(), opaq, PROB_MAX, COUNT_UNKNOWN);
   _gvn.set_type(iff, iff->Value(&_gvn));
   if (!tst->is_Con()) {
@@ -3990,6 +3990,9 @@ AllocateNode* AllocateNode::Ideal_allocation(Node* ptr) {
   if (ptr == nullptr) {     // reduce dumb test in callers
     return nullptr;
   }
+
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+  ptr = bs->step_over_gc_barrier(ptr);
 
   if (ptr->is_CheckCastPP()) { // strip only one raw-to-oop cast
     ptr = ptr->in(1);

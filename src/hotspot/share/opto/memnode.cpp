@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1997, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 1997, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2024, Alibaba Group Holding Limited. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -106,7 +106,6 @@ void MemNode::dump_spec(outputStream *st) const {
   if (_unsafe_access) {
     st->print(" unsafe");
   }
-  st->print(" barrier: %u", _barrier_data);
 }
 
 void MemNode::dump_adr_type(const TypePtr* adr_type, outputStream* st) {
@@ -651,7 +650,10 @@ ArrayCopyNode* MemNode::find_array_copy_clone(Node* ld_alloc, Node* mem) const {
           mb->in(0)->in(0) != nullptr && mb->in(0)->in(0)->is_ArrayCopy()) {
         ac = mb->in(0)->in(0)->as_ArrayCopy();
       } else {
-        Node* control_proj_ac = mb->in(0);
+        // Step over GC barrier when ReduceInitialCardMarks is disabled
+        BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+        Node* control_proj_ac = bs->step_over_gc_barrier(mb->in(0));
+
         if (control_proj_ac->is_Proj() && control_proj_ac->in(0)->is_ArrayCopy()) {
           ac = control_proj_ac->in(0)->as_ArrayCopy();
         }
@@ -870,8 +872,8 @@ uint8_t MemNode::barrier_data(const Node* n) {
     return n->as_LoadStore()->barrier_data();
   } else if (n->is_Mem()) {
     return n->as_Mem()->barrier_data();
-  } else if (n->is_DecodeN()) {
-    return MemNode::barrier_data(n->in(1));
+  } else if (n->is_DecodeN() && n->in(1)->is_Load()) {
+    return n->in(1)->as_Load()->barrier_data();
   }
   return 0;
 }
@@ -900,7 +902,7 @@ void LoadNode::dump_spec(outputStream *st) const {
     // standard dump does this in Verbose and WizardMode
     st->print(" #"); _type->dump_on(st);
   }
-  if (!depends_only_on_test()) {
+  if (in(0) != nullptr && !depends_only_on_test()) {
     st->print(" (does not depend only on test, ");
     if (control_dependency() == UnknownControl) {
       st->print("unknown control");
@@ -912,9 +914,6 @@ void LoadNode::dump_spec(outputStream *st) const {
       st->print("unknown reason");
     }
     st->print(")");
-  }
-  if (is_acquire()) {
-    st->print("is_acquire");
   }
 }
 #endif
@@ -1028,14 +1027,6 @@ static bool skip_through_membars(Compile::AliasType* atp, const TypeInstPtr* tp,
   return false;
 }
 
-LoadNode* LoadNode::pin_array_access_node() const {
-  const TypePtr* adr_type = this->adr_type();
-  if (adr_type != nullptr && adr_type->isa_aryptr()) {
-    return clone_pinned();
-  }
-  return nullptr;
-}
-
 // Is the value loaded previously stored by an arraycopy? If so return
 // a load node that reads from the source array so we may be able to
 // optimize out the ArrayCopy node later.
@@ -1061,8 +1052,9 @@ Node* LoadNode::can_see_arraycopy_value(Node* st, PhaseGVN* phase) const {
     if (ac->as_ArrayCopy()->is_clonebasic()) {
       assert(ld_alloc != nullptr, "need an alloc");
       assert(addp->is_AddP(), "address must be addp");
-      assert(addp->in(AddPNode::Base) == ac->in(ArrayCopyNode::Dest), "strange pattern");
-      assert(addp->in(AddPNode::Address) == ac->in(ArrayCopyNode::Dest), "strange pattern");
+      BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+      assert(bs->step_over_gc_barrier(addp->in(AddPNode::Base)) == bs->step_over_gc_barrier(ac->in(ArrayCopyNode::Dest)), "strange pattern");
+      assert(bs->step_over_gc_barrier(addp->in(AddPNode::Address)) == bs->step_over_gc_barrier(ac->in(ArrayCopyNode::Dest)), "strange pattern");
       addp->set_req(AddPNode::Base, src);
       addp->set_req(AddPNode::Address, src);
     } else {
@@ -1246,6 +1238,8 @@ Node* MemNode::can_see_stored_value(Node* st, PhaseValues* phase) const {
         (tp != nullptr) && tp->is_ptr_to_boxed_value()) {
       intptr_t ignore = 0;
       Node* base = AddPNode::Ideal_base_and_offset(ld_adr, phase, ignore);
+      BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+      base = bs->step_over_gc_barrier(base);
       if (base != nullptr && base->is_Proj() &&
           base->as_Proj()->_con == TypeFunc::Parms &&
           base->in(0)->is_CallStaticJava() &&
@@ -2526,6 +2520,12 @@ Node* LoadNode::klass_identity_common(PhaseGVN* phase) {
   const TypeOopPtr* toop = phase->type(adr)->isa_oopptr();
   if (toop == nullptr)     return this;
 
+  // Step over potential GC barrier for OopHandle resolve
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+  if (bs->is_gc_barrier_node(base)) {
+    base = bs->step_over_gc_barrier(base);
+  }
+
   // We can fetch the klass directly through an AllocateNode.
   // This works even if the klass is not constant (clone or newArray).
   if (offset == oopDesc::klass_offset_in_bytes()) {
@@ -2579,6 +2579,21 @@ LoadNode* LoadNode::clone_pinned() const {
   return ld;
 }
 
+// Pin a LoadNode if it carries a dependency on its control input. There are cases when the node
+// does not actually have any dependency on its control input. For example, if we have a LoadNode
+// being used only outside a loop but it must be scheduled inside the loop, we can clone the node
+// for each of its use so that all the clones can be scheduled outside the loop. Then, to prevent
+// the clones from being GVN-ed again, we add a control input for each of them at the loop exit. In
+// those case, since there is not a dependency between the node and its control input, we do not
+// need to pin it.
+LoadNode* LoadNode::pin_node_under_control_impl() const {
+  const TypePtr* adr_type = this->adr_type();
+  if (adr_type != nullptr && adr_type->isa_aryptr()) {
+    // Only array accesses have dependencies on their control input
+    return clone_pinned();
+  }
+  return nullptr;
+}
 
 //------------------------------Value------------------------------------------
 const Type* LoadNKlassNode::Value(PhaseGVN* phase) const {

@@ -44,23 +44,16 @@ class ShenandoahBarrierSetAssembler: public BarrierSetAssembler {
   friend class ShenandoahCASBarrierSlowStub;
 private:
 
-  void satb_write_barrier_pre(MacroAssembler* masm,
-                              Register obj,
-                              Register pre_val,
-                              Register thread,
-                              Register tmp1,
-                              Register tmp2,
-                              bool tosca_live,
-                              bool expand_call);
-  void shenandoah_write_barrier_pre(MacroAssembler* masm,
-                                    Register obj,
-                                    Register pre_val,
-                                    Register thread,
-                                    Register tmp,
-                                    bool tosca_live,
-                                    bool expand_call);
+  void satb_barrier(MacroAssembler* masm,
+                    Register obj,
+                    Register pre_val,
+                    Register thread,
+                    Register tmp1,
+                    Register tmp2,
+                    bool tosca_live,
+                    bool expand_call);
 
-  void store_check(MacroAssembler* masm, Register obj);
+  void card_barrier(MacroAssembler* masm, Register obj);
 
   void resolve_forward_pointer(MacroAssembler* masm, Register dst, Register tmp = noreg);
   void resolve_forward_pointer_not_null(MacroAssembler* masm, Register dst, Register tmp = noreg);
@@ -93,10 +86,13 @@ public:
   void cmpxchg_oop(MacroAssembler* masm, Register addr, Register expected, Register new_val,
                    bool acquire, bool release, bool is_cae, Register result);
 #ifdef COMPILER2
-  void load_ref_barrier_c2(const MachNode* node, MacroAssembler* masm, Register obj, Register addr, bool narrow, bool maybe_null, Register gc_state);
-  void satb_barrier_c2(const MachNode* node, MacroAssembler* masm, Register obj, Register pre_val, Register gc_state, bool encoded_preval);
-  void card_barrier_c2(const MachNode* node, MacroAssembler* masm, Register addr, Register tmp);
-  void cmpxchg_oop_c2(const MachNode* node, MacroAssembler* masm, Register addr, Register oldval, Register newval, Register res, Register gc_state, Register tmp, bool acquire, bool release, bool weak, bool exchange);
+  void store_c2(const MachNode* node, MacroAssembler* masm, Register dst, bool dst_narrow, Register src, bool src_narrow, bool is_volatile);
+  void cae_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval, Register newval, bool exchange, bool maybe_null, bool narrow, bool acquire, bool release, bool weak);
+  void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr, bool acquire);
+  void load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Register addr, bool acquire);
+
+  void gc_state_check_c2(MacroAssembler* masm, Register rscratch, const unsigned char test_state, BarrierStubC2* slow_stub);
+  void card_barrier_c2(const MachNode* node, MacroAssembler* masm, Register addr, Register cond);
 #endif
 };
 

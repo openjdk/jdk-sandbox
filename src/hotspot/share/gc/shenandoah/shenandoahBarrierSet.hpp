@@ -63,6 +63,8 @@ public:
 
   static bool need_load_reference_barrier(DecoratorSet decorators, BasicType type);
   static bool need_keep_alive_barrier(DecoratorSet decorators, BasicType type);
+  static bool need_satb_barrier(DecoratorSet decorators, BasicType type);
+  static bool need_card_barrier(DecoratorSet decorators, BasicType type);
 
   static bool is_strong_access(DecoratorSet decorators) {
     return (decorators & (ON_WEAK_OOP_REF | ON_PHANTOM_OOP_REF)) == 0;
@@ -84,8 +86,6 @@ public:
 
   template <class T>
   inline void arraycopy_barrier(T* src, T* dst, size_t count);
-  inline void clone_barrier(oop src);
-  void clone_barrier_runtime(oop src);
 
   // Support for optimizing compilers to call the barrier set on slow path allocations
   // that did not enter a TLAB. Used for e.g. ReduceInitialCardMarks to take any

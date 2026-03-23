@@ -945,8 +945,8 @@ public:
 
   void encode_heap_oop(Register d, Register s);
   void encode_heap_oop(Register r) { encode_heap_oop(r, r); }
-  void decode_heap_oop(Register d, Register s);
-  void decode_heap_oop(Register r) { decode_heap_oop(r, r); }
+  void decode_heap_oop(Register d, Register s, Label* L_null_target = nullptr);
+  void decode_heap_oop(Register r, Label* L_null_target = nullptr) { decode_heap_oop(r, r, L_null_target); }
   void encode_heap_oop_not_null(Register r);
   void decode_heap_oop_not_null(Register r);
   void encode_heap_oop_not_null(Register dst, Register src);

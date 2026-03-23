@@ -418,6 +418,8 @@ void Compile::remove_useless_node(Node* dead) {
       remove_unstable_if_trap(dead->as_CallStaticJava(), false);
     }
   }
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+  bs->unregister_potential_barrier_node(dead);
 }
 
 // Disconnect all useless nodes by disconnecting those at the boundary.
@@ -467,6 +469,8 @@ void Compile::disconnect_useless_nodes(Unique_Node_List& useful, Unique_Node_Lis
   }
 #endif
 
+  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+  bs->eliminate_useless_gc_barriers(useful, this);
   // clean up the late inline lists
   remove_useless_late_inlines(                &_late_inlines, useful);
   remove_useless_late_inlines(         &_string_late_inlines, useful);
@@ -865,8 +869,15 @@ Compile::Compile(ciEnv* ci_env, ciMethod* target, int osr_bci,
   }
 #endif
 
-#ifdef ASSERT
   BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
+
+#ifdef ASSERT
+  bs->verify_gc_barriers(this, BarrierSetC2::AfterOptimize);
+#endif
+
+  bs->final_refinement(this);
+
+#ifdef ASSERT
   bs->verify_gc_barriers(this, BarrierSetC2::BeforeCodeGen);
 #endif
 
@@ -2167,12 +2178,31 @@ void Compile::inline_incrementally_cleanup(PhaseIterGVN& igvn) {
   print_method(PHASE_INCREMENTAL_INLINE_CLEANUP, 3);
 }
 
+template<typename E>
+static void shuffle_array(Compile& C, GrowableArray<E>& array) {
+  if (array.length() < 2) {
+    return;
+  }
+  for (uint i = array.length() - 1; i >= 1; i--) {
+    uint j = C.random() % (i + 1);
+    swap(array.at(i), array.at(j));
+  }
+}
+
+void Compile::shuffle_late_inlines() {
+  shuffle_array(*C, _late_inlines);
+}
+
 // Perform incremental inlining until bound on number of live nodes is reached
 void Compile::inline_incrementally(PhaseIterGVN& igvn) {
   TracePhase tp(_t_incrInline);
 
   set_inlining_incrementally(true);
   uint low_live_nodes = 0;
+
+  if (StressIncrementalInlining) {
+    shuffle_late_inlines();
+  }
 
   while (_late_inlines.length() > 0) {
     if (live_nodes() > (uint)LiveNodeCountInliningCutoff) {
@@ -2245,6 +2275,10 @@ void Compile::process_late_inline_calls_no_inline(PhaseIterGVN& igvn) {
   assert(inlining_incrementally() == false, "not allowed");
   assert(_modified_nodes == nullptr, "not allowed");
   assert(_late_inlines.length() > 0, "sanity");
+
+  if (StressIncrementalInlining) {
+    shuffle_late_inlines();
+  }
 
   while (_late_inlines.length() > 0) {
     igvn_worklist()->ensure_empty(); // should be done with igvn
@@ -3216,7 +3250,7 @@ void Compile::final_graph_reshaping_impl(Node *n, Final_Reshape_Counts& frc, Uni
     MemBarNode* mb = n->as_MemBar();
     if (mb->trailing_store() || mb->trailing_load_store()) {
       assert(mb->leading_membar()->trailing_membar() == mb, "bad membar pair");
-      Node* mem = mb->in(MemBarNode::Precedent);
+      Node* mem = BarrierSet::barrier_set()->barrier_set_c2()->step_over_gc_barrier(mb->in(MemBarNode::Precedent));
       assert((mb->trailing_store() && mem->is_Store() && mem->as_Store()->is_release()) ||
              (mb->trailing_load_store() && mem->is_LoadStore()), "missing mem op");
     } else if (mb->leading()) {
@@ -3225,7 +3259,10 @@ void Compile::final_graph_reshaping_impl(Node *n, Final_Reshape_Counts& frc, Uni
   }
 #endif
   // Count FPU ops and common calls, implements item (3)
-  final_graph_reshaping_main_switch(n, frc, nop, dead_nodes);
+  bool gc_handled = BarrierSet::barrier_set()->barrier_set_c2()->final_graph_reshaping(this, n, nop, dead_nodes);
+  if (!gc_handled) {
+    final_graph_reshaping_main_switch(n, frc, nop, dead_nodes);
+  }
 
   // Collect CFG split points
   if (n->is_MultiBranch() && !n->is_RangeCheck()) {
@@ -3782,6 +3819,8 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
   case Op_MulReductionVD:
   case Op_MinReductionV:
   case Op_MaxReductionV:
+  case Op_UMinReductionV:
+  case Op_UMaxReductionV:
   case Op_AndReductionV:
   case Op_OrReductionV:
   case Op_XorReductionV:
@@ -5134,13 +5173,7 @@ void CloneMap::dump(node_idx_t key, outputStream* st) const {
 }
 
 void Compile::shuffle_macro_nodes() {
-  if (_macro_nodes.length() < 2) {
-    return;
-  }
-  for (uint i = _macro_nodes.length() - 1; i >= 1; i--) {
-    uint j = C->random() % (i + 1);
-    swap(_macro_nodes.at(i), _macro_nodes.at(j));
-  }
+  shuffle_array(*C, _macro_nodes);
 }
 
 // Move Allocate nodes to the start of the list

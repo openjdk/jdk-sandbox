@@ -26,8 +26,7 @@ NashornProfile.txt
 *.rej
 *.orig
 test/benchmarks/**/target
-clear.sh
-run.sh
+*.sh
 .clangd
 debug/
 /src/hotspot/CMakeLists.txt
