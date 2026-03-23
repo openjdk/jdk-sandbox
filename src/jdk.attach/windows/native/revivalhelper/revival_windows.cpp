@@ -971,12 +971,12 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
         write_sharedlib_mappings(mappings_fd, &dump);
         // Windows TEB: used to setup TLS on revival.
         uint64_t dump_TEB = dump.get_teb();
-        uint64_t dump_PEB = dump.get_peb();
+        uint64_t dump_PEB = 0;
         uint64_t dump_ReadOnlySharedMemBase = 0;
-        if (teb != 0) {
-            writef(mappings_fd, "TEB %llx\n", dump_TEB);
+        if (dump_TEB != 0) {
+            dump_PEB = dump.get_peb();
             dump_ReadOnlySharedMemBase = dump.read_pointer_at_address(dump_PEB + 0x88);
-            warn("DUMP: TEB 0x%llx PEB 0x%llx ReadOnlySharedMemBase 0x%llx", dump_TEB, dump_PEB, dump_ReadOnlySharedMemBase);
+            warn("Dump: TEB 0x%llx PEB 0x%llx ReadOnlySharedMemBase 0x%llx", dump_TEB, dump_PEB, dump_ReadOnlySharedMemBase);
         } else {
             warn("TEB not resolved from MiniDump.");
         }

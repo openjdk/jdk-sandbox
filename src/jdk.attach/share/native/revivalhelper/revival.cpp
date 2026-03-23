@@ -514,7 +514,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
                     // On failure, try copying.  Used for a Linux gcore (gdb) as file offsets are not aligned.
                     // Also on Windows, vaddr and file offset generally not aligned in MiniDump.
                     e  = revival_mapping_copy(vaddr, length, offset, true /* allocate */, core_filename, core_fd);
-                    logv("  revival_mapping_mmap: retry 0x%llx using revival_mapping_copy returns: %d", vaddr, e);
+                    logv("  revival_mapping_mmap: retry 0x%llx using revival_mapping_copy returns: %d", (unsigned long long) vaddr, e);
                     if (e < 0 ) {
                         M_bad++;
                         exitForRetry();
