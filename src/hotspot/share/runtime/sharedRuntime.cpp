@@ -182,15 +182,13 @@ void SharedRuntime::generate_stubs() {
 
   if (UseShenandoahGC) {
     ResourceMark rm;
-
-    _shenandoah_keepalive_blob          = generate_shenandoah_keepalive_stub();
-
-    _shenandoah_lrb_strong_blob         = generate_shenandoah_lrb_stub(StubId::shared_shenandoah_lrb_strong_id);
-    _shenandoah_lrb_weak_blob           = generate_shenandoah_lrb_stub(StubId::shared_shenandoah_lrb_weak_id);
-    _shenandoah_lrb_phantom_blob        = generate_shenandoah_lrb_stub(StubId::shared_shenandoah_lrb_phantom_id);
-    _shenandoah_lrb_strong_narrow_blob  = generate_shenandoah_lrb_stub(StubId::shared_shenandoah_lrb_strong_narrow_id);
-    _shenandoah_lrb_weak_narrow_blob    = generate_shenandoah_lrb_stub(StubId::shared_shenandoah_lrb_weak_narrow_id);
-    _shenandoah_lrb_phantom_narrow_blob = generate_shenandoah_lrb_stub(StubId::shared_shenandoah_lrb_phantom_narrow_id);
+    _shenandoah_keepalive_blob          = generate_shenandoah_stub(StubId::shared_shenandoah_keepalive_id);
+    _shenandoah_lrb_strong_blob         = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_strong_id);
+    _shenandoah_lrb_weak_blob           = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_weak_id);
+    _shenandoah_lrb_phantom_blob        = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_phantom_id);
+    _shenandoah_lrb_strong_narrow_blob  = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_strong_narrow_id);
+    _shenandoah_lrb_weak_narrow_blob    = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_weak_narrow_id);
+    _shenandoah_lrb_phantom_narrow_blob = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_phantom_narrow_id);
   }
 }
 

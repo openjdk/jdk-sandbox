@@ -3605,46 +3605,19 @@ RuntimeStub* SharedRuntime::generate_jfr_return_lease() {
 
 #endif // INCLUDE_JFR
 
-RuntimeStub* SharedRuntime::generate_shenandoah_keepalive_stub() {
-  assert(UseShenandoahGC, "Only generate when Shenandoah is enabled");
-
-  const char* name = SharedRuntime::stub_name(StubId::shared_shenandoah_keepalive_id);
-  address stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre);
-
-  CodeBuffer code(name, 1024, 64);
-  MacroAssembler* masm = new MacroAssembler(&code);
-  address start = __ pc();
-
-  int frame_size_in_words;
-  OopMap* map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words, true);
-  address the_pc = __ pc();
-  int frame_complete = the_pc - start;
-
-  __ call(RuntimeAddress(stub_addr), rax);
-  address post_call_pc = __ pc();
-
-  OopMapSet* oop_maps = new OopMapSet();
-  oop_maps->add_gc_map(post_call_pc - start, map);
-
-  RegisterSaver::restore_live_registers(masm, true);
-  __ ret(0);
-
-  RuntimeStub* stub =
-    RuntimeStub::new_runtime_stub(name,
-                                  &code,
-                                  frame_complete,
-                                  frame_size_in_words,
-                                  oop_maps,
-                                  true);
-  return stub;
-}
-
-RuntimeStub* SharedRuntime::generate_shenandoah_lrb_stub(StubId stub_id) {
+RuntimeStub* SharedRuntime::generate_shenandoah_stub(StubId stub_id) {
   assert(UseShenandoahGC, "Only generate when Shenandoah is enabled");
 
   const char* name = SharedRuntime::stub_name(stub_id);
-  address stub_addr;
+  address stub_addr = nullptr;
+  bool returns_obj = true;
+
   switch (stub_id) {
+    case StubId::shared_shenandoah_keepalive_id: {
+      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre);
+      returns_obj = false;
+      break;
+    }
     case StubId::shared_shenandoah_lrb_strong_id: {
       stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong);
       break;
@@ -3679,15 +3652,16 @@ RuntimeStub* SharedRuntime::generate_shenandoah_lrb_stub(StubId stub_id) {
 
   int frame_size_in_words;
   OopMap* map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words, true);
-  address the_pc = __ pc();
-  int frame_complete = the_pc - start;
+  address frame_complete_pc = __ pc();
 
   __ call(RuntimeAddress(stub_addr), rax);
   address post_call_pc = __ pc();
 
-  // RegisterSaver would clobber the call result when restoring.
-  // Carry the LRB result out of this stub by overwriting saved register.
-  __ movptr(Address(rsp, RegisterSaver::rax_offset_in_bytes()), rax);
+  if (returns_obj) {
+    // RegisterSaver would clobber the call result when restoring.
+    // Carry the result out of this stub by overwriting saved register.
+    __ movptr(Address(rsp, RegisterSaver::rax_offset_in_bytes()), rax);
+  }
 
   OopMapSet* oop_maps = new OopMapSet();
   oop_maps->add_gc_map(post_call_pc - start, map);
@@ -3695,12 +3669,10 @@ RuntimeStub* SharedRuntime::generate_shenandoah_lrb_stub(StubId stub_id) {
   RegisterSaver::restore_live_registers(masm, true);
   __ ret(0);
 
-  RuntimeStub* stub =
-    RuntimeStub::new_runtime_stub(name,
-                                  &code,
-                                  frame_complete,
-                                  frame_size_in_words,
-                                  oop_maps,
-                                  true);
-  return stub;
+  return RuntimeStub::new_runtime_stub(name,
+                                       &code,
+                                       frame_complete_pc - start,
+                                       frame_size_in_words,
+                                       oop_maps,
+                                       true);
 }

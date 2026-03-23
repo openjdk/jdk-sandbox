@@ -2906,12 +2906,7 @@ RuntimeStub* SharedRuntime::generate_jfr_return_lease() {
 
 #endif // INCLUDE_JFR
 
-RuntimeStub* SharedRuntime::generate_shenandoah_keepalive_stub() {
-  // TODO: Implement
-  return nullptr;
-}
-
-RuntimeStub* SharedRuntime::generate_shenandoah_lrb_stub(StubId stub_id) {
+RuntimeStub* SharedRuntime::generate_shenandoah_stub(StubId stub_id) {
   // TODO: Implement
   return nullptr;
 }
