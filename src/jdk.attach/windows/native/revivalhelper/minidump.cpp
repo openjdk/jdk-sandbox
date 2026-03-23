@@ -271,6 +271,10 @@ void MiniDump::read_sharedlibs() {
     free(md);
 }
 
+std::list<Segment> MiniDump::get_library_mappings() {
+    return libs;
+}
+
 Segment* MiniDump::get_library_mapping(const char* filename) {
     read_sharedlibs();
     for (std::list<Segment>::iterator iter = libs.begin(); iter != libs.end(); iter++) {
@@ -284,8 +288,14 @@ Segment* MiniDump::get_library_mapping(const char* filename) {
     return nullptr;
 }
 
-std::list<Segment> MiniDump::get_library_mappings() {
-    return libs;
+uint64_t MiniDump::get_library_mapping_after(uint64_t address) {
+    read_sharedlibs();
+    for (std::list<Segment>::iterator iter = libs.begin(); iter != libs.end(); iter++) {
+        if ((uint64_t) iter->vaddr > address) {
+            return (uint64_t) iter->vaddr;
+        }
+    }
+    return 0;
 }
 
 void write_mem_mappings(int mappings_fd, const char* exec_name) {

@@ -669,11 +669,9 @@ int relocate_sharedlib_pd(const char *filename, const void *addr) {
 
 void write_mem_mappings(MiniDump* dump, int fd, const char *corename, uint64_t dump_ReadOnlySharedMemBase) {
     // Read minidump memory list, create the memory mappings list.
-    // Plan to map data directly from core where possible.
-    // If alignment simply does not work (segments too close), create mapping and copy bytes.
-
-    // Maintain a list of segments to copy bytes later.
-    std::list<Segment> segsToCopy;
+    // Ideally map data directly from core, but if alignment simply does not work (segments too close),
+    // create mapping and copy bytes later.
+    std::list<Segment> segsToCopy; // Segments that need bytes copied
 
     dump->prepare_memory_ranges(); // Get ready to read Segments: locate Memory64ListStream to read all MINIDUMP_MEMORY64_LIST
     RVA64 currentRVA = dump->getBaseRVA(); // Current offset in file
@@ -703,9 +701,15 @@ void write_mem_mappings(MiniDump* dump, int fd, const char *corename, uint64_t d
             continue;
         }
         if (seg->contains(dump_ReadOnlySharedMemBase)) {
-            logd("create_mappings_pd: avoid 0x%llx: seg 0x%llx", dump_ReadOnlySharedMemBase, d.StartOfMemoryRange);
-            seg = dump->readSegment(&d, &currentRVA, true); // Skip NEXT segments also...
-            seg = dump->readSegment(&d, &currentRVA, true);
+            // Skip, and skip further segments until the library/module address after ReadOnlySharedMemBase.
+            uint64_t resume_address = dump->get_library_mapping_after(dump_ReadOnlySharedMemBase);
+            do {
+                logv("create_mappings_pd: avoid 0x%llx: seg 0x%llx", dump_ReadOnlySharedMemBase, d.StartOfMemoryRange);
+                seg = dump->readSegment(&d, &currentRVA, true);
+                if (seg == nullptr) {
+                    break; // Not expected.  Usually two or three Segments, then modules start.
+                }
+            } while ((uint64_t) seg->vaddr <= resume_address);
             continue;
         }
         // Consider the next region also:

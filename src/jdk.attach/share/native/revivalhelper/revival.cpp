@@ -780,7 +780,6 @@ char* find_filename_in_one_dir(const char* dir, const char* filename) {
 char* find_filename_in_libdir(const char* libdir, const char* filename) {
     char dir[BUFLEN];
     char* result = nullptr;
-    logv("find_filename_in_libdir: checking libdir %s", libdir);
     // On Windows, filename may begin with "C:\", which does not work inside libdir, but is removed on next iteration.
     char* start = (char*) libdir;
     char* end = strstr(start, PATH_SEPARATOR);
