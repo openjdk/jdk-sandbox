@@ -25,7 +25,6 @@
 
 #include <segment.hpp>
 
-
 bool Segment::contains(Segment* seg) {
   return seg->start() >= this->start() && seg->end() <= this->end();
 }
@@ -77,7 +76,7 @@ int Segment::write_mapping(int fd, const char* type) {
              (unsigned long long) file_offset,
              (unsigned long long) file_length,
              (unsigned long long) length,
-             "RWX" // temp
+             "RWX"
             );
     write0(fd, buf); // includes warning on error
     return 0;

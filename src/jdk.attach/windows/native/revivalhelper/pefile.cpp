@@ -44,7 +44,6 @@
 #include "revival.hpp"
 #include "pefile.hpp"
 
-
 PEFile::PEFile(const char* filename) {
     this->filename = filename;
     image = nullptr;

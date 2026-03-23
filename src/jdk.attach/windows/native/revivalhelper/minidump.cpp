@@ -116,7 +116,7 @@ char *string_at_offset_minidump(int fd, ULONG32 offset) {
 MiniDump::MiniDump(const char* filename, const char* libdir) {
     this->filename = filename;
     this->libdir = libdir;
-
+    this->teb = 0;
     fd = ::open(filename, O_RDONLY | O_BINARY);
     if (fd < 0) {
         warn("MiniDump::open '%s' failed: %d: %s", core_filename, errno, strerror(errno));
@@ -171,9 +171,27 @@ MINIDUMP_DIRECTORY* MiniDump::find_stream(int stream) {
     return nullptr;
 }
 
+uint64_t MiniDump::get_teb() {
+    if (teb == 0) {
+        teb = resolve_teb();
+    }
+    return teb;
+}
+
+uint64_t MiniDump::get_peb() {
+    if (teb == 0) {
+        teb = resolve_teb(); // PEB is member of TEB.
+    }
+    if (teb != 0) {
+        return read_pointer_at_address(teb + 0x60);
+    } else {
+        return 0;
+    }
+}
+
 uint64_t MiniDump::resolve_teb() {
-    // Find MiniDump ThreadListStream, read _MINIDUMP_THREAD, read TEB
-    uint64_t teb = 0;
+    // Find MiniDump ThreadListStream, read _MINIDUMP_THREAD, read TEB.
+    uint64_t _teb = 0;
     MINIDUMP_DIRECTORY *md = this->find_stream(ThreadListStream);
     if (md == nullptr) {
         warn("resolve_teb: MiniDump ThreadListStream not found\n");
@@ -195,19 +213,17 @@ uint64_t MiniDump::resolve_teb() {
             }
             logv("resolve_teb: MINIDUMP_THREAD id 0x%lx TEB: 0x%llx", thread.ThreadId, thread.Teb);
             if (thread.Teb != 0) {
-                teb = thread.Teb;
+                _teb = thread.Teb;
                 break;
             }
         }
     }
     free(md);
-    return teb;
+    return _teb;
 }
 
-/**
- * Read shared library list from ModuleListStream.
- */
 void MiniDump::read_sharedlibs() {
+    // Read ModuleListStream (shared library list).
     if (fd < 0) {
         error("MiniDump::read_sharedlibs: MiniDump not open");
     }
@@ -410,11 +426,20 @@ uint64_t MiniDump::file_offset_for_vaddr(uint64_t addr) {
     return 0;
 }
 
-char* MiniDump::readstring_at_address(uint64_t addr) {
+char* MiniDump::read_string_at_address(uint64_t addr) {
     uint64_t offset = file_offset_for_vaddr(addr);
     if (offset == 0) {
        return nullptr;
     } else {
         return readstring_at_offset_pd(this->filename, offset);
+    }
+}
+
+uint64_t MiniDump::read_pointer_at_address(uint64_t addr) {
+    uint64_t offset = file_offset_for_vaddr(addr);
+    if (offset == 0) {
+       return 0;
+    } else {
+        return read_pointer_at_offset_pd(this->filename, offset);
     }
 }
