@@ -1277,13 +1277,13 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Regi
   if (_needs_load_ref_barrier) {
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ testb(gc_state, ShenandoahHeap::MARKING);
-    __ jcc(Assembler::zero, L_done); // TODO: Figure how to short this branch again.
+    __ jccb(Assembler::zero, L_done);
   }
 
   // Check if buffer is already full. Go slow, if so.
   __ movptr(tmp1, index);
   __ testptr(tmp1, tmp1);
-  __ jcc(Assembler::notZero, L_fast); // TODO: Figure how to short this branch again.
+  __ jccb(Assembler::notZero, L_fast);
   keepalive_slow(masm, obj);
   __ jmpb(L_done);
 
@@ -1323,7 +1323,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address ad
   if (_needs_keep_alive_barrier) {
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0));
-    __ jcc(Assembler::zero, L_done); // TODO: Figure how to short this branch again.
+    __ jccb(Assembler::zero, L_done);
   }
 
   // Weak/phantom loads are handled in slow path.
@@ -1350,7 +1350,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address ad
 
   // Cset-check. Go slow if in collection set.
   __ cmpb(cset_addr_arg, 0);
-  __ jcc(Assembler::equal, L_done); // TODO: Figure how to short this branch again.
+  __ jccb(Assembler::equal, L_done);
   lrb_slow(masm, obj, addr);
   __ bind(L_done);
 }
@@ -1446,12 +1446,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   } else {
     __ testptr(_obj, _obj);
   }
-  if (_needs_keep_alive_barrier && _needs_load_ref_barrier) {
-    __ jcc(Assembler::zero, L_done);
-  } else {
-    // TODO: Figure how to short this branch again.
-    __ jcc(Assembler::zero, L_done);
-  }
+  __ jcc(Assembler::zero, L_done);
 
   // Barriers need temp to work, allocate one now.
   bool tmp_live;
