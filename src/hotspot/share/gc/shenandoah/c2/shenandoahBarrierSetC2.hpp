@@ -53,6 +53,7 @@ class ShenandoahBarrierSetC2State : public BarrierSetC2State {
   GrowableArray<ShenandoahBarrierStubC2*>* _stubs;
   int _trampoline_stubs_count;
   int _stubs_start_offset;
+  int _save_slots_offset;
 
 public:
   explicit ShenandoahBarrierSetC2State(Arena* comp_arena);
@@ -79,6 +80,15 @@ public:
 
   int stubs_start_offset() {
     return _stubs_start_offset;
+  }
+
+  void set_save_slots_stack_offset(int offset) {
+    _save_slots_offset = offset;
+  }
+
+  int save_slots_stack_offset() {
+    assert(_save_slots_offset >= 0, "should be set");
+    return _save_slots_offset;
   }
 };
 
@@ -129,6 +139,7 @@ public:
   static void verify_gc_barrier_assert(bool cond, const char* msg, uint8_t bd, Node* n);
 #endif
 
+  int reserved_slots() const { return 4; }
   int estimate_stub_size() const /* override */;
   void emit_stubs(CodeBuffer& cb) const /* override */;
   void late_barrier_analysis() const /* override*/ {
@@ -159,11 +170,15 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   bool _test_and_branch_reachable;
   bool _skip_trampoline;
   Label _test_and_branch_reachable_entry;
+  int  _save_slots_idx;
 
   static void register_stub(ShenandoahBarrierStubC2* stub);
   static void inc_trampoline_stubs_count();
   static int trampoline_stubs_count();
   static int stubs_start_offset();
+
+  void save_register(MacroAssembler* masm, Register reg);
+  void restore_register(MacroAssembler* masm, Register reg);
 
   bool is_live(Register reg);
   Register select_temp_register(bool& selected_live, Address addr, Register reg1);
@@ -187,7 +202,8 @@ public:
     _fastpath_branch_offset(),
     _test_and_branch_reachable(),
     _skip_trampoline(),
-    _test_and_branch_reachable_entry() {
+    _test_and_branch_reachable_entry(),
+    _save_slots_idx(0) {
 
     assert(!ShenandoahSkipBarriers, "Do not touch stubs when disabled");
     assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
