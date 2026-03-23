@@ -3646,7 +3646,7 @@ RuntimeStub* SharedRuntime::generate_shenandoah_stub(StubId stub_id) {
       ShouldNotReachHere();
   }
 
-  CodeBuffer code(name, 1024, 64);
+  CodeBuffer code(name, 2048, 64);
   MacroAssembler* masm = new MacroAssembler(&code);
   address start = __ pc();
 
