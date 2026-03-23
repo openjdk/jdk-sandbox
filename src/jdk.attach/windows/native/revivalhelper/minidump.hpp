@@ -41,11 +41,11 @@
 #include <sys/types.h>
 
 /**
- * A Windows MiniDump.
+ * Windows MiniDump.
+ * Operations as required by the process revival mechanism, to enable jcmd to operate on a MiniDump.
  */
 class MiniDump {
   public:
-    // Open and basic init of a MiniDump.
     MiniDump(const char* filename, const char* libdir);
     ~MiniDump();
 

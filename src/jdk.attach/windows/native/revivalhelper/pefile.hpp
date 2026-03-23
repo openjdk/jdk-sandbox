@@ -37,7 +37,6 @@
 #include <sysinfoapi.h>
 #include <windows.h>
 
-
 #include <sys/types.h>
 
 #include <fileapi.h>
@@ -49,6 +48,7 @@
 
 /**
  * Windows PE file.
+ * Operations as required by the process revival mechanism, to enable jcmd to operate on a MiniDump.
  */
 class PEFile {
   public:
@@ -58,10 +58,10 @@ class PEFile {
 
     uint64_t file_offset_for_reladdr(uint64_t reladdr);
 
-    // Locate data segments in named file.  Populate output parameters.
+    // Locate data segments, populate output parameters.
     bool find_data_segs(void* address, Segment** _data, Segment** _rdata);
 
-    // Rebase a file to a new absolute load address.
+    // Rebase the named PE file to a new absolute load address.
     // *Destructive*: changes the actual named file.
     static bool rebase(const char* filename, uint64_t address);
 
@@ -69,13 +69,12 @@ class PEFile {
     // *Destructive*: changes the actual named file.
     static bool remove_dynamicbase(const char* filename);
 
-    Segment* get_rdata_section();
-
   private:
     const char* filename;
     int fd;
     PLOADED_IMAGE image;
 
     void imageLoad();
+    Segment* get_rdata_section();
 };
 #endif

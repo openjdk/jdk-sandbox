@@ -171,23 +171,23 @@ void tls_fixup_pd(void *teb) {
 }
 
 void tls_revert_pd() {
-    logv("tls: index  0x%llx", rdata->tls_index);
+    logv("tls_revert_pd: index  0x%llx", rdata->tls_index);
     uint64_t* cur_teb_refetch = (uint64_t*) NtCurrentTeb();
     if (cur_teb != cur_teb_refetch) {
-        warn("tls_fixup: cur teb = 0x%llx != refetched = 0x%llx", cur_teb, cur_teb_refetch);
+        warn("tls_revert_pd: cur teb = 0x%llx != refetched = 0x%llx", cur_teb, cur_teb_refetch);
     }
-    logv("tls_fixup: revert: cur teb = 0x%llx tls ptr at 0x%llx contains 0x%llx", cur_teb, cur_tls, *cur_tls);
+    logv("tls_revert_pd: revert: cur teb = 0x%llx tls ptr at 0x%llx contains 0x%llx", cur_teb, cur_tls, *cur_tls);
     *cur_tls = 0; // saved_tls;
-    logv("tls_fixup: reverted, cur teb = 0x%llx tls ptr at 0x%llx contains 0x%llx", cur_teb, cur_tls, *cur_tls);
+    logv("tls_revert_pd: reverted, cur teb = 0x%llx tls ptr at 0x%llx contains 0x%llx", cur_teb, cur_tls, *cur_tls);
     waitHitRet();
 }
 
 void init_pd() {
     int x;
     warn("init_pd: PID %ld thread: 0x%lx", _getpid(), GetCurrentThreadId());
-
-    warn("tls_fixup: new process PEB addr: 0x%llx ReadOnlySharedMemoryBase: 0x%llx", get_peb(), get_ReadOnlySharedMemoryBase());
+    warn("init_pd: new process PEB addr: 0x%llx", get_peb());
     printMemBasicInfo((void*) get_peb());
+    warn("init_pd: new process ReadOnlySharedMemoryBase: 0x%llx", get_ReadOnlySharedMemoryBase());
     printMemBasicInfo((void*) get_ReadOnlySharedMemoryBase());
 
     tls_initial_save_pd(); // Save before JVM is loaded
@@ -977,6 +977,7 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
             dump_PEB = dump.get_peb();
             dump_ReadOnlySharedMemBase = dump.read_pointer_at_address(dump_PEB + 0x88);
             warn("Dump: TEB 0x%llx PEB 0x%llx ReadOnlySharedMemBase 0x%llx", dump_TEB, dump_PEB, dump_ReadOnlySharedMemBase);
+            writef(mappings_fd, "TEB %llx\n", dump_TEB);
         } else {
             warn("TEB not resolved from MiniDump.");
         }

@@ -90,8 +90,6 @@ void PEFile::imageLoad() {
  * return the file offset.
  */
 uint64_t PEFile::file_offset_for_reladdr(uint64_t reladdr) {
-    // reladdr - 0x1000 is good for product builds, but more correctly:
-
     Segment *seg = get_rdata_section();
     uint64_t rdata_vaddr = reladdr - (uint64_t) seg->vaddr;
     if (rdata_vaddr > seg->file_length) {

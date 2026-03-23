@@ -391,14 +391,14 @@ Segment* MiniDump::readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRV
         if (skipLibraries) {
             for (std::list<Segment>::iterator iter = libs.begin(); iter != libs.end(); iter++) {
                 if (seg->start() >= iter->start() && seg->end() <= iter->end()) {
-                    // seg clashes with some module.  Skip, unless it is the JVM .data Section.
+                    // seg clashes with some module.  Skip, unless it is JVM data.
                     if (jvm_data_seg != nullptr && (seg->contains(jvm_data_seg) || jvm_data_seg->contains(seg))) {
                         logd("readSegment: Using (JVM .data) seg: 0x%llx - 0x%llx", seg->start(), seg->end());
                     } else {
                         logd("readSegment: Skipping seg 0x%llx - 0x%llx due to hit in module list", seg->start(), seg->end());
                         retry = true;
                     }
-                    break; // out of this for loop, possibly retry readSegment0
+                    break; // Out of this for loop, possibly retry readSegment0
                 }
             }
         }
