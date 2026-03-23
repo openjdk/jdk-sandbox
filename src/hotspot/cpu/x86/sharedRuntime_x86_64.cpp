@@ -65,6 +65,9 @@
 #ifdef COMPILER2
 #include "opto/runtime.hpp"
 #endif
+#if INCLUDE_SHENANDOAHGC
+#include "gc/shenandoah/shenandoahRuntime.hpp"
+#endif
 #if INCLUDE_JVMCI
 #include "jvmci/jvmciJavaClasses.hpp"
 #endif
@@ -159,6 +162,8 @@ class RegisterSaver {
     reg_save_size             // size in compiler stack slots
   };
 
+  static void adjust_wide_vectors_support(bool& wide_vectors);
+
  public:
   static OopMap* save_live_registers(MacroAssembler* masm, int additional_frame_words, int* total_frame_words, bool save_wide_vectors);
   static void restore_live_registers(MacroAssembler* masm, bool restore_wide_vectors = false);
@@ -179,17 +184,23 @@ class RegisterSaver {
   static void restore_result_registers(MacroAssembler* masm);
 };
 
+// TODO: Should be upstreamed separately.
+void RegisterSaver::adjust_wide_vectors_support(bool& wide_vectors) {
+#if COMPILER2_OR_JVMCI
+  if (wide_vectors && UseAVX == 0) {
+    wide_vectors = false; // vectors larger than 16 byte long are supported only with AVX
+  }
+  assert(!wide_vectors || MaxVectorSize <= 64, "Only up to 64 byte long vectors are supported");
+#else
+  wide_vectors = false; // vectors are generated only by C2 and JVMCI
+#endif
+}
+
 OopMap* RegisterSaver::save_live_registers(MacroAssembler* masm, int additional_frame_words, int* total_frame_words, bool save_wide_vectors) {
   int off = 0;
   int num_xmm_regs = XMMRegister::available_xmm_registers();
-#if COMPILER2_OR_JVMCI
-  if (save_wide_vectors && UseAVX == 0) {
-    save_wide_vectors = false; // vectors larger than 16 byte long are supported only with AVX
-  }
-  assert(!save_wide_vectors || MaxVectorSize <= 64, "Only up to 64 byte long vectors are supported");
-#else
-  save_wide_vectors = false; // vectors are generated only by C2 and JVMCI
-#endif
+
+  adjust_wide_vectors_support(save_wide_vectors);
 
   // Always make the frame size 16-byte aligned, both vector and non vector stacks are always allocated
   int frame_size_in_bytes = align_up(reg_save_size*BytesPerInt, num_xmm_regs);
@@ -431,14 +442,7 @@ void RegisterSaver::restore_live_registers(MacroAssembler* masm, bool restore_wi
     __ addptr(rsp, frame::arg_reg_save_area_bytes);
   }
 
-#if COMPILER2_OR_JVMCI
-  if (restore_wide_vectors) {
-    assert(UseAVX > 0, "Vectors larger than 16 byte long are supported only with AVX");
-    assert(MaxVectorSize <= 64, "Only up to 64 byte long vectors are supported");
-  }
-#else
-  assert(!restore_wide_vectors, "vectors are generated only by C2");
-#endif
+  adjust_wide_vectors_support(restore_wide_vectors);
 
   __ vzeroupper();
 
@@ -3601,3 +3605,101 @@ RuntimeStub* SharedRuntime::generate_jfr_return_lease() {
 }
 
 #endif // INCLUDE_JFR
+
+RuntimeStub* SharedRuntime::generate_shenandoah_stub(StubId stub_id) {
+  assert(UseShenandoahGC, "Only generate when Shenandoah is enabled");
+
+  const char* name = SharedRuntime::stub_name(stub_id);
+  address stub_addr = nullptr;
+  bool returns_obj = true;
+
+  switch (stub_id) {
+    case StubId::shared_shenandoah_keepalive_id: {
+      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre);
+      returns_obj = false;
+      break;
+    }
+    case StubId::shared_shenandoah_lrb_strong_id: {
+      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong);
+      break;
+    }
+    case StubId::shared_shenandoah_lrb_weak_id: {
+      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak);
+      break;
+    }
+    case StubId::shared_shenandoah_lrb_phantom_id: {
+      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom);
+      break;
+    }
+    case StubId::shared_shenandoah_lrb_strong_narrow_id: {
+      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow);
+      break;
+    }
+    case StubId::shared_shenandoah_lrb_weak_narrow_id: {
+      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow);
+      break;
+    }
+    case StubId::shared_shenandoah_lrb_phantom_narrow_id: {
+      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow);
+      break;
+    }
+    default:
+      ShouldNotReachHere();
+  }
+
+  CodeBuffer code(name, 2048, 64);
+  MacroAssembler* masm = new MacroAssembler(&code);
+  address start = __ pc();
+
+  int frame_size_in_words;
+  OopMap* map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words, true);
+  address frame_complete_pc = __ pc();
+
+  address post_call_pc;
+
+  // Call the runtime. This is what MacroAssember::call_VM_leaf does,
+  // but we also want to have exact post-call PC for oop map location.
+  {
+    Label L_stack_aligned, L_end;
+
+    #ifdef _WIN64
+      // Windows always allocates space for it's register args
+      __ subptr(rsp, frame::arg_reg_save_area_bytes);
+    #endif
+
+    __ testptr(rsp, 15);
+    __ jccb(Assembler::zero, L_stack_aligned);
+      __ subptr(rsp, 8);
+      __ call(RuntimeAddress(stub_addr));
+      post_call_pc = __ pc();
+      __ addptr(rsp, 8);
+      __ jmpb(L_end);
+    __ bind(L_stack_aligned);
+      __ call(RuntimeAddress(stub_addr));
+      post_call_pc = __ pc();
+    __ bind(L_end);
+
+    #ifdef _WIN64
+      __ addptr(rsp, frame::arg_reg_save_area_bytes);
+    #endif
+  }
+
+  if (returns_obj) {
+    // RegisterSaver would clobber the call result when restoring.
+    // Carry the result out of this stub by overwriting saved register.
+    __ movptr(Address(rsp, RegisterSaver::rax_offset_in_bytes()), rax);
+  }
+
+  OopMapSet* oop_maps = new OopMapSet();
+  oop_maps->add_gc_map(post_call_pc - start, map);
+
+  RegisterSaver::restore_live_registers(masm, true);
+  __ ret(0);
+
+  return RuntimeStub::new_runtime_stub(name,
+                                       &code,
+                                       frame_complete_pc - start,
+                                       frame_size_in_words,
+                                       oop_maps,
+                                       true);
+}

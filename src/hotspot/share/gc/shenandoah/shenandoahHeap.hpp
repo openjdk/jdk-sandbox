@@ -335,10 +335,7 @@ public:
     YOUNG_MARKING_BITPOS = 5,
 
     // Old regions are under marking, need SATB barriers.
-    OLD_MARKING_BITPOS = 6,
-
-    // Logical or of HAS_FORWARDED and MARKING.
-    FORMA_BITPOS = 7
+    OLD_MARKING_BITPOS = 6
   };
 
   enum GCState {
@@ -349,8 +346,7 @@ public:
     UPDATE_REFS   = 1 << UPDATE_REFS_BITPOS,
     WEAK_ROOTS    = 1 << WEAK_ROOTS_BITPOS,
     YOUNG_MARKING = 1 << YOUNG_MARKING_BITPOS,
-    OLD_MARKING   = 1 << OLD_MARKING_BITPOS,
-    FORMA         = 1 << FORMA_BITPOS
+    OLD_MARKING   = 1 << OLD_MARKING_BITPOS
   };
 
 private:

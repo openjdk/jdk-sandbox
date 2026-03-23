@@ -44,6 +44,8 @@
 class ShenandoahThreadLocalData {
 private:
   char _gc_state;
+  char _gc_state_compound;
+
   // Evacuation OOM state
   uint8_t                 _oom_scope_nesting_level;
   bool                    _oom_during_evac;
@@ -108,8 +110,41 @@ public:
     return data(thread)->_satb_mark_queue;
   }
 
+  enum CompoundState {
+    FORWARDED_OR_MARKING =         ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::MARKING,
+    FORWARDED_OR_WEAK =            ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::WEAK_ROOTS,
+    MARKING_OR_WEAK =              ShenandoahHeap::MARKING       | ShenandoahHeap::WEAK_ROOTS,
+    FORWARDED_OR_MARKING_OR_WEAK = ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::MARKING    | ShenandoahHeap::WEAK_ROOTS,
+  };
+
+  enum CompoundStateBitPos {
+    FORWARDED_OR_MARKING_BITPOS         = 1,
+    FORWARDED_OR_WEAK_BITPOS            = 2,
+    MARKING_OR_WEAK_BITPOS              = 3,
+    FORWARDED_OR_MARKING_OR_WEAK_BITPOS = 4,
+  };
+
+  static char compound_to_bit(char compound) {
+    if (compound == FORWARDED_OR_MARKING)         return FORWARDED_OR_MARKING_BITPOS;
+    if (compound == FORWARDED_OR_WEAK)            return FORWARDED_OR_WEAK_BITPOS;
+    if (compound == MARKING_OR_WEAK)              return MARKING_OR_WEAK_BITPOS;
+    if (compound == FORWARDED_OR_MARKING_OR_WEAK) return FORWARDED_OR_MARKING_OR_WEAK_BITPOS;
+    ShouldNotReachHere();
+    return 0;
+  }
+
+  static char gc_state_to_compound(char gc_state) {
+    char compound = 0;
+    if ((gc_state & FORWARDED_OR_MARKING) > 0)         compound |= (1 << FORWARDED_OR_MARKING_BITPOS);
+    if ((gc_state & FORWARDED_OR_WEAK) > 0)            compound |= (1 << FORWARDED_OR_WEAK_BITPOS);
+    if ((gc_state & MARKING_OR_WEAK) > 0)              compound |= (1 << MARKING_OR_WEAK_BITPOS);
+    if ((gc_state & FORWARDED_OR_MARKING_OR_WEAK) > 0) compound |= (1 << FORWARDED_OR_MARKING_OR_WEAK_BITPOS);
+    return compound;
+  }
+
   static void set_gc_state(Thread* thread, char gc_state) {
     data(thread)->_gc_state = gc_state;
+    data(thread)->_gc_state_compound = gc_state_to_compound(gc_state);
   }
 
   static char gc_state(Thread* thread) {
@@ -275,6 +310,10 @@ public:
 
   static ByteSize gc_state_offset() {
     return Thread::gc_data_offset() + byte_offset_of(ShenandoahThreadLocalData, _gc_state);
+  }
+
+  static ByteSize gc_state_compound_offset() {
+    return Thread::gc_data_offset() + byte_offset_of(ShenandoahThreadLocalData, _gc_state_compound);
   }
 
   static ByteSize card_table_offset() {

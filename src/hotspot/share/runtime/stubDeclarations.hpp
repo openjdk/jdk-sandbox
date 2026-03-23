@@ -107,6 +107,14 @@
   do_blob(throw_NullPointerException_at_call, RuntimeStub)             \
   do_blob(throw_StackOverflowError, RuntimeStub)                       \
   do_blob(throw_delayed_StackOverflowError, RuntimeStub)               \
+  /* shenandoah stubs */                                               \
+  do_blob(shenandoah_keepalive, RuntimeStub)                           \
+  do_blob(shenandoah_lrb_strong_narrow, RuntimeStub)                   \
+  do_blob(shenandoah_lrb_weak_narrow, RuntimeStub)                     \
+  do_blob(shenandoah_lrb_phantom_narrow, RuntimeStub)                  \
+  do_blob(shenandoah_lrb_strong, RuntimeStub)                          \
+  do_blob(shenandoah_lrb_weak, RuntimeStub)                            \
+  do_blob(shenandoah_lrb_phantom, RuntimeStub)                         \
   /* other stubs */                                                    \
   SHARED_JFR_STUBS_DO(do_blob)                                         \
 
@@ -1071,34 +1079,6 @@
   do_entry(final, lookup_secondary_supers_table_slow_path,              \
            lookup_secondary_supers_table_slow_path_stub,                \
            lookup_secondary_supers_table_slow_path_stub)                \
-  do_stub(final, shenandoah_keepalive)                                  \
-  do_entry(final, shenandoah_keepalive,                                 \
-           shenandoah_keepalive_stub,                                   \
-           shenandoah_keepalive_stub)                                   \
-  do_stub(final, shenandoah_lrb_strong_narrow)                          \
-  do_entry(final, shenandoah_lrb_strong_narrow,                         \
-           shenandoah_lrb_strong_narrow_stub,                           \
-           shenandoah_lrb_strong_narrow_stub)                           \
-  do_stub(final, shenandoah_lrb_weak_narrow)                            \
-  do_entry(final, shenandoah_lrb_weak_narrow,                           \
-           shenandoah_lrb_weak_narrow_stub,                             \
-           shenandoah_lrb_weak_narrow_stub)                             \
-  do_stub(final, shenandoah_lrb_phantom_narrow)                         \
-  do_entry(final, shenandoah_lrb_phantom_narrow,                        \
-           shenandoah_lrb_phantom_narrow_stub,                          \
-           shenandoah_lrb_phantom_narrow_stub)                          \
-  do_stub(final, shenandoah_lrb_strong)                                 \
-  do_entry(final, shenandoah_lrb_strong,                                \
-           shenandoah_lrb_strong_stub,                                  \
-           shenandoah_lrb_strong_stub)                                  \
-  do_stub(final, shenandoah_lrb_weak)                                   \
-  do_entry(final, shenandoah_lrb_weak,                                  \
-           shenandoah_lrb_weak_stub,                                    \
-           shenandoah_lrb_weak_stub)                                    \
-  do_stub(final, shenandoah_lrb_phantom)                                \
-  do_entry(final, shenandoah_lrb_phantom,                               \
-           shenandoah_lrb_phantom_stub,                                 \
-           shenandoah_lrb_phantom_stub)                                 \
   /* merge in stubs and entries declared in arch header */              \
   STUBGEN_FINAL_BLOBS_ARCH_DO(do_stub,  do_arch_blob,                   \
                               do_arch_entry, do_arch_entry_init)        \

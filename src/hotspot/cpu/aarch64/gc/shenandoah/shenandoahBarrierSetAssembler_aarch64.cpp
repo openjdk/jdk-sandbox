@@ -649,21 +649,23 @@ void ShenandoahBarrierStubC2::gc_state_check_c2(MacroAssembler* masm, Register g
     assert(only_valid_flags == 0x0, "Invalid test_state asked: %x", test_state);
 #endif
 
+    Address gcs_addr;
+    int bit_to_check;
+
     int num_bits_set = population_count(test_state);
-    bool is_weak_set = (test_state & ShenandoahHeap::WEAK_ROOTS) != 0;
-    int bit_to_check = ShenandoahHeap::FORMA_BITPOS;
-
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb(gcstate, gcs_addr);
-
     if (num_bits_set == 1) {
+      // Simple, check the gc-state bit directly.
+      gcs_addr = Address(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
       bit_to_check = log2i_exact(test_state);
-    } else if (is_weak_set) {
-      // Weak is set and at least one of the others, we'll do an OR with FORMA
-      // and WEAK_ROOTS putting the result in FORMA and use that position in tbz/tbnz
-      __ orr(gcstate, gcstate, gcstate, Assembler::LSL, ShenandoahHeap::FORMA_BITPOS - ShenandoahHeap::WEAK_ROOTS_BITPOS);
+    } else if (2 <= num_bits_set && num_bits_set <= 3) {
+      // More complicated, check the compound gc-state bit.
+      gcs_addr = Address(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_compound_offset()));
+      bit_to_check = ShenandoahThreadLocalData::compound_to_bit(test_state);
+    } else {
+      ShouldNotReachHere();
     }
 
+    __ ldrb(gcstate, gcs_addr);
     if (slow_stub->_test_and_branch_reachable) {
       __ tbnz(gcstate, bit_to_check, *slow_stub->entry());
     } else {
@@ -822,7 +824,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
     }
   }
 
-  // Post-barrier: LRB
+  // Post-barrier: LRB / KA / weak-root processing.
   if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
     ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, dst, src, narrow, /* do_load: */ false, __ offset());
     char check = 0;
@@ -840,7 +842,6 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroA
 
   assert(CardTable::dirty_card_val() == 0, "must be");
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
-  Label L_skip;
 
   // rscratch2 = addr >> CardTable::card_shift()
   __ lea(rscratch2, address);
@@ -862,7 +863,6 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroA
   } else {
     __ strb(zr, Address(rscratch2));
   }
-  __ bind(L_skip);
 }
 #undef __
 #define __ masm.

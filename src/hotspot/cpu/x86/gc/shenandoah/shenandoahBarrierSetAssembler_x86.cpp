@@ -1021,6 +1021,23 @@ void ShenandoahBarrierSetAssembler::generate_c1_load_reference_barrier_runtime_s
 #undef __
 #define __ masm->
 
+static ShenandoahBarrierSetC2State* barrier_set_state() {
+  return reinterpret_cast<ShenandoahBarrierSetC2State*>(Compile::current()->barrier_set_state());
+}
+
+void ShenandoahBarrierStubC2::save_register(MacroAssembler* masm, Register reg) {
+  int offset = barrier_set_state()->save_slots_stack_offset();
+  assert(_save_slots_idx < ShenandoahBarrierSetC2::bsc2()->reserved_slots(), "Enough slots are reserved");
+  __ movptr(Address(rsp, offset + _save_slots_idx * sizeof(address)), reg);
+  _save_slots_idx++;
+}
+
+void ShenandoahBarrierStubC2::restore_register(MacroAssembler* masm, Register reg) {
+  int offset = barrier_set_state()->save_slots_stack_offset();
+  _save_slots_idx--;
+  __ movptr(reg, Address(rsp, offset + _save_slots_idx * sizeof(address)));
+}
+
 bool ShenandoahBarrierStubC2::is_live(Register reg) {
   // TODO: Precompute the generic register map for faster lookups.
   RegMaskIterator rmi(preserve_set());
@@ -1284,7 +1301,7 @@ void ShenandoahBarrierStubC2::keepalive_slow(MacroAssembler* masm, Register obj)
   // Stub routine is responsible for dealing with call clobbered registers.
   // Here, we just stash away anything that we clobbered while preparing the arguments.
   if (c_rarg0 != obj && is_live(c_rarg0)) {
-    __ push(c_rarg0);
+     save_register(masm, c_rarg0);
   }
 
   // Shuffle in the arguments.
@@ -1292,11 +1309,11 @@ void ShenandoahBarrierStubC2::keepalive_slow(MacroAssembler* masm, Register obj)
     __ mov(c_rarg0, obj);
   }
 
-  // Go for stub routine call. Stub routine would deal with stack alignment as well.
-  __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_keepalive_stub())));
+  // Go to runtime stub and handle the rest there.
+  __ call(RuntimeAddress(SharedRuntime::shenandoah_keepalive()));
 
   if (c_rarg0 != obj && is_live(c_rarg0)) {
-    __ pop(c_rarg0);
+    restore_register(masm, c_rarg0);
   }
 }
 
@@ -1343,13 +1360,13 @@ void ShenandoahBarrierStubC2::lrb_slow(MacroAssembler* masm, Register obj, Addre
   // Here, we just stash away anything that we clobbered while preparing the arguments.
   assert_different_registers(rax, c_rarg0, c_rarg1);
   if (obj != c_rarg0 && is_live(c_rarg0)) {
-    __ push(c_rarg0);
+    save_register(masm, c_rarg0);
   }
   if (obj != c_rarg1 && is_live(c_rarg1)) {
-    __ push(c_rarg1);
+    save_register(masm, c_rarg1);
   }
   if (obj != rax && is_live(rax)) {
-    __ push(rax);
+    save_register(masm, rax);
   }
 
   // Shuffle in the arguments. The end result should be:
@@ -1367,23 +1384,23 @@ void ShenandoahBarrierStubC2::lrb_slow(MacroAssembler* masm, Register obj, Addre
     __ movptr(c_rarg0, obj);
   }
 
-  // Go for stub routine call. Stub routine would deal with stack alignment as well.
+  // Go to runtime stub and handle the rest there.
   address entry = nullptr;
   if (_narrow) {
     if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-      entry = CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_lrb_strong_narrow_stub());
+      entry = SharedRuntime::shenandoah_lrb_strong_narrow();
     } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
-      entry = CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_lrb_weak_narrow_stub());
+      entry = SharedRuntime::shenandoah_lrb_weak_narrow();
     } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
-      entry = CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_lrb_phantom_narrow_stub());
+      entry = SharedRuntime::shenandoah_lrb_phantom_narrow();
     }
   } else {
     if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-      entry = CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_lrb_strong_stub());
+      entry = SharedRuntime::shenandoah_lrb_strong();
     } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
-      entry = CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_lrb_weak_stub());
+      entry = SharedRuntime::shenandoah_lrb_weak();
     } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
-      entry = CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_lrb_phantom_stub());
+      entry = SharedRuntime::shenandoah_lrb_phantom();
     }
   }
   __ call(RuntimeAddress(entry));
@@ -1394,13 +1411,13 @@ void ShenandoahBarrierStubC2::lrb_slow(MacroAssembler* masm, Register obj, Addre
   }
 
   if (obj != rax && is_live(rax)) {
-    __ pop(rax);
+    restore_register(masm, rax);
   }
   if (obj != c_rarg1 && is_live(c_rarg1)) {
-    __ pop(c_rarg1);
+    restore_register(masm, c_rarg1);
   }
   if (obj != c_rarg0 && is_live(c_rarg0)) {
-    __ pop(c_rarg0);
+    restore_register(masm, c_rarg0);
   }
 }
 
@@ -1429,17 +1446,13 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   } else {
     __ testptr(_obj, _obj);
   }
-  if (_needs_keep_alive_barrier && _needs_load_ref_barrier) {
-    __ jcc(Assembler::zero, L_done);
-  } else {
-    __ jccb(Assembler::zero, L_done);
-  }
+  __ jcc(Assembler::zero, L_done);
 
   // Barriers need temp to work, allocate one now.
   bool tmp_live;
   Register tmp = select_temp_register(tmp_live, _addr, _obj);
   if (tmp_live) {
-    __ push(tmp);
+    save_register(&masm, tmp);
   }
 
   // If object is narrow, we need to decode it first: barrier checks need full oops.
@@ -1456,7 +1469,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
 
   if (tmp_live) {
-    __ pop(tmp);
+    restore_register(&masm, tmp);
   }
 
   // If object is narrow, we need to encode it before exiting.

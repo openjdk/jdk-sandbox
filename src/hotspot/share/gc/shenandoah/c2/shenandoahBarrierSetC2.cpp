@@ -749,6 +749,7 @@ void ShenandoahBarrierSetC2::emit_stubs(CodeBuffer& cb) const {
   MacroAssembler masm(&cb);
   GrowableArray<ShenandoahBarrierStubC2*>* const stubs = barrier_set_state()->stubs();
   barrier_set_state()->set_stubs_start_offset(masm.offset());
+  barrier_set_state()->set_save_slots_stack_offset(Compile::current()->output()->gc_barrier_save_slots_offset_in_bytes());
 
   // Stub generation uses nested skipped counters that can double-count.
   // Calculate the actual skipped amount by the real PC before/after stub generation.
@@ -762,7 +763,6 @@ void ShenandoahBarrierSetC2::emit_stubs(CodeBuffer& cb) const {
       ciEnv::current()->record_failure("CodeCache is full");
       return;
     }
-
     stubs->at(i)->emit_code(masm);
   }
 

@@ -95,6 +95,9 @@
 #if INCLUDE_JFR
 #include "jfr/jfr.inline.hpp"
 #endif
+#if INCLUDE_SHENANDOAHGC
+#include "gc/shenandoah/shenandoahRuntime.hpp"
+#endif
 
 // Shared runtime stub routines reside in their own unique blob with a
 // single entry point
@@ -176,6 +179,17 @@ void SharedRuntime::generate_stubs() {
                           CAST_FROM_FN_PTR(address, SafepointSynchronize::handle_polling_page_exception));
 
   generate_deopt_blob();
+
+  if (UseShenandoahGC) {
+    ResourceMark rm;
+    _shenandoah_keepalive_blob          = generate_shenandoah_stub(StubId::shared_shenandoah_keepalive_id);
+    _shenandoah_lrb_strong_blob         = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_strong_id);
+    _shenandoah_lrb_weak_blob           = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_weak_id);
+    _shenandoah_lrb_phantom_blob        = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_phantom_id);
+    _shenandoah_lrb_strong_narrow_blob  = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_strong_narrow_id);
+    _shenandoah_lrb_weak_narrow_blob    = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_weak_narrow_id);
+    _shenandoah_lrb_phantom_narrow_blob = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_phantom_narrow_id);
+  }
 }
 
 void SharedRuntime::init_adapter_library() {
