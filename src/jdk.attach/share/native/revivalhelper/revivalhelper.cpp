@@ -39,7 +39,6 @@ void usageExit(const char* s) {
     error("usage: %s [ -L/path/to/libdir ] [ -R/path/for/revival_data ] COREFILE jcmd DCOMMAND...\n", s);
 }
 
-
 int main(int argc, char** argv) {
     char* corename;
     const char* libdir = nullptr;

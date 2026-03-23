@@ -202,6 +202,9 @@ extern void exitForRetry(); // exit process using above exit code to signal a re
 char* readstring(int fd);
 char* readstring_at_offset_pd(const char* filename, uint64_t offset);
 char* readstring_from_core_at_vaddr_pd(const char* filename, uint64_t addr);
+#ifdef WINDOWS
+uint64_t read_pointer_at_offset_pd(const char* filename, uint64_t offset);
+#endif
 
 char* basename_pd(char* path);
 

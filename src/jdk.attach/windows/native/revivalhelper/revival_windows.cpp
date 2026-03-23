@@ -187,8 +187,8 @@ void init_pd() {
     warn("init_pd: PID %ld thread: 0x%lx", _getpid(), GetCurrentThreadId());
 
     warn("tls_fixup: new process PEB addr: 0x%llx ReadOnlySharedMemoryBase: 0x%llx", get_peb(), get_ReadOnlySharedMemoryBase());
-    //printMemBasicInfo((void*) get_peb());
-    //printMemBasicInfo((void*) get_ReadOnlySharedMemoryBase());
+    printMemBasicInfo((void*) get_peb());
+    printMemBasicInfo((void*) get_ReadOnlySharedMemoryBase());
 
     tls_initial_save_pd(); // Save before JVM is loaded
 
@@ -513,7 +513,7 @@ void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length) {
             logv("do_map_allocate: requested 0x%llx got 0x%lx not valid, already mapped?", addr, p);
             logv("    VirtualQueryEx: 1 base 0x%llx len 0x%llx allocationprotect: 0x%lx protect: 0x%lx",
                  (uint64_t) meminfo.BaseAddress, (uint64_t) meminfo.RegionSize, meminfo.AllocationProtect, meminfo.Protect);
-
+            // e.g. jvm data
             // Is more allocation needed?
             uint64_t wanted_end = (uint64_t) addr + (uint64_t) length;
             if (wanted_end <= existing_end) {
@@ -578,7 +578,25 @@ char* readstring_at_offset_pd(const char* filename, uint64_t offset) {
 
 char* readstring_from_core_at_vaddr_pd(const char* filename, uint64_t addr) {
     MiniDump dump(filename, nullptr);
-    return dump.readstring_at_address(addr);
+    return dump.read_string_at_address(addr);
+}
+
+uint64_t read_pointer_at_offset_pd(const char* filename, uint64_t offset) {
+    int fd = open(filename, O_RDONLY | O_BINARY);
+    if (fd < 0) {
+        warn("cannot open %s", filename);
+        return 0;
+    }
+    off_t pos = lseek(fd, (long) offset, SEEK_SET);
+    if (pos < 0) {
+        warn("read_pointer_at_pd: %s: lseek(%ld) fails %d : %s", filename, offset, errno, strerror(errno));
+        close(fd);
+        return 0;
+    }
+    uint64_t p;
+    int e = read(fd, &p, sizeof(p));
+    close(fd);
+    return p;
 }
 
 void copy_file_pd(const char *srcfile, const char *destfile) {
@@ -649,26 +667,22 @@ int relocate_sharedlib_pd(const char *filename, const void *addr) {
     }
 }
 
-void write_mem_mappings(MiniDump* dump, int fd, const char *corename,
-                       Segment* jvm_data_seg, Segment* jvm_rdata_seg) {
-
-    // Read minidump memory list, create text of mappings list.
+void write_mem_mappings(MiniDump* dump, int fd, const char *corename, uint64_t dump_ReadOnlySharedMemBase) {
+    // Read minidump memory list, create the memory mappings list.
     // Plan to map data directly from core where possible.
-    // If alignment simply does not work (segments too close), create larger mapping and copy bytes.
+    // If alignment simply does not work (segments too close), create mapping and copy bytes.
 
     // Maintain a list of segments to copy bytes later.
     std::list<Segment> segsToCopy;
 
     dump->prepare_memory_ranges(); // Get ready to read Segments: locate Memory64ListStream to read all MINIDUMP_MEMORY64_LIST
-    RVA64 currentRVA = dump->getBaseRVA(); // current offset in file
+    RVA64 currentRVA = dump->getBaseRVA(); // Current offset in file
     MINIDUMP_MEMORY_DESCRIPTOR64 d;
     ULONG64 prevAddr = 0;
 
     // Iterate, reading segments from dump.  Consider a current and next segment, so we can check for "too close" addresses.
     Segment* seg = nullptr;
     Segment* segNext = nullptr;
-
-    warn("write_mem_mappings: %p", get_peb());
     while (true) {
         if (seg == nullptr || segNext == nullptr) {
             // First iteration, or no segNext waiting:
@@ -685,7 +699,13 @@ void write_mem_mappings(MiniDump* dump, int fd, const char *corename,
         prevAddr = d.StartOfMemoryRange;
 
         if (!seg->is_relevant()) {
-            logd("create_mappings_pd: not relevant: 0x%llx", d.StartOfMemoryRange);
+            logd("create_mappings_pd: not relevant: seg 0x%llx", d.StartOfMemoryRange);
+            continue;
+        }
+        if (seg->contains(dump_ReadOnlySharedMemBase)) {
+            logd("create_mappings_pd: avoid 0x%llx: seg 0x%llx", dump_ReadOnlySharedMemBase, d.StartOfMemoryRange);
+            seg = dump->readSegment(&d, &currentRVA, true); // Skip NEXT segments also...
+            seg = dump->readSegment(&d, &currentRVA, true);
             continue;
         }
         // Consider the next region also:
@@ -743,16 +763,6 @@ void write_mem_mappings(MiniDump* dump, int fd, const char *corename,
     for (iter = segsToCopy.begin(); iter != segsToCopy.end(); iter++) {
         iter->write_mapping(fd, "C");
     }
-
-    // Windows TEB: used to setup TLS on revival.
-    // Written after memory mappings, as acting on this requires revived memory.
-    uint64_t tls = dump->resolve_teb();
-    if (tls != 0) {
-        writef(fd, "TEB %llx\n", tls);
-    } else {
-        warn("TEB not resolved");
-    }
-    writef(fd, "\n");
 }
 
 
@@ -809,7 +819,11 @@ void write_symbols(int symbols_fd, const char* symbols[], int count, const char 
 }
 
 bool create_directory_pd(char* dirname) {
-    return _mkdir(dirname) == 0;
+    if (!CreateDirectory(dirname, nullptr)) {
+        warn("%s: CreateDirectory failed: %d", dirname, GetLastError());
+        return false;
+    }
+    return true;
 }
 
 void delete_file_pd(char* filename) {
@@ -913,7 +927,6 @@ void copy_and_relocate(MiniDump dump, const char* destdir) {
 
 int create_revival_cache_pd(const char* corename, const char* javahome, const char* revival_dirname, const char* libdir) {
     logv("create_revival_cache_pd");
-
     // Check early for editbin.exe:
     editbin = check_editbin();
 
@@ -941,9 +954,9 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
         if (!pefile.find_data_segs(jvm_mapping->vaddr, &jvm_data_seg, &jvm_rdata_seg)) {
             error("Failed to find JVM data segments.");
         }
-        logv("JVM .rdata SEG: 0x%llx - 0x%llx", jvm_rdata_seg->start(), jvm_rdata_seg->end());
+        // logv("JVM .rdata SEG: 0x%llx - 0x%llx", jvm_rdata_seg->start(), jvm_rdata_seg->end());
         logv("JVM .data  SEG: 0x%llx - 0x%llx", jvm_data_seg->start(),  jvm_data_seg->end());
-        dump.set_jvm_data(jvm_data_seg, jvm_rdata_seg);
+        dump.set_jvm_data(jvm_data_seg);
 
         // Create mappings file:
         // Normalize corename so basename works (if we were given forward slashes, basename fails).
@@ -956,7 +969,19 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
         }
         // Write mappings file:
         write_sharedlib_mappings(mappings_fd, &dump);
-        write_mem_mappings(&dump, mappings_fd, corename_n, jvm_data_seg, jvm_rdata_seg);
+        // Windows TEB: used to setup TLS on revival.
+        uint64_t dump_TEB = dump.get_teb();
+        uint64_t dump_PEB = dump.get_peb();
+        uint64_t dump_ReadOnlySharedMemBase = 0;
+        if (teb != 0) {
+            writef(mappings_fd, "TEB %llx\n", dump_TEB);
+            dump_ReadOnlySharedMemBase = dump.read_pointer_at_address(dump_PEB + 0x88);
+            warn("DUMP: TEB 0x%llx PEB 0x%llx ReadOnlySharedMemBase 0x%llx", dump_TEB, dump_PEB, dump_ReadOnlySharedMemBase);
+        } else {
+            warn("TEB not resolved from MiniDump.");
+        }
+        write_mem_mappings(&dump, mappings_fd, corename_n, dump_ReadOnlySharedMemBase);
+        writef(mappings_fd, "\n");
         close(mappings_fd);
         free(corename_n);
     }

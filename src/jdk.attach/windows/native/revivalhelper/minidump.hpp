@@ -52,7 +52,8 @@ class MiniDump {
     bool is_valid() { return fd >= 0; }
     void close();
 
-    uint64_t resolve_teb();
+    uint64_t get_teb(); // Thread Environment Block
+    uint64_t get_peb(); // Process Enviornment Block (from TEB).
 
     MINIDUMP_DIRECTORY* find_stream(int stream);
     Segment* readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA, boolean skipLibraries);
@@ -67,11 +68,11 @@ class MiniDump {
     RVA64 getBaseRVA() { return BaseRVA; }
 
     uint64_t file_offset_for_vaddr(uint64_t addr);
-    char* readstring_at_address(uint64_t addr);
+    char* read_string_at_address(uint64_t addr);
+    uint64_t read_pointer_at_address(uint64_t addr);
 
-    void set_jvm_data(Segment* data, Segment* rdata) {
-        this->jvm_rdata_seg = rdata;
-        this->jvm_data_seg = data;
+    void set_jvm_data(Segment* data) {
+      this->jvm_data_seg = data;
     }
 
   private:
@@ -80,14 +81,13 @@ class MiniDump {
     int fd;
     _MINIDUMP_HEADER hdr;
     std::list<Segment> libs;
-    void read_sharedlibs(); // populate module list, and locate jvm
 
+    uint64_t resolve_teb();
+    uint64_t teb;
+    void read_sharedlibs();
     Segment* readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA);
     ULONG64 NumberOfMemoryRanges;
     RVA64 BaseRVA;
     int rangesRead;
-
-    // jvm_data_segs
-    Segment* jvm_rdata_seg;
     Segment* jvm_data_seg;
 };

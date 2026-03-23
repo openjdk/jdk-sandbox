@@ -78,4 +78,3 @@ class Segment {
         char* toString();
 };
 #endif
-
