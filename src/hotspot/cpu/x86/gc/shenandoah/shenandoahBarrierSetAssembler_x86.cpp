@@ -1309,9 +1309,8 @@ void ShenandoahBarrierStubC2::keepalive_slow(MacroAssembler* masm, Register obj)
     __ mov(c_rarg0, obj);
   }
 
-  // Go for stub routine call.
-  address entry = SharedRuntime::shenandoah_keepalive();
-  __ call_VM_leaf(entry, 1);
+  // Go to runtime stub and handle the rest there.
+  __ call(RuntimeAddress(SharedRuntime::shenandoah_keepalive()));
 
   if (c_rarg0 != obj && is_live(c_rarg0)) {
     restore_register(masm, c_rarg0);
@@ -1385,7 +1384,7 @@ void ShenandoahBarrierStubC2::lrb_slow(MacroAssembler* masm, Register obj, Addre
     __ movptr(c_rarg0, obj);
   }
 
-  // Go for stub routine call.
+  // Go to runtime stub and handle the rest there.
   address entry = nullptr;
   if (_narrow) {
     if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
@@ -1404,7 +1403,7 @@ void ShenandoahBarrierStubC2::lrb_slow(MacroAssembler* masm, Register obj, Addre
       entry = SharedRuntime::shenandoah_lrb_phantom();
     }
   }
-  __ call_VM_leaf(entry, 2);
+  __ call(RuntimeAddress(entry));
 
   // Save the result where needed.
   if (obj != rax) {

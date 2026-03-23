@@ -3654,8 +3654,34 @@ RuntimeStub* SharedRuntime::generate_shenandoah_stub(StubId stub_id) {
   OopMap* map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words, true);
   address frame_complete_pc = __ pc();
 
-  __ call(RuntimeAddress(stub_addr), rax);
-  address post_call_pc = __ pc();
+  address post_call_pc;
+
+  // Call the runtime. This is what MacroAssember::call_VM_leaf does,
+  // but we also want to have exact post-call PC for oop map location.
+  {
+    Label L_stack_aligned, L_end;
+
+    #ifdef _WIN64
+      // Windows always allocates space for it's register args
+      __ subptr(rsp, frame::arg_reg_save_area_bytes);
+    #endif
+
+    __ testptr(rsp, 15);
+    __ jccb(Assembler::zero, L_stack_aligned);
+      __ subptr(rsp, 8);
+      __ call(RuntimeAddress(stub_addr));
+      post_call_pc = __ pc();
+      __ addptr(rsp, 8);
+      __ jmpb(L_end);
+    __ bind(L_stack_aligned);
+      __ call(RuntimeAddress(stub_addr));
+      post_call_pc = __ pc();
+    __ bind(L_end);
+
+    #ifdef _WIN64
+      __ addptr(rsp, frame::arg_reg_save_area_bytes);
+    #endif
+  }
 
   if (returns_obj) {
     // RegisterSaver would clobber the call result when restoring.
