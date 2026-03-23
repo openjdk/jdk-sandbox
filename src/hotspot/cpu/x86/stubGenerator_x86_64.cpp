@@ -3980,99 +3980,6 @@ address StubGenerator::generate_upcall_stub_load_target() {
   return start;
 }
 
-address StubGenerator::generate_shenandoah_keepalive_stub() {
-  __ align(CodeEntryAlignment);
-
-  assert(UseShenandoahGC, "Only generate when Shenandoah is enabled");
-
-  StubId stub_id = StubId::stubgen_shenandoah_keepalive_id;
-  address stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre);
-
-  StubCodeMark mark(this, stub_id);
-  address start = __ pc();
-
-  __ enter();
-  __ push_call_clobbered_registers();
-
-  // Align stack if necessary
-  Label L_stack_aligned, L_done;
-  __ testl(rsp, 15);
-  __ jccb(Assembler::zero, L_stack_aligned);
-    __ subq(rsp, 8);
-    __ call(RuntimeAddress(stub_addr), rax);
-    __ addq(rsp, 8);
-  __ jmpb(L_done);
-  __ bind(L_stack_aligned);
-    __ call(RuntimeAddress(stub_addr), rax);
-  __ bind(L_done);
-
-  __ pop_call_clobbered_registers();
-  __ leave();
-  __ ret(0);
-
-  return start;
-}
-
-address StubGenerator::generate_shenandoah_lrb_stub(StubId stub_id) {
-  __ align(CodeEntryAlignment);
-
-  assert(UseShenandoahGC, "Only generate when Shenandoah is enabled");
-
-  address stub_addr;
-  switch (stub_id) {
-    case StubId::stubgen_shenandoah_lrb_strong_id: {
-      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong);
-      break;
-    }
-    case StubId::stubgen_shenandoah_lrb_weak_id: {
-      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak);
-      break;
-    }
-    case StubId::stubgen_shenandoah_lrb_phantom_id: {
-      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom);
-      break;
-    }
-    case StubId::stubgen_shenandoah_lrb_strong_narrow_id: {
-      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow);
-      break;
-    }
-    case StubId::stubgen_shenandoah_lrb_weak_narrow_id: {
-      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow);
-      break;
-    }
-    case StubId::stubgen_shenandoah_lrb_phantom_narrow_id: {
-      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow);
-      break;
-    }
-    default:
-      ShouldNotReachHere();
-  }
-
-  StubCodeMark mark(this, stub_id);
-  address start = __ pc();
-
-  __ enter();
-  __ push_call_clobbered_registers_except(RegSet::of(rax));
-
-  // Align stack if necessary
-  Label L_stack_aligned, L_done;
-  __ testl(rsp, 15);
-  __ jccb(Assembler::zero, L_stack_aligned);
-    __ subq(rsp, 8);
-    __ call(RuntimeAddress(stub_addr), rax);
-    __ addq(rsp, 8);
-  __ jmpb(L_done);
-  __ bind(L_stack_aligned);
-    __ call(RuntimeAddress(stub_addr), rax);
-  __ bind(L_done);
-
-  __ pop_call_clobbered_registers_except(RegSet::of(rax));
-  __ leave();
-  __ ret(0);
-
-  return start;
-}
-
 void StubGenerator::generate_lookup_secondary_supers_table_stub() {
   StubId stub_id = StubId::stubgen_lookup_secondary_supers_table_id;
   StubCodeMark mark(this, stub_id);
@@ -4233,17 +4140,6 @@ void StubGenerator::generate_final_stubs() {
 
   StubRoutines::_upcall_stub_exception_handler = generate_upcall_stub_exception_handler();
   StubRoutines::_upcall_stub_load_target = generate_upcall_stub_load_target();
-
-  if (UseShenandoahGC) {
-    StubRoutines::_shenandoah_keepalive_stub          = generate_shenandoah_keepalive_stub();
-
-    StubRoutines::_shenandoah_lrb_strong_stub         = generate_shenandoah_lrb_stub(StubId::stubgen_shenandoah_lrb_strong_id);
-    StubRoutines::_shenandoah_lrb_weak_stub           = generate_shenandoah_lrb_stub(StubId::stubgen_shenandoah_lrb_weak_id);
-    StubRoutines::_shenandoah_lrb_phantom_stub        = generate_shenandoah_lrb_stub(StubId::stubgen_shenandoah_lrb_phantom_id);
-    StubRoutines::_shenandoah_lrb_strong_narrow_stub  = generate_shenandoah_lrb_stub(StubId::stubgen_shenandoah_lrb_strong_narrow_id);
-    StubRoutines::_shenandoah_lrb_weak_narrow_stub    = generate_shenandoah_lrb_stub(StubId::stubgen_shenandoah_lrb_weak_narrow_id);
-    StubRoutines::_shenandoah_lrb_phantom_narrow_stub = generate_shenandoah_lrb_stub(StubId::stubgen_shenandoah_lrb_phantom_narrow_id);
-  }
 }
 
 void StubGenerator::generate_compiler_stubs() {

@@ -1260,13 +1260,13 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Regi
   if (_needs_load_ref_barrier) {
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ testb(gc_state, ShenandoahHeap::MARKING);
-    __ jccb(Assembler::zero, L_done);
+    __ jcc(Assembler::zero, L_done); // TODO: Figure how to short this branch again.
   }
 
   // Check if buffer is already full. Go slow, if so.
   __ movptr(tmp1, index);
   __ testptr(tmp1, tmp1);
-  __ jccb(Assembler::notZero, L_fast);
+  __ jcc(Assembler::notZero, L_fast); // TODO: Figure how to short this branch again.
   keepalive_slow(masm, obj);
   __ jmpb(L_done);
 
@@ -1292,8 +1292,9 @@ void ShenandoahBarrierStubC2::keepalive_slow(MacroAssembler* masm, Register obj)
     __ mov(c_rarg0, obj);
   }
 
-  // Go for stub routine call. Stub routine would deal with stack alignment as well.
-  __ call(RuntimeAddress(CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_keepalive_stub())));
+  // Go for stub routine call.
+  address entry = SharedRuntime::shenandoah_keepalive();
+  __ call_VM_leaf(entry, 1);
 
   if (c_rarg0 != obj && is_live(c_rarg0)) {
     __ pop(c_rarg0);
@@ -1306,7 +1307,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address ad
   if (_needs_keep_alive_barrier) {
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0));
-    __ jccb(Assembler::zero, L_done);
+    __ jcc(Assembler::zero, L_done); // TODO: Figure how to short this branch again.
   }
 
   // Weak/phantom loads are handled in slow path.
@@ -1333,7 +1334,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address ad
 
   // Cset-check. Go slow if in collection set.
   __ cmpb(cset_addr_arg, 0);
-  __ jccb(Assembler::equal, L_done);
+  __ jcc(Assembler::equal, L_done); // TODO: Figure how to short this branch again.
   lrb_slow(masm, obj, addr);
   __ bind(L_done);
 }
@@ -1367,26 +1368,26 @@ void ShenandoahBarrierStubC2::lrb_slow(MacroAssembler* masm, Register obj, Addre
     __ movptr(c_rarg0, obj);
   }
 
-  // Go for stub routine call. Stub routine would deal with stack alignment as well.
+  // Go for stub routine call.
   address entry = nullptr;
   if (_narrow) {
     if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-      entry = CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_lrb_strong_narrow_stub());
+      entry = SharedRuntime::shenandoah_lrb_strong_narrow();
     } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
-      entry = CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_lrb_weak_narrow_stub());
+      entry = SharedRuntime::shenandoah_lrb_weak_narrow();
     } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
-      entry = CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_lrb_phantom_narrow_stub());
+      entry = SharedRuntime::shenandoah_lrb_phantom_narrow();
     }
   } else {
     if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-      entry = CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_lrb_strong_stub());
+      entry = SharedRuntime::shenandoah_lrb_strong();
     } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
-      entry = CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_lrb_weak_stub());
+      entry = SharedRuntime::shenandoah_lrb_weak();
     } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
-      entry = CAST_FROM_FN_PTR(address, StubRoutines::shenandoah_lrb_phantom_stub());
+      entry = SharedRuntime::shenandoah_lrb_phantom();
     }
   }
-  __ call(RuntimeAddress(entry));
+  __ call_VM_leaf(entry, 2);
 
   // Save the result where needed.
   if (obj != rax) {
@@ -1432,7 +1433,8 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   if (_needs_keep_alive_barrier && _needs_load_ref_barrier) {
     __ jcc(Assembler::zero, L_done);
   } else {
-    __ jccb(Assembler::zero, L_done);
+    // TODO: Figure how to short this branch again.
+    __ jcc(Assembler::zero, L_done);
   }
 
   // Barriers need temp to work, allocate one now.
