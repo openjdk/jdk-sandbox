@@ -48,9 +48,7 @@
 #include "minidump.hpp"
 #include "pefile.hpp"
 
-
-uint64_t vaddr_align; // set by init_pd
-
+uint64_t vaddr_align;
 char *editbin = nullptr;
 
 typedef PVOID (*VirtualAlloc2Fn)(HANDLE, PVOID, SIZE_T, ULONG, ULONG, MEM_EXTENDED_PARAMETER*, ULONG);
@@ -93,26 +91,6 @@ static void install_kernelbase_1803_symbol_or_exit(Fn*& fn, const char* name) {
     }
 }
 
-void printMemBasicInfo(MEMORY_BASIC_INFORMATION meminfo) {
-    uint64_t end = (uint64_t) meminfo.BaseAddress + meminfo.RegionSize;
-    fprintf(stderr, "Meminfo: AllocationBase: 0x%016llx   BaseAddress: 0x%016llx - 0x%016llx  "
-            "RegionSize: 0x%08llx  AllocProt: 0x%08lx Prot: 0x%08lx, State: 0x%lx\n",
-            (uint64_t) meminfo.AllocationBase, (uint64_t) meminfo.BaseAddress, end,
-            (uint64_t) meminfo.RegionSize, meminfo.AllocationProtect, meminfo.Protect, meminfo.State
-        );
-}
-
-void printMemBasicInfo(void* addr) {
-    HANDLE hProc = GetCurrentProcess();
-    MEMORY_BASIC_INFORMATION meminfo;
-    size_t s = VirtualQueryEx(hProc, (PVOID) addr, &meminfo, sizeof(meminfo));
-    if (s == sizeof(meminfo)) {
-        printMemBasicInfo(meminfo);
-    } else {
-        warn("%p: VirtualQueryEx returns %d (!= %d)", addr, s, sizeof(meminfo));
-    }
-}
-
 char* basename_pd(char* s) {
     for (char* p = s + strlen(s); p != s; p--) {
         if (*p == '\\') {
@@ -121,73 +99,6 @@ char* basename_pd(char* s) {
         }
     }
     return s;
-}
-
-uint64_t vaddr_alignment_pd() {
-    return vaddr_align;
-}
-
-uint64_t offset_alignment_pd() {
-    return vaddr_align;
-}
-
-uint64_t length_alignment_pd() {
-    return vaddr_align;
-}
-
-unsigned long long max_user_vaddr_pd() {
-    return 0x7FFFFFFFFFFF;
-}
-
-uint64_t get_peb() {
-     return (uint64_t) __readgsqword(0x60); // Known offset from TEB.
-}
-
-uint64_t get_ReadOnlySharedMemoryBase() {
-     return *(uint64_t*)(get_peb() + 0x88); // Known offset from PEB.
-}
-
-void tls_fixup_pd(void *teb) {
-    uint64_t* cur_teb = (uint64_t*) NtCurrentTeb(); // Get TEB pointer, on x64 is stored in GS.
-    // Get pointer to TLS pointer in current process:
-    uint64_t* cur_tls = (uint64_t*) ((char*) cur_teb + 0x58); // Read TLS ptr at known offset, effectively __readgsqword(0x58);
-    logv("tls_fixup: current teb = 0x%llx tls ptr at 0x%llx", cur_teb, cur_tls);
-    waitHitRet();
-
-    // Given we have revived memory, read core TEB address, to find old TLS pointer.
-    logv("tls_fixup: MiniDump TEB addr 0x%llx", teb);
-    uint64_t* core_tls = (uint64_t*) ((char*) teb + 0x58);
-    logv("tls_fixup: MiniDump _tls_array = 0x%llx contains 0x%llx", core_tls, *core_tls);
-
-    *cur_tls = *core_tls; // Replace current TLS with that from MiniDump
-    logv("tls_fixup: fixed, cur teb = 0x%llx new tls = 0x%llx contains 0x%llx", cur_teb, cur_tls, *cur_tls);
-    waitHitRet();
-}
-
-void init_pd() {
-    int x;
-    warn("init_pd: PID %ld thread: 0x%lx", _getpid(), GetCurrentThreadId());
-    warn("init_pd: new process PEB addr: 0x%llx", get_peb());
-    printMemBasicInfo((void*) get_peb());
-    warn("init_pd: new process ReadOnlySharedMemoryBase: 0x%llx", get_ReadOnlySharedMemoryBase());
-    printMemBasicInfo((void*) get_ReadOnlySharedMemoryBase());
-
-    _SYSTEM_INFO systemInfo;
-    GetSystemInfo(&systemInfo);
-    vaddr_align = systemInfo.dwAllocationGranularity - 1;
-
-    // Report pagesize in verbose log for reference, but not used.
-    uint64_t pagesize = systemInfo.dwPageSize;
-    logv("revival: init_pd: dwAllocationGranularity = %d  vaddr_alignment_pd() = 0x%lx  approx sp = 0x%llx dwPageSize = %d",
-          systemInfo.dwAllocationGranularity, vaddr_alignment_pd(), &x, pagesize);
-
-    if (vaddr_align != 0xffff) {
-        // Expected: dwAllocationGranularity = 65536
-        warn("Note: dwAllocationGranularity not 64k, vaddr_align = %lld", vaddr_align);
-    }
-
-    install_kernelbase_1803_symbol_or_exit(pVirtualAlloc2, "VirtualAlloc2");
-    install_kernelbase_1803_symbol_or_exit(pMapViewOfFile3, "MapViewOfFile3");
 }
 
 void normalize_path_pd(char *s) {
@@ -216,6 +127,80 @@ bool file_exists_indir_pd(const char* dirname, const char* filename) {
     return file_exists_pd(path);
 }
 
+uint64_t vaddr_alignment_pd() {
+    return vaddr_align;
+}
+
+uint64_t offset_alignment_pd() {
+    return vaddr_align;
+}
+
+uint64_t length_alignment_pd() {
+    return vaddr_align;
+}
+
+unsigned long long max_user_vaddr_pd() {
+    return 0x7FFFFFFFFFFF;
+}
+
+void printMemBasicInfo(MEMORY_BASIC_INFORMATION meminfo) {
+    uint64_t end = (uint64_t) meminfo.BaseAddress + meminfo.RegionSize;
+    fprintf(stderr, "Meminfo: AllocationBase: 0x%016llx   BaseAddress: 0x%016llx - 0x%016llx  "
+            "RegionSize: 0x%08llx  AllocProt: 0x%08lx Prot: 0x%08lx, State: 0x%lx\n",
+            (uint64_t) meminfo.AllocationBase, (uint64_t) meminfo.BaseAddress, end,
+            (uint64_t) meminfo.RegionSize, meminfo.AllocationProtect, meminfo.Protect, meminfo.State
+        );
+}
+
+void printMemBasicInfo(void* addr) {
+    HANDLE hProc = GetCurrentProcess();
+    MEMORY_BASIC_INFORMATION meminfo;
+    size_t s = VirtualQueryEx(hProc, (PVOID) addr, &meminfo, sizeof(meminfo));
+    if (s == sizeof(meminfo)) {
+        printMemBasicInfo(meminfo);
+    } else {
+        warn("%p: VirtualQueryEx returns %d (!= %d)", addr, s, sizeof(meminfo));
+    }
+}
+
+void tls_fixup_pd(void *teb) {
+    uint64_t* cur_teb = (uint64_t*) NtCurrentTeb(); // Get TEB pointer, on x64 is stored in GS.
+    // Get pointer to TLS pointer in current process:
+    uint64_t* cur_tls = (uint64_t*) ((char*) cur_teb + 0x58); // Read TLS ptr at known offset, effectively __readgsqword(0x58);
+    logv("tls_fixup: current teb = 0x%llx tls ptr at 0x%llx", cur_teb, cur_tls);
+    waitHitRet();
+
+    // Given we have revived memory, read core TEB address, to find old TLS pointer.
+    logv("tls_fixup: MiniDump TEB addr 0x%llx", teb);
+    uint64_t* core_tls = (uint64_t*) ((char*) teb + 0x58);
+    logv("tls_fixup: MiniDump _tls_array = 0x%llx contains 0x%llx", core_tls, *core_tls);
+
+    *cur_tls = *core_tls; // Replace current TLS with that from MiniDump
+    logv("tls_fixup: fixed, cur teb = 0x%llx new tls = 0x%llx contains 0x%llx", cur_teb, cur_tls, *cur_tls);
+    waitHitRet();
+}
+
+void init_pd() {
+    int x;
+    logv("init_pd: PID %ld thread: 0x%lx", _getpid(), GetCurrentThreadId());
+    _SYSTEM_INFO systemInfo;
+    GetSystemInfo(&systemInfo);
+    vaddr_align = systemInfo.dwAllocationGranularity - 1;
+
+    // Report pagesize in verbose log for reference, but not used.
+    uint64_t pagesize = systemInfo.dwPageSize;
+    logv("revival: init_pd: dwAllocationGranularity = %d  vaddr_alignment_pd() = 0x%lx  approx sp = 0x%llx dwPageSize = %d",
+          systemInfo.dwAllocationGranularity, vaddr_alignment_pd(), &x, pagesize);
+
+    if (vaddr_align != 0xffff) {
+        // Expected: dwAllocationGranularity = 65536
+        warn("Note: dwAllocationGranularity not 64k, vaddr_align = %lld", vaddr_align);
+    }
+
+    install_kernelbase_1803_symbol_or_exit(pVirtualAlloc2, "VirtualAlloc2");
+    install_kernelbase_1803_symbol_or_exit(pMapViewOfFile3, "MapViewOfFile3");
+}
+
 int revival_checks_pd(const char *dirname) {
     return 0;
 }
@@ -228,7 +213,7 @@ void dump() {
     if (hFile == INVALID_HANDLE_VALUE) {
         warn("%s: CreateFile failed for MiniDump: 0x%x", filename, GetLastError());
     } else {
-        warn("Writing MiniDump to %s...", filename);
+        warn("revival: Writing MiniDump to %s...", filename);
         if (!MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hFile, dumpType, nullptr, nullptr, nullptr)) {
             warn("%s: MiniDumpWriteDump failed: 0x%x", filename, GetLastError());
         }
@@ -240,9 +225,6 @@ void dump() {
 LPTOP_LEVEL_EXCEPTION_FILTER previousUnhandledExceptionFilter = nullptr;
 
 LONG WINAPI topLevelUnhandledExceptionFilter(struct _EXCEPTION_POINTERS* exceptionInfo) {
-    // This handler was checking the fault address was in the failedSegments.
-    // But it only ever calls exitForRetry() either way, so just do that.
-
 #if defined(_M_AMD64)
     uint64_t pc = (uint64_t) exceptionInfo->ContextRecord->Rip;
 #else
@@ -261,21 +243,15 @@ LONG WINAPI topLevelUnhandledExceptionFilter(struct _EXCEPTION_POINTERS* excepti
         }
     }
     waitHitRet();
-
-    // dump();
+    if (logLevel >= LOG_DEBUG) {
+        dump();
+    }
     exitForRetry(); // Letting this process fail would send the wrong return code back to JCmd.
     abort(); // not reached
 }
 
 void install_handler() {
     previousUnhandledExceptionFilter = SetUnhandledExceptionFilter(topLevelUnhandledExceptionFilter);
-}
-
-void remove_handler() {
-    LPTOP_LEVEL_EXCEPTION_FILTER prev = SetUnhandledExceptionFilter(nullptr);
-    if (prev != previousUnhandledExceptionFilter) {
-        warn("remove_handler: Not the expected previous handler.");
-    }
 }
 
 void *symbol_dynamiclookup_pd(void *h, const char*str) {
@@ -314,12 +290,10 @@ int unload_sharedobject_pd(void *h) {
 }
 
 void set_prot(void* addr, uint64_t length) {
-    //DWORD prot = PAGE_READWRITE;
-    DWORD prot = PAGE_EXECUTE_READWRITE;
+    DWORD prot = PAGE_EXECUTE_READWRITE; // PAGE_READWRITE;
 
     // Likely we can't set protection of some sub-range we are given, but can find the containing MEMORY_BASIC_INFORMATION
     // and set protection of that.
-
     DWORD lpfOldProtect;
     if (!VirtualProtect((PVOID) addr, length, prot, &lpfOldProtect)) {
         logv("    set_prot: failed (1) setting rw (0x%lx) for: 0x%p, len 0x%lx: error 0x%x.",  prot, addr, length, GetLastError());
@@ -952,7 +926,7 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
         uint64_t dump_ReadOnlySharedMemBase = 0;
         if (dump_TEB != 0) {
             dump_PEB = dump.get_peb();
-            dump_ReadOnlySharedMemBase = dump.read_pointer_at_address(dump_PEB + 0x88);
+            dump_ReadOnlySharedMemBase = dump.read_pointer_at_address(dump_PEB + 0x88); // Known offset from PEB.
             warn("Dump: TEB 0x%llx PEB 0x%llx ReadOnlySharedMemBase 0x%llx", dump_TEB, dump_PEB, dump_ReadOnlySharedMemBase);
             writef(mappings_fd, "TEB %llx\n", dump_TEB);
         } else {
