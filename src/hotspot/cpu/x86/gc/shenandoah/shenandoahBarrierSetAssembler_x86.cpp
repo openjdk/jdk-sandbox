@@ -1300,7 +1300,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Regi
     }
 
     // Go to runtime stub and handle the rest there.
-    __ call(RuntimeAddress(SharedRuntime::shenandoah_keepalive()));
+    __ call(RuntimeAddress(keepalive_runtime_entry_addr()));
 
     if (c_rarg0 != obj && is_live(c_rarg0)) {
       restore_register(masm, c_rarg0);
@@ -1381,25 +1381,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address ad
     }
 
     // Go to runtime stub and handle the rest there.
-    address entry = nullptr;
-    if (_narrow) {
-      if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-        entry = SharedRuntime::shenandoah_lrb_strong_narrow();
-      } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
-        entry = SharedRuntime::shenandoah_lrb_weak_narrow();
-      } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
-        entry = SharedRuntime::shenandoah_lrb_phantom_narrow();
-      }
-    } else {
-      if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-        entry = SharedRuntime::shenandoah_lrb_strong();
-      } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
-        entry = SharedRuntime::shenandoah_lrb_weak();
-      } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
-        entry = SharedRuntime::shenandoah_lrb_phantom();
-      }
-    }
-    __ call(RuntimeAddress(entry));
+    __ call(RuntimeAddress(lrb_runtime_entry_addr()));
 
     // Save the result where needed.
     if (obj != rax) {
