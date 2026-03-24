@@ -45,8 +45,6 @@
 #ifdef COMPILER2
 #include "gc/shenandoah/c2/shenandoahBarrierSetC2.hpp"
 #include "opto/output.hpp"
-#include "utilities/population_count.hpp"
-#include "utilities/powerOfTwo.hpp"
 #endif
 
 #define __ masm->
@@ -642,30 +640,9 @@ void ShenandoahBarrierStubC2::gc_state_check_c2(MacroAssembler* masm, Register g
     // (unconditional) jump or nop, based on our current GC state.
     __ nop();
   } else {
-#ifdef ASSERT
-    const unsigned char allowed = (unsigned char)(ShenandoahHeap::MARKING | ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::WEAK_ROOTS);
-    const unsigned char only_valid_flags = test_state & (unsigned char) ~allowed;
-    assert(test_state > 0x0, "Invalid test_state asked: %x", test_state);
-    assert(only_valid_flags == 0x0, "Invalid test_state asked: %x", test_state);
-#endif
-
-    Address gcs_addr;
-    int bit_to_check;
-
-    int num_bits_set = population_count(test_state);
-    if (num_bits_set == 1) {
-      // Simple, check the gc-state bit directly.
-      gcs_addr = Address(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-      bit_to_check = log2i_exact(test_state);
-    } else if (2 <= num_bits_set && num_bits_set <= 3) {
-      // More complicated, check the compound gc-state bit.
-      gcs_addr = Address(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_compound_offset()));
-      bit_to_check = ShenandoahThreadLocalData::compound_to_bit(test_state);
-    } else {
-      ShouldNotReachHere();
-    }
-
-    __ ldrb(gcstate, gcs_addr);
+    int bit_to_check = ShenandoahThreadLocalData::gc_state_to_fast_bit(test_state);
+    Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
+    __ ldrb(gcstate, gc_state_fast);
     if (slow_stub->_test_and_branch_reachable) {
       __ tbnz(gcstate, bit_to_check, *slow_stub->entry());
     } else {

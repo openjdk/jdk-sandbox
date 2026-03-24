@@ -1103,8 +1103,8 @@ void ShenandoahBarrierSetAssembler::gc_state_check_c2(MacroAssembler* masm, cons
     // within the nmethod (at 32-bit offset) takes 6 bytes.
     __ nop(6);
   } else {
-    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ testb(gc_state, test_state);
+    Address gc_state_fast(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
+    __ testb(gc_state_fast, ShenandoahThreadLocalData::gc_state_to_fast(test_state));
     __ jcc(Assembler::notZero, *slow_stub->entry());
     __ bind(*slow_stub->continuation());
   }

@@ -1205,13 +1205,14 @@ class ShenandoahGCStatePropagatorHandshakeClosure : public HandshakeClosure {
 public:
   explicit ShenandoahGCStatePropagatorHandshakeClosure(char gc_state) :
     HandshakeClosure("Shenandoah GC State Change"),
-    _gc_state(gc_state) {}
+    _gc_state(gc_state), _gc_state_fast(ShenandoahThreadLocalData::compute_gc_state_fast(gc_state)) {}
 
   void do_thread(Thread* thread) override {
-    ShenandoahThreadLocalData::set_gc_state(thread, _gc_state);
+    ShenandoahThreadLocalData::set_gc_state(thread, _gc_state, _gc_state_fast);
   }
 private:
   char _gc_state;
+  char _gc_state_fast;
 };
 
 class ShenandoahPrepareForUpdateRefsHandshakeClosure : public HandshakeClosure {

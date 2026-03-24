@@ -807,31 +807,9 @@ void ShenandoahBarrierStubC2::gc_state_check_c2(MacroAssembler* masm,
   } else if (ShenandoahGCStateCheckHotpatch) {
     __ nop();
   } else {
-#ifdef ASSERT
-    const unsigned char allowed =
-        (unsigned char)(ShenandoahHeap::MARKING |
-                        ShenandoahHeap::HAS_FORWARDED |
-                        ShenandoahHeap::WEAK_ROOTS);
-    const unsigned char only_valid_flags = test_state & (unsigned char)~allowed;
-    assert(test_state > 0x0, "Invalid test_state asked: %x", test_state);
-    assert(only_valid_flags == 0x0, "Invalid test_state asked: %x", test_state);
-#endif
-
-    Address gcs_addr;
-    int bit_to_check;
-
-    const int num_bits_set = population_count(test_state);
-    if (num_bits_set == 1) {
-      gcs_addr = Address(xthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-      bit_to_check = log2i_exact(test_state);
-    } else if (2 <= num_bits_set && num_bits_set <= 3) {
-      gcs_addr = Address(xthread, in_bytes(ShenandoahThreadLocalData::gc_state_compound_offset()));
-      bit_to_check = ShenandoahThreadLocalData::compound_to_bit(test_state);
-    } else {
-      ShouldNotReachHere();
-    }
-
-    __ lbu(gcstate, gcs_addr);
+    int bit_to_check = ShenandoahThreadLocalData::gc_state_to_fast_bit(test_state);
+    Address gc_state_fast(xthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
+    __ lbu(gcstate, gc_state_fast);
     __ test_bit(gcstate, gcstate, bit_to_check);
     __ bnez(gcstate, *slow_stub->entry());
 

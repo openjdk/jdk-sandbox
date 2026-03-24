@@ -43,8 +43,11 @@
 
 class ShenandoahThreadLocalData {
 private:
+  // Thread-local mirror for global GC state
   char _gc_state;
-  char _gc_state_compound;
+
+  // Quickened version of GC state, use single bit to check the group of states
+  char _gc_state_fast;
 
   // Evacuation OOM state
   uint8_t                 _oom_scope_nesting_level;
@@ -83,6 +86,26 @@ private:
   // If true, evacuations may attempt to allocate a smaller plab if the original size fails.
   bool   _plab_retries_enabled;
 
+  enum FastGCState {
+    FORWARDED                    = ShenandoahHeap::HAS_FORWARDED,
+    MARKING                      = ShenandoahHeap::MARKING,
+    WEAK                         = ShenandoahHeap::WEAK_ROOTS,
+    FORWARDED_OR_MARKING         = ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::MARKING,
+    FORWARDED_OR_WEAK            = ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::WEAK_ROOTS,
+    MARKING_OR_WEAK              = ShenandoahHeap::MARKING       | ShenandoahHeap::WEAK_ROOTS,
+    FORWARDED_OR_MARKING_OR_WEAK = ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::MARKING    | ShenandoahHeap::WEAK_ROOTS,
+  };
+
+  enum FastGCStateBitPos {
+    FORWARDED_BITPOS                    = 1,
+    MARKING_BITPOS                      = 2,
+    WEAK_BITPOS                         = 3,
+    FORWARDED_OR_MARKING_BITPOS         = 4,
+    FORWARDED_OR_WEAK_BITPOS            = 5,
+    MARKING_OR_WEAK_BITPOS              = 6,
+    FORWARDED_OR_MARKING_OR_WEAK_BITPOS = 7,
+  };
+
   ShenandoahEvacuationStats* _evacuation_stats;
 
   ShenandoahThreadLocalData();
@@ -110,41 +133,41 @@ public:
     return data(thread)->_satb_mark_queue;
   }
 
-  enum CompoundState {
-    FORWARDED_OR_MARKING =         ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::MARKING,
-    FORWARDED_OR_WEAK =            ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::WEAK_ROOTS,
-    MARKING_OR_WEAK =              ShenandoahHeap::MARKING       | ShenandoahHeap::WEAK_ROOTS,
-    FORWARDED_OR_MARKING_OR_WEAK = ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::MARKING    | ShenandoahHeap::WEAK_ROOTS,
-  };
-
-  enum CompoundStateBitPos {
-    FORWARDED_OR_MARKING_BITPOS         = 1,
-    FORWARDED_OR_WEAK_BITPOS            = 2,
-    MARKING_OR_WEAK_BITPOS              = 3,
-    FORWARDED_OR_MARKING_OR_WEAK_BITPOS = 4,
-  };
-
-  static char compound_to_bit(char compound) {
-    if (compound == FORWARDED_OR_MARKING)         return FORWARDED_OR_MARKING_BITPOS;
-    if (compound == FORWARDED_OR_WEAK)            return FORWARDED_OR_WEAK_BITPOS;
-    if (compound == MARKING_OR_WEAK)              return MARKING_OR_WEAK_BITPOS;
-    if (compound == FORWARDED_OR_MARKING_OR_WEAK) return FORWARDED_OR_MARKING_OR_WEAK_BITPOS;
+  static char gc_state_to_fast_bit(char gc_state) {
+    if (gc_state == FORWARDED)                    return FORWARDED_BITPOS;
+    if (gc_state == MARKING)                      return MARKING_BITPOS;
+    if (gc_state == WEAK)                         return WEAK_BITPOS;
+    if (gc_state == FORWARDED_OR_MARKING)         return FORWARDED_OR_MARKING_BITPOS;
+    if (gc_state == FORWARDED_OR_WEAK)            return FORWARDED_OR_WEAK_BITPOS;
+    if (gc_state == MARKING_OR_WEAK)              return MARKING_OR_WEAK_BITPOS;
+    if (gc_state == FORWARDED_OR_MARKING_OR_WEAK) return FORWARDED_OR_MARKING_OR_WEAK_BITPOS;
     ShouldNotReachHere();
     return 0;
   }
 
-  static char gc_state_to_compound(char gc_state) {
-    char compound = 0;
-    if ((gc_state & FORWARDED_OR_MARKING) > 0)         compound |= (1 << FORWARDED_OR_MARKING_BITPOS);
-    if ((gc_state & FORWARDED_OR_WEAK) > 0)            compound |= (1 << FORWARDED_OR_WEAK_BITPOS);
-    if ((gc_state & MARKING_OR_WEAK) > 0)              compound |= (1 << MARKING_OR_WEAK_BITPOS);
-    if ((gc_state & FORWARDED_OR_MARKING_OR_WEAK) > 0) compound |= (1 << FORWARDED_OR_MARKING_OR_WEAK_BITPOS);
-    return compound;
+  static char gc_state_to_fast(char gc_state) {
+    return 1 << gc_state_to_fast_bit(gc_state);
+  }
+
+  static char compute_gc_state_fast(char gc_state) {
+    char fast = 0;
+    if ((gc_state & FORWARDED) > 0)                    fast |= (1 << FORWARDED_BITPOS);
+    if ((gc_state & MARKING) > 0)                      fast |= (1 << MARKING_BITPOS);
+    if ((gc_state & WEAK) > 0)                         fast |= (1 << WEAK_BITPOS);
+    if ((gc_state & FORWARDED_OR_MARKING) > 0)         fast |= (1 << FORWARDED_OR_MARKING_BITPOS);
+    if ((gc_state & FORWARDED_OR_WEAK) > 0)            fast |= (1 << FORWARDED_OR_WEAK_BITPOS);
+    if ((gc_state & MARKING_OR_WEAK) > 0)              fast |= (1 << MARKING_OR_WEAK_BITPOS);
+    if ((gc_state & FORWARDED_OR_MARKING_OR_WEAK) > 0) fast |= (1 << FORWARDED_OR_MARKING_OR_WEAK_BITPOS);
+    return fast;
+  }
+
+  static void set_gc_state(Thread* thread, char gc_state, char gc_state_fast) {
+    data(thread)->_gc_state = gc_state;
+    data(thread)->_gc_state_fast = gc_state_fast;
   }
 
   static void set_gc_state(Thread* thread, char gc_state) {
-    data(thread)->_gc_state = gc_state;
-    data(thread)->_gc_state_compound = gc_state_to_compound(gc_state);
+    set_gc_state(thread, gc_state, compute_gc_state_fast(gc_state));
   }
 
   static char gc_state(Thread* thread) {
@@ -312,8 +335,8 @@ public:
     return Thread::gc_data_offset() + byte_offset_of(ShenandoahThreadLocalData, _gc_state);
   }
 
-  static ByteSize gc_state_compound_offset() {
-    return Thread::gc_data_offset() + byte_offset_of(ShenandoahThreadLocalData, _gc_state_compound);
+  static ByteSize gc_state_fast_offset() {
+    return Thread::gc_data_offset() + byte_offset_of(ShenandoahThreadLocalData, _gc_state_fast);
   }
 
   static ByteSize card_table_offset() {
