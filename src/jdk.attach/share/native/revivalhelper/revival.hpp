@@ -64,7 +64,6 @@
 #define SYM_REVIVE_VM "process_revival"
 
 void install_handler();
-void remove_handler();
 
 //
 // Platform specifics

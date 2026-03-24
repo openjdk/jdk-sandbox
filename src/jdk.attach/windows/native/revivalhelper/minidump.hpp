@@ -23,6 +23,11 @@
  * questions.
  */
 
+#ifndef MINIDUMP_H
+#define MINIDUMP_H
+
+#include "revival.hpp"
+
 #include <direct.h>
 #include <fileapi.h>
 #include <intrin.h>
@@ -92,3 +97,5 @@ class MiniDump {
     int rangesRead;
     Segment* jvm_data_seg;
 };
+
+#endif MINIDUMP_H /* MINIDUMP_H */

@@ -44,7 +44,7 @@
 #include <shlwapi.h>
 #include <winternl.h>
 
-#include "segment.hpp"
+#include "revival.hpp"
 
 /**
  * Windows PE file.
@@ -65,7 +65,7 @@ class PEFile {
     // *Destructive*: changes the actual named file.
     static bool rebase(const char* filename, uint64_t address);
 
-    // Unset DLLCharacteristic IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE
+    // Unset DLLCharacteristic IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE in named file.
     // *Destructive*: changes the actual named file.
     static bool remove_dynamicbase(const char* filename);
 
@@ -77,4 +77,4 @@ class PEFile {
     void imageLoad();
     Segment* get_rdata_section();
 };
-#endif
+#endif /* PEFILE_H */

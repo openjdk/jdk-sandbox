@@ -75,6 +75,6 @@ class Segment {
         int write_mapping(int fd);
         int write_mapping(int fd, const char* type);
 
-        char* toString();
+        int toString(char* buf, int len);
 };
-#endif
+#endif /* SEGMENT_H */

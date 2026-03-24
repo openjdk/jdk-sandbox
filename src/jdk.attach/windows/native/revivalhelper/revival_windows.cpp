@@ -587,7 +587,9 @@ char* check_editbin() {
 
 int relocate_sharedlib_pd(const char *filename, const void *addr) {
     if (editbin == nullptr) {
-        // Normal usage, editbin not specified:
+        // Normal usage, editbin not specified.
+        // Two calls.  ReBaseImage64 may not report correct rebased address,
+        // second call verifies change has been made (see verbose log output).
         if (!PEFile::rebase(filename, (long long) addr)) {
             return -1;
         }
@@ -622,6 +624,7 @@ void write_mem_mappings(MiniDump* dump, int fd, const char *corename, uint64_t d
     // Ideally map data directly from core, but if alignment simply does not work (segments too close),
     // create mapping and copy bytes later.
     std::list<Segment> segsToCopy; // Segments that need bytes copied
+    char buf[BUFLEN];
 
     dump->prepare_memory_ranges(); // Get ready to read Segments: locate Memory64ListStream to read all MINIDUMP_MEMORY64_LIST
     RVA64 currentRVA = dump->getBaseRVA(); // Current offset in file
@@ -671,12 +674,10 @@ void write_mem_mappings(MiniDump* dump, int fd, const char *corename, uint64_t d
         while (segNext != nullptr && align_up(seg->end(), vaddr_alignment_pd()) >= segNext->start()) {
             if (logLevel >= LOG_DEBUG) {
                 warn("create_mappings: segs too close for alignment, seg: %p - %p next seg: %p", seg->vaddr, seg->end(), segNext->vaddr);
-                char *b = seg->toString();
-                warn("later seg    : %s", b);
-                free(b);
-                b = segNext->toString();
-                warn("later segNext: %s", segNext->toString());
-                free(b);
+                seg->toString(buf, BUFLEN);
+                warn("later seg    : %s", buf);
+                segNext->toString(buf, BUFLEN);
+                warn("later segNext: %s", buf);
             }
             // Save segs, will write "C" copy lines later.
             if (biggerSeg == nullptr) {
@@ -687,9 +688,8 @@ void write_mem_mappings(MiniDump* dump, int fd, const char *corename, uint64_t d
 
             biggerSeg->set_end(segNext->end());  // Expand to cover both.
             if (logLevel >= LOG_DEBUG) {
-                char *b = biggerSeg->toString();
-                warn("BIGGER seg expanded: %s", b);
-                free(b);
+                biggerSeg->toString(buf, BUFLEN);
+                warn("BIGGER seg expanded: %s", buf);
             }
             // Next...
             seg = segNext;
@@ -701,9 +701,8 @@ void write_mem_mappings(MiniDump* dump, int fd, const char *corename, uint64_t d
         int e = 0;
         if (biggerSeg != nullptr) {
             if (logLevel >= LOG_DEBUG) {
-                char *b = biggerSeg->toString();
-                warn("write BIGGER seg    : %s", b);
-                free(b);
+                biggerSeg->toString(buf, BUFLEN);
+                warn("write BIGGER seg    : %s", buf);
             }
             e = biggerSeg->write_mapping(fd, "m"); // map only, copy later
             biggerSeg = nullptr;
@@ -719,7 +718,6 @@ void write_mem_mappings(MiniDump* dump, int fd, const char *corename, uint64_t d
     }
 }
 
-
 const int N_JVM_SYMS = 2;
 const char *JVM_SYMS[N_JVM_SYMS] = {
     SYM_REVIVE_VM,
@@ -732,7 +730,6 @@ void write_symbols(int symbols_fd, const char* symbols[], int count, const char 
     if (image == nullptr) {
         error("write_symbols: ImageLoad error '%s': %d", GetLastError());
     }
-
     HANDLE hCurrentProcess = GetCurrentProcess();
     HANDLE h2 = (HANDLE) 1;
     bool e = SymInitialize(h2, nullptr, false);

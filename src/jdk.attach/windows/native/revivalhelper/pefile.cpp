@@ -23,24 +23,6 @@
  * questions.
  */
 
-#include <direct.h>
-#include <intrin.h>
-#include <io.h>
-#include <memoryapi.h>
-#include <processthreadsapi.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sysinfoapi.h>
-#include <windows.h>
-
-#include <sys/types.h>
-
-#include <fileapi.h>
-#include <imagehlp.h>
-#include <shlwapi.h>
-#include <winternl.h>
-
 #include "revival.hpp"
 #include "pefile.hpp"
 

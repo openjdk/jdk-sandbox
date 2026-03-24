@@ -72,7 +72,7 @@ int Segment::write_mapping(int fd, const char* type) {
     snprintf(buf, BUFLEN, "%s %llx %llx %llx %llx %llx %s\n",
              type,
              (unsigned long long) vaddr,
-             (unsigned long long) end(), // vaddr + length,
+             (unsigned long long) end(),
              (unsigned long long) file_offset,
              (unsigned long long) file_length,
              (unsigned long long) length,
@@ -82,15 +82,13 @@ int Segment::write_mapping(int fd, const char* type) {
     return 0;
 }
 
-char* Segment::toString() {
-    char* buf = (char*) malloc(BUFLEN);
-    snprintf(buf, BUFLEN, "Segment: %llx - %llx '%s' off: %llx len:%llx",
+int Segment::toString(char* buf, int len) {
+    return snprintf(buf, len, "Segment: %llx - %llx '%s' off: %llx len:%llx",
              (unsigned long long) vaddr,
-             (unsigned long long) end(), // vaddr + length,
+             (unsigned long long) end(),
              name != nullptr ? name : "",
              (unsigned long long) file_offset,
              (unsigned long long) file_length
             );
-    return buf;
 }
 

@@ -23,37 +23,14 @@
  * questions.
  */
 
-#include <direct.h>
-#include <intrin.h>
-#include <io.h>
-#include <memoryapi.h>
-#include <processthreadsapi.h>
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <sysinfoapi.h>
-#include <windows.h>
-
-#include <minidumpapiset.h>
-
-#include <sys/types.h>
-
-#include <fileapi.h>
-#include <imagehlp.h>
-#include <shlwapi.h>
-#include <winternl.h>
-
-#include "revival.hpp"
 #include "minidump.hpp"
-#include "pefile.hpp"
 
 /**
- * Read a MINIDUMP_STRING, which is:
- * ULONG32 Length, WCHAR buffer (UTF16-LE)
- *
+ * Read a MINIDUMP_STRING.
  * Return a malloc'd pointer which the caller should free.
  */
 char *readstring_minidump(int fd) {
+    // Read ULONG32 Length, WCHAR buffer (UTF16-LE).
     int e = 0;
     wchar_t *wbuf = (wchar_t *) calloc(BUFLEN, 1);
     if (wbuf == nullptr) {
