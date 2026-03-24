@@ -1099,9 +1099,9 @@ void ShenandoahBarrierSetAssembler::gc_state_check_c2(MacroAssembler* masm, cons
     // Unrealistic: remove all barrier fastpath checks.
   } else if (ShenandoahGCStateCheckHotpatch) {
     // In the ideal world, we would hot-patch the branch to slow stub with a single
-    // (unconditional) jump or nop, based on our current GC state. Jump to near target
-    // within the nmethod (at 32-bit offset) takes 6 bytes.
-    __ nop(6);
+    // (unconditional) jump or nop, based on our current GC state. Unconditional jump
+    // to near target within the nmethod (at 32-bit offset) takes 5 bytes.
+    __ nop(5);
   } else {
     Address gc_state_fast(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
     __ testb(gc_state_fast, ShenandoahThreadLocalData::gc_state_to_fast(test_state));
