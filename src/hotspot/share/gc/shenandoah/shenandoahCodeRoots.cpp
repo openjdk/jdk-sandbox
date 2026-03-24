@@ -50,6 +50,9 @@ bool ShenandoahCodeRoots::use_nmethod_barriers_for_mark() {
   // pause, which would cause latency issues.
   if (ShenandoahHeap::heap()->unload_classes()) return true;
 
+  // First pause: need to enable GC barriers for GC cycle.
+  if (ShenandoahGCStateCheckHotpatch) return true;
+
   // Otherwise, we can go without nmethod barriers.
   return false;
 }
@@ -68,14 +71,31 @@ void ShenandoahCodeRoots::unregister_nmethod(nmethod* nm) {
   _nmethod_table->unregister_nmethod(nm);
 }
 
+void ShenandoahCodeRoots::arm_nmethods() {
+  if (ShenandoahGCStateCheckHotpatch) {
+    char gc_state = ShenandoahHeap::heap()->gc_state();
+    log_info(gc)("Arming nmethods with GC state: %d [%s%s%s%s%s%s%s]",
+         gc_state,
+         ((gc_state & ShenandoahHeap::HAS_FORWARDED) > 0) ? "HAS_FORWARDED "  : "",
+         ((gc_state & ShenandoahHeap::MARKING) > 0)       ? "MARKING "        : "",
+         ((gc_state & ShenandoahHeap::EVACUATION) > 0)    ? "EVACUATION "     : "",
+         ((gc_state & ShenandoahHeap::UPDATE_REFS) > 0)   ? "UPDATE_REFS "    : "",
+         ((gc_state & ShenandoahHeap::WEAK_ROOTS) > 0)    ? "WEAK_ROOTS "     : "",
+         ((gc_state & ShenandoahHeap::YOUNG_MARKING) > 0) ? "YOUNG_MARKING "  : "",
+         ((gc_state & ShenandoahHeap::OLD_MARKING) > 0)   ? "OLD_MARKING "    : ""
+    );
+  }
+  BarrierSet::barrier_set()->barrier_set_nmethod()->arm_all_nmethods();
+}
+
 void ShenandoahCodeRoots::arm_nmethods_for_mark() {
   if (use_nmethod_barriers_for_mark()) {
-    BarrierSet::barrier_set()->barrier_set_nmethod()->arm_all_nmethods();
+    arm_nmethods();
   }
 }
 
 void ShenandoahCodeRoots::arm_nmethods_for_evac() {
-  BarrierSet::barrier_set()->barrier_set_nmethod()->arm_all_nmethods();
+  arm_nmethods();
 }
 
 class ShenandoahDisarmNMethodClosure : public NMethodClosure {

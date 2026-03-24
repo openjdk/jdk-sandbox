@@ -1098,10 +1098,11 @@ void ShenandoahBarrierSetAssembler::gc_state_check_c2(MacroAssembler* masm, cons
   if (ShenandoahGCStateCheckRemove) {
     // Unrealistic: remove all barrier fastpath checks.
   } else if (ShenandoahGCStateCheckHotpatch) {
-    // In the ideal world, we would hot-patch the branch to slow stub with a single
-    // (unconditional) jump or nop, based on our current GC state. Unconditional jump
-    // to near target within the nmethod (at 32-bit offset) takes 5 bytes.
-    __ nop(5);
+    // Emit the unconditional branch in the first version of the method.
+    // Let the rest of runtime figure out how to manage it.
+    __ relocate(barrier_Relocation::spec(), ShenandoahThreadLocalData::gc_state_to_fast_bit(test_state));
+    __ jmp(*slow_stub->entry(), /* maybe_short = */ false);
+    __ bind(*slow_stub->continuation());
   } else {
     Address gc_state_fast(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
     __ testb(gc_state_fast, ShenandoahThreadLocalData::gc_state_to_fast(test_state));
@@ -1275,7 +1276,8 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Regi
   Label L_fast, L_done;
 
   // If another barrier is enabled as well, do a runtime check for a specific barrier.
-  if (_needs_load_ref_barrier) {
+  // Hotpatched GC checks only care about idle/non-idle state, so needs a check anyhow.
+  if (_needs_load_ref_barrier || ShenandoahGCStateCheckHotpatch) {
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ testb(gc_state, ShenandoahHeap::MARKING);
     __ jccb(Assembler::zero, L_done);
@@ -1322,7 +1324,8 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address ad
   Label L_done;
 
   // If another barrier is enabled as well, do a runtime check for a specific barrier.
-  if (_needs_keep_alive_barrier) {
+  // Hotpatched GC checks only care about idle/non-idle state, so needs a check anyhow.
+  if (_needs_keep_alive_barrier || ShenandoahGCStateCheckHotpatch) {
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0));
     __ jccb(Assembler::zero, L_done);

@@ -764,7 +764,9 @@ void ShenandoahConcurrentGC::op_final_mark() {
     // Has to be done after cset selection
     heap->prepare_concurrent_roots();
 
-    if (!heap->collection_set()->is_empty()) {
+    // ShenandoahGCStateCheckHotpatch: we need full cycle to patch barriers back to idle.
+    // final-roots is pauseless, so there is no way to arm barriers.
+    if (ShenandoahGCStateCheckHotpatch || !heap->collection_set()->is_empty()) {
       LogTarget(Debug, gc, cset) lt;
       if (lt.is_enabled()) {
         ResourceMark rm;
@@ -1216,6 +1218,11 @@ void ShenandoahConcurrentGC::op_final_update_refs() {
 
   heap->rebuild_free_set(true /*concurrent*/);
   _generation->heuristics()->start_idle_span();
+
+  if (ShenandoahGCStateCheckHotpatch) {
+    // Final pause: update GC barriers to idle state.
+    ShenandoahCodeRoots::arm_nmethods();
+  }
 
   {
     ShenandoahTimingsTracker timing(ShenandoahPhaseTimings::final_update_refs_propagate_gc_state);

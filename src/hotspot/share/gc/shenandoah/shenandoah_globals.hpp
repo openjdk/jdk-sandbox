@@ -571,9 +571,9 @@
           "Handle clone in runtime instead of in copy stubs.")              \
                                                                             \
   product(bool, ShenandoahGCStateCheckHotpatch, false, EXPERIMENTAL,        \
-          "DANGEROUS, USE ONLY WITH PASSIVE MODE: Replace GC state checks " \
-          "with hot-patchable sequence in barrier fast-paths. Measures "    \
-          "potential improvement from GC state hot-patching.")              \
+          "VERY EXPERIMENTAL: Replace GC state checks with hot-patchable "  \
+          "branches/nops in barrier fast-paths. Should improve performance "\
+          "when GC is idle.")                                               \
                                                                             \
   product(bool, ShenandoahGCStateCheckRemove, false, EXPERIMENTAL,          \
           "DANGEROUS, USE ONLY WITH PASSIVE MODE: Remove GC state checks "  \
