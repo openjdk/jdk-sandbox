@@ -122,7 +122,7 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
         }
     }
 
-    private static final int HELPER_TRIES = 10; // Default attempts to run helper
+    private static final int HELPER_TRIES = 20; // Default attempts to run helper
     private static final int HELPER_RETRY = 7;  // revivalhelper exit value hint to retry due to e.g. address space clash
 
     /**
@@ -189,40 +189,40 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
         // Run the helper.
         // Be prepared for it to fail, e.g. if Address Space Layout Randomization is unkind and causes
         // a clash, recognise from the process return value and retry.
-        int tries = Integer.getInteger("jdk.attach.core.tries", HELPER_TRIES);
+        int maxTries = Integer.getInteger("jdk.attach.core.tries", HELPER_TRIES);
         String out = null;
 
-        for (int i = 0; i < tries; i++) {
-            if (verbose) System.err.println("revivalhelper: (run " + i + ")");
+        for (int i = 1; i <= maxTries; i++) {
             Process p = pb.start();
             long pid = p.pid();
-            if (verbose) System.err.println("revivalhelper: pid = " + pid);
+            if (verbose) System.err.println("Run revivalhelper: " + i + "  pid = " + pid);
 
             try {
                 ExecutorService executor = Executors.newFixedThreadPool(2);
                 Future<String> stdout = executor.submit(() -> drain(p.getInputStream()));
                 // Future<String> stderr = executor.submit(() -> drain(p.getErrorStream()));
                 int e = p.waitFor();
-                out = stdout.get(5, TimeUnit.SECONDS);
+                out = stdout.get(10, TimeUnit.SECONDS);
 
-                if (e == 1) {
-                    // Actual error from JCmd, e.g. Exception thrown by command implementation.
-                    System.out.print(out);
-                    throw new IOException("jcmd returned an error");  // JCmd caller will call System.exit(1)
-                } else if (e == HELPER_RETRY) {
+                if (e == HELPER_RETRY) {
                     if (verbose) {
-                        System.err.print(out);
+                        System.out.println(out);
                         System.out.println("(Retrying process revival)");
                     }
                     continue; // ...and retry.
+                } else if (e == 1) {
+                    // Actual error from JCmd, e.g. Exception thrown by command implementation.
+                    System.out.println(out);
+                    throw new IOException("jcmd returned an error");  // JCmd caller will call System.exit(1)
                 } else if (e != 0) {
-                    // Other errors
-                    System.out.print(out);
-                    System.out.println("ERROR (" + e + ")");
-                    continue; // retry
+                    // Other errors:
+                    System.out.println(out);
+                    System.out.println("jcmd returned an error: " + e);
                 }
                 // Success.
-
+                if (i > 1) {
+                    System.err.println("jcmd via revival OK. tries=" + i);
+                }
             } catch (InterruptedException | ExecutionException | TimeoutException ex) {
                 System.err.println("VirtualMachineCoreDumpImpl.execute: " + ex);
                 if (verbose) {

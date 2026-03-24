@@ -78,6 +78,7 @@ public class AttachRevival {
         System.out.println("AttachRevival in main for test type '" + args[0] + "'");
 
         if (args[0].equals("abortvmonexception")) {
+            try { Thread.sleep(3000); } catch (InterruptedException e) { } // Early MiniDump writing risks deadlock on Windows
             throw new NullPointerException("testing NPE");
         } else if (args[0].equals("oom")) {
             // Cause OOM:

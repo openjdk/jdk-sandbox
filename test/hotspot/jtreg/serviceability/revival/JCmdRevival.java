@@ -171,7 +171,9 @@ public class JCmdRevival {
         // Type of run (abortvmonexception, oom, cicrash) is passed as arg.
         // Do the thing that will cause a crash (if cicrash, then any activity will trigger crash).
         System.out.println("JCmdRevival in main for test type '" + args[0] + "'");
+
         if (args[0].equals("abortvmonexception")) {
+            try { Thread.sleep(3000); } catch (InterruptedException e) { } // Early MiniDump writing risks deadlock on Windows
             throw new NullPointerException("testing NPE");
         } else if (args[0].equals("oom")) {
             Object[] oa = new Object[Integer.MAX_VALUE / 2];
