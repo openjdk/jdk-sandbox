@@ -1274,6 +1274,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Regi
 
   Label L_fast, L_done;
 
+  // If another barrier is enabled as well, do a runtime check for a specific barrier.
   if (_needs_load_ref_barrier) {
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ testb(gc_state, ShenandoahHeap::MARKING);
@@ -1284,8 +1285,28 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Regi
   __ movptr(tmp1, index);
   __ testptr(tmp1, tmp1);
   __ jccb(Assembler::notZero, L_fast);
-  keepalive_slow(masm, obj);
-  __ jmpb(L_done);
+
+  // Slow-path: call runtime to handle.
+  {
+    // Runtime stub is responsible for dealing with call clobbered registers.
+    // Here, we just stash away anything that we clobbered while preparing the arguments.
+    if (c_rarg0 != obj && is_live(c_rarg0)) {
+      save_register(masm, c_rarg0);
+    }
+
+    // Shuffle in the arguments.
+    if (c_rarg0 != obj) {
+      __ mov(c_rarg0, obj);
+    }
+
+    // Go to runtime stub and handle the rest there.
+    __ call(RuntimeAddress(SharedRuntime::shenandoah_keepalive()));
+
+    if (c_rarg0 != obj && is_live(c_rarg0)) {
+      restore_register(masm, c_rarg0);
+    }
+    __ jmpb(L_done);
+  }
 
   // Fast-path: put object into buffer.
   __ bind(L_fast);
@@ -1297,29 +1318,10 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Regi
   __ bind(L_done);
 }
 
-void ShenandoahBarrierStubC2::keepalive_slow(MacroAssembler* masm, Register obj) {
-  // Stub routine is responsible for dealing with call clobbered registers.
-  // Here, we just stash away anything that we clobbered while preparing the arguments.
-  if (c_rarg0 != obj && is_live(c_rarg0)) {
-     save_register(masm, c_rarg0);
-  }
-
-  // Shuffle in the arguments.
-  if (c_rarg0 != obj) {
-    __ mov(c_rarg0, obj);
-  }
-
-  // Go to runtime stub and handle the rest there.
-  __ call(RuntimeAddress(SharedRuntime::shenandoah_keepalive()));
-
-  if (c_rarg0 != obj && is_live(c_rarg0)) {
-    restore_register(masm, c_rarg0);
-  }
-}
-
 void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address addr, Register tmp) {
   Label L_done;
 
+  // If another barrier is enabled as well, do a runtime check for a specific barrier.
   if (_needs_keep_alive_barrier) {
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0));
@@ -1327,98 +1329,95 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address ad
   }
 
   // Weak/phantom loads are handled in slow path.
-  if (_needs_load_ref_weak_barrier) {
-    lrb_slow(masm, obj, addr);
-    __ bind(L_done);
-    return;
+  if (!_needs_load_ref_weak_barrier) {
+    // Compute the cset bitmap index
+    __ movptr(tmp, obj);
+    __ shrptr(tmp, ShenandoahHeapRegion::region_size_bytes_shift_jint());
+
+    // If cset address is in good spot to just use it as offset. It almost always is.
+    Address cset_addr_arg;
+    intptr_t cset_addr = (intptr_t) ShenandoahHeap::in_cset_fast_test_addr();
+    if ((cset_addr >> 3) < INT32_MAX) {
+      assert(is_aligned(cset_addr, 8), "Sanity");
+      cset_addr_arg = Address(tmp, checked_cast<int>(cset_addr >> 3), Address::times_8);
+    } else {
+      __ addptr(tmp, cset_addr);
+      cset_addr_arg = Address(tmp, 0);
+    }
+
+    // Cset-check. Fall-through to slow if in collection set.
+    __ cmpb(cset_addr_arg, 0);
+    __ jccb(Assembler::equal, L_done);
   }
 
-  // Compute the cset bitmap index
-  __ movptr(tmp, obj);
-  __ shrptr(tmp, ShenandoahHeapRegion::region_size_bytes_shift_jint());
+  // Slow path
+  {
+    // Runtime stub is responsible for dealing with call clobbered registers.
+    // Here, we just stash away anything that we clobbered while preparing the arguments.
+    assert_different_registers(rax, c_rarg0, c_rarg1);
+    if (obj != c_rarg0 && is_live(c_rarg0)) {
+      save_register(masm, c_rarg0);
+    }
+    if (obj != c_rarg1 && is_live(c_rarg1)) {
+      save_register(masm, c_rarg1);
+    }
+    if (obj != rax && is_live(rax)) {
+      save_register(masm, rax);
+    }
 
-  // If cset address is in good spot to just use it as offset. It almost always is.
-  Address cset_addr_arg;
-  intptr_t cset_addr = (intptr_t) ShenandoahHeap::in_cset_fast_test_addr();
-  if ((cset_addr >> 3) < INT32_MAX) {
-    assert(is_aligned(cset_addr, 8), "Sanity");
-    cset_addr_arg = Address(tmp, checked_cast<int>(cset_addr >> 3), Address::times_8);
-  } else {
-    __ addptr(tmp, cset_addr);
-    cset_addr_arg = Address(tmp, 0);
+    // Shuffle in the arguments. The end result should be:
+    //   c_rarg0 <-- obj
+    //   c_rarg1 <-- lea(addr)
+    if (c_rarg0 == obj) {
+      __ lea(c_rarg1, addr);
+    } else if (c_rarg1 == obj) {
+      // Set up arguments in reverse, and then flip them
+      __ lea(c_rarg0, addr);
+      __ xchgptr(c_rarg0, c_rarg1);
+    } else {
+      assert_different_registers(c_rarg1, obj);
+      __ lea(c_rarg1, addr);
+      __ movptr(c_rarg0, obj);
+    }
+
+    // Go to runtime stub and handle the rest there.
+    address entry = nullptr;
+    if (_narrow) {
+      if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
+        entry = SharedRuntime::shenandoah_lrb_strong_narrow();
+      } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
+        entry = SharedRuntime::shenandoah_lrb_weak_narrow();
+      } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
+        entry = SharedRuntime::shenandoah_lrb_phantom_narrow();
+      }
+    } else {
+      if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
+        entry = SharedRuntime::shenandoah_lrb_strong();
+      } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
+        entry = SharedRuntime::shenandoah_lrb_weak();
+      } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
+        entry = SharedRuntime::shenandoah_lrb_phantom();
+      }
+    }
+    __ call(RuntimeAddress(entry));
+
+    // Save the result where needed.
+    if (obj != rax) {
+      __ movptr(obj, rax);
+    }
+
+    if (obj != rax && is_live(rax)) {
+      restore_register(masm, rax);
+    }
+    if (obj != c_rarg1 && is_live(c_rarg1)) {
+      restore_register(masm, c_rarg1);
+    }
+    if (obj != c_rarg0 && is_live(c_rarg0)) {
+      restore_register(masm, c_rarg0);
+    }
   }
 
-  // Cset-check. Go slow if in collection set.
-  __ cmpb(cset_addr_arg, 0);
-  __ jccb(Assembler::equal, L_done);
-  lrb_slow(masm, obj, addr);
   __ bind(L_done);
-}
-
-void ShenandoahBarrierStubC2::lrb_slow(MacroAssembler* masm, Register obj, Address addr) {
-  // Stub routine is responsible for dealing with call clobbered registers.
-  // Here, we just stash away anything that we clobbered while preparing the arguments.
-  assert_different_registers(rax, c_rarg0, c_rarg1);
-  if (obj != c_rarg0 && is_live(c_rarg0)) {
-    save_register(masm, c_rarg0);
-  }
-  if (obj != c_rarg1 && is_live(c_rarg1)) {
-    save_register(masm, c_rarg1);
-  }
-  if (obj != rax && is_live(rax)) {
-    save_register(masm, rax);
-  }
-
-  // Shuffle in the arguments. The end result should be:
-  //   c_rarg0 <-- obj
-  //   c_rarg1 <-- lea(addr)
-  if (c_rarg0 == obj) {
-    __ lea(c_rarg1, addr);
-  } else if (c_rarg1 == obj) {
-    // Set up arguments in reverse, and then flip them
-    __ lea(c_rarg0, addr);
-    __ xchgptr(c_rarg0, c_rarg1);
-  } else {
-    assert_different_registers(c_rarg1, obj);
-    __ lea(c_rarg1, addr);
-    __ movptr(c_rarg0, obj);
-  }
-
-  // Go to runtime stub and handle the rest there.
-  address entry = nullptr;
-  if (_narrow) {
-    if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-      entry = SharedRuntime::shenandoah_lrb_strong_narrow();
-    } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
-      entry = SharedRuntime::shenandoah_lrb_weak_narrow();
-    } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
-      entry = SharedRuntime::shenandoah_lrb_phantom_narrow();
-    }
-  } else {
-    if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-      entry = SharedRuntime::shenandoah_lrb_strong();
-    } else if ((_node->barrier_data() & ShenandoahBitWeak) != 0) {
-      entry = SharedRuntime::shenandoah_lrb_weak();
-    } else if ((_node->barrier_data() & ShenandoahBitPhantom) != 0) {
-      entry = SharedRuntime::shenandoah_lrb_phantom();
-    }
-  }
-  __ call(RuntimeAddress(entry));
-
-  // Save the result where needed.
-  if (obj != rax) {
-    __ movptr(obj, rax);
-  }
-
-  if (obj != rax && is_live(rax)) {
-    restore_register(masm, rax);
-  }
-  if (obj != c_rarg1 && is_live(c_rarg1)) {
-    restore_register(masm, c_rarg1);
-  }
-  if (obj != c_rarg0 && is_live(c_rarg0)) {
-    restore_register(masm, c_rarg0);
-  }
 }
 
 #undef __

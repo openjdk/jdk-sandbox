@@ -184,9 +184,7 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   Register select_temp_register(bool& selected_live, Address addr, Register reg1);
 
   void keepalive(MacroAssembler* masm, Register obj, Register tmp1, Register tmp2);
-  void keepalive_slow(MacroAssembler* masm, Register obj);
   void lrb(MacroAssembler* masm, Register obj, Address addr, Register tmp);
-  void lrb_slow(MacroAssembler* masm, Register obj, Address addr);
 
 public:
   ShenandoahBarrierStubC2(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load) :
