@@ -97,13 +97,13 @@ private:
   };
 
   enum FastGCStateBitPos {
-    FORWARDED_BITPOS                    = 1,
-    MARKING_BITPOS                      = 2,
-    WEAK_BITPOS                         = 3,
-    FORWARDED_OR_MARKING_BITPOS         = 4,
-    FORWARDED_OR_WEAK_BITPOS            = 5,
-    MARKING_OR_WEAK_BITPOS              = 6,
-    FORWARDED_OR_MARKING_OR_WEAK_BITPOS = 7,
+    FORWARDED_BITPOS                    = 0,
+    MARKING_BITPOS                      = 1,
+    WEAK_BITPOS                         = 2,
+    FORWARDED_OR_MARKING_BITPOS         = 3,
+    FORWARDED_OR_WEAK_BITPOS            = 4,
+    MARKING_OR_WEAK_BITPOS              = 5,
+    FORWARDED_OR_MARKING_OR_WEAK_BITPOS = 6,
   };
 
   ShenandoahEvacuationStats* _evacuation_stats;
