@@ -1021,6 +1021,15 @@ void ShenandoahBarrierSetAssembler::generate_c1_load_reference_barrier_runtime_s
 #undef __
 #define __ masm->
 
+bool ShenandoahBarrierStubC2::push_save_register_if_live(MacroAssembler* masm, Register reg) {
+  if (is_live(reg)) {
+    push_save_register(masm, reg);
+    return true;
+  } else {
+    return false;
+  }
+}
+
 void ShenandoahBarrierStubC2::push_save_register(MacroAssembler* masm, Register reg) {
   __ movptr(Address(rsp, push_save_slot()), reg);
 }
@@ -1279,22 +1288,21 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Regi
 
   // Slow-path: call runtime to handle.
   {
-    // Runtime stub is responsible for dealing with call clobbered registers.
-    // Here, we just stash away anything that we clobbered while preparing the arguments.
-    bool save_c_rarg0 = (c_rarg0 != obj && is_live(c_rarg0));
-    if (save_c_rarg0) {
-      push_save_register(masm, c_rarg0);
-    }
-
-    // Shuffle in the arguments.
+    // Shuffle in the arguments. The end result should be:
+    //   c_rarg0 <-- obj
+    //
+    // Save clobbered registers before overwriting them.
+    bool clobbered_c_rarg0 = false;
     if (c_rarg0 != obj) {
+      clobbered_c_rarg0 = push_save_register_if_live(masm, c_rarg0);
       __ mov(c_rarg0, obj);
     }
 
     // Go to runtime stub and handle the rest there.
     __ call(RuntimeAddress(keepalive_runtime_entry_addr()));
 
-    if (save_c_rarg0) {
+    // Restore the clobbered registers.
+    if (clobbered_c_rarg0) {
       pop_save_register(masm, c_rarg0);
     }
     __ jmpb(L_done);
@@ -1344,52 +1352,51 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address ad
 
   // Slow path
   {
-    // Runtime stub is responsible for dealing with call clobbered registers.
-    // Here, we just stash away anything that we clobbered while preparing the arguments.
     assert_different_registers(rax, c_rarg0, c_rarg1);
-    bool save_c_rarg0 = (obj != c_rarg0 && is_live(c_rarg0));
-    bool save_c_rarg1 = (obj != c_rarg1 && is_live(c_rarg1));
-    bool save_rax     = (obj != rax     && is_live(rax));
-    if (save_c_rarg0) {
-      push_save_register(masm, c_rarg0);
-    }
-    if (save_c_rarg1) {
-      push_save_register(masm, c_rarg1);
-    }
-    if (save_rax) {
-      push_save_register(masm, rax);
-    }
 
     // Shuffle in the arguments. The end result should be:
     //   c_rarg0 <-- obj
     //   c_rarg1 <-- lea(addr)
-    if (c_rarg0 == obj) {
+    //
+    // Save clobbered registers before overwriting them, unless they
+    // carry obj, which would be overwritten on return.
+    bool clobbered_c_rarg0 = false;
+    bool clobbered_c_rarg1 = false;
+    bool clobbered_rax = false;
+
+    if (obj == c_rarg0) {
+      clobbered_c_rarg1 = push_save_register_if_live(masm, c_rarg1);
       __ lea(c_rarg1, addr);
-    } else if (c_rarg1 == obj) {
+    } else if (obj == c_rarg1) {
       // Set up arguments in reverse, and then flip them
+      clobbered_c_rarg0 = push_save_register_if_live(masm, c_rarg0);
       __ lea(c_rarg0, addr);
       __ xchgptr(c_rarg0, c_rarg1);
     } else {
-      assert_different_registers(c_rarg1, obj);
+      assert_different_registers(obj, c_rarg0, c_rarg1);
+      clobbered_c_rarg0 = push_save_register_if_live(masm, c_rarg0);
+      clobbered_c_rarg1 = push_save_register_if_live(masm, c_rarg1);
       __ lea(c_rarg1, addr);
       __ movptr(c_rarg0, obj);
+    }
+    if (obj != rax) {
+      clobbered_rax = push_save_register_if_live(masm, rax);
     }
 
     // Go to runtime stub and handle the rest there.
     __ call(RuntimeAddress(lrb_runtime_entry_addr()));
 
-    // Save the result where needed.
+    // Save the result where needed and restore the clobbered registers.
     if (obj != rax) {
       __ movptr(obj, rax);
     }
-
-    if (save_rax) {
+    if (clobbered_rax) {
       pop_save_register(masm, rax);
     }
-    if (save_c_rarg1) {
+    if (clobbered_c_rarg1) {
       pop_save_register(masm, c_rarg1);
     }
-    if (save_c_rarg0) {
+    if (clobbered_c_rarg0) {
       pop_save_register(masm, c_rarg0);
     }
   }

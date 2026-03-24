@@ -183,6 +183,7 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   // without moving SP.
   void push_save_register(MacroAssembler* masm, Register reg);
   void pop_save_register(MacroAssembler* masm, Register reg);
+  bool push_save_register_if_live(MacroAssembler* masm, Register reg);
   int push_save_slot();
   int pop_save_slot();
 
