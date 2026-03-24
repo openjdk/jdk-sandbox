@@ -283,6 +283,11 @@ int revival_mapping_copy(void* vaddr, size_t length, size_t offset, bool allocat
 
 int relocate_sharedlib_pd(const char* filename, const void* addr);
 
+/**
+ * Populate the revival cache data directory.
+ * Copy JVM library, relocate, read core to create mappings list, and symbols.
+ * Return zero on success.
+ */
 int create_revival_cache_pd(const char* corename, const char* javahome, const char* dirname, const char* libdir);
 
 /**

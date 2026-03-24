@@ -780,6 +780,7 @@ char* find_filename_in_one_dir(const char* dir, const char* filename) {
 char* find_filename_in_libdir(const char* libdir, const char* filename) {
     char dir[BUFLEN];
     char* result = nullptr;
+
     // On Windows, filename may begin with "C:\", which does not work inside libdir, but is removed on next iteration.
     char* start = (char*) libdir;
     char* end = strstr(start, PATH_SEPARATOR);
@@ -918,21 +919,6 @@ int revive_image_cooperative() {
 #endif
 
     return 0;
-}
-
-/**
- * Populate the revival cache data directory.
- * Return zero on success.
- */
-int create_revival_cache(const char* corename, const char* javahome, const char* dirname, const char* libdir) {
-    // Call the platform-dependent implementations.
-    //   find libjvm and its load address from core
-    //   copy libjvm into given cache dirname
-    //   relocate copy of libjvm
-    //   read core file to create memory mappings list
-    //   lookup symbols, create symbol file
-    int e = create_revival_cache_pd(corename, javahome, dirname, libdir);
-    return e;
 }
 
 /**
@@ -1094,8 +1080,8 @@ int revive_image(const char* corename, const char* javahome, const char* libdir,
             }
         }
         logv("Creating revival data: %s", dirname);
-        e = create_revival_cache(corename, javahome, dirname, libdir);
-        logv("revive_image: create_revival_cache return code: %d", e);
+        e = create_revival_cache_pd(corename, javahome, dirname, libdir);
+        logv("revive_image: create_revival_cache_pd returns: %d", e);
         waitHitRet();
         if (e != 0) {
             warn("revive_image: create_revival_cache failed.  Return code: %d", e);
@@ -1158,7 +1144,6 @@ void* revived_tty() {
     return rdata->tty;
 }
 
-
 int revival_dcmd(const char* command) {
     if (!revivaldir || !rdata) {
         error("revival_dcmd: call revive_image first.");
@@ -1180,4 +1165,3 @@ int revival_dcmd(const char* command) {
     call5(s, (void*) DCMD_SOURCE, revived_tty(), (void*) command, (void*) ' ', revived_vm_thread());
     return 0;
 }
-

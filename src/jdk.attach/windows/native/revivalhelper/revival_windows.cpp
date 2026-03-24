@@ -164,21 +164,8 @@ void tls_fixup_pd(void *teb) {
     uint64_t* core_tls = (uint64_t*) ((char*) teb + 0x58);
     logv("tls_fixup: core _tls_array = 0x%llx contains 0x%llx", core_tls, *core_tls);
 
-    // Replace current TLS with that from MiniDump:
-    *cur_tls = *core_tls;
+    *cur_tls = *core_tls; // Replace current TLS with that from MiniDump
     logv("tls_fixup: fixed, cur teb = 0x%llx new tls = 0x%llx contains 0x%llx", cur_teb, cur_tls, *cur_tls);
-    waitHitRet();
-}
-
-void tls_revert_pd() {
-    logv("tls_revert_pd: index  0x%llx", rdata->tls_index);
-    uint64_t* cur_teb_refetch = (uint64_t*) NtCurrentTeb();
-    if (cur_teb != cur_teb_refetch) {
-        warn("tls_revert_pd: cur teb = 0x%llx != refetched = 0x%llx", cur_teb, cur_teb_refetch);
-    }
-    logv("tls_revert_pd: revert: cur teb = 0x%llx tls ptr at 0x%llx contains 0x%llx", cur_teb, cur_tls, *cur_tls);
-    *cur_tls = 0; // saved_tls;
-    logv("tls_revert_pd: reverted, cur teb = 0x%llx tls ptr at 0x%llx contains 0x%llx", cur_teb, cur_tls, *cur_tls);
     waitHitRet();
 }
 
@@ -931,7 +918,6 @@ void copy_and_relocate(MiniDump dump, const char* destdir) {
 
 int create_revival_cache_pd(const char* corename, const char* javahome, const char* revival_dirname, const char* libdir) {
     logv("create_revival_cache_pd");
-    // Check early for editbin.exe:
     editbin = check_editbin();
 
     MiniDump dump(corename, libdir);
@@ -945,8 +931,7 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
         warn("JVM library not found in MiniDump.");
         error("For cores from other systems, or if JDK at path in core has changed, use -L to specify JVM location.");
     }
-    logv("JVM = '%s'", jvm_mapping->name);
-    logv("JVM addr = %p", (void*) jvm_mapping->vaddr);
+    logv("JVM = '%s' at address %p", jvm_mapping->name,  jvm_mapping->vaddr);
     if (!file_exists_pd( jvm_mapping->name)) {
         error("No file for JVM '%s'",  jvm_mapping->name);
     }
