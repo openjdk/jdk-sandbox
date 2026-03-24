@@ -176,9 +176,15 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   static void inc_trampoline_stubs_count();
   static int trampoline_stubs_count();
   static int stubs_start_offset();
+  static int save_slots_stack_offset();
 
-  void save_register(MacroAssembler* masm, Register reg);
-  void restore_register(MacroAssembler* masm, Register reg);
+  // Manage save slots on stack. We cannot move SP freely when in statically-sized
+  // C2 frame. These methods emulate the stack where a stub can save registers temporarily
+  // without moving SP.
+  void push_save_register(MacroAssembler* masm, Register reg);
+  void pop_save_register(MacroAssembler* masm, Register reg);
+  int push_save_slot();
+  int pop_save_slot();
 
   bool is_live(Register reg);
   Register select_temp_register(bool& selected_live, Address addr, Register reg1);

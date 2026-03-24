@@ -797,6 +797,20 @@ int ShenandoahBarrierStubC2::stubs_start_offset() {
   return barrier_set_state()->stubs_start_offset();
 }
 
+int ShenandoahBarrierStubC2::save_slots_stack_offset() {
+  return barrier_set_state()->save_slots_stack_offset();
+}
+
+int ShenandoahBarrierStubC2::push_save_slot() {
+  assert(_save_slots_idx < ShenandoahBarrierSetC2::bsc2()->reserved_slots(), "Enough slots are reserved");
+  return save_slots_stack_offset() + (_save_slots_idx++) * sizeof(address);
+}
+
+int ShenandoahBarrierStubC2::pop_save_slot() {
+  assert(_save_slots_idx > 0, "About to underflow");
+  return save_slots_stack_offset() + (--_save_slots_idx) * sizeof(address);
+}
+
 ShenandoahBarrierStubC2* ShenandoahBarrierStubC2::create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load, int offset) {
   auto* stub = new (Compile::current()->comp_arena()) ShenandoahBarrierStubC2(node, obj, addr, narrow, do_load, offset);
   ShenandoahBarrierStubC2::register_stub(stub);

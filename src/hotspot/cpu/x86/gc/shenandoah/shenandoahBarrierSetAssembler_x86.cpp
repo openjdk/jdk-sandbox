@@ -1021,21 +1021,12 @@ void ShenandoahBarrierSetAssembler::generate_c1_load_reference_barrier_runtime_s
 #undef __
 #define __ masm->
 
-static ShenandoahBarrierSetC2State* barrier_set_state() {
-  return reinterpret_cast<ShenandoahBarrierSetC2State*>(Compile::current()->barrier_set_state());
+void ShenandoahBarrierStubC2::push_save_register(MacroAssembler* masm, Register reg) {
+  __ movptr(Address(rsp, push_save_slot()), reg);
 }
 
-void ShenandoahBarrierStubC2::save_register(MacroAssembler* masm, Register reg) {
-  int offset = barrier_set_state()->save_slots_stack_offset();
-  assert(_save_slots_idx < ShenandoahBarrierSetC2::bsc2()->reserved_slots(), "Enough slots are reserved");
-  __ movptr(Address(rsp, offset + _save_slots_idx * sizeof(address)), reg);
-  _save_slots_idx++;
-}
-
-void ShenandoahBarrierStubC2::restore_register(MacroAssembler* masm, Register reg) {
-  int offset = barrier_set_state()->save_slots_stack_offset();
-  _save_slots_idx--;
-  __ movptr(reg, Address(rsp, offset + _save_slots_idx * sizeof(address)));
+void ShenandoahBarrierStubC2::pop_save_register(MacroAssembler* masm, Register reg) {
+  __ movptr(reg, Address(rsp, pop_save_slot()));
 }
 
 bool ShenandoahBarrierStubC2::is_live(Register reg) {
@@ -1290,8 +1281,9 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Regi
   {
     // Runtime stub is responsible for dealing with call clobbered registers.
     // Here, we just stash away anything that we clobbered while preparing the arguments.
-    if (c_rarg0 != obj && is_live(c_rarg0)) {
-      save_register(masm, c_rarg0);
+    bool save_c_rarg0 = (c_rarg0 != obj && is_live(c_rarg0));
+    if (save_c_rarg0) {
+      push_save_register(masm, c_rarg0);
     }
 
     // Shuffle in the arguments.
@@ -1302,8 +1294,8 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Regi
     // Go to runtime stub and handle the rest there.
     __ call(RuntimeAddress(keepalive_runtime_entry_addr()));
 
-    if (c_rarg0 != obj && is_live(c_rarg0)) {
-      restore_register(masm, c_rarg0);
+    if (save_c_rarg0) {
+      pop_save_register(masm, c_rarg0);
     }
     __ jmpb(L_done);
   }
@@ -1355,14 +1347,17 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address ad
     // Runtime stub is responsible for dealing with call clobbered registers.
     // Here, we just stash away anything that we clobbered while preparing the arguments.
     assert_different_registers(rax, c_rarg0, c_rarg1);
-    if (obj != c_rarg0 && is_live(c_rarg0)) {
-      save_register(masm, c_rarg0);
+    bool save_c_rarg0 = (obj != c_rarg0 && is_live(c_rarg0));
+    bool save_c_rarg1 = (obj != c_rarg1 && is_live(c_rarg1));
+    bool save_rax     = (obj != rax     && is_live(rax));
+    if (save_c_rarg0) {
+      push_save_register(masm, c_rarg0);
     }
-    if (obj != c_rarg1 && is_live(c_rarg1)) {
-      save_register(masm, c_rarg1);
+    if (save_c_rarg1) {
+      push_save_register(masm, c_rarg1);
     }
-    if (obj != rax && is_live(rax)) {
-      save_register(masm, rax);
+    if (save_rax) {
+      push_save_register(masm, rax);
     }
 
     // Shuffle in the arguments. The end result should be:
@@ -1388,14 +1383,14 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address ad
       __ movptr(obj, rax);
     }
 
-    if (obj != rax && is_live(rax)) {
-      restore_register(masm, rax);
+    if (save_rax) {
+      pop_save_register(masm, rax);
     }
-    if (obj != c_rarg1 && is_live(c_rarg1)) {
-      restore_register(masm, c_rarg1);
+    if (save_c_rarg1) {
+      pop_save_register(masm, c_rarg1);
     }
-    if (obj != c_rarg0 && is_live(c_rarg0)) {
-      restore_register(masm, c_rarg0);
+    if (save_c_rarg0) {
+      pop_save_register(masm, c_rarg0);
     }
   }
 
@@ -1433,7 +1428,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   bool tmp_live;
   Register tmp = select_temp_register(tmp_live, _addr, _obj);
   if (tmp_live) {
-    save_register(&masm, tmp);
+    push_save_register(&masm, tmp);
   }
 
   // If object is narrow, we need to decode it first: barrier checks need full oops.
@@ -1450,7 +1445,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
 
   if (tmp_live) {
-    restore_register(&masm, tmp);
+    pop_save_register(&masm, tmp);
   }
 
   // If object is narrow, we need to encode it before exiting.
