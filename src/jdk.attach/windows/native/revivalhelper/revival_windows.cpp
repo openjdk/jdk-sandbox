@@ -51,10 +51,7 @@
 
 uint64_t vaddr_align; // set by init_pd
 
-uint64_t* cur_teb;
-uint64_t* cur_tls; // Pointer to TLS pointer in current process
-uint64_t saved_tls = 0; // Save a TLS pointer before we open JVM
-
+char *editbin = nullptr;
 
 typedef PVOID (*VirtualAlloc2Fn)(HANDLE, PVOID, SIZE_T, ULONG, ULONG, MEM_EXTENDED_PARAMETER*, ULONG);
 typedef PVOID (*MapViewOfFile3Fn)(HANDLE, HANDLE, PVOID, ULONG64, SIZE_T, ULONG, ULONG, MEM_EXTENDED_PARAMETER*, ULONG);
@@ -143,26 +140,24 @@ unsigned long long max_user_vaddr_pd() {
 }
 
 uint64_t get_peb() {
-     return (uint64_t) __readgsqword(0x60);
+     return (uint64_t) __readgsqword(0x60); // Known offset from TEB.
 }
 
 uint64_t get_ReadOnlySharedMemoryBase() {
-     return *(uint64_t*)(get_peb() + 0x88);
-}
-
-void tls_initial_save_pd() {
-    cur_teb = (uint64_t*) NtCurrentTeb();           // TEB pointer on x64 in GS reg.
-    cur_tls = (uint64_t*) ((char*) cur_teb + 0x58); // Read TLS ptr at offset. Or: tls =  __readgsqword(0x58);
-    saved_tls = *cur_tls;
-    logv("tls: current teb = 0x%llx tls ptr at 0x%llx contains 0x%llx", cur_teb, cur_tls, saved_tls);
-    waitHitRet();
+     return *(uint64_t*)(get_peb() + 0x88); // Known offset from PEB.
 }
 
 void tls_fixup_pd(void *teb) {
+    uint64_t* cur_teb = (uint64_t*) NtCurrentTeb(); // Get TEB pointer, on x64 is stored in GS.
+    // Get pointer to TLS pointer in current process:
+    uint64_t* cur_tls = (uint64_t*) ((char*) cur_teb + 0x58); // Read TLS ptr at known offset, effectively __readgsqword(0x58);
+    logv("tls_fixup: current teb = 0x%llx tls ptr at 0x%llx", cur_teb, cur_tls);
+    waitHitRet();
+
     // Given we have revived memory, read core TEB address, to find old TLS pointer.
     logv("tls_fixup: MiniDump TEB addr 0x%llx", teb);
     uint64_t* core_tls = (uint64_t*) ((char*) teb + 0x58);
-    logv("tls_fixup: core _tls_array = 0x%llx contains 0x%llx", core_tls, *core_tls);
+    logv("tls_fixup: MiniDump _tls_array = 0x%llx contains 0x%llx", core_tls, *core_tls);
 
     *cur_tls = *core_tls; // Replace current TLS with that from MiniDump
     logv("tls_fixup: fixed, cur teb = 0x%llx new tls = 0x%llx contains 0x%llx", cur_teb, cur_tls, *cur_tls);
@@ -177,8 +172,6 @@ void init_pd() {
     warn("init_pd: new process ReadOnlySharedMemoryBase: 0x%llx", get_ReadOnlySharedMemoryBase());
     printMemBasicInfo((void*) get_ReadOnlySharedMemoryBase());
 
-    tls_initial_save_pd(); // Save before JVM is loaded
-
     _SYSTEM_INFO systemInfo;
     GetSystemInfo(&systemInfo);
     vaddr_align = systemInfo.dwAllocationGranularity - 1;
@@ -189,11 +182,10 @@ void init_pd() {
           systemInfo.dwAllocationGranularity, vaddr_alignment_pd(), &x, pagesize);
 
     if (vaddr_align != 0xffff) {
-        // expected: dwAllocationGranularity = 65536
+        // Expected: dwAllocationGranularity = 65536
         warn("Note: dwAllocationGranularity not 64k, vaddr_align = %lld", vaddr_align);
     }
 
-    // Function lookups
     install_kernelbase_1803_symbol_or_exit(pVirtualAlloc2, "VirtualAlloc2");
     install_kernelbase_1803_symbol_or_exit(pMapViewOfFile3, "MapViewOfFile3");
 }
@@ -606,9 +598,6 @@ void copy_file_pd(const char *srcfile, const char *destfile) {
     free(d);
 }
 
-
-char *editbin = nullptr;
-
 char* check_editbin() {
     char *editbin_env = getenv("EDITBIN");
     if (editbin_env != nullptr) {
@@ -823,7 +812,6 @@ void delete_file_pd(char* filename) {
         warn("%s: delete failed: %d", filename, GetLastError());
     }
 }
-
 
 void write_sharedlib_mapping(int mappings_fd, char* filename, void* address) {
         char buf[BUFLEN];

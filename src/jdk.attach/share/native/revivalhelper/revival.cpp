@@ -59,7 +59,7 @@ uint64_t* core_teb;
 void revival_exit(int e) {
        logv("revival_exit: %d", e);
 #ifdef WINDOWS
-	Sleep(1 * 1000);
+	Sleep(500);
     TerminateProcess(GetCurrentProcess(), e);
 #else
     _exit(e);
