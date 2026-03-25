@@ -190,7 +190,7 @@ extern char* jvm_filename;
 extern void* jvm_address;
 extern void* h; // Opaque handle to libjvm
 extern std::list<Segment> writableSegments;
-extern std::list<Segment> failedSegments;
+extern std::list<Segment> delayedCopySegments;
 extern struct revival_data* rdata;
 
 // Exit signalling caller should retry, e.g. address space clash.
@@ -253,7 +253,7 @@ void* do_mmap_pd(void* addr, size_t length, char* filename, int fd, size_t offse
 /**
  * Create a memory mapped allocation at a given address, length.
  */
-void* do_map_allocate_pd(void* addr, size_t length);
+void* do_map_allocate_pd(void* addr, size_t length, int prot);
 
 int do_munmap_pd(void* addr, size_t length);
 
@@ -275,7 +275,7 @@ char* find_filename_in_libdir(const char* libdir, const char* filename);
 unsigned long long file_size(const char* filename);
 
 int revival_mapping_allocate(void* vaddr, size_t length);
-
+int revival_mapping_docopy(void* vaddr, size_t length, size_t offset);
 int revival_mapping_copy(void* vaddr, size_t length, size_t offset, bool allocate, char* filename, int fd);
 
 int relocate_sharedlib_pd(const char* filename, const void* addr);

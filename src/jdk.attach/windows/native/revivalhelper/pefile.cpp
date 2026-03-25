@@ -199,8 +199,13 @@ bool PEFile::find_data_segs(void* address, Segment** _data, Segment** _rdata) {
     // Rebase segs to library address:
     rdata = new Segment((void*) ((uint64_t) address + (uint64_t) rdata->start()), rdata->length, 0, 0);
     data = new Segment((void*) ((uint64_t) address + (uint64_t) data->start()), data->length, 0, 0);
-    *_rdata = rdata;
-    *_data = data;
+    // Save in output params:
+    if (_rdata != nullptr) {
+        *_rdata = rdata;
+    }
+    if (_data != nullptr) {
+        *_data = data;
+    }
     return true;
 }
 
@@ -219,7 +224,8 @@ Segment* PEFile::get_rdata_section() {
               image->Sections[i].Name, image->Sections[i].VirtualAddress, image->Sections[i].SizeOfRawData, image->Sections[i].PointerToRawData);
 
         if (strncmp((char*) image->Sections[i].Name, ".rdata", 8) == 0) {
-            seg = new Segment((void *) (DWORD_PTR) image->Sections[i].VirtualAddress, (size_t) image->Sections[i].SizeOfRawData, image->Sections[i].PointerToRawData, 0);
+            seg = new Segment((void *) (DWORD_PTR) image->Sections[i].VirtualAddress, (size_t) image->Sections[i].SizeOfRawData,
+                              image->Sections[i].PointerToRawData, 0);
             continue;
         }
         if (seg != nullptr) {

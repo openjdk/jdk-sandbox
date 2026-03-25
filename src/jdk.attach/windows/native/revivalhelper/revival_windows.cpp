@@ -236,10 +236,16 @@ LONG WINAPI topLevelUnhandledExceptionFilter(struct _EXCEPTION_POINTERS* excepti
 
     // Note any access to areas we failed to map: only informational, does not change our behavior.
     std::list<Segment>::iterator iter;
-    for (iter = failedSegments.begin(); iter != failedSegments.end(); iter++) {
-        if (addr >= (uint64_t) iter->vaddr &&
-                (unsigned long long) addr < (unsigned long long) (iter->vaddr) + (unsigned long long)(iter->length) ) {
-            warn("Access to segment that failed to revive: si_addr = %p in failed segment %p", addr, iter->vaddr);
+    for (iter = delayedCopySegments.begin(); iter != delayedCopySegments.end(); iter++) {
+        if (iter->contains((uint64_t) addr)) {
+            logv("Delayed Copy Segment: si_addr = %p in failed segment %p", addr, iter->vaddr);
+            // Fix mapping permissions.
+            //int e = mprotect(iter->vaddr, iter->length, PROT_READ | PROT_WRITE | PROT_EXEC);
+            //if (e < 0) {
+            //    error("revival: mprotect failed: %d", e);
+            //}
+            revival_mapping_docopy(iter->vaddr, iter->length, iter->file_offset);
+            return;
         }
     }
     waitHitRet();
@@ -898,11 +904,9 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
     {
         PEFile pefile(jvm_mapping->name); // Narrow scope means the jvm file gets closed
         Segment* jvm_data_seg = new Segment();
-        Segment* jvm_rdata_seg = new Segment();
-        if (!pefile.find_data_segs(jvm_mapping->vaddr, &jvm_data_seg, &jvm_rdata_seg)) {
+        if (!pefile.find_data_segs(jvm_mapping->vaddr, &jvm_data_seg, nullptr)) {
             error("Failed to find JVM data segments.");
         }
-        // logv("JVM .rdata SEG: 0x%llx - 0x%llx", jvm_rdata_seg->start(), jvm_rdata_seg->end());
         logv("JVM .data  SEG: 0x%llx - 0x%llx", jvm_data_seg->start(),  jvm_data_seg->end());
         dump.set_jvm_data(jvm_data_seg);
 

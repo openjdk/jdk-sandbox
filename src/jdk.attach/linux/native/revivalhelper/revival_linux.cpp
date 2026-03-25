@@ -171,13 +171,13 @@ bool mem_canwrite_pd(void* vaddr, size_t length) {
 }
 
 void* do_mmap_pd(void* addr, size_t length, char* filename, int fd, size_t offset) {
-    int flags = MAP_SHARED | MAP_PRIVATE | MAP_FIXED;
-    int prot = PROT_READ | PROT_EXEC;
+    int flags = MAP_PRIVATE | MAP_FIXED;
+    int prot = PROT_READ | PROT_WRITE | PROT_EXEC;
     // Values given should simply work for a regular Linux core file.
     // Failure with EINVAL is expected on a Linux gcore (gdb) due to unaligned file offsets.
     void* e = mmap(addr, length, prot, flags, fd, offset);
     if (e == (void*) -1L) {
-	    logv("do_mmap_pd: mmap(%p, %zu, %d, %d, %d, offset %zu) failed: errno = %d: %s",
+	    logv("do_mmap_pd: mmap(%p, %zu, %d, %d, %d, file offset 0x%lx) failed: errno = %d: %s",
               addr, length, prot, flags, fd, offset, errno, strerror(errno));
 	}
     return e;
@@ -191,22 +191,21 @@ int do_munmap_pd(void* addr, size_t length) {
     return e;
 }
 
-void* do_map_allocate_pd(void* vaddr, size_t length) {
-    int prot = PROT_READ | PROT_WRITE;
+void* do_map_allocate_pd(void* vaddr, size_t length, int prot) {
+    if (prot == 1) {
+        prot = PROT_READ | PROT_WRITE | PROT_EXEC;
+    } else {
+        prot = PROT_NONE;
+    }
     int flags = MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED | MAP_NORESERVE;
-    int fd = -1;
-    size_t offset = 0;
-
-    void* h = mmap(vaddr, length, prot, flags, fd, offset);
-    logv("do_map_allocate: mmap(%p, %zu, %d, %d, %d, %zu) returns: %p",
-          vaddr, length, prot, flags, fd, offset, h);
+    void* h = mmap(vaddr, length, prot, flags, -1, 0);
+    logv("do_map_allocate: mmap(%p, %zu, %d, %d, -1, 0) returns: %p", vaddr, length, prot, flags, h);
     if (h == (void*) -1) {
-        warn("do_map_allocate: mmap(%p, %zu, %d, %d, %d, %zu) failed: returns: %p: errno = %d: %s",
-             vaddr, length, prot, flags, fd, offset, h, errno, strerror(errno));
+        warn("do_map_allocate: mmap(%p, %zu, %d, %d, -1, 0) failed: returns: %p: errno = %d: %s",
+             vaddr, length, prot, flags, h, errno, strerror(errno));
     }
     return h;
 }
-
 
 int revival_checks_pd(const char* dirname) {
     // Check LD_USE_LOAD_BIAS is set:
@@ -322,8 +321,8 @@ void remap(Segment seg) {
         warn("remap: failed to munmap 0x%p failed: returns: %d: errno = %d: %s",  seg.vaddr, e1, errno, strerror(errno));
         abort();
     }
-    int flags = MAP_PRIVATE | MAP_FIXED; // previously also MAP_SHARED
-    int prot = PROT_READ | PROT_EXEC | PROT_WRITE; // should use mappings file info
+    int flags = MAP_PRIVATE | MAP_FIXED;
+    int prot = PROT_READ | PROT_EXEC | PROT_WRITE;
     void* e = mmap(seg.vaddr, seg.length, prot, flags, fd, offset);
     if ((long long) e < 0) {
         warn("remap: mmap 0x%p failed: returns: 0x%p: errno = %d: %s",  seg.vaddr, e, errno, strerror(errno));
@@ -340,38 +339,27 @@ void remap(Segment seg) {
 void handler(int sig, siginfo_t* info, void* ucontext) {
     void* addr  = (void*) info->si_addr;
     logv("revival: handler: sig = %d for address %p", sig, addr);
-
     if (addr == nullptr) {
         warn("handler: null address");
         abort();
     }
 
-    // Catch access to areas we failed to map:
+    // Catch access to areas that need copying in:
     std::list<Segment>::iterator iter;
-    for (iter = failedSegments.begin(); iter != failedSegments.end(); iter++) {
-        if (addr >= iter->vaddr &&
-                (unsigned long long) addr < (unsigned long long) (iter->vaddr) + (unsigned long long)(iter->length) ) {
-            warn("Access to segment that failed to revive: si_addr = %p in failed segment %p", addr, iter->vaddr);
-            exitForRetry();
-        }
-    }
-
-    // Handle writing to the core:
-    // Check again if PRIVATE mapping makes this unnecessary.
-    //
-    // If this is a fault in an address covered by an area we mapped from the core,
-    // which should be writable, then create a new mapping that can be written
-    // without changing the core.
-    for (iter = writableSegments.begin(); iter != writableSegments.end(); iter++) {
-        if (addr >= iter->vaddr &&
-                (unsigned long long) addr < (unsigned long long) (iter->vaddr) + (unsigned long long)(iter->length) ) {
-            logv("handler: si_addr = %p found writable segment %p", addr, iter->vaddr);
-            remap((Segment) *iter);
+    for (iter = delayedCopySegments.begin(); iter != delayedCopySegments.end(); iter++) {
+        if (iter->contains((uint64_t) addr)) {
+            logv("Delayed Copy Segment: si_addr = %p found in segment %p", addr, iter->vaddr);
+            // Fix mapping permissions.
+            int e = mprotect(iter->vaddr, iter->length, PROT_READ | PROT_WRITE | PROT_EXEC);
+            if (e < 0) {
+                error("revival: mprotect failed: %d", e);
+            }
+            revival_mapping_docopy(iter->vaddr, iter->length, iter->file_offset);
             return;
         }
     }
     warn("handler: si_addr = %p : not handled.", addr);
-    abort();
+    exitForRetry();
 }
 
 /**
@@ -471,7 +459,6 @@ void relocate_sharedlib_pd(const char* filename, const uint64_t address) {
     }
 }
 
-
 void write_mem_mappings(ELFFile& core, int mappings_fd) {
     core.write_mem_mappings(mappings_fd);
 }
@@ -490,7 +477,6 @@ void write_symbols(int symbols_fd, const char* symbols[], int count, const char*
     ELFFile lib_copy(buf, nullptr);
     lib_copy.write_symbols(symbols_fd, symbols, count);
 }
-
 
 int open_for_read(const char* filename) {
     int fd = open(filename, O_RDONLY);

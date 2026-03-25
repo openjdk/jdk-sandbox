@@ -43,7 +43,7 @@ char* jvm_filename = nullptr;
 void* jvm_address = nullptr;
 void* h; // Opaque handle to libjvm
 std::list<Segment> writableSegments;
-std::list<Segment> failedSegments;
+std::list<Segment> delayedCopySegments;
 struct revival_data* rdata; // Data from revived JVM
 
 #ifndef WINDOWS
@@ -304,11 +304,41 @@ int revival_mapping_mmap(void* vaddr, size_t length, size_t offset, char* filena
     return e;
 }
 
-int revival_mapping_allocate(void* vaddr, size_t length) {
-    void* e = do_map_allocate_pd(vaddr, length);
+int revival_mapping_allocate(void* vaddr, size_t length, int prot) {
+    void* e = do_map_allocate_pd(vaddr, length, prot);
     if (e != vaddr) {
         return -1;
     }
+    return 0;
+}
+
+/**
+ * Copy dump file bytes to memory.
+ */
+int revival_mapping_docopy(void* vaddr, size_t length, size_t offset) {
+    FILE* f = fopen(core_filename, "rb");
+    if (!f) {
+        warn("revival_mapping_docopy: cannot open: '%s': %d: %s", core_filename, errno, strerror(errno));
+        return -1;
+    }
+    int e = fseek(f, (long) offset, SEEK_SET);
+    if (e != 0) {
+        warn("revival_mapping_docopy: cannot seek '%s' to offset %lx: returns %d: %d: %s", core_filename, (long) offset, e, errno, strerror(errno));
+        fclose(f);
+        return -1;
+    }
+    // Read at offset and copy bytes to vaddr:
+    uint64_t* p = (uint64_t*) vaddr;
+    *p = 0xd1b5; // Check we can write.  Overwrite in the loop below.
+    for (size_t i = 0; i < length/8; i++) {
+        e = (int) fread(p++, 8, 1, f);
+        if (e != 1) {
+            warn("revival_mapping_docopy: fread failed: returns %d at %p pos=%zu : %d %s", e, p, i, errno, strerror(errno));
+            fclose(f);
+            return -1;
+        }
+    }
+    fclose(f);
     return 0;
 }
 
@@ -327,7 +357,49 @@ int revival_mapping_copy(void* vaddr, size_t length, size_t offset, bool allocat
     logd("  revival_mapping_copy: alloc=%d vaddr " PTR_FORMAT " - " PTR_FORMAT " len=" SIZE_FORMAT_X_0 " from file offset 0x%llx",
          allocate, (uintptr_t) vaddr, (uintptr_t) ((uint64_t) vaddr + length), length, (long long) offset);
     if (allocate) {
-        e = revival_mapping_allocate(vaddr, length);
+#ifdef LINUX
+        e = revival_mapping_allocate(vaddr, length, 0);
+#else
+        e = revival_mapping_allocate(vaddr, length, 1);
+#endif
+        if (e < 0) {
+            warn("  revival_mapping_copy: allocation required at 0x%llx : allocation failed: %d", (unsigned long long) vaddr, e);
+            return -1;
+        }
+    }
+    if (!mem_canwrite_pd(vaddr, length)) {
+        warn("  revival_mapping_copy: cannot write at vaddr 0x%p length " SIZE_FORMAT_X_0, vaddr, length);
+        return -1;
+    }
+#ifdef LINUX
+    // Set up a delayed copy, to be called by the handler.
+    // We needed to make the mapping above to ensure it can be done, and not fail later.
+    // (mmap is quick, copying the bytes is what we are avoiding.)
+    Segment* seg = new Segment(vaddr, length, offset, length);
+    delayedCopySegments.push_back(seg);
+    return 0;
+#else
+    // Copy now:
+    return revival_mapping_docopy(vaddr, length, offset);
+#endif
+}
+
+/**
+ * Copy bytes from some offset in a file, to memory.  Optionally create the memory allocation first.
+ * Used when a mapping cannot be performed directly from the file, usually due to alignment problems
+ * (so expect file offset to not be aligned).
+ *
+ * This method is mainly used on Windows, where file alignment hinders direct mapping from MiniDump,
+ * and also on a Linux "gcore" (gdb).
+ *
+ * Return -1 on error.
+ */
+int revival_mapping_copy_old(void* vaddr, size_t length, size_t offset, bool allocate, char* filename, int fd) {
+    int e = 0;
+    logd("  revival_mapping_copy: alloc=%d vaddr " PTR_FORMAT " - " PTR_FORMAT " len=" SIZE_FORMAT_X_0 " from file offset 0x%llx",
+         allocate, (uintptr_t) vaddr, (uintptr_t) ((uint64_t) vaddr + length), length, (long long) offset);
+    if (allocate) {
+        e = revival_mapping_allocate(vaddr, length, 1);
         if (e < 0) {
             warn("  revival_mapping_copy: allocation required at 0x%llx : allocation failed: %d", (unsigned long long) vaddr, e);
             return -1;
@@ -355,6 +427,7 @@ int revival_mapping_copy(void* vaddr, size_t length, size_t offset, bool allocat
         e = (int) fread(p++, 8, 1, f);
         if (e != 1) {
             warn("revival_mapping_copy: fread failed: returns %d at %p pos=%zu : %d %s", e, p, i, errno, strerror(errno));
+            fclose(f);
             return -1;
         }
     }
@@ -488,21 +561,22 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
             size_t length = strtoul(s6, &endptr, 16);
             size_t offset = strtoul(s4, &endptr, 16);
             size_t length_file = strtoul(s5, &endptr, 16);
-
+            if (length != length_file) {
+                warn("revival: differing length and length in file not implemented");
+            }
             const char* danger = dangerous(vaddr, length);
             if (danger != nullptr) {
-                warn("skipping (%s): %p - %p len=%zx", danger, vaddr, (void*) ((unsigned long long) vaddr + length), length);
-                Segment* thisSeg = new Segment(vaddr, length, offset, length_file);
-                failedSegments.push_back(*thisSeg);
-                warn("mappings_file_read: danger 0x%llx", (unsigned long long) vaddr);
+                warn("revival: danger, skipping (%s): %p - %p len=%zx", danger, vaddr, (void*) ((unsigned long long) vaddr + length), length);
                 exitForRetry();
                 continue;
             }
+#ifdef WINDOWS
             if (strstr(s7, "W") != nullptr) {
                 // Write permission: add to record of writable Segments:
                 Segment* thisSeg = new Segment(vaddr, length, offset, length_file);
                 writableSegments.push_back(*thisSeg);
             }
+#endif
             if (strncmp(s1, "M", 1) == 0) { 
                 // Map memory from core:
                 int e = revival_mapping_mmap(vaddr, length, offset, core_filename, core_fd);
@@ -521,7 +595,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
                 }
             } else if (strncmp(s1, "m", 1) == 0) {
                 // Allocate only, file offset/length not used:
-                int e = revival_mapping_allocate(vaddr, length);
+                int e = revival_mapping_allocate(vaddr, length, 1);
                 if (e < 0) {
                     warn("mappings_file_read: m 0x%llx failed: %d", (unsigned long long) vaddr, e);
                     exitForRetry();
