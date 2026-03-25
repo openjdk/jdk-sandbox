@@ -26,7 +26,6 @@
 #include "gc/parallel/parallelArguments.hpp"
 #include "gc/parallel/parallelScavengeHeap.hpp"
 #include "gc/shared/adaptiveSizePolicy.hpp"
-#include "gc/shared/fullGCForwarding.hpp"
 #include "gc/shared/gcArguments.hpp"
 #include "gc/shared/genArguments.hpp"
 #include "gc/shared/workerPolicy.hpp"
@@ -127,8 +126,6 @@ void ParallelArguments::initialize() {
       FLAG_SET_DEFAULT(MinSurvivorRatio, SurvivorRatio + 2);
     }
   }
-
-  FullGCForwarding::initialize_flags(heap_reserved_size_bytes());
 }
 
 size_t ParallelArguments::conservative_max_heap_alignment() {

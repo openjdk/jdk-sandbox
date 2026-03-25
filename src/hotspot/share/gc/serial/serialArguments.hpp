@@ -31,7 +31,6 @@
 class SerialArguments : public GenArguments {
 private:
   virtual void initialize_alignments();
-  virtual void initialize();
   virtual size_t conservative_max_heap_alignment();
   virtual CollectedHeap* create_heap();
   virtual size_t young_gen_size_lower_bound();
