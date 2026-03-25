@@ -739,7 +739,7 @@ void write_symbols(int symbols_fd, const char* symbols[], int count, const char 
 
     char moduleFilename[BUFLEN];
     snprintf(moduleFilename, BUFLEN, "%s" FILE_SEPARATOR JVM_FILENAME, revival_dirname);
-    SymLoadModuleEx(h2, NULL, moduleFilename, NULL, 0, 0, NULL, 0);
+    SymLoadModuleEx(h2, nullptr, moduleFilename, nullptr, 0, 0, nullptr, 0);
 
     TCHAR szSymbolName[MAX_SYM_NAME];
     ULONG64 buffer[(sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR) + sizeof(ULONG64) - 1) / sizeof(ULONG64)];
