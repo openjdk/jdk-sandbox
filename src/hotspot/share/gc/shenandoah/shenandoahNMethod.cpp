@@ -173,9 +173,6 @@ void ShenandoahNMethod::heal_nmethod(nmethod* nm) {
     // In this case, concurrent root phase is skipped and degenerated GC should be
     // followed, where nmethods are disarmed.
   }
-
-  // Update all barriers
-  data->update_barriers();
 }
 
 #ifdef AMD64

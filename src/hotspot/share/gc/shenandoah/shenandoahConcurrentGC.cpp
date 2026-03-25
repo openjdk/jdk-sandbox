@@ -725,23 +725,6 @@ void ShenandoahConcurrentGC::op_init_mark() {
   ShenandoahCodeRoots::arm_nmethods();
   ShenandoahStackWatermark::change_epoch_id();
 
-  // Global GC state is now set. Fix up all barriers before continuing.
-  // FIXME: Very crude and defeats the (performance) purpose of arming nmethods above.
-  // Stack watermarks have dealt with the remainder of the stack.
-  // We should really only fix-up the top-most nmethod in every Java thread?
-  if (ShenandoahGCStateCheckHotpatch) {
-    class FixNmethods : public NMethodClosure {
-      BarrierSetNMethod* _bs;
-    public:
-      FixNmethods() : _bs(ShenandoahBarrierSet::barrier_set()->barrier_set_nmethod()) {}
-      void do_nmethod(nmethod* nm) { _bs->nmethod_entry_barrier(nm); }
-    };
-
-    FixNmethods nm_cl;
-    ShenandoahCodeRootsIterator it;
-    it.possibly_parallel_nmethods_do(&nm_cl);
-  }
-
   {
     ShenandoahTimingsTracker timing(ShenandoahPhaseTimings::init_propagate_gc_state);
     heap->propagate_gc_state_to_all_threads();
@@ -1046,7 +1029,7 @@ public:
     // nmethod_entry_barrier
     ShenandoahEvacOOMScope oom;
     data->oops_do(&_cl, true/*fix relocation*/);
-    _bs->disarm(n);
+    ShenandoahNMethod::disarm_nmethod_unlocked(n);
   }
 };
 

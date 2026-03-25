@@ -72,16 +72,9 @@ void ShenandoahCodeRoots::arm_nmethods() {
 }
 
 class ShenandoahDisarmNMethodClosure : public NMethodClosure {
-private:
-  BarrierSetNMethod* const _bs;
-
 public:
-  ShenandoahDisarmNMethodClosure() :
-    _bs(BarrierSet::barrier_set()->barrier_set_nmethod()) {
-  }
-
   virtual void do_nmethod(nmethod* nm) {
-    _bs->disarm(nm);
+    ShenandoahNMethod::disarm_nmethod(nm);
   }
 };
 
