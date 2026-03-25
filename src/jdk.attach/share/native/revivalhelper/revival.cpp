@@ -842,7 +842,7 @@ int symbols_file_create(const char* dirname) {
 }
 
 /**
- * Return true if the given character pointer is a valid, set
+ * Return true if the given character pointer is a defined
  * environment variable (one which exists and is not null).
  */
 bool env_check(char* s) {

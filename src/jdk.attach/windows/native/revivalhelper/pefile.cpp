@@ -23,7 +23,6 @@
  * questions.
  */
 
-#include "revival.hpp"
 #include "pefile.hpp"
 
 PEFile::PEFile(const char* filename) {
@@ -113,17 +112,17 @@ bool PEFile::rebase(const char* filename, uint64_t address) {
 // static
 bool PEFile::remove_dynamicbase(const char* filename) {
     // Set DYNAMICBASE:NO in DllCharacteristics of an existing binary.
-    HANDLE h = CreateFile(filename, GENERIC_READ | GENERIC_WRITE, 0 /* not shared */, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
+    HANDLE h = CreateFile(filename, GENERIC_READ | GENERIC_WRITE, 0 /* not shared */, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
     if (h == INVALID_HANDLE_VALUE) { error("remove_dynamicbase: CreateFile failure: %d", GetLastError()); }
 
-    HANDLE h2 = CreateFileMapping(h, NULL, PAGE_READWRITE, 0,0, NULL);
+    HANDLE h2 = CreateFileMapping(h, nullptr, PAGE_READWRITE, 0,0, nullptr);
     if (h == INVALID_HANDLE_VALUE) { error("remove_dynamicbase: CreateFileMapping failure: %d", GetLastError()); }
 
     LPVOID base = MapViewOfFile(h2, FILE_MAP_READ | FILE_MAP_WRITE, 0,0,0);
     if (base == nullptr) { error("remove_dynamicbase: MapViewOfFile failure: %d", GetLastError()); }
 
-    short magic = *(short*) base; // MZ
-    if (magic != 0x5a4d) {
+    short magic = *(short*) base;
+    if (magic != 0x5a4d /* MZ */) {
         error("remove_dynamicbase: %s: DOS magic not recognized: 0x%x", filename, magic);
     }
 
@@ -138,7 +137,7 @@ bool PEFile::remove_dynamicbase(const char* filename) {
     //   IMAGE_FILE_HEADER       FileHeader;
     //   IMAGE_OPTIONAL_HEADER32 OptionalHeader;
     ULONG32 peMagic = *(ULONG32*) peAddr;
-    if (peMagic != 0x4550) { // PE
+    if (peMagic != 0x4550 /* PE */) {
         error("remove_dynamicbase: %s: PE magic not recognized: 0x%x", filename, peMagic);
     }
 
