@@ -993,11 +993,15 @@ bool PSParallelCompact::invoke(bool clear_all_soft_refs, bool should_do_max_comp
     DerivedPointerTable::set_active(false);
 #endif
 
+    FullGCForwarding::begin();
+
     forward_to_new_addr();
 
     adjust_pointers();
 
     compact();
+
+    FullGCForwarding::end();
 
     ParCompactionManager::_preserved_marks_set->restore(&ParallelScavengeHeap::heap()->workers());
 

@@ -716,6 +716,8 @@ void SerialFullGC::invoke_at_safepoint(bool clear_all_softrefs) {
 
   phase1_mark(clear_all_softrefs);
 
+  FullGCForwarding::begin();
+
   Compacter compacter{gch};
 
   {
@@ -772,6 +774,8 @@ void SerialFullGC::invoke_at_safepoint(bool clear_all_softrefs) {
   ClassLoaderDataGraph::clear_claimed_marks();
 
   restore_marks();
+
+  FullGCForwarding::end();
 
   deallocate_stacks();
 

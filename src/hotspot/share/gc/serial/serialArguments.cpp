@@ -25,7 +25,6 @@
 
 #include "gc/serial/serialArguments.hpp"
 #include "gc/serial/serialHeap.hpp"
-#include "gc/shared/fullGCForwarding.hpp"
 #include "gc/shared/gcArguments.hpp"
 
 static size_t compute_heap_alignment() {
@@ -51,11 +50,6 @@ void SerialArguments::initialize_alignments() {
   CardTable::initialize_card_size();
   SpaceAlignment = (size_t)Generation::GenGrain;
   HeapAlignment = compute_heap_alignment();
-}
-
-void SerialArguments::initialize() {
-  GCArguments::initialize();
-  FullGCForwarding::initialize_flags(MaxHeapSize);
 }
 
 size_t SerialArguments::conservative_max_heap_alignment() {

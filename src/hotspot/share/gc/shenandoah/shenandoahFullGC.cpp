@@ -251,6 +251,8 @@ void ShenandoahFullGC::do_it(GCCause::Cause gc_cause) {
     // until all phases run together.
     ShenandoahHeapLocker lock(heap->lock());
 
+    FullGCForwarding::begin();
+
     phase2_calculate_target_addresses(worker_slices);
 
     OrderAccess::fence();
@@ -260,6 +262,8 @@ void ShenandoahFullGC::do_it(GCCause::Cause gc_cause) {
     phase4_compact_objects(worker_slices);
 
     phase5_epilog();
+
+    FullGCForwarding::end();
   }
   heap->start_idle_span();
 

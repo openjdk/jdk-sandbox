@@ -24,7 +24,6 @@
  *
  */
 
-#include "gc/shared/fullGCForwarding.hpp"
 #include "gc/shared/gcArguments.hpp"
 #include "gc/shared/tlab_globals.hpp"
 #include "gc/shared/workerPolicy.hpp"
@@ -212,8 +211,6 @@ void ShenandoahArguments::initialize() {
       " supports adaptive heuristics", ShenandoahGCHeuristics);
     FLAG_SET_ERGO(ShenandoahGCHeuristics, "adaptive");
   }
-
-  FullGCForwarding::initialize_flags(MaxHeapSize);
 }
 
 size_t ShenandoahArguments::conservative_max_heap_alignment() {
