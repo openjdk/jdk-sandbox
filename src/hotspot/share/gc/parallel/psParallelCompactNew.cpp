@@ -1006,7 +1006,7 @@ void PSParallelCompactNew::compact() {
           }
 
           Copy::aligned_conjoint_words(current, dst, size);
-          fwd->init_mark();
+          fwd->reinit_mark();
           fwd->initialize_hash_if_necessary(obj);
         } else {
           // The start_array must be updated even if the object is not moving.

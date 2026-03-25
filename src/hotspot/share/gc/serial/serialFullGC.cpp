@@ -238,7 +238,7 @@ class Compacter {
       if (!after_first_dead) {
         // This obj will stay in-place and we'll not see it during relocation.
         // Fix the markword.
-        obj->init_mark();
+        obj->reinit_mark();
       } else {
         FullGCForwarding::forward_to(obj, cast_to_oop(new_addr));
       }
@@ -270,7 +270,7 @@ class Compacter {
       prefetch_write_copy(new_addr);
       Copy::aligned_conjoint_words(addr, new_addr, obj_size);
     }
-    new_obj->init_mark();
+    new_obj->reinit_mark();
     if (addr != new_addr) {
       new_obj->initialize_hash_if_necessary(obj);
     }

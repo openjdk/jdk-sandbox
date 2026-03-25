@@ -884,7 +884,7 @@ public:
       oop new_obj = cast_to_oop(compact_to);
 
       ContinuationGCSupport::relativize_stack_chunk(new_obj);
-      new_obj->init_mark();
+      new_obj->reinit_mark();
       new_obj->initialize_hash_if_necessary(p);
     }
   }
@@ -1018,7 +1018,7 @@ void ShenandoahFullGC::compact_humongous_objects() {
       ContinuationGCSupport::relativize_stack_chunk(cast_to_oop<HeapWord*>(r->bottom()));
 
       oop new_obj = cast_to_oop(heap->get_region(new_start)->bottom());
-      new_obj->init_mark();
+      new_obj->reinit_mark();
 
       {
         ShenandoahAffiliation original_affiliation = r->affiliation();

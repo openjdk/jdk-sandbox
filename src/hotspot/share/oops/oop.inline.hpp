@@ -111,6 +111,10 @@ markWord oopDesc::prototype_mark() const {
 }
 
 void oopDesc::init_mark() {
+  set_mark(prototype_mark());
+}
+
+void oopDesc::reinit_mark() {
   if (UseCompactObjectHeaders) {
     markWord m = prototype_mark().copy_hashctrl_from(mark());
     assert(m.is_neutral(), "must be neutral");

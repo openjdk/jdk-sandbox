@@ -82,9 +82,21 @@ class oopDesc {
   // Returns the prototype mark that should be used for this object.
   inline markWord prototype_mark() const;
 
-  // Used only to re-initialize the mark word (e.g., of promoted
-  // objects during a GC) -- requires a valid klass pointer
+  // Initializes the mark word of an object (typically an object copy)
+  // to the prototype mark -- requires a valid klass pointer.
+  // This completely resets the mark-word, except for the
+  // Klass bits.
+  // This is typically used by clone() routines, where the copy of
+  // the object is a new object identity.
   inline void init_mark();
+
+  // Re-initializes the mark word of an object (typically an object copy)
+  // to the prototype mark -- requires a valid klass pointer.
+  // This completely resets the mark-word, except for the
+  // Klass bits and the hashcode, which are preserved.
+  // This is typically used by GCs when they copy object to new locations,
+  // where the copy of the object preserves the previous identity.
+  inline void reinit_mark();
 
   inline Klass* klass() const;
   inline Klass* klass_or_null() const;
