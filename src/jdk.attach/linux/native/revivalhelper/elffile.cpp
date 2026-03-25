@@ -542,7 +542,6 @@ void ELFFile::read_sharedlibs() {
     free(sharedlibs);
 }
 
-
 void ELFFile::print() {
     for (int i = 0; i < hdr->e_phnum; i++) {
         Elf64_Phdr* p = program_header(i);
@@ -553,7 +552,6 @@ void ELFFile::print() {
         fprintf(stderr, "SH %3d %p  Type: %d addr: 0x%lx\n", i, p, p->sh_type, p->sh_addr);
     }
 }
-
 
 uint64_t ELFFile::file_offset_for_vaddr(uint64_t addr) {
     // Locate PT_LOAD for this address.
@@ -591,7 +589,6 @@ void ELFFile::relocate(long displacement) {
     if (shdr_strings == 0) {
         error("%s: ELFFile::relocate expects shdr_strings", filename);
     }
-
     relocate_execution_header(displacement);
     relocate_program_headers(displacement);
     relocate_section_headers(displacement);
@@ -628,7 +625,6 @@ void ELFFile::write_symbols(int symbols_fd, const char* symbols[], int count) {
     }
 }
 
-
 Segment* ELFFile::get_library_mapping(const char* filename) {
     read_sharedlibs();
     for (std::list<Segment>::iterator iter = libs.begin(); iter != libs.end(); iter++) {
@@ -647,12 +643,10 @@ Segment* ELFFile::get_library_mapping(const char* filename) {
     return nullptr;
 }
 
-
 std::list<Segment> ELFFile::get_library_mappings() {
     // Can be used to copy and relocate all libraries, but would need an is_elf check.
     return libs;
 }
-
 
 void ELFFile::write_mem_mappings(int mappings_fd) {
     // For each Program Header, create a Segment, call Segment::write_mapping(int fd) to write an "M" entry.
@@ -695,7 +689,7 @@ void ELFFile::write_mem_mappings(int mappings_fd) {
             }
         }
         Segment s((void*) phdr->p_vaddr, phdr->p_memsz, phdr->p_offset, phdr->p_filesz);
-        s.write_mapping(mappings_fd);
+        s.write_mapping(mappings_fd, "M");
         phdr = next_ph(phdr);
     }
     logv("write_mem_mappings done.  Skipped = %i", n_skipped);
