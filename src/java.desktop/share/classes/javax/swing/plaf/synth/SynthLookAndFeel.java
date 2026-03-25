@@ -70,6 +70,7 @@ import sun.swing.DefaultLookup;
 import sun.swing.SwingAccessor;
 import sun.swing.SwingUtilities2;
 import sun.swing.calendarpanel.icons.CalendarIcon;
+import sun.swing.calendarpanel.icons.ChevronIcon;
 import sun.swing.plaf.synth.SynthFileChooserUI;
 
 /**
@@ -679,6 +680,12 @@ public class SynthLookAndFeel extends BasicLookAndFeel {
         // *** DatePicker
         table.put("DatePicker.calendarIcon", (UIDefaults.LazyValue) t ->
                 new CalendarIcon(Color.GRAY));
+        table.put("DatePicker.cheveronLeftIcon", (UIDefaults.LazyValue) t ->
+                new ChevronIcon(ChevronIcon.Direction.LEFT, 1, 16, 16,
+                        new Color(60, 60, 60), 2.4f));
+        table.put("DatePicker.cheveronRightIcon", (UIDefaults.LazyValue) t ->
+                        new ChevronIcon(ChevronIcon.Direction.RIGHT, 1, 16, 16,
+                                new Color(60, 60, 60), 2.4f));
         // *** DatePicker
         table.put("DatePicker.gridFont", new Font(Font.SANS_SERIF, Font.PLAIN, 12));
         table.put("DatePicker.gridForeground", Color.black);  // cell text color

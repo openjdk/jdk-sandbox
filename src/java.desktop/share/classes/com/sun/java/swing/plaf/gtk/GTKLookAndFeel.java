@@ -70,6 +70,7 @@ import sun.swing.MnemonicHandler;
 import sun.swing.SwingAccessor;
 import sun.swing.SwingUtilities2;
 import sun.swing.calendarpanel.icons.CalendarIcon;
+import sun.swing.calendarpanel.icons.ChevronIcon;
 
 /**
  * @author Scott Violet
@@ -1326,6 +1327,12 @@ public class GTKLookAndFeel extends SynthLookAndFeel {
                 "DatePicker.showGridLines", false,  // show grid
                 "DatePicker.calendarIcon", (UIDefaults.LazyValue) t ->
                 new CalendarIcon(Color.GRAY),
+                "DatePicker.cheveronLeftIcon", (UIDefaults.LazyValue) t ->
+                new ChevronIcon(ChevronIcon.Direction.LEFT, 1, 16, 16,
+                        new Color(60, 60, 60), 2.4f),
+                "DatePicker.cheveronRightIcon", (UIDefaults.LazyValue) t ->
+                new ChevronIcon(ChevronIcon.Direction.RIGHT, 1, 16, 16,
+                        new Color(60, 60, 60), 2.4f),
         };
         table.putDefaults(defaults);
 

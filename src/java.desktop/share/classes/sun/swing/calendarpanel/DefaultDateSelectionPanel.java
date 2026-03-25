@@ -297,11 +297,15 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
         headerPanel.setPreferredSize(new Dimension((int) super.getPreferredSize().getWidth(), HEADER_PANEL_HEIGHT));
         headerPanel.setBorder(BorderFactory.createEmptyBorder(5, 5, 5, 5));
         Dimension buttonSize = new Dimension(30, HEADER_PANEL_HEIGHT - 10);
-
-        prevMonth = new JButton("<");
-        nextMonth = new JButton(">");
-        prevYear = new JButton("<");
-        nextYear = new JButton(">");
+        
+        prevMonth = new JButton();
+        nextMonth = new JButton();
+        prevYear = new JButton();
+        nextYear = new JButton();
+        prevMonth.setIcon(UIManager.getIcon("DatePicker.cheveronLeftIcon"));
+        nextMonth.setIcon(UIManager.getIcon("DatePicker.cheveronRightIcon"));
+        prevYear.setIcon(UIManager.getIcon("DatePicker.cheveronLeftIcon"));
+        nextYear.setIcon(UIManager.getIcon("DatePicker.cheveronRightIcon"));
         prevMonth.setName(previousMonthText);
         nextMonth.setName(nextMonthText);
         prevYear.setName(previousYearText);
@@ -380,7 +384,7 @@ public final class DefaultDateSelectionPanel extends AbstractCalendarPanel
             headerPanel.setVisible(true);
         }
     }
-
+    
     private void setFocusListeners() {
         CustomFocusListener.setFocusListener(prevMonth);
         CustomFocusListener.setFocusListener(nextMonth);

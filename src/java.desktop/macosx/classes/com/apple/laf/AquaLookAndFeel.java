@@ -59,6 +59,7 @@ import sun.swing.MnemonicHandler;
 import sun.swing.SwingAccessor;
 import sun.swing.SwingUtilities2;
 import sun.swing.calendarpanel.icons.CalendarIcon;
+import sun.swing.calendarpanel.icons.ChevronIcon;
 
 import static javax.swing.UIDefaults.LazyValue;
 
@@ -1040,6 +1041,12 @@ public final class AquaLookAndFeel extends BasicLookAndFeel {
             "DatePicker.showGridLines", false,  // show grid
             "DatePicker.calendarIcon", (LazyValue) t ->
             new CalendarIcon(Color.GRAY),
+            "DatePicker.cheveronLeftIcon", (LazyValue) t ->
+            new ChevronIcon(ChevronIcon.Direction.LEFT, 1, 16, 16,
+                    new Color(60, 60, 60), 2.4f),
+            "DatePicker.cheveronRightIcon", (LazyValue) t ->
+            new ChevronIcon(ChevronIcon.Direction.RIGHT, 1, 16, 16,
+                    new Color(60, 60, 60), 2.4f),
             };
 
         table.putDefaults(defaults);

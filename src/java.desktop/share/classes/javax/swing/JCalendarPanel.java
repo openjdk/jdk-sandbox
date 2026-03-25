@@ -206,6 +206,7 @@ public class JCalendarPanel extends JComponent implements Accessible {
         getDateSelectionModel().setCalendar(calendar);
         setFirstDayOfWeek(calendar.getFirstDayOfWeek());
         setDate(date);
+        enableCalendarHeaderPanel(true);
         setYearSelectionLimit(LocalDate.now().getYear() - DEFAULT_LIMIT_VALUE,
                 LocalDate.now().getYear() + DEFAULT_LIMIT_VALUE);
         updateUI();
