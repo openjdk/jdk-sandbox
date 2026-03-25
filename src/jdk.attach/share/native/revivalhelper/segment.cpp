@@ -23,7 +23,7 @@
  * questions.
  */
 
-#include <segment.hpp>
+#include "segment.hpp"
 
 bool Segment::contains(Segment* seg) {
   return seg->start() >= this->start() && seg->end() <= this->end();
@@ -41,8 +41,7 @@ bool Segment::is_relevant() {
 }
 
 /**
- * Adjust by moving (adding to) the start vaddr, shortening the
- * segment.
+ * Adjust by moving (adding to) the start vaddr, shortening the segment.
  */
 void Segment::move_start(long dist) {
     vaddr = (void*) ((long long) vaddr + dist);
@@ -52,14 +51,8 @@ void Segment::move_start(long dist) {
 }
 
 /**
- * Write this Segment, formatted as a core.mappings line, to the given fd.
- */
-int Segment::write_mapping(int fd) {
-    return write_mapping(fd, "M");
-}
-
-/**
- * Write this Segment, formatted as a core.mappings line, to the given fd.
+ * Write this Segment, formatted as a core.mappings line, using the given mapping
+ * type prefix, to the given fd.
  */
 int Segment::write_mapping(int fd, const char* type) {
     // Text format:

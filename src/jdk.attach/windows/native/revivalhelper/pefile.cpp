@@ -83,28 +83,27 @@ uint64_t PEFile::file_offset_for_reladdr(uint64_t reladdr) {
 
 // static
 bool PEFile::rebase(const char* filename, uint64_t address) {
-    PCSTR SymbolPath = nullptr;
     ULONG OldImageSize;
     ULONG64 OldImageBase;
     ULONG NewImageSize = (ULONG) address;
     ULONG64 NewImageBase = address;
 
-    BOOL e = ReBaseImage64(filename, SymbolPath, TRUE /* fReBase */, TRUE /* permit system file */, FALSE /* rebase downwards */,
+    BOOL e = ReBaseImage64(filename, nullptr /* SymbolPath */, TRUE /* fReBase */, TRUE /* permit system file */, FALSE /* rebase downwards */,
                            0 /* MaxSize */, &OldImageSize, &OldImageBase, &NewImageSize, &NewImageBase, 0 /* TimeStamp */);
-    warn("rebase: OldImageSize 0x%lx  OldImageBase 0x%llx  NewImageSize 0x%lx  NewImageBase 0x%llx",
+    logv("rebase: OldImageSize 0x%lx  OldImageBase 0x%llx  NewImageSize 0x%lx  NewImageBase 0x%llx",
           OldImageSize, OldImageBase, NewImageSize, NewImageBase);
     if (!e) {
         warn("ReBaseImage64 failed: %d", GetLastError());
         return false;
     }
     if (address == OldImageBase) {
-        warn("rebase: Not needed.");
+        logv("rebase: Not needed.");
         return true;
     }
     if (NewImageBase == address) {
-        warn("rebase: OK");
+        logv("rebase: OK");
      } else {
-        warn("rebase: reported new base 0x%llx != required 0x%llx (may not mean rebase actually failed)", NewImageBase, address);
+        logv("rebase: reported new base 0x%llx != required 0x%llx (may not mean rebase actually failed)", NewImageBase, address);
     }
     return e;
 }

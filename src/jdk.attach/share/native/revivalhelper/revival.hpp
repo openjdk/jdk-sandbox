@@ -44,7 +44,6 @@
 
 #include "segment.hpp"
 
-
 #define PTR_FORMAT               "0x%016"     PRIxPTR
 #define UINTX_FORMAT_X_0         "0x%016"     PRIxPTR
 #define SIZE_FORMAT_X_0          "0x%016"     PRIxPTR
@@ -89,7 +88,7 @@ void install_handler();
 //
 // Windows
 //
-#elif defined(WIN32)
+#elif defined(WINDOWS)
 
 #include <io.h>
 #include <windows.h>
@@ -144,7 +143,7 @@ struct revival_data {
   void* info3;
 };
 
-// The revivalhelper tool uses only these two functions:
+// The revivalhelper tool uses only these three functions:
 
 /**
  * Main revival setup entry point.
@@ -196,7 +195,7 @@ extern struct revival_data* rdata;
 
 // Exit signalling caller should retry, e.g. address space clash.
 #define EXIT_SUGGEST_RETRY 7
-extern void exitForRetry(); // exit process using above exit code to signal a retry
+void exitForRetry(); // exit process using above exit code to signal a retry
 
 char* readstring(int fd);
 char* readstring_at_offset_pd(const char* filename, uint64_t offset);
@@ -206,7 +205,6 @@ uint64_t read_pointer_at_offset_pd(const char* filename, uint64_t offset);
 #endif
 
 char* basename_pd(char* path);
-
 bool create_directory_pd(char* dirname);
 
 bool try_init_jvm_filename_if_exists(const char* path, const char* suffix);

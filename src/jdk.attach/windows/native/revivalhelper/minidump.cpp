@@ -99,7 +99,6 @@ MiniDump::MiniDump(const char* filename, const char* libdir) {
         warn("MiniDump::open '%s' failed: %d: %s", core_filename, errno, strerror(errno));
         return;
     }
-    // Read MiniDump header:
     int e = read(fd, &hdr, sizeof(_MINIDUMP_HEADER));
     if (e != sizeof(_MINIDUMP_HEADER)) {
         warn("MiniDump: header read %d != expected %d", e, sizeof(_MINIDUMP_HEADER));

@@ -30,14 +30,12 @@
 #include <cstdlib>
 #include <cstdio>
 
-// Don't inlude revival.hpp, just:
 #define BUFLEN 2048
-void write0(int fd, const char* buf);
+void write0(int fd, const char* buf); // revival.cpp
 
 /**
- * A Segment describes a memory range.  It may have a name, and may describe from what offset in a file its contents can be read.
- *
- * Used to describe areas of memory, or a shared library.
+ * A Segment describes a memory range, as required by the process revival mechanism, to enable jcmd to operate on a MiniDump.
+ * It may have a name, and may describe from what offset in a file its contents can be read.
  */
 class Segment {
     public:
@@ -67,14 +65,10 @@ class Segment {
         void set_end(uint64_t addr) { length = addr - (uint64_t) vaddr; }
         void set_length(uint64_t len) { length = len; file_length = len; }
         void move_start(long dist);
-
         bool contains(Segment* seg);
         bool contains(uint64_t addr);
-
         bool is_relevant();
-        int write_mapping(int fd);
         int write_mapping(int fd, const char* type);
-
         int toString(char* buf, int len);
 };
 #endif /* SEGMENT_H */

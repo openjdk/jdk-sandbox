@@ -451,7 +451,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
         e = fscanf(f, "L %32s %32s %32s\n", s1, s2, s3);
         if (e == 3) {
             void* vaddr = (void*) strtoull(s2, nullptr, 16);
-            warn("Load library '%s' required at %p...", s1, vaddr);
+            logv("Load library '%s' required at %p...", s1, vaddr);
             h = load_sharedlibrary_fromdir(dirname, s1, vaddr, s3);
             if (h == (void*) -1) {
                 warn("Load library '%s' failed to load at %p", s1, vaddr);
@@ -548,8 +548,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
         break;
     }
     if (logLevel >= LOG_VERBOSE) {
-        warn("mappings_file_read: read %d lines, Mappings: %d  map allocs: %d  Copies: %d",
-              lines, M_good, m_good, C_good);
+        warn("mappings_file_read: read %d lines, Mappings: %d  map allocs: %d  Copies: %d", lines, M_good, m_good, C_good);
         warn("writableSegments.size = %d", (int) writableSegments.size());
     }
     if (core_fd >= 0) {
@@ -695,7 +694,6 @@ void* symbol_call4(const char* sym, void* arg1, void* arg2, void* arg3, void* ar
     return (func)(arg1, arg2, arg3, arg4);
 }
 
-// Only using call5 at the moment:
 void* call5(void* s, void* arg1, void* arg2, void* arg3, void* arg4, void* arg5) {
     verbose_call(s);
     void* (*func)(void*,void*,void*,void*,void*) = (void*(*)(void*,void*,void*,void*,void*)) s;
@@ -719,15 +717,6 @@ int symbol_set(const char* sym, void* value) {
         return -1;
     }
     *(unsigned long long*) s = (unsigned long long) value;
-    return 0;
-}
-
-int symbol_set(const char* sym, int value) {
-    void* s = symbol(sym);
-    if (s == (void*) -1) {
-        return -1;
-    }
-    *(int*) s = value;
     return 0;
 }
 
@@ -855,7 +844,6 @@ bool env_check(char* s) {
 
 /**
  * Complete the revival using a helper method in the target JVM.
- *
  * Return 0 for success, -1 for error.
  */
 int revive_image_cooperative() {
@@ -910,15 +898,14 @@ int revive_image_cooperative() {
         logv("set_revival_time: symbol lookup failed.");
     }
 #endif
-
     return 0;
 }
 
 /**
- * Create revival cache directory name from corefile name.
+ * Create (allocate) revival cache directory name, based on corefile name.
  * Use revival_data_path as prefix if non-null.
  */
-char* revival_dirname(const char* corename, const char* revival_data_path) {
+char* revival_dirname_create(const char* corename, const char* revival_data_path) {
     char* buf = (char*) calloc(1, BUFLEN);
     if (!buf) {
         error("Failed to allocate buffer for revival directory name.");
@@ -935,7 +922,7 @@ char* revival_dirname(const char* corename, const char* revival_data_path) {
     return buf;
 }
 
-char* mappings_filename_set(const char* revival_data_path) {
+char* mappings_filename_create(const char* revival_data_path) {
     char* buf = (char*) calloc(1, BUFLEN);
     if (!buf) {
         error("Failed to allocate buffer for mappings file name.");
@@ -1061,8 +1048,8 @@ int revive_image(const char* corename, const char* javahome, const char* libdir,
         return -1;
     }
     // Decide core.revival directory name:
-    dirname = revival_dirname(corename, revival_data_path);
-    mappings_filename = mappings_filename_set(dirname);
+    dirname = revival_dirname_create(corename, revival_data_path);
+    mappings_filename = mappings_filename_create(dirname);
 
     // Does revival cache exist?
     if (!revival_cache_exists(dirname, mappings_filename)) {

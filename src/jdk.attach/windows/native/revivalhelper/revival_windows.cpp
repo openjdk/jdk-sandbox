@@ -924,7 +924,7 @@ int create_revival_cache_pd(const char* corename, const char* javahome, const ch
         if (dump_TEB != 0) {
             dump_PEB = dump.get_peb();
             dump_ReadOnlySharedMemBase = dump.read_pointer_at_address(dump_PEB + 0x88); // Known offset from PEB.
-            warn("Dump: TEB 0x%llx PEB 0x%llx ReadOnlySharedMemBase 0x%llx", dump_TEB, dump_PEB, dump_ReadOnlySharedMemBase);
+            logv("Dump: TEB 0x%llx PEB 0x%llx ReadOnlySharedMemBase 0x%llx", dump_TEB, dump_PEB, dump_ReadOnlySharedMemBase);
             writef(mappings_fd, "TEB %llx\n", dump_TEB);
         } else {
             warn("TEB not resolved from MiniDump.");
