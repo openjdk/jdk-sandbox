@@ -1331,13 +1331,22 @@ oop ShenandoahHeap::try_evacuate_object(oop p, Thread* thread, ShenandoahHeapReg
 
   // Copy the object:
   Copy::aligned_disjoint_words(cast_from_oop<HeapWord*>(p), copy, old_size);
+  oop copy_val = cast_to_oop(copy);
+
+  // Initialize the identity hash on the copy before installing the forwarding
+  // pointer, using the mark word we captured earlier. We must do this before
+  // the CAS so that the copy is fully initialized when it becomes visible to
+  // other threads. Using the captured mark (rather than re-reading the copy's
+  // mark) avoids races with other threads that may have evacuated p and
+  // installed a forwarding pointer in the meantime.
+  if (UseCompactObjectHeaders && mark.is_hashed_not_expanded()) {
+    copy_val->set_mark(copy_val->initialize_hash_if_necessary(p, mark.klass(), mark));
+  }
 
   // Try to install the new forwarding pointer.
-  oop copy_val = cast_to_oop(copy);
   oop result = ShenandoahForwarding::try_update_forwardee(p, copy_val);
   if (result == copy_val) {
     // Successfully evacuated. Our copy is now the public one!
-    copy_val->initialize_hash_if_necessary(p);
     ContinuationGCSupport::relativize_stack_chunk(copy_val);
     shenandoah_assert_correct(nullptr, copy_val);
     if (ShenandoahEvacTracking) {
