@@ -30,12 +30,11 @@
 
 /**
  * An ELF file.
+ * Operations as required by the process revival mechanism, to enable jcmd to operate on a MiniDump.
  *
- * Provide operations such as file inspection to read memory segments, and also
- * a destructive operation to relocate the file to a new base virtual address.
+ * File inspection to read memory segments, and also a destructive operation to relocate the file to a new base virtual address.
  *
- * To mmap the file and update in-memory proves faster than lseek and read/write,
- * particularly for relocation.
+ * Using mmap and in-memory operations proves faster than lseek and read/write, particularly for relocation.
  */
 class ELFFile {
   public:
@@ -55,7 +54,7 @@ class ELFFile {
     Segment* get_library_mapping(const char* filename);
     std::list<Segment> get_library_mappings();
 
-    // Relocate actual file by some amount.
+    // Relocate by some amount.  *Destructive*: changes the actual file.
     void relocate(long displacement);
 
     // Write the list of memory mappings in the core.
