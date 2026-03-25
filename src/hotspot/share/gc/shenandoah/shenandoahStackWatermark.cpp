@@ -61,6 +61,7 @@ ShenandoahStackWatermark::ShenandoahStackWatermark(JavaThread* jt) :
   StackWatermark(jt, StackWatermarkKind::gc, _epoch_id),
   _heap(ShenandoahHeap::heap()),
   _stats(),
+  _no_op_cl(),
   _keep_alive_cl(),
   _evac_update_oop_cl(),
   _nm_cl() {}
@@ -78,6 +79,8 @@ OopClosure* ShenandoahStackWatermark::closure_from_context(void* context) {
       return &_evac_update_oop_cl;
     } else if (_heap->is_concurrent_mark_in_progress()) {
       return &_keep_alive_cl;
+    } else if (ShenandoahGCStateCheckHotpatch) {
+      return &_no_op_cl;
     } else {
       ShouldNotReachHere();
       return nullptr;
@@ -107,6 +110,10 @@ void ShenandoahStackWatermark::start_processing_impl(void* context) {
     retire_tlab();
 
     _jt->oops_do_no_frames(closure_from_context(context), &_nm_cl);
+  } else if (ShenandoahGCStateCheckHotpatch) {
+    // Process with no-op oop closure, only for the sake of updating the barriers.
+    // TODO: There is no point in doing this, if we do not touch frames?
+    _jt->oops_do_no_frames(closure_from_context(context), &_nm_cl);
   } else {
     ShouldNotReachHere();
   }
@@ -131,7 +138,7 @@ void ShenandoahStackWatermark::process(const frame& fr, RegisterMap& register_ma
   assert(oops != nullptr, "Should not get to here");
   ShenandoahHeap* const heap = ShenandoahHeap::heap();
   assert((heap->is_concurrent_weak_root_in_progress() && heap->is_evacuation_in_progress()) ||
-         heap->is_concurrent_mark_in_progress(),
+         heap->is_concurrent_mark_in_progress() || ShenandoahGCStateCheckHotpatch,
          "Only these two phases");
   fr.oops_do(oops, &_nm_cl, &register_map, DerivedPointerIterationMode::_directly);
 }
