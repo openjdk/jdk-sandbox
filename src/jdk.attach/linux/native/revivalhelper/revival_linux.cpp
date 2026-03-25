@@ -211,7 +211,7 @@ void* do_map_allocate_pd(void* vaddr, size_t length) {
 int revival_checks_pd(const char* dirname) {
     // Check LD_USE_LOAD_BIAS is set:
     char* env = getenv("LD_USE_LOAD_BIAS");
-    if (env == NULL || strncmp(env, "1", 1) != 0) {
+    if (env == nullptr || strncmp(env, "1", 1) != 0) {
         error("Error: LD_USE_LOAD_BIAS not set.");
     }
     return 0;
@@ -236,7 +236,7 @@ void* symbol_dynamiclookup_pd(void* h, const char* str) {
  */
 const char* createTempFilename() {
     char* tempName  = (char*) calloc(1, BUFLEN); // never free'd
-    if (tempName == NULL) {
+    if (tempName == nullptr) {
         error("createTempFilename: calloc failed");
     }
     char* p = strncat(tempName, revivaldir, BUFLEN - 1);
@@ -266,10 +266,10 @@ const char* corePageFilename;
  * Return the name of the temp file to use for writing.
  */
 const char* getCorePageFilename() {
-    if (corePageFilename == NULL) {
+    if (corePageFilename == nullptr) {
         // Create filename on demand.
         corePageFilename = createTempFilename();
-        if (corePageFilename == NULL) {
+        if (corePageFilename == nullptr) {
             error("cannot create page file for writes to core file memory.");
         }
     }
@@ -304,7 +304,7 @@ size_t writeTempFileBytes(const char* tempName, Segment seg) {
  */
 void remap(Segment seg) {
     const char* tempName = getCorePageFilename();
-    if (tempName == NULL) {
+    if (tempName == nullptr) {
         error("remap: failed to create temp filename. errno = %d: %s",  errno, strerror(errno));
     }
     size_t offset = writeTempFileBytes(tempName, seg);
