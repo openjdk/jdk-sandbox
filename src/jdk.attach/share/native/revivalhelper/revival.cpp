@@ -390,13 +390,9 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
     char s1[BUFLEN];
     char s2[BUFLEN];
     int lines = 0;
-
     int M_good = 0;
     int m_good = 0;
     int C_good = 0;
-    int M_bad = 0;
-    int m_bad = 0;
-    int C_bad = 0;
     memset(s1, 0, BUFLEN);
 
     FILE* f = fopen(mappings_filename, "r");
@@ -472,7 +468,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
             continue;
         }
 
-        // Windows revival preparation records TEB, to fixup TLS on revival:
+        // Windows revival preparation recorded TEB, to fixup TLS on revival:
         e = fscanf(f, "TEB %32s\n", s1);
         if (e == 1) {
 #ifdef WINDOWS
@@ -516,7 +512,6 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
                     e  = revival_mapping_copy(vaddr, length, offset, true /* allocate */, core_filename, core_fd);
                     logv("  revival_mapping_mmap: retry 0x%llx using revival_mapping_copy returns: %d", (unsigned long long) vaddr, e);
                     if (e < 0 ) {
-                        M_bad++;
                         exitForRetry();
                     } else {
                         M_good++;
@@ -528,8 +523,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
                 // Allocate only, file offset/length not used:
                 int e = revival_mapping_allocate(vaddr, length);
                 if (e < 0) {
-                    m_bad++;
-                    warn("mappings_file_read: m 0x%llx failed!", (unsigned long long) vaddr);
+                    warn("mappings_file_read: m 0x%llx failed: %d", (unsigned long long) vaddr, e);
                     exitForRetry();
                 } else {
                     m_good++;
@@ -538,8 +532,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
                 // Copy, no allocation needed:
                 int e = revival_mapping_copy(vaddr, length, offset, false, core_filename, core_fd);
                 if (e < 0) {
-                    warn("mappings_file_read: copy failed for seg at 0x%llx", (unsigned long long) vaddr);
-                    C_bad++;
+                    warn("mappings_file_read: copy failed for seg at 0x%llx: %d", (unsigned long long) vaddr, e);
                     exitForRetry();
                 } else {
                     C_good++;
@@ -555,8 +548,8 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
         break;
     }
     if (logLevel >= LOG_VERBOSE) {
-        warn("mappings_file_read: read %d lines, Mappings: %d good, %d bad. map allocs: %d good, %d bad.  Copies: %d good, %d bad",
-               lines, M_good, M_bad, m_good, m_bad, C_good, C_bad);
+        warn("mappings_file_read: read %d lines, Mappings: %d  map allocs: %d  Copies: %d",
+              lines, M_good, m_good, C_good);
         warn("writableSegments.size = %d", (int) writableSegments.size());
     }
     if (core_fd >= 0) {
