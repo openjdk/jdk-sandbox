@@ -37,12 +37,13 @@ OPTS="$OPTS -XX:-TieredCompilation -XX:+UseCompactObjectHeaders"
 OPTS="$OPTS -Xmx10g -Xms10g -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch"
 
 # GC config
-OPTS="$OPTS -XX:+UseShenandoahGC -XX:ShenandoahGCMode=passive"
+OPTS="$OPTS -XX:+UseShenandoahGC"
 
 # Mitigate code cache effects
 OPTS="$OPTS -XX:ReservedCodeCacheSize=256M"
 
-OPTS_ALL="$OPTS -XX:+ShenandoahLoadRefBarrier -XX:+ShenandoahSATBBarrier -XX:+ShenandoahCASBarrier -XX:+ShenandoahCloneBarrier"
+OPTS_PASSIVE_NONE="$OPTS -XX:ShenandoahGCMode=passive"
+OPTS_PASSIVE_ALL="$OPTS_PASSIVE_NONE -XX:+ShenandoahLoadRefBarrier -XX:+ShenandoahSATBBarrier -XX:+ShenandoahCASBarrier -XX:+ShenandoahCloneBarrier"
 
 run_with() {
 	P=$*
@@ -60,31 +61,38 @@ echo $*
 
 if [ "x" != "x$J_ML" ]; then
   echo
-  echo "Mainline: No barriers"
+  echo "Mainline: Concurrent"
   run_with $J_ML $OPTS
 
   echo
-  echo "Mainline: All barriers"
-  run_with $J_ML $OPTS_ALL
+  echo "Mainline: Passive, No barriers"
+  run_with $J_ML $OPTS_PASSIVE_NONE
+
+  echo
+  echo "Mainline: Passive, All barriers"
+  run_with $J_ML $OPTS_PASSIVE_ALL
 fi
 
 echo
-echo "LBE: No barriers"
+echo "LBE: Concurrent"
 run_with $J_LBE $OPTS
 
 echo
-echo "LBE: All barriers"
-run_with $J_LBE $OPTS_ALL
+echo "LBE: Concurrent, hot-patchable GC state checks in fast-path"
+run_with $J_LBE $OPTS -XX:+ShenandoahGCStateCheckHotpatch
 
 echo
-echo "LBE: All barriers, hot-patchable GC state checks in fast-path"
-run_with $J_LBE $OPTS_ALL -XX:+ShenandoahGCStateCheckHotpatch
+echo "LBE: Passive, No barriers"
+run_with $J_LBE $OPTS_PASSIVE_NONE
 
 echo
-echo "LBE: All barriers, remove GC state checks in fast-path"
-run_with $J_LBE $OPTS_ALL -XX:+ShenandoahGCStateCheckRemove
+echo "LBE: Passive, All barriers"
+run_with $J_LBE $OPTS_PASSIVE_ALL
 
 echo
-echo "LBE: All barriers, remove both fast- and slow-path"
-run_with $J_LBE $OPTS_ALL -XX:+ShenandoahSkipBarriers
+echo "LBE: Passive, All barriers, remove GC state checks in fast-path"
+run_with $J_LBE $OPTS_PASSIVE_ALL -XX:+ShenandoahGCStateCheckRemove
 
+echo
+echo "LBE: Passive, All barriers, remove both fast- and slow-path"
+run_with $J_LBE $OPTS_PASSIVE_ALL -XX:+ShenandoahSkipBarriers
