@@ -1161,15 +1161,22 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address ad
 
   dont_preserve(obj);
   {
-    SaveLiveRegisters save_registers(masm, this);
-
     // Shuffle in the arguments. The end result should be:
     //   c_rarg0 <-- obj
     //   c_rarg1 <-- lea(addr)
+    //
+    // Save clobbered registers before overwriting them, unless they
+    // carry obj, which would be overwritten on return.
+    bool clobbered_c_rarg0 = false;
+    bool clobbered_c_rarg1 = false;
+    bool clobbered_r0 = false;
+
     if (c_rarg0 == obj) {
+      clobbered_c_rarg1 = push_save_register_if_live(masm, c_rarg1);
       __ lea(c_rarg1, addr);
     } else if (c_rarg1 == obj) {
       // Set up arguments in reverse, and then flip them
+      clobbered_c_rarg0 = push_save_register_if_live(masm, c_rarg0);
       __ lea(c_rarg0, addr);
       // flip them
       __ mov(rscratch1, c_rarg0);
@@ -1177,18 +1184,33 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address ad
       __ mov(c_rarg1, rscratch1);
     } else {
       assert_different_registers(c_rarg1, obj);
+      clobbered_c_rarg0 = push_save_register_if_live(masm, c_rarg0);
+      clobbered_c_rarg1 = push_save_register_if_live(masm, c_rarg1);
       __ lea(c_rarg1, addr);
       __ mov(c_rarg0, obj);
     }
 
-    // Get address of runtime LRB entry and call it
-    __ mov(rscratch1, lrb_runtime_entry_addr());
-    __ blr(rscratch1);
+    // The runtime call will clobber r0 at return. If obj isn't r0 then we need
+    // to save obj.
+    if (obj != r0) {
+      clobbered_r0 = push_save_register_if_live(masm, r0);
+    }
 
-    // If we loaded the object in the stub it means we don't need to return it
-    // to fastpath, so no need to make this mov.
-    if (!_do_load) {
+    // Go to runtime stub and handle the rest there.
+    __ far_call(RuntimeAddress(lrb_runtime_entry_addr()));
+
+    // Save the result where needed and restore the clobbered registers.
+    if (obj != r0) {
       __ mov(obj, r0);
+    }
+    if (clobbered_r0) {
+      pop_save_register(masm, r0);
+    }
+    if (clobbered_c_rarg1) {
+      pop_save_register(masm, c_rarg1);
+    }
+    if (clobbered_c_rarg0) {
+      pop_save_register(masm, c_rarg0);
     }
   }
 

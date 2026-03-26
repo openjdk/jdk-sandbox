@@ -824,7 +824,11 @@ ShenandoahBarrierStubC2* ShenandoahBarrierStubC2::create(const MachNode* node, R
 }
 
 address ShenandoahBarrierStubC2::keepalive_runtime_entry_addr() {
+#if defined(AMD64) || defined(AARCH64)
   return SharedRuntime::shenandoah_keepalive();
+#endif
+  assert(false, "sanity");
+  return nullptr;
 }
 
 address ShenandoahBarrierStubC2::lrb_runtime_entry_addr() {
@@ -832,7 +836,8 @@ address ShenandoahBarrierStubC2::lrb_runtime_entry_addr() {
   bool is_weak    = (_node->barrier_data() & ShenandoahBitWeak)    != 0;
   bool is_phantom = (_node->barrier_data() & ShenandoahBitPhantom) != 0;
 
-#ifdef AMD64
+// TODO: Remove once platforms migrate to runtime stubs.
+#if defined(AMD64) || defined(AARCH64)
   if (_narrow) {
     if (is_strong) {
       return SharedRuntime::shenandoah_lrb_strong_narrow();
@@ -848,25 +853,6 @@ address ShenandoahBarrierStubC2::lrb_runtime_entry_addr() {
       return SharedRuntime::shenandoah_lrb_weak();
     } else if (is_phantom) {
       return SharedRuntime::shenandoah_lrb_phantom();
-    }
-  }
-#else
-  // TODO: Remove once platforms migrate to runtime stubs.
-  if (_narrow) {
-    if (is_strong) {
-      return CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow);
-    } else if (is_weak) {
-      return CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow);
-    } else if (is_phantom) {
-      return CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow);
-    }
-  } else {
-    if (is_strong) {
-      return CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong);
-    } else if (is_weak) {
-      return CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak);
-    } else if (is_phantom) {
-      return CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom);
     }
   }
 #endif
