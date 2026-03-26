@@ -45,7 +45,6 @@
 #ifdef COMPILER2
 #include "gc/shenandoah/c2/shenandoahBarrierSetC2.hpp"
 #include "opto/output.hpp"
-#include "utilities/align.hpp"
 #endif
 
 #define __ masm->
@@ -643,21 +642,11 @@ bool ShenandoahBarrierStubC2::push_save_register_if_live(MacroAssembler* masm, R
 }
 
 void ShenandoahBarrierStubC2::push_save_register(MacroAssembler* masm, Register reg) {
-  // Aarch64 stack needs to be 16 bytes aligned
-  int offset = push_save_slot();
-               push_save_slot();
-
-  assert(is_aligned(offset, StackAlignmentInBytes), "non-aligned offset %x", offset);
-  __ str(reg, Address(sp, offset));
+  __ str(reg, Address(sp, push_save_slot()));
 }
 
 void ShenandoahBarrierStubC2::pop_save_register(MacroAssembler* masm, Register reg) {
-  // Aarch64 stack needs to be 16 bytes aligned
-               pop_save_slot();
-  int offset = pop_save_slot();
-
-  assert(is_aligned(offset, StackAlignmentInBytes), "non-aligned offset %x", offset);
-  __ ldr(reg, Address(sp, offset));
+  __ ldr(reg, Address(sp, pop_save_slot()));
 }
 
 bool ShenandoahBarrierStubC2::is_live(Register reg) {
