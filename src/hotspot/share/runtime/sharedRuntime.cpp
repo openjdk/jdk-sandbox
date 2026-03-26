@@ -180,6 +180,7 @@ void SharedRuntime::generate_stubs() {
 
   generate_deopt_blob();
 
+#if INCLUDE_SHENANDOAHGC
   if (UseShenandoahGC) {
     ResourceMark rm;
     _shenandoah_keepalive_blob          = generate_shenandoah_stub(StubId::shared_shenandoah_keepalive_id);
@@ -190,6 +191,7 @@ void SharedRuntime::generate_stubs() {
     _shenandoah_lrb_weak_narrow_blob    = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_weak_narrow_id);
     _shenandoah_lrb_phantom_narrow_blob = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_phantom_narrow_id);
   }
+#endif
 }
 
 void SharedRuntime::init_adapter_library() {

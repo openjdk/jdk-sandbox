@@ -117,6 +117,7 @@ void ShenandoahNMethod::parse(nmethod* nm, GrowableArray<oop*>& oops, bool& has_
         }
         break;
       }
+#ifdef COMPILER2
       case relocInfo::barrier_type: {
         assert(ShenandoahGCStateCheckHotpatch, "Who emits these?");
         barrier_Relocation* r = iter.barrier_reloc();
@@ -129,6 +130,7 @@ void ShenandoahNMethod::parse(nmethod* nm, GrowableArray<oop*>& oops, bool& has_
         barriers.push(b);
         break;
       }
+#endif
       default:
         // We do not care about other relocations.
         break;
@@ -167,6 +169,7 @@ void ShenandoahNMethod::heal_nmethod(nmethod* nm) {
 }
 
 void ShenandoahNMethod::update_barriers() {
+#ifdef COMPILER2
   if (!ShenandoahGCStateCheckHotpatch) {
     return;
   }
@@ -182,6 +185,7 @@ void ShenandoahNMethod::update_barriers() {
       ShenandoahBarrierSetAssembler::patch_nop_to_branch(pc, stub_addr);
     }
   }
+#endif
 }
 
 #ifdef ASSERT
