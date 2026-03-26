@@ -1100,9 +1100,23 @@ void ShenandoahBarrierSetAssembler::gc_state_check_c2(MacroAssembler* masm, cons
   } else if (ShenandoahGCStateCheckHotpatch) {
     // Emit the unconditional branch in the first version of the method.
     // Let the rest of runtime figure out how to manage it.
-    __ relocate(barrier_Relocation::spec(), ShenandoahThreadLocalData::gc_state_to_fast_bit(test_state));
+    __ relocate(barrier_Relocation::spec());
     __ jmp(*slow_stub->entry(), /* maybe_short = */ false);
+
+#ifdef ASSERT
+    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+    Label L_done;
+    __ testb(gc_state, 0xFF);
+    __ jccb(Assembler::zero, L_done);
+    __ hlt(); // Correctness bug: barrier is NOP-ed, but heap is NOT IDLE
+#endif
     __ bind(*slow_stub->continuation());
+#ifdef ASSERT
+    __ testb(gc_state, 0xFF);
+    __ jccb(Assembler::notZero, L_done);
+    __ hlt(); // Performance bug: barrier is JMP-ed, but heap is IDLE
+    __ bind(L_done);
+#endif
   } else {
     Address gc_state_fast(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
     __ testb(gc_state_fast, ShenandoahThreadLocalData::gc_state_to_fast(test_state));
