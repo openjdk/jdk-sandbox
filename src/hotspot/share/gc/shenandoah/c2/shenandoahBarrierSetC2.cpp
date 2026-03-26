@@ -824,11 +824,7 @@ ShenandoahBarrierStubC2* ShenandoahBarrierStubC2::create(const MachNode* node, R
 }
 
 address ShenandoahBarrierStubC2::keepalive_runtime_entry_addr() {
-#ifdef AMD64
   return SharedRuntime::shenandoah_keepalive();
-#else
-  return CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre);
-#endif
 }
 
 address ShenandoahBarrierStubC2::lrb_runtime_entry_addr() {

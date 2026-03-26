@@ -45,6 +45,7 @@
 #ifdef COMPILER2
 #include "gc/shenandoah/c2/shenandoahBarrierSetC2.hpp"
 #include "opto/output.hpp"
+#include "utilities/align.hpp"
 #endif
 
 #define __ masm->
@@ -632,6 +633,81 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop(MacroAssembler* masm,
 }
 
 #ifdef COMPILER2
+bool ShenandoahBarrierStubC2::push_save_register_if_live(MacroAssembler* masm, Register reg) {
+  if (is_live(reg)) {
+    push_save_register(masm, reg);
+    return true;
+  } else {
+    return false;
+  }
+}
+
+void ShenandoahBarrierStubC2::push_save_register(MacroAssembler* masm, Register reg) {
+  // Aarch64 stack needs to be 16 bytes aligned
+  int offset = push_save_slot();
+               push_save_slot();
+
+  assert(is_aligned(offset, StackAlignmentInBytes), "non-aligned offset %x", offset);
+  __ str(reg, Address(sp, offset));
+}
+
+void ShenandoahBarrierStubC2::pop_save_register(MacroAssembler* masm, Register reg) {
+  // Aarch64 stack needs to be 16 bytes aligned
+               pop_save_slot();
+  int offset = pop_save_slot();
+
+  assert(is_aligned(offset, StackAlignmentInBytes), "non-aligned offset %x", offset);
+  __ ldr(reg, Address(sp, offset));
+}
+
+bool ShenandoahBarrierStubC2::is_live(Register reg) {
+  // TODO: Precompute the generic register map for faster lookups.
+  RegMaskIterator rmi(preserve_set());
+  while (rmi.has_next()) {
+    const OptoReg::Name opto_reg = rmi.next();
+    const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
+    if (vm_reg->is_Register() && reg == vm_reg->as_Register()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Address addr, Register reg1) {
+  Register tmp = noreg;
+  Register fallback_live = noreg;
+
+  // Try to select non-live first:
+  for (int i = 0; i < Register::available_gp_registers(); i++) {
+    Register r = as_Register(i);
+    if (r != rfp && r != sp && r != lr &&
+        r != rheapbase && r != rthread &&
+        r != reg1 && r != addr.base() && r != addr.index()) {
+      if (!is_live(r)) {
+        tmp = r;
+        break;
+      } else if (fallback_live == noreg) {
+        fallback_live = r;
+      }
+    }
+  }
+
+  // If we could not find a non-live register, select the live fallback:
+  if (tmp == noreg) {
+    tmp = fallback_live;
+    selected_live = true;
+  } else {
+    selected_live = false;
+  }
+
+  assert(tmp != noreg, "successfully selected");
+  assert_different_registers(tmp, reg1);
+  assert_different_registers(tmp, addr.base());
+  assert_different_registers(tmp, addr.index());
+  return tmp;
+}
+
+
 void ShenandoahBarrierStubC2::gc_state_check_c2(MacroAssembler* masm, Register gcstate, const unsigned char test_state, ShenandoahBarrierStubC2* slow_stub) {
   if (ShenandoahGCStateCheckRemove) {
     // Unrealistic: remove all barrier fastpath checks.
@@ -871,7 +947,8 @@ ShenandoahBarrierStubC2::ShenandoahBarrierStubC2(const MachNode* node, Register 
   _fastpath_branch_offset(offset),
   _test_and_branch_reachable(),
   _skip_trampoline(),
-  _test_and_branch_reachable_entry() {
+  _test_and_branch_reachable_entry(),
+  _save_slots_idx(0) {
 
   assert(!ShenandoahSkipBarriers, "Do not touch stubs when disabled");
   assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
@@ -1047,10 +1124,19 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Regi
 
   preserve(obj);
   {
-    SaveLiveRegisters save_registers(masm, this);
-    __ mov(c_rarg0, obj);
-    __ mov(tmp1, CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre));
-    __ blr(tmp1);
+    bool clobbered_c_rarg0 = false;
+    if (c_rarg0 != obj) {
+      clobbered_c_rarg0 = push_save_register_if_live(masm, c_rarg0);
+      __ mov(c_rarg0, obj);
+    }
+
+    // Go to runtime stub and handle the rest there.
+    __ far_call(RuntimeAddress(keepalive_runtime_entry_addr()));
+
+    // Restore the clobbered registers.
+    if (clobbered_c_rarg0) {
+      pop_save_register(masm, c_rarg0);
+    }
   }
 
   __ bind(L_done);

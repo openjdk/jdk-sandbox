@@ -48,6 +48,7 @@
 #include "opto/regalloc.hpp"
 #include "opto/type.hpp"
 #include "runtime/sharedRuntime.hpp"
+#include "utilities/align.hpp"
 #include "utilities/macros.hpp"
 #include "utilities/powerOfTwo.hpp"
 #include "utilities/xmlstream.hpp"
@@ -1301,6 +1302,7 @@ void PhaseOutput::estimate_buffer_size(int& const_req) {
   if (C->fixed_slots() != 0) {
     _orig_pc_slot_offset_in_bytes = C->regalloc()->reg2offset(OptoReg::stack2reg(_orig_pc_slot));
     _gc_barrier_save_slots_offset_in_bytes = C->regalloc()->reg2offset(OptoReg::stack2reg(_gc_barrier_save_slots));
+    _gc_barrier_save_slots_offset_in_bytes = align_up(_gc_barrier_save_slots_offset_in_bytes, StackAlignmentInBytes);
   }
 
   // Compute prolog code size
