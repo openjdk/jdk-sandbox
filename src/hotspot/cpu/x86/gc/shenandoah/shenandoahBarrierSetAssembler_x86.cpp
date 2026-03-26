@@ -34,6 +34,7 @@
 #include "gc/shenandoah/shenandoahRuntime.hpp"
 #include "gc/shenandoah/shenandoahThreadLocalData.hpp"
 #include "interpreter/interpreter.hpp"
+#include "nativeInst_x86.hpp"
 #include "runtime/javaThread.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/macros.hpp"
@@ -1123,6 +1124,55 @@ void ShenandoahBarrierSetAssembler::gc_state_check_c2(MacroAssembler* masm, cons
     __ testb(gc_state_fast, ShenandoahThreadLocalData::gc_state_to_fast(test_state));
     __ jcc(Assembler::notZero, *slow_stub->entry());
     __ bind(*slow_stub->continuation());
+  }
+}
+
+address ShenandoahBarrierSetAssembler::parse_stub_address(address pc) {
+  NativeInstruction* ni = nativeInstruction_at(pc);
+  assert(ni->is_jump(), "Initial code version: GC barrier fastpath must be a jump");
+  NativeJump* jmp = nativeJump_at(pc);
+  return jmp->jump_destination();
+}
+
+void insert_5_byte_nop(address pc) {
+  *(pc + 0) = 0x0F;
+  *(pc + 1) = 0x1F;
+  *(pc + 2) = 0x44;
+  *(pc + 3) = 0x00;
+  *(pc + 4) = 0x00;
+  ICache::invalidate_range(pc, 5);
+}
+
+bool is_5_byte_nop(address pc) {
+  if (*(pc + 0) != 0x0F) return false;
+  if (*(pc + 1) != 0x1F) return false;
+  if (*(pc + 2) != 0x44) return false;
+  if (*(pc + 3) != 0x00) return false;
+  if (*(pc + 4) != 0x00) return false;
+  return true;
+}
+
+void check_at(bool cond, address pc, const char* msg) {
+  assert(cond, "%s: at PC " PTR_FORMAT ": %02x%02x%02x%02x%02x",
+         msg, p2i(pc), *(pc + 0), *(pc + 1), *(pc + 2), *(pc + 3), *(pc + 4));
+}
+
+void ShenandoahBarrierSetAssembler::patch_branch_to_nop(address pc) {
+  NativeInstruction* ni = nativeInstruction_at(pc);
+  if (ni->is_jump()) {
+    insert_5_byte_nop(pc);
+  } else {
+    check_at(is_5_byte_nop(pc), pc, "Should already be nop");
+  }
+}
+
+void ShenandoahBarrierSetAssembler::patch_nop_to_branch(address pc, address stub_addr) {
+  NativeInstruction* ni = nativeInstruction_at(pc);
+  if (is_5_byte_nop(pc)) {
+    NativeJump::insert(pc, stub_addr);
+  } else {
+    check_at(ni->is_jump(), pc, "Should already be jump");
+    check_at(nativeJump_at(pc)->jump_destination() == stub_addr, pc, "Jump should be to the same address");
   }
 }
 

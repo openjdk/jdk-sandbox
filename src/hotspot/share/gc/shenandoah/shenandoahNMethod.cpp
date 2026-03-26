@@ -24,6 +24,7 @@
  */
 
 
+#include "gc/shenandoah/shenandoahBarrierSetAssembler.hpp"
 #include "gc/shenandoah/shenandoahClosures.inline.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahNMethod.inline.hpp"
@@ -120,22 +121,12 @@ void ShenandoahNMethod::parse(nmethod* nm, GrowableArray<oop*>& oops, bool& has_
         assert(ShenandoahGCStateCheckHotpatch, "Who emits these?");
         barrier_Relocation* r = iter.barrier_reloc();
 
-        // TODO: Move to assembler?
-#ifdef AMD64
-        NativeInstruction* ni = nativeInstruction_at(r->addr());
-        assert(ni->is_jump(), "Initial code version: GC barrier fastpath must be a jump");
-        NativeJump* jmp = nativeJump_at(r->addr());
-
         ShenandoahNMethodBarrier b;
-        b._barrier_pc = r->addr();
-        b._stub_addr = jmp->jump_destination();
+        b._pc = r->addr();
+        b._stub_addr = ShenandoahBarrierSetAssembler::parse_stub_address(b._pc);
         // TODO: Can technically figure out which GC state we care about in this reloc.
         // b._gc_state_fast_bit = r->format();
         barriers.push(b);
-#else
-        Unimplemented();
-#endif
-
         break;
       }
       default:
@@ -175,59 +166,21 @@ void ShenandoahNMethod::heal_nmethod(nmethod* nm) {
   }
 }
 
-#ifdef AMD64
-void insert_5_byte_nop(address pc) {
-  *(pc + 0) = 0x0F;
-  *(pc + 1) = 0x1F;
-  *(pc + 2) = 0x44;
-  *(pc + 3) = 0x00;
-  *(pc + 4) = 0x00;
-  ICache::invalidate_range(pc, 5);
-}
-
-bool is_5_byte_nop(address pc) {
-  if (*(pc + 0) != 0x0F) return false;
-  if (*(pc + 1) != 0x1F) return false;
-  if (*(pc + 2) != 0x44) return false;
-  if (*(pc + 3) != 0x00) return false;
-  if (*(pc + 4) != 0x00) return false;
-  return true;
-}
-#endif
-
 void ShenandoahNMethod::update_barriers() {
-  if (!ShenandoahGCStateCheckHotpatch) return;
+  if (!ShenandoahGCStateCheckHotpatch) {
+    return;
+  }
 
   ShenandoahHeap* heap = ShenandoahHeap::heap();
 
   for (int c = 0; c < _barriers_count; c++) {
-    ShenandoahNMethodBarrier& barrier = _barriers[c];
-
-    address pc = barrier._barrier_pc;
-    NativeInstruction* ni = nativeInstruction_at(pc);
-
-    // TODO: This should really be in assembler?
- #ifdef AMD64
+    address pc = _barriers[c]._pc;
+    address stub_addr = _barriers[c]._stub_addr;
     if (heap->is_idle()) {
-      // Heap is idle: insert nops
-      if (ni->is_jump()) {
-        insert_5_byte_nop(pc);
-      } else {
-        assert(is_5_byte_nop(pc), "Sanity: should already be nop at PC " PTR_FORMAT ": %02x%02x%02x%02x%02x",
-               p2i(pc), *(pc + 0), *(pc + 1), *(pc + 2), *(pc + 3), *(pc + 4));
-      }
+      ShenandoahBarrierSetAssembler::patch_branch_to_nop(pc);
     } else {
-      // Heap is active: insert jumps to barrier stubs
-      if (is_5_byte_nop(pc)) {
-        NativeJump::insert(pc, barrier._stub_addr);
-      } else {
-        assert(ni->is_jump(), "Sanity: should already be jump at PC " PTR_FORMAT ": %02x%02x%02x%02x%02x",
-              p2i(pc), *(pc + 0), *(pc + 1), *(pc + 2), *(pc + 3), *(pc + 4));
-      }
+      ShenandoahBarrierSetAssembler::patch_nop_to_branch(pc, stub_addr);
     }
-#else
-    Unimplemented();
-#endif
   }
 }
 

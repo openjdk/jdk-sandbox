@@ -38,7 +38,7 @@ typedef ShenandoahReentrantLock<ShenandoahSimpleLock> ShenandoahNMethodLock;
 typedef ShenandoahLocker<ShenandoahNMethodLock>       ShenandoahNMethodLocker;
 
 struct ShenandoahNMethodBarrier {
-  address _barrier_pc;
+  address _pc;
   address _stub_addr;
 };
 
