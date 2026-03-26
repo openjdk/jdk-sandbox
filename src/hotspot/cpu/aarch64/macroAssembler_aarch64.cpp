@@ -5257,7 +5257,7 @@ void MacroAssembler::encode_heap_oop_not_null(Register dst, Register src) {
     mov(dst, src);
 }
 
-void  MacroAssembler::decode_heap_oop(Register d, Register s, Label* L_null_target) {
+void  MacroAssembler::decode_heap_oop(Register d, Register s) {
 #ifdef ASSERT
   verify_heapbase("MacroAssembler::decode_heap_oop: heap base corrupted?");
 #endif
@@ -5267,14 +5267,11 @@ void  MacroAssembler::decode_heap_oop(Register d, Register s, Label* L_null_targ
     } else if (d != s) {
       mov(d, s);
     }
-    if (L_null_target != nullptr) {
-      cbz(d, *L_null_target);
-    }
   } else {
     Label done;
     if (d != s)
       mov(d, s);
-    cbz(d, L_null_target != nullptr ? *L_null_target : done);
+    cbz(d, done);
     add(d, rheapbase, s, Assembler::LSL, LogMinObjAlignmentInBytes);
     bind(done);
   }
