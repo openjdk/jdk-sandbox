@@ -1281,6 +1281,11 @@ void ShenandoahConcurrentGC::op_reset_after_collect() {
   } else {
     _generation->reset_mark_bitmap<false>();
   }
+
+  // Also go and disable all barriers in all current nmethods.
+  if (ShenandoahGCStateCheckHotpatch) {
+    ShenandoahCodeRoots::disarm_nmethods();
+  }
 }
 
 bool ShenandoahConcurrentGC::check_cancellation_and_abort(ShenandoahDegenPoint point) {

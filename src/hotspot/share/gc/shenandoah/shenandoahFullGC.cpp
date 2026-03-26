@@ -130,7 +130,7 @@ void ShenandoahFullGC::op_full(GCCause::Cause cause) {
   heap->shenandoah_policy()->record_success_full();
 
   if (ShenandoahGCStateCheckHotpatch) {
-     // Leaving full GC, we need to flip barriers back to idle.
+    // Leaving full GC, we need to flip barriers back to idle.
     ShenandoahCodeRoots::arm_nmethods();
     ShenandoahStackWatermark::change_epoch_id();
   }

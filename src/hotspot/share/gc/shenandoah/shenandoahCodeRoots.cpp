@@ -86,9 +86,7 @@ private:
 public:
   ShenandoahDisarmNMethodsTask() :
     WorkerTask("Shenandoah Disarm NMethods"),
-    _iterator(ShenandoahCodeRoots::table()) {
-    assert(SafepointSynchronize::is_at_safepoint(), "Only at a safepoint");
-  }
+    _iterator(ShenandoahCodeRoots::table()) {}
 
   virtual void work(uint worker_id) {
     ShenandoahParallelWorkerSession worker_session(worker_id);
