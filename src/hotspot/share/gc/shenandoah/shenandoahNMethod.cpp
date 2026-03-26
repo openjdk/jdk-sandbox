@@ -32,7 +32,7 @@
 #include "runtime/safepointVerifiers.hpp"
 
 ShenandoahNMethod::ShenandoahNMethod(nmethod* nm, GrowableArray<oop*>& oops, bool non_immediate_oops, GrowableArray<ShenandoahNMethodBarrier>& barriers) :
-  _nm(nm), _oops(nullptr), _oops_count(0), _barriers(nullptr), _unregistered(false), _lock(), _ic_lock() {
+  _nm(nm), _oops(nullptr), _oops_count(0), _barriers(nullptr), _barriers_count(0), _unregistered(false), _lock(), _ic_lock() {
 
   if (!oops.is_empty()) {
     _oops_count = oops.length();
@@ -342,12 +342,12 @@ void ShenandoahNMethodTable::register_nmethod(nmethod* nm) {
     // For a new nmethod, we can safely append it to the list, because
     // concurrent iteration will not touch it.
     data = ShenandoahNMethod::for_nmethod(nm);
-    data->update_barriers();
     assert(data != nullptr, "Sanity");
     ShenandoahNMethod::attach_gc_data(nm, data);
     ShenandoahLocker locker(&_lock);
     log_register_nmethod(nm);
     append(data);
+    data->update_barriers();
   }
   // Disarm new nmethod
   ShenandoahNMethod::disarm_nmethod(nm);
