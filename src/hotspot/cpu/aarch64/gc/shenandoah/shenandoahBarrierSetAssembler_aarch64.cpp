@@ -702,9 +702,18 @@ void ShenandoahBarrierStubC2::gc_state_check_c2(MacroAssembler* masm, Register g
   if (ShenandoahGCStateCheckRemove) {
     // Unrealistic: remove all barrier fastpath checks.
   } else if (ShenandoahGCStateCheckHotpatch) {
-    // In the ideal world, we would hot-patch the branch to slow stub with a single
-    // (unconditional) jump or nop, based on our current GC state.
-    __ nop();
+    // Emit the unconditional branch in the first version of the method.
+    // Let the rest of runtime figure out how to manage it.
+    __ relocate(barrier_Relocation::spec());
+    __ b(*slow_stub->entry());
+
+#ifdef ASSERT
+    Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
+    __ ldrb(gcstate, gc_state_fast);
+    __ cbz(gcstate, *slow_stub->continuation());
+    __ hlt(0); // Correctness bug: barrier is NOP-ed, but heap is NOT IDLE
+#endif
+    __ bind(*slow_stub->continuation());
   } else {
     int bit_to_check = ShenandoahThreadLocalData::gc_state_to_fast_bit(test_state);
     Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
@@ -719,6 +728,53 @@ void ShenandoahBarrierStubC2::gc_state_check_c2(MacroAssembler* masm, Register g
     // This is were the slowpath stub will return to or the code above will
     // jump to if the checks are false
     __ bind(*slow_stub->continuation());
+  }
+}
+
+address ShenandoahBarrierSetAssembler::parse_stub_address(address pc) {
+  NativeInstruction* ni = nativeInstruction_at(pc);
+  assert(ni->is_jump(), "Initial code version: GC barrier fastpath must be a jump");
+  NativeJump* jmp = nativeJump_at(pc);
+  return jmp->jump_destination();
+}
+
+void insert_nop(address pc) {
+  *(pc + 0) = 0x1F;
+  *(pc + 1) = 0x20;
+  *(pc + 2) = 0x03;
+  *(pc + 3) = 0xD5;
+  ICache::invalidate_range(pc, 4);
+}
+
+bool is_nop(address pc) {
+  if (*(pc + 0) != 0x1F) return false;
+  if (*(pc + 1) != 0x20) return false;
+  if (*(pc + 2) != 0x03) return false;
+  if (*(pc + 3) != 0xD5) return false;
+  return true;
+}
+
+void check_at(bool cond, address pc, const char* msg) {
+  assert(cond, "%s: at PC " PTR_FORMAT ": %02x%02x%02x%02x%02x",
+         msg, p2i(pc), *(pc + 0), *(pc + 1), *(pc + 2), *(pc + 3), *(pc + 4));
+}
+
+void ShenandoahBarrierSetAssembler::patch_branch_to_nop(address pc) {
+  NativeInstruction* ni = nativeInstruction_at(pc);
+  if (ni->is_jump()) {
+    insert_nop(pc);
+  } else {
+    check_at(is_nop(pc), pc, "Should already be nop");
+  }
+}
+
+void ShenandoahBarrierSetAssembler::patch_nop_to_branch(address pc, address stub_addr) {
+  NativeInstruction* ni = nativeInstruction_at(pc);
+  if (is_nop(pc)) {
+    NativeJump::insert(pc, stub_addr);
+  } else {
+    check_at(ni->is_jump(), pc, "Should already be jump");
+    check_at(nativeJump_at(pc)->jump_destination() == stub_addr, pc, "Jump should be to the same address");
   }
 }
 
@@ -965,55 +1021,55 @@ ShenandoahBarrierStubC2::ShenandoahBarrierStubC2(const MachNode* node, Register 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   // If we reach here with _skip_trampoline set it means that earlier we
   // emitted a trampoline to this stub and now we need to emit the actual stub.
-  if (_skip_trampoline) {
-    emit_code_actual(masm);
-    return;
-  }
-  _skip_trampoline = true;
-
-  // The fastpath executes two branch instructions to reach this stub, let's
-  // just emit the stub here and not add a third one.
-  if (!_test_and_branch_reachable) {
-    // By registering the stub again, after setting _skip_trampoline, we'll
-    // effectivelly cause the stub to be emitted the next time ::emit_code is
-    // called.
-    ShenandoahBarrierStubC2::register_stub(this);
-    return;
-  }
-
-  // This is entry point when coming from fastpath, IFF it's able to reach here
-  // with a test and branch instruction, otherwise the entry is
-  // ShenandoahBarrierStubC2::entry();
-  const int target_offset = __ offset();
-  __ bind(_test_and_branch_reachable_entry);
-
-#ifdef ASSERT
-  // Current assumption is that the barrier stubs are the first stubs emitted
-  // after the actual code
-  PhaseOutput* const output = Compile::current()->output();
-  assert(stubs_start_offset() <= output->buffer_sizing_data()->_code, "stubs are assumed to be emitted directly after code and code_size is a hard limit on where it can start");
-  assert(aarch64_test_and_branch_reachable(_fastpath_branch_offset, target_offset), "trampoline should be reachable");
-#endif
-
-  // Next fastpath branch's offset is unknown, but it's > current _fastpath_branch_offset
-  const int next_branch_offset = _fastpath_branch_offset + NativeInstruction::instruction_size;
-
-  // If emitting the current stub directly does not interfere with emission of
-  // the next potential trampoline then do it to avoid executing additional
-  // branch when coming from fastpath.
-  if (aarch64_test_and_branch_reachable(next_branch_offset, target_offset + get_stub_size())) {
+  if (ShenandoahGCStateCheckHotpatch || _skip_trampoline) {
     emit_code_actual(masm);
   } else {
-    __ b(*BarrierStubC2::entry());
-    // By registering the stub again, after setting _skip_trampoline to true,
-    // we'll effectivelly cause the stub to be emitted the next time
-    // ::emit_code is called.
-    ShenandoahBarrierStubC2::register_stub(this);
+    _skip_trampoline = true;
+
+    // The fastpath executes two branch instructions to reach this stub, let's
+    // just emit the stub here and not add a third one.
+    if (!_test_and_branch_reachable) {
+      // By registering the stub again, after setting _skip_trampoline, we'll
+      // effectivelly cause the stub to be emitted the next time ::emit_code is
+      // called.
+      ShenandoahBarrierStubC2::register_stub(this);
+      return;
+    }
+
+    // This is entry point when coming from fastpath, IFF it's able to reach here
+    // with a test and branch instruction, otherwise the entry is
+    // ShenandoahBarrierStubC2::entry();
+    const int target_offset = __ offset();
+    __ bind(_test_and_branch_reachable_entry);
+
+    #ifdef ASSERT
+      // Current assumption is that the barrier stubs are the first stubs emitted
+      // after the actual code
+      PhaseOutput* const output = Compile::current()->output();
+      assert(stubs_start_offset() <= output->buffer_sizing_data()->_code, "stubs are assumed to be emitted directly after code and code_size is a hard limit on where it can start");
+      assert(aarch64_test_and_branch_reachable(_fastpath_branch_offset, target_offset), "trampoline should be reachable");
+    #endif
+
+    // Next fastpath branch's offset is unknown, but it's > current _fastpath_branch_offset
+    const int next_branch_offset = _fastpath_branch_offset + NativeInstruction::instruction_size;
+
+    // If emitting the current stub directly does not interfere with emission of
+    // the next potential trampoline then do it to avoid executing additional
+    // branch when coming from fastpath.
+    if (aarch64_test_and_branch_reachable(next_branch_offset, target_offset + get_stub_size())) {
+      emit_code_actual(masm);
+    } else {
+      __ b(*BarrierStubC2::entry());
+      // By registering the stub again, after setting _skip_trampoline to true,
+      // we'll effectivelly cause the stub to be emitted the next time
+      // ::emit_code is called.
+      ShenandoahBarrierStubC2::register_stub(this);
+    }
   }
 }
 
 Label* ShenandoahBarrierStubC2::entry() {
-  if (_test_and_branch_reachable) {
+  if (!ShenandoahGCStateCheckHotpatch && _test_and_branch_reachable) {
     return &_test_and_branch_reachable_entry;
   }
   return BarrierStubC2::entry();
@@ -1036,8 +1092,7 @@ void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
 
   Label L_done;
 
-  // Stub entry
-  if (!Compile::current()->output()->in_scratch_emit_size()) {
+  if (ShenandoahGCStateCheckHotpatch || !Compile::current()->output()->in_scratch_emit_size()) {
     __ bind(*BarrierStubC2::entry());
   }
 
@@ -1107,9 +1162,9 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Regi
     return ;
   }
 
-  // If both LRB and KeepAlive barriers are required (rare), do a runtime check
-  // for enabled barrier.
-  if (_needs_load_ref_barrier) {
+  // If another barrier is enabled as well, do a runtime check for a specific barrier.
+  // Hotpatched GC checks only care about idle/non-idle state, so needs a check anyhow.
+  if (_needs_load_ref_barrier || ShenandoahGCStateCheckHotpatch) {
     Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ ldrb(tmp1, gcs_addr);
     __ tbz(tmp1, ShenandoahHeap::MARKING_BITPOS, L_done);
@@ -1158,9 +1213,9 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address ad
   }
 
   if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-    // If both LRB and KeepAlive barriers are required (rare), do a runtime
-    // check for enabled barrier.
-    if (_needs_keep_alive_barrier) {
+    // If another barrier is enabled as well, do a runtime check for a specific barrier.
+    // Hotpatched GC checks only care about idle/non-idle state, so needs a check anyhow.
+    if (_needs_keep_alive_barrier || ShenandoahGCStateCheckHotpatch) {
       char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
       int bit_to_check = ShenandoahThreadLocalData::gc_state_to_fast_bit(state_to_check);
       Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
