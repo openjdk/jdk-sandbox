@@ -2305,18 +2305,10 @@ void ShenandoahFreeSet::transfer_empty_regions_from_to(ShenandoahFreeSetPartitio
   for (idx_t idx = iterator.current(); transferred_regions < num_regions && iterator.has_next(); idx = iterator.next()) {
     // Note: can_allocate_from() denotes that region is entirely empty
     if (can_allocate_from(idx)) {
-      if (idx < source_low_idx) {
-        source_low_idx = idx;
-      }
-      if (idx > source_high_idx) {
-        source_high_idx = idx;
-      }
-      if (idx < dest_low_idx) {
-        dest_low_idx = idx;
-      }
-      if (idx > dest_high_idx) {
-        dest_high_idx = idx;
-      }
+      source_low_idx  = MIN2(source_low_idx,  idx);
+      source_high_idx = MAX2(source_high_idx, idx);
+      dest_low_idx    = MIN2(dest_low_idx,    idx);
+      dest_high_idx   = MAX2(dest_high_idx,   idx);
       used_transfer += _partitions.move_from_partition_to_partition_with_deferred_accounting(idx, source, dest, region_size_bytes);
       transferred_regions++;
     }
@@ -2384,18 +2376,10 @@ size_t ShenandoahFreeSet::transfer_empty_regions_from_collector_set_to_mutator_s
   for (idx_t idx = iterator.current(); transferred_regions < max_xfer_regions && iterator.has_next(); idx = iterator.next()) {
     // Note: can_allocate_from() denotes that region is entirely empty
     if (can_allocate_from(idx)) {
-      if (idx < collector_low_idx) {
-        collector_low_idx = idx;
-      }
-      if (idx > collector_high_idx) {
-        collector_high_idx = idx;
-      }
-      if (idx < mutator_low_idx) {
-        mutator_low_idx = idx;
-      }
-      if (idx > mutator_high_idx) {
-        mutator_high_idx = idx;
-      }
+      collector_low_idx  = MIN2(collector_low_idx,  idx);
+      collector_high_idx = MAX2(collector_high_idx, idx);
+      mutator_low_idx    = MIN2(mutator_low_idx,    idx);
+      mutator_high_idx   = MAX2(mutator_high_idx,   idx);
       used_transfer += _partitions.move_from_partition_to_partition_with_deferred_accounting(idx, which_collector,
                                                                                              ShenandoahFreeSetPartitionId::Mutator,
                                                                                              region_size_bytes);
@@ -2453,18 +2437,10 @@ transfer_non_empty_regions_from_collector_set_to_mutator_set(ShenandoahFreeSetPa
   for (idx_t idx = iterator.current(); transferred_regions < max_xfer_regions && iterator.has_next(); idx = iterator.next()) {
     size_t ac = alloc_capacity(idx);
     if (ac > 0) {
-      if (idx < collector_low_idx) {
-        collector_low_idx = idx;
-      }
-      if (idx > collector_high_idx) {
-        collector_high_idx = idx;
-      }
-      if (idx < mutator_low_idx) {
-        mutator_low_idx = idx;
-      }
-      if (idx > mutator_high_idx) {
-        mutator_high_idx = idx;
-      }
+      collector_low_idx  = MIN2(collector_low_idx,  idx);
+      collector_high_idx = MAX2(collector_high_idx, idx);
+      mutator_low_idx    = MIN2(mutator_low_idx,    idx);
+      mutator_high_idx   = MAX2(mutator_high_idx,   idx);
       assert (ac < region_size_bytes, "Move empty regions with different function");
       used_transfer += _partitions.move_from_partition_to_partition_with_deferred_accounting(idx, which_collector,
                                                                                              ShenandoahFreeSetPartitionId::Mutator,
@@ -2756,7 +2732,7 @@ void ShenandoahFreeSet::reserve_regions(size_t to_reserve, size_t to_reserve_old
   size_t empty_regions_to_collector = 0;
   size_t empty_regions_to_old_collector = 0;
 
-  size_t old_collector_available = _partitions.available_in(ShenandoahFreeSetPartitionId::OldCollector);;
+  size_t old_collector_available = _partitions.available_in(ShenandoahFreeSetPartitionId::OldCollector);
   size_t collector_available = _partitions.available_in(ShenandoahFreeSetPartitionId::Collector);
 
   for (size_t i = _heap->num_regions(); i > 0; i--) {
@@ -2778,18 +2754,10 @@ void ShenandoahFreeSet::reserve_regions(size_t to_reserve, size_t to_reserve_old
         if (r->is_trash() || !r->is_affiliated()) {
           // OLD regions that have available memory are already in the old_collector free set.
           assert(r->is_empty() || r->is_trash(), "Not affiliated implies region %zu is empty", r->index());
-          if (idx < old_collector_low_idx) {
-            old_collector_low_idx = idx;
-          }
-          if (idx > old_collector_high_idx) {
-            old_collector_high_idx = idx;
-          }
-          if (idx < old_collector_empty_low_idx) {
-            old_collector_empty_low_idx = idx;
-          }
-          if (idx > old_collector_empty_high_idx) {
-            old_collector_empty_high_idx = idx;
-          }
+          old_collector_low_idx        = MIN2(old_collector_low_idx,        idx);
+          old_collector_high_idx       = MAX2(old_collector_high_idx,       idx);
+          old_collector_empty_low_idx  = MIN2(old_collector_empty_low_idx,  idx);
+          old_collector_empty_high_idx = MAX2(old_collector_empty_high_idx, idx);
           used_to_old_collector +=
             _partitions.move_from_partition_to_partition_with_deferred_accounting(idx, ShenandoahFreeSetPartitionId::Mutator,
                                                                                   ShenandoahFreeSetPartitionId::OldCollector, ac);
@@ -2818,19 +2786,11 @@ void ShenandoahFreeSet::reserve_regions(size_t to_reserve, size_t to_reserve_old
         // survivor regions to continue accumulating other survivor objects, and makes it more likely that ephemeral objects
         // occupy regions comprised entirely of ephemeral objects.  These regions are highly likely to be included in the next
         // collection set, and they are easily evacuated because they have low density of live objects.
-        if (idx < collector_low_idx) {
-          collector_low_idx = idx;
-        }
-        if (idx > collector_high_idx) {
-          collector_high_idx = idx;
-        }
+        collector_low_idx  = MIN2(collector_low_idx,  idx);
+        collector_high_idx = MAX2(collector_high_idx, idx);
         if (ac == region_size_bytes) {
-          if (idx < collector_empty_low_idx) {
-            collector_empty_low_idx = idx;
-          }
-          if (idx > collector_empty_high_idx) {
-            collector_empty_high_idx = idx;
-          }
+          collector_empty_low_idx  = MIN2(collector_empty_low_idx,  idx);
+          collector_empty_high_idx = MAX2(collector_empty_high_idx, idx);
           empty_regions_to_collector++;
         }
         used_to_collector +=
@@ -2854,17 +2814,11 @@ void ShenandoahFreeSet::reserve_regions(size_t to_reserve, size_t to_reserve_old
       }
 
       // Mutator region is not moved to Collector or OldCollector. Still, do the accounting.
-      if (idx < mutator_low_idx) {
-        mutator_low_idx = idx;
-      }
-      if (idx > mutator_high_idx) {
-        mutator_high_idx = idx;
-      }
-      if ((ac == region_size_bytes) && (idx < mutator_empty_low_idx)) {
-        mutator_empty_low_idx = idx;
-      }
-      if ((ac == region_size_bytes) && (idx > mutator_empty_high_idx)) {
-        mutator_empty_high_idx = idx;
+      mutator_low_idx  = MIN2(mutator_low_idx,  idx);
+      mutator_high_idx = MAX2(mutator_high_idx, idx);
+      if (ac == region_size_bytes) {
+        mutator_empty_low_idx  = MIN2(mutator_empty_low_idx,  idx);
+        mutator_empty_high_idx = MAX2(mutator_empty_high_idx, idx);
       }
       if (ac != region_size_bytes) {
         young_used_regions++;
