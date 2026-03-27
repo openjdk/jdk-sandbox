@@ -158,7 +158,7 @@ public:
 };
 
 class ShenandoahBarrierStubC2 : public BarrierStubC2 {
-  Register const _obj;
+  Register _obj;
   Address  const _addr;
   const bool _do_load;
   const bool _narrow;
