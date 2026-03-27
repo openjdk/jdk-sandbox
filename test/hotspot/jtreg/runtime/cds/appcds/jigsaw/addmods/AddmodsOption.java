@@ -81,12 +81,7 @@ public class AddmodsOption {
             "-version");
         oa.shouldHaveExitValue(0)
           .shouldContain("Mismatched values for property jdk.module.addmods")
-<<<<<<< HEAD
-          .shouldMatch("runtime " + incubatorPattern + " dump time jdk\\.jconsole")
-          .shouldContain(subgraphCannotBeUsed);
-=======
-          .shouldContain("runtime jdk.incubator.vector dump time jdk.jconsole");
->>>>>>> master
+          .shouldMatch("runtime " + incubatorPattern + " dump time jdk\\.jconsole");
 
         // no module specified during runtime
         oa = TestCommon.execCommon(
