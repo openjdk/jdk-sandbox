@@ -469,11 +469,21 @@ public:
 
   HeapWord* bottom() const      { return _bottom;  }
   HeapWord* end() const         { return _end;     }
+  // Upper bound for allocations:
+  // capped at the forwarding table when one is present,
+  // otherwise the physical region end.
+  HeapWord* alloc_end() const {
+    HeapWord* fwt = forwarding_table_start();
+    return (fwt != nullptr) ? fwt : _end;
+  }
 
   size_t capacity() const       { return byte_size(bottom(), end()); }
   size_t used() const           { return byte_size(bottom(), top()); }
   size_t used_before_promote() const { return byte_size(bottom(), get_top_before_promote()); }
   size_t free() const           { return byte_size(top(),    end()); }
+  // Bytes occupied by the forwarding-table tail, zero for normal regions.
+  size_t fwt_tail_bytes() const { return byte_size(alloc_end(), end()); }
+  size_t used_with_fwt() const  { return used() + fwt_tail_bytes(); }
 
   // Does this region contain this address?
   bool contains(HeapWord* p) const {
