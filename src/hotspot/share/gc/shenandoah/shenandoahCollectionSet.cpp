@@ -123,6 +123,15 @@ void ShenandoahCollectionSet::switch_to_forward_table(ShenandoahHeapRegion* r) {
   AtomicAccess::store(&_cset_map._cset_map[r->index()], state);
 }
 
+void ShenandoahCollectionSet::remove_region(ShenandoahHeapRegion* r) {
+  shenandoah_assert_heaplocked();
+  assert(use_forward_table(r), "only fwt regions may be removed individually");
+  // Clear atomically so barriers immediately stop forwarding through the table.
+  AtomicAccess::store(&_cset_map._cset_map[r->index()], CSetState::NOT_IN_CSET);
+  assert(_region_count > 0, "region count underflow");
+  _region_count--;
+}
+
 void ShenandoahCollectionSet::clear() {
   assert(ShenandoahSafepoint::is_at_shenandoah_safepoint(), "Must be at a safepoint");
 

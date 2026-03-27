@@ -115,6 +115,12 @@ public:
   inline bool use_forward_table(oop obj) const;
   inline bool use_forward_table(ShenandoahHeapRegion* r) const;
 
+  // Remove a single region from the collection set.
+  // Use when a fwt region is recycled back to the Mutator free set
+  // after thread roots are updated.
+  // Barriers no longer use the forwarding table for that region.
+  void remove_region(ShenandoahHeapRegion* r);
+
   // Prints a detailed accounting of all regions in the collection set when gc+cset=debug
   void print_on(outputStream* out) const;
 

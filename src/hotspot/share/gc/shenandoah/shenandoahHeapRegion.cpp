@@ -289,6 +289,15 @@ void ShenandoahHeapRegion::make_cset() {
   }
 }
 
+// Use when a region with fwt is recycled back into the Mutator free set
+// after thread roots have been updated.
+// The region remains active for new allocations.
+void ShenandoahHeapRegion::make_regular_from_cset() {
+  shenandoah_assert_heaplocked();
+  assert(state() == _cset, "only valid from _cset state");
+  set_state(_regular);
+}
+
 void ShenandoahHeapRegion::make_trash() {
   shenandoah_assert_heaplocked();
   reset_age();
