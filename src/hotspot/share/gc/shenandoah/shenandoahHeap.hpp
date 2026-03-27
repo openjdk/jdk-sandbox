@@ -805,6 +805,13 @@ public:
   // by this thread, or by some other thread.
   virtual oop evacuate_object(oop src, Thread* thread);
 
+  // After evacuating all live objects from a cset region, attempt to build a forwarding
+  // table at the region's tail and switch the region to forwarding-table mode.
+  // num_forwardings is the number of live objects that were evacuated from the region.
+  // concurrent controls whether a thread rendezvous is issued after switching.
+  // Returns true if a forwarding table was successfully built and installed.
+  bool finish_region_evacuation(ShenandoahHeapRegion* r, size_t num_forwardings, bool concurrent);
+
   // Call before/after evacuation.
   inline void enter_evacuation(Thread* t);
   inline void leave_evacuation(Thread* t);

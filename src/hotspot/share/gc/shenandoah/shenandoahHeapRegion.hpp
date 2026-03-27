@@ -530,10 +530,6 @@ public:
     return _fwd_table.build(num_forwardings);
   }
 
-  void zap_to_fwd_table() {
-    _fwd_table.zap_region();
-  }
-
   HeapWord* forwarding_table_start() const {
     return _fwd_table.start();
   }

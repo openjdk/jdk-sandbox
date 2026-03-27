@@ -1196,38 +1196,9 @@ private:
         }
         num_forwardings = cl.num_forwardings();
       }
-      assert(ShenandoahHeap::heap()->marking_context()->top_at_mark_start(r) == r->top(), "TAMS must be set to top");
-
-      // We checked above that we're not cancelled, therefore it
-      // is safe to build the forwarding table now.
-      bool use_fwd_table = r->build_forwarding_table(num_forwardings);
-
-      if (use_fwd_table) {
-        // Got to make sure that everybody sees the table before
-        // turning on use_forward_table for the region.
-        OrderAccess::fence();
-        _sh->collection_set()->switch_to_forward_table(r);
-
-        if (_concurrent) {
-          // We need to bring mutator threads to a safepoint, otherwise
-          // they might see use_forward_table=false and then end up trying
-          // to read the forwarding pointer from the mark-word which might
-          // not exist anymore.
-          _sh->rendezvous_threads("Switch to Forward Table");
-        }
-        r->zap_to_fwd_table();
-        {
-          class SetupFillerWords {
-          public:
-            static void do_object(oop obj) {
-              // assert(UseCompactObjectHeaders, "This only works with compact object headers");
-              // obj->set_mark(vmClasses::Object_klass()->prototype_header());
-            }
-          } cl;
-          HeapWord* limit = MIN2(r->forwarding_table_start(), r->top());
-          _sh->marked_object_iterate(r, &cl, limit);
-        }
-      }
+      // Build forwarding table outside the stsj+oom scope: rendezvous_threads
+      // requires the calling thread not to be in the suspendible set.
+      _sh->finish_region_evacuation(r, num_forwardings, _concurrent);
     }
   }
 };
@@ -1451,6 +1422,35 @@ oop ShenandoahHeap::try_evacuate_object(oop p, Thread* thread, ShenandoahHeapReg
     shenandoah_assert_correct(nullptr, result);
     return result;
   }
+}
+
+bool ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t num_forwardings, bool concurrent) {
+  // top_at_mark_start(r) may be less than r->top() if concurrent allocations
+  // occurred above TAMS during this marking cycle.
+  // assert(ShenandoahHeap::heap()->marking_context()->top_at_mark_start(r) == r->top(), "TAMS must be set to top");
+
+  bool use_fwd_table = r->build_forwarding_table(num_forwardings);
+  if (use_fwd_table) {
+    // Got to make sure that everybody sees the table before
+    // turning on use_forward_table for the region.
+    OrderAccess::fence();
+    collection_set()->switch_to_forward_table(r);
+
+    if (concurrent) {
+      // We need to bring mutator threads to a safepoint, otherwise
+      // they might see use_forward_table=false and then end up trying
+      // to read the forwarding pointer from the mark-word which might
+      // not exist anymore.
+      assert(!Thread::current()->is_suspendible_thread(), "must not hold STS join across rendezvous");
+      rendezvous_threads("Switch to Forward Table");
+    }
+    // Do not zap or overwrite former-object memory here.  Mutator threads may
+    // still hold stale references to objects in this region (references loaded
+    // before the rendezvous handshake).
+    // New allocations will naturally overwrite former-object data as they
+    // advance top from bottom in recycle_collection_set().
+  }
+  return use_fwd_table;
 }
 
 void ShenandoahHeap::trash_cset_regions() {
