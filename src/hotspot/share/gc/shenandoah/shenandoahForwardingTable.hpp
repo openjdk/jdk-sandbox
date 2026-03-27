@@ -138,8 +138,6 @@ public:
 
   template<class Entry>
   HeapWord* forwardee(HeapWord* orginal) const;
-
-  void zap_region();
 };
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHFORWARDINGTABLE_HPP
