@@ -34,16 +34,42 @@ class ShenandoahConcurrentEvacuator : public ObjectClosure {
 private:
   ShenandoahGenerationalHeap* const _heap;
   Thread* const _thread;
+  ShenandoahMarkingContext* const _context;
+  HeapWord* _tams;
+  size_t _num_forwardings;
 public:
   explicit ShenandoahConcurrentEvacuator(ShenandoahGenerationalHeap* heap) :
-          _heap(heap), _thread(Thread::current()) {}
+          _heap(heap), _thread(Thread::current()),
+          _context(heap->marking_context()), _tams(nullptr), _num_forwardings(0) {}
+
+  void set_region(ShenandoahHeapRegion* r) {
+    _tams = _context->top_at_mark_start(r);
+    _num_forwardings = 0;
+  }
+
+  void finish_region(ShenandoahHeapRegion* r) {
+    // Advance TAMS to top so that get_last_marked_addr in build_forwarding_table
+    // can search the full [bottom, top) range of the evacuated region.
+    _context->capture_top_at_mark_start(r);
+  }
 
   void do_object(oop p) override {
     shenandoah_assert_marked(nullptr, p);
+    _num_forwardings++;
     if (!p->is_forwarded()) {
       _heap->evacuate_object(p, _thread);
     }
+    // Mark objects beyond TAMS so that their headers are findable when
+    // building the forwarding table (mirrors ShenandoahConcurrentEvacuateRegionObjectClosure).
+    if (cast_from_oop<HeapWord*>(p) >= _tams) {
+      bool upgraded = false;
+      _context->mark_strong_ignore_tams(p, upgraded);
+      assert(!upgraded, "should be first mark");
+    }
+    assert(_context->is_marked(p), "must be marked");
   }
+
+  size_t num_forwardings() const { return _num_forwardings; }
 };
 
 ShenandoahGenerationalEvacuationTask::ShenandoahGenerationalEvacuationTask(ShenandoahGenerationalHeap* heap,
@@ -63,7 +89,9 @@ ShenandoahGenerationalEvacuationTask::ShenandoahGenerationalEvacuationTask(Shena
 void ShenandoahGenerationalEvacuationTask::work(uint worker_id) {
   if (_concurrent) {
     ShenandoahConcurrentWorkerSession worker_session(worker_id);
-    ShenandoahSuspendibleThreadSetJoiner stsj;
+    // Join the suspendible thread set only for the promote-only path
+    // to avoid double-joining.
+    ShenandoahSuspendibleThreadSetJoiner stsj(_only_promote_regions);
     do_work();
   } else {
     ShenandoahParallelWorkerSession worker_session(worker_id);
@@ -78,7 +106,6 @@ void ShenandoahGenerationalEvacuationTask::do_work() {
     promote_regions();
   } else {
     assert(!_heap->collection_set()->is_empty(), "Should have a collection set here");
-    ShenandoahEvacOOMScope oom_evac_scope;
     evacuate_and_promote_regions();
   }
 }
@@ -123,13 +150,28 @@ void ShenandoahGenerationalEvacuationTask::evacuate_and_promote_regions() {
 
     if (r->is_cset()) {
       assert(r->has_live(), "Region %zu should have been reclaimed early", r->index());
-      _heap->marked_object_iterate(r, &cl);
+      assert(!_heap->collection_set()->use_forward_table(r), "must not use forward table");
+      size_t num_forwardings;
+      {
+        ShenandoahSuspendibleThreadSetJoiner stsj(_concurrent);
+        ShenandoahEvacOOMScope oom_evac_scope;
+        cl.set_region(r);
+        _heap->marked_object_iterate(r, &cl);
+        if (_heap->check_cancelled_gc_and_yield(_concurrent)) {
+          break;
+        }
+        cl.finish_region(r);
+        num_forwardings = cl.num_forwardings();
+      }
+      // Build forwarding table outside the stsj+oom scope: rendezvous_threads
+      // requires the calling thread not to be in the suspendible set.
+      _heap->finish_region_evacuation(r, num_forwardings, _concurrent);
     } else {
+      ShenandoahSuspendibleThreadSetJoiner stsj(_concurrent);
       promoter.maybe_promote_region(r);
-    }
-
-    if (_heap->check_cancelled_gc_and_yield(_concurrent)) {
-      break;
+      if (_heap->check_cancelled_gc_and_yield(_concurrent)) {
+        break;
+      }
     }
   }
 }
