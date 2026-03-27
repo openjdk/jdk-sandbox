@@ -134,13 +134,8 @@ public class AddmodsOption {
         oa.shouldContain("full module graph: disabled")
           // module is not restored from archive
           .shouldContain("define_module(): creation of module: jdk.incubator.vector")
-<<<<<<< HEAD
           .shouldContain("define_module(): creation of module: jdk.incubator.json")
           .shouldMatch(warningIncubatorPattern)
-          .shouldContain("subgraph jdk.internal.module.ArchivedBootLayer is not recorde")
-=======
-          .shouldContain("WARNING: Using incubator modules: jdk.incubator.vector")
->>>>>>> master
           .shouldHaveExitValue(0);
 
         if (Compiler.isJVMCIEnabled()) {
