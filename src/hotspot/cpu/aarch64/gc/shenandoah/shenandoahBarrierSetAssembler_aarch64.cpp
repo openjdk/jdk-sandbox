@@ -1068,7 +1068,7 @@ void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
 
   keepalive(&masm, _obj, rscratch1, rscratch2);
 
-  lrb(&masm, _obj, _addr, noreg);
+  lrb(&masm, _obj, _addr, rscratch1);
 
   // If object is narrow, we need to encode it before exiting.
   // For encoding, dst can only turn null if we are dealing with weak loads.
@@ -1149,7 +1149,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Regi
   __ bind(L_done);
 }
 
-void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address addr, Register rscratch1) {
+void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address addr, Register tmp) {
   Label L_done;
 
   // The node doesn't even need LRB barrier, just don't check anything else
@@ -1162,19 +1162,20 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address ad
     // check for enabled barrier.
     if (_needs_keep_alive_barrier) {
       Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-      __ ldrb(rscratch1, gcs_addr);
+      __ ldrb(tmp, gcs_addr);
       if (_needs_load_ref_weak_barrier) {
-        __ orr(rscratch1, rscratch1, rscratch1, Assembler::LSR, ShenandoahHeap::WEAK_ROOTS_BITPOS);
+        __ orr(tmp, tmp, tmp, Assembler::LSR, ShenandoahHeap::WEAK_ROOTS_BITPOS);
       }
-      __ tbz(rscratch1, ShenandoahHeap::HAS_FORWARDED_BITPOS, L_done);
+      __ tbz(tmp, ShenandoahHeap::HAS_FORWARDED_BITPOS, L_done);
     }
 
     // Weak/phantom loads always need to go to runtime. For strong refs we
     // check if the object in cset, if they are not, then we are done with LRB.
-    __ mov(rscratch2, ShenandoahHeap::in_cset_fast_test_addr());
-    __ lsr(rscratch1, obj, ShenandoahHeapRegion::region_size_bytes_shift_jint());
-    __ ldrb(rscratch2, Address(rscratch2, rscratch1));
-    __ cbz(rscratch2, L_done);
+    assert(ShenandoahHeapRegion::region_size_bytes_shift_jint() <= 63, "Maximum shift of the add is 63");
+    __ mov(tmp, ShenandoahHeap::in_cset_fast_test_addr());
+    __ add(tmp, tmp, obj, Assembler::LSR, ShenandoahHeapRegion::region_size_bytes_shift_jint());
+    __ ldrb(tmp, Address(tmp, 0));
+    __ cbz(tmp, L_done);
   }
 
   dont_preserve(obj);
