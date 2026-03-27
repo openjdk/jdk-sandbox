@@ -1161,12 +1161,11 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address ad
     // If both LRB and KeepAlive barriers are required (rare), do a runtime
     // check for enabled barrier.
     if (_needs_keep_alive_barrier) {
-      Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-      __ ldrb(tmp, gcs_addr);
-      if (_needs_load_ref_weak_barrier) {
-        __ orr(tmp, tmp, tmp, Assembler::LSR, ShenandoahHeap::WEAK_ROOTS_BITPOS);
-      }
-      __ tbz(tmp, ShenandoahHeap::HAS_FORWARDED_BITPOS, L_done);
+      char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
+      int bit_to_check = ShenandoahThreadLocalData::gc_state_to_fast_bit(state_to_check);
+      Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
+      __ ldrb(tmp, gc_state_fast);
+      __ tbz(tmp, bit_to_check, L_done);
     }
 
     // Weak/phantom loads always need to go to runtime. For strong refs we
