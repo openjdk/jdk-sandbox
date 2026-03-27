@@ -110,6 +110,9 @@ bool ShenandoahForwardingTable::initialize(size_t num_entries) {
   }
 
   if (num_table_entries - unusable_entries < num_required_entries) {
+    log_info(gc)("Forwarding table build failed for region %zu: table_entries=%zu unusable=%zu required=%zu num_forwardings=%zu region_words=%zu",
+                 _region->index(), num_table_entries, unusable_entries, num_required_entries, num_entries,
+                 pointer_delta(end, bottom));
     return false;
   }
   table_start = align_down(table_start, entry_size_in_words * HeapWordSize);
