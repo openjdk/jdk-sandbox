@@ -47,7 +47,6 @@ public class AddmodsOption {
         final String allModulePath = "ALL-MODULE-PATH";
         final String loggingOption = "-Xlog:aot=debug,aot+module=debug,aot+heap=info,cds=debug,module=trace";
         final String versionPattern = "java.[0-9][0-9].*";
-        final String subgraphCannotBeUsed = "subgraph jdk.internal.module.ArchivedBootLayer cannot be used because full module graph is disabled";
         final String incubatorPattern = "jdk\\.incubator\\.(vector|json),\\s*jdk\\.incubator\\.(?!\\1)(vector|json)";
         final String warningIncubatorPattern = "^WARNING: Using incubator modules: " + incubatorPattern + ".*";
         String archiveName = TestCommon.getNewArchiveName("addmods-option");
@@ -82,16 +81,19 @@ public class AddmodsOption {
             "-version");
         oa.shouldHaveExitValue(0)
           .shouldContain("Mismatched values for property jdk.module.addmods")
+<<<<<<< HEAD
           .shouldMatch("runtime " + incubatorPattern + " dump time jdk\\.jconsole")
           .shouldContain(subgraphCannotBeUsed);
+=======
+          .shouldContain("runtime jdk.incubator.vector dump time jdk.jconsole");
+>>>>>>> master
 
         // no module specified during runtime
         oa = TestCommon.execCommon(
             loggingOption,
             "-version");
         oa.shouldHaveExitValue(0)
-          .shouldContain("jdk.httpserver specified during dump time but not during runtime")
-          .shouldContain(subgraphCannotBeUsed);
+          .shouldContain("jdk.httpserver specified during dump time but not during runtime");
 
         // dump an archive without the --add-modules option
         archiveName = TestCommon.getNewArchiveName("no-addmods-option");
@@ -112,8 +114,7 @@ public class AddmodsOption {
         oa.shouldHaveExitValue(0)
           .shouldContain("jdk.jconsole specified during runtime but not during dump time")
           // version of the jdk.httpserver module, e.g. java 22-ea
-          .shouldMatch(versionPattern)
-          .shouldContain(subgraphCannotBeUsed);
+          .shouldMatch(versionPattern);
 
         // dump an archive with an incubator module,
         // --add-modules jdk.incubator.vector,jdk.incubator.json
@@ -138,9 +139,13 @@ public class AddmodsOption {
         oa.shouldContain("full module graph: disabled")
           // module is not restored from archive
           .shouldContain("define_module(): creation of module: jdk.incubator.vector")
+<<<<<<< HEAD
           .shouldContain("define_module(): creation of module: jdk.incubator.json")
           .shouldMatch(warningIncubatorPattern)
           .shouldContain("subgraph jdk.internal.module.ArchivedBootLayer is not recorde")
+=======
+          .shouldContain("WARNING: Using incubator modules: jdk.incubator.vector")
+>>>>>>> master
           .shouldHaveExitValue(0);
 
         if (Compiler.isJVMCIEnabled()) {
