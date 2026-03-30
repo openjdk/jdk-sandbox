@@ -791,7 +791,7 @@ bool needs_acquiring_load_exclusive(const MachNode *n) {
 }
 
 void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr,
-    Register oldval, Register newval, bool exchange, bool maybe_null, bool narrow, bool weak) {
+    Register oldval, Register newval, bool exchange, bool narrow, bool weak) {
   bool acquire = needs_acquiring_load_exclusive(node);
   Assembler::operand_size op_size = narrow ? Assembler::word : Assembler::xword;
 

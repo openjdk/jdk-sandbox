@@ -141,7 +141,6 @@ instruct compareAndSwap_P_shenandoah(iRegINoSp res, indirect mem, iRegPNoSp oldv
       $oldval$$Register,
       $newval$$Register,
       /* exchange */ false,
-      /* maybe_null */ true,
       /* is_narrow */ false,
       /* weak */ false);
   %}
@@ -167,7 +166,6 @@ instruct compareAndSwap_N_shenandoah(iRegINoSp res, indirect mem, iRegNNoSp oldv
       $oldval$$Register,
       $newval$$Register,
       /* exchange */ false,
-      /* maybe_null */ true,
       /* is_narrow */ true,
       /* weak */ false);
   %}
@@ -193,7 +191,6 @@ instruct compareAndExchange_N_shenandoah(iRegNNoSp res, indirect mem, iRegN oldv
       $oldval$$Register,
       $newval$$Register,
       /* exchange */ true,
-      /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
       /* is_narrow */ true,
       /* weak */ false);
   %}
@@ -218,7 +215,6 @@ instruct compareAndExchange_P_shenandoah(iRegPNoSp res, indirect mem, iRegP oldv
       $oldval$$Register,
       $newval$$Register,
       /* exchange */ true,
-      /* maybe_null */ (this->bottom_type()->make_ptr()->ptr() != TypePtr::NotNull),
       /* is_narrow */ false,
       /* weak */ false);
   %}
@@ -244,7 +240,6 @@ instruct weakCompareAndSwap_N_shenandoah(iRegINoSp res, indirect mem, iRegNNoSp 
       $oldval$$Register,
       $newval$$Register,
       /* exchange */ false,
-      /* maybe_null */ true,
       /* is_narrow */ true,
       /* weak */ true);
   %}
@@ -270,7 +265,6 @@ instruct weakCompareAndSwap_P_shenandoah(iRegINoSp res, indirect mem, iRegPNoSp 
       $oldval$$Register,
       $newval$$Register,
       /* exchange */ false,
-      /* maybe_null */ true,
       /* is_narrow */ false,
       /* weak */ true);
   %}
