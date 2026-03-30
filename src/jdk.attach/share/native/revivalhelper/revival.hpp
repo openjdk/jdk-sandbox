@@ -275,7 +275,14 @@ char* find_filename_in_libdir(const char* libdir, const char* filename);
 unsigned long long file_size(const char* filename);
 
 int revival_mapping_allocate(void* vaddr, size_t length);
+
+/**
+ * Copy dump file bytes to memory.
+ * Called directly when mapping core file memory, or later to implement lazy copying
+ * in response to a fault.
+ */
 int revival_mapping_docopy(void* vaddr, size_t length, size_t offset);
+
 int revival_mapping_copy(void* vaddr, size_t length, size_t offset, bool allocate, char* filename, int fd);
 
 int relocate_sharedlib_pd(const char* filename, const void* addr);
@@ -313,6 +320,8 @@ void* load_sharedobject_pd(const char* name, void* vaddr);
 int unload_sharedobject_pd(void* h);
 
 bool mem_canwrite_pd(void* vaddr, size_t length);
+
+bool can_lazycopy_pd(void* vaddr);
 
 int revival_checks_pd(const char* dirname);
 int dangerous0(void* vaddr, unsigned long long length, uint64_t xaddr);

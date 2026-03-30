@@ -48,6 +48,7 @@
 #include "minidump.hpp"
 #include "pefile.hpp"
 
+DWORD stdProt = PAGE_EXECUTE_READWRITE;
 uint64_t vaddr_align;
 char *editbin = nullptr;
 
@@ -146,7 +147,7 @@ unsigned long long max_user_vaddr_pd() {
 void printMemBasicInfo(MEMORY_BASIC_INFORMATION meminfo) {
     uint64_t end = (uint64_t) meminfo.BaseAddress + meminfo.RegionSize;
     fprintf(stderr, "Meminfo: AllocationBase: 0x%016llx   BaseAddress: 0x%016llx - 0x%016llx  "
-            "RegionSize: 0x%08llx  AllocProt: 0x%08lx Prot: 0x%08lx, State: 0x%lx\n",
+            "RegionSize: 0x%llx  AllocProt: 0x%lx Prot: 0x%lx, State: 0x%lx\n",
             (uint64_t) meminfo.AllocationBase, (uint64_t) meminfo.BaseAddress, end,
             (uint64_t) meminfo.RegionSize, meminfo.AllocationProtect, meminfo.Protect, meminfo.State
         );
@@ -221,6 +222,34 @@ void dump() {
     }
 }
 
+void set_prot(void* addr, uint64_t length, DWORD prot) {
+    // Likely we can't set protection of some sub-range we are given, but can find the containing MEMORY_BASIC_INFORMATION
+    // and set protection of that.
+    DWORD lpfOldProtect;
+    if (!VirtualProtect((PVOID) addr, length, prot, &lpfOldProtect)) {
+        logv("    set_prot: failed (1) setting prot (0x%lx) for: 0x%p, len 0x%lx: error 0x%x.",  prot, addr, length, GetLastError());
+        if (logLevel >= LOG_VERBOSE) {
+            fprintf(stderr, "    ");
+            printMemBasicInfo(addr);
+        }
+        HANDLE hProc = GetCurrentProcess();
+        MEMORY_BASIC_INFORMATION meminfo;
+        size_t q = VirtualQueryEx(hProc, (PVOID) addr, &meminfo, sizeof(meminfo));
+        if (q != sizeof(meminfo)) {
+            warn("set_prot: VirtualQueryEx failed: returned 0x%x, error 0x%x", q, GetLastError());
+        } else {
+            if (!VirtualProtect((PVOID) meminfo.AllocationBase, meminfo.RegionSize, prot, &lpfOldProtect)) {
+                warn("        (2) set_prot: failed setting prot (0x%lx) for: 0x%p, len 0x%lx: error 0x%x.",
+                    prot, meminfo.AllocationBase, meminfo.RegionSize, GetLastError());
+                waitHitRet();
+            } else {
+                logd("        set_prot: OK setting prot (0x%lx) for: 0x%p, len 0x%lx",
+                    prot, meminfo.AllocationBase, meminfo.RegionSize);
+            }
+        }
+    }
+}
+
 // Exception handler:
 LPTOP_LEVEL_EXCEPTION_FILTER previousUnhandledExceptionFilter = nullptr;
 
@@ -233,19 +262,19 @@ LONG WINAPI topLevelUnhandledExceptionFilter(struct _EXCEPTION_POINTERS* excepti
 #endif
     uint64_t addr = (uint64_t) exceptionInfo->ExceptionRecord->ExceptionInformation[1];
     warn("revival: handler: PID %ld thread: 0x%lx pc 0x%llx address 0x%llx ", _getpid(), GetCurrentThreadId(), pc, addr);
+    printMemBasicInfo((void*) addr);
 
-    // Note any access to areas we failed to map: only informational, does not change our behavior.
     std::list<Segment>::iterator iter;
     for (iter = delayedCopySegments.begin(); iter != delayedCopySegments.end(); iter++) {
         if (iter->contains((uint64_t) addr)) {
-            logv("Delayed Copy Segment: si_addr = %p in failed segment %p", addr, iter->vaddr);
-            // Fix mapping permissions.
-            //int e = mprotect(iter->vaddr, iter->length, PROT_READ | PROT_WRITE | PROT_EXEC);
-            //if (e < 0) {
-            //    error("revival: mprotect failed: %d", e);
-            //}
+            logv("Delayed Copy Segment: si_addr = %p in segment %p", addr, iter->vaddr);
+            // Not needed using guard?
+            set_prot(iter->vaddr, iter->length, stdProt);
+            printMemBasicInfo(iter->vaddr);
             revival_mapping_docopy(iter->vaddr, iter->length, iter->file_offset);
-            return;
+            warn("done copy:");
+            printMemBasicInfo(iter->vaddr);
+            return EXCEPTION_CONTINUE_EXECUTION;
         }
     }
     waitHitRet();
@@ -295,60 +324,45 @@ int unload_sharedobject_pd(void *h) {
     }
 }
 
-void set_prot(void* addr, uint64_t length) {
-    DWORD prot = PAGE_EXECUTE_READWRITE; // PAGE_READWRITE;
-
-    // Likely we can't set protection of some sub-range we are given, but can find the containing MEMORY_BASIC_INFORMATION
-    // and set protection of that.
-    DWORD lpfOldProtect;
-    if (!VirtualProtect((PVOID) addr, length, prot, &lpfOldProtect)) {
-        logv("    set_prot: failed (1) setting rw (0x%lx) for: 0x%p, len 0x%lx: error 0x%x.",  prot, addr, length, GetLastError());
-        if (logLevel >= LOG_VERBOSE) {
-            fprintf(stderr, "    ");
-            printMemBasicInfo(addr);
-        }
-
-        HANDLE hProc = GetCurrentProcess();
-        MEMORY_BASIC_INFORMATION meminfo;
-        size_t q = VirtualQueryEx(hProc, (PVOID) addr, &meminfo, sizeof(meminfo));
-        if (q != sizeof(meminfo)) {
-            warn("set_prot: VirtualQueryEx failed: returned 0x%x, error 0x%x", q, GetLastError());
-        } else {
-            if (!VirtualProtect((PVOID) meminfo.AllocationBase, meminfo.RegionSize, prot, &lpfOldProtect)) {
-                warn("        (2) set_prot: failed setting rw (0x%lx) for: 0x%p, len 0x%lx: error 0x%x.",
-                    prot, meminfo.AllocationBase, meminfo.RegionSize, GetLastError());
-                waitHitRet();
-            } else {
-                logd("        set_prot: OK setting rw (0x%lx) for: 0x%p, len 0x%lx",
-                    prot, meminfo.AllocationBase, meminfo.RegionSize);
-
-            }
-        }
-    }
-}
-
 bool mem_canwrite_pd(void *vaddr, size_t length) {
     MEMORY_BASIC_INFORMATION meminfo;
     HANDLE hProc = GetCurrentProcess();
-    size_t q = VirtualQueryEx(hProc, vaddr, &meminfo, sizeof(meminfo));
 
+    size_t q = VirtualQueryEx(hProc, vaddr, &meminfo, sizeof(meminfo));
     if (q == sizeof(meminfo)) {
-        if (meminfo.Protect == PAGE_EXECUTE_READWRITE
-            || meminfo.Protect == PAGE_EXECUTE_WRITECOPY
-            || meminfo.Protect == PAGE_READWRITE
-            || meminfo.Protect == PAGE_WRITECOPY) {
+        warn("    mem_canwrite_pd:");
+        printMemBasicInfo(meminfo);
+        int prot = meminfo.Protect & ~PAGE_GUARD; // Remove PAGE_GUARD for this comparison.
+        if (prot == PAGE_EXECUTE_READWRITE
+            || prot == PAGE_EXECUTE_WRITECOPY
+            || prot == PAGE_READWRITE
+            || prot == PAGE_WRITECOPY) {
             logd("    mem_canwrite_pd: %p protect: 0x%lx: YES", vaddr, meminfo.Protect);
             return true;
         } else {
             warn("    mem_canwrite_pd: %p protect: 0x%lx: NO", vaddr, meminfo.Protect);
             printMemBasicInfo(meminfo);
-            // set_prot(vaddr, length);
             return false;
         }
     } else {
         warn("    mem_canwrite_pd: %p VirtualQueryEx failed, returning false. Error 0x%x", vaddr, GetLastError());
     }
     return false;
+}
+
+bool can_lazycopy_pd(void* addr) {
+    HANDLE hProc = GetCurrentProcess();
+    MEMORY_BASIC_INFORMATION meminfo;
+    size_t q = VirtualQueryEx(hProc, addr, &meminfo, sizeof(meminfo));
+    if (q != sizeof(meminfo)) {
+        warn("VirtualQueryEx failed");
+        return (void*) -1;
+    }
+    if ((meminfo.Protect & PAGE_GUARD) != 0) {
+        return true;
+    } else {
+        return false;
+    }
 }
 
 void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offset) {
@@ -362,7 +376,7 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offse
     HANDLE h;
     HANDLE h2;
     DWORD createFileDesiredAccess = GENERIC_READ | GENERIC_EXECUTE;
-    DWORD mappingProt = PAGE_EXECUTE_READ;
+    DWORD mappingProt = stdProt;
     DWORD mapViewAccess = FILE_MAP_READ | FILE_MAP_EXECUTE;
     h = CreateFile(filename, createFileDesiredAccess, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (h == nullptr) {
@@ -389,8 +403,7 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offse
          addr, (unsigned long) length, (unsigned long) offset, (unsigned long) offsetAligned);
 
     HANDLE hProc = GetCurrentProcess();
-    DWORD prot = PAGE_EXECUTE_READ;
-    //DWORD prot = PAGE_EXECUTE_READWRITE;
+    DWORD prot = stdProt;
     p = pMapViewOfFile3(h2, hProc, (PVOID) addr, offset, length, MEM_REPLACE_PLACEHOLDER, prot, nullptr, 0);
     if ((uint64_t) p != (uint64_t) addr) {
         logv("    do_mmap_pd: MapViewOfFile3 0x%p failed, ret=0x%p error=0x%lx", addr, p, GetLastError());
@@ -410,7 +423,7 @@ int do_munmap_pd(void *addr, size_t length) {
 }
 
 void *do_map_allocate_pd_MapViewOfFile(void *vaddr, size_t length) {
-    DWORD mappingProt = PAGE_EXECUTE_READWRITE;
+    DWORD mappingProt = stdProt;
     DWORD mapViewAccess = FILE_MAP_READ | FILE_MAP_WRITE | FILE_MAP_EXECUTE;
 
     HANDLE h = CreateFileMapping(INVALID_HANDLE_VALUE, nullptr, mappingProt, 0, (DWORD) length, nullptr);
@@ -426,39 +439,48 @@ void *do_map_allocate_pd_MapViewOfFile(void *vaddr, size_t length) {
     return (void*) -1;
 }
 
-void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length) {
+void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length, int protRequested /* 0 to use PAGE_GUARD */) {
     HANDLE hProc = GetCurrentProcess();
-    DWORD prot = PAGE_EXECUTE_READWRITE; // PAGE_READWRITE;
-
+    DWORD prot = stdProt;
+    if (protRequested == 0) {
+        prot |= PAGE_GUARD;
+    }
+    MEMORY_BASIC_INFORMATION meminfo;
+    size_t q = VirtualQueryEx(hProc, addr, &meminfo, sizeof(meminfo));
+    if (q != sizeof(meminfo)) {
+        warn("VirtualQueryEx failed");
+        return (void*) -1;
+    }
     void* p = pVirtualAlloc2(hProc, (PVOID) addr, length, MEM_RESERVE | MEM_COMMIT, prot, nullptr, 0);
-    logd("    do_map_allocate_pd_VirtualAlloc2: first alloc attempt 0x%p len 0x%zx : returns = 0x%p, error = 0x%lx", (void *) addr, length, p, GetLastError());
+    logd("    do_map_allocate_pd_VirtualAlloc2: first alloc attempt 0x%p len 0x%zx prot 0x%x: returns = 0x%p, error = 0x%lx",
+        (void *) addr, length, prot, p, GetLastError());
 
-        MEMORY_BASIC_INFORMATION meminfo;
-        size_t q = VirtualQueryEx(hProc, addr, &meminfo, sizeof(meminfo));
-        if (q != sizeof(meminfo)) {
-            warn("VirtualQueryEx failed");
-            return (void*) -1;
-        }
-        uint64_t requested_end = (uint64_t) addr + (uint64_t) length;
-        uint64_t existing_end = (uint64_t) meminfo.BaseAddress + (uint64_t) meminfo.RegionSize;
-        uint64_t remaining = requested_end - existing_end;
-        logd("    do_map_allocate_pd_VirtualAlloc2: meminfo: base 0x%llx len 0x%llx end: 0x%llx", meminfo.BaseAddress, meminfo.RegionSize, existing_end);
+    q = VirtualQueryEx(hProc, addr, &meminfo, sizeof(meminfo));
+    if (q != sizeof(meminfo)) {
+        warn("VirtualQueryEx failed");
+        return (void*) -1;
+    }
+
+    uint64_t existing_end = (uint64_t) meminfo.BaseAddress + (uint64_t) meminfo.RegionSize;
+    uint64_t requested_end = (uint64_t) addr + (uint64_t) length;
+    uint64_t remaining = requested_end - existing_end;
 
     if ((void*) p != (void*) addr) {
         // Did not get requested address
         if (GetLastError() == 0) {
             // No error, but requested address was re-aligned.
-            //  e.g. first alloc attempt 0x000000E69850B000 len 0x5000 : returns = 0x000000E698500000, error = 0x0
-            // If all already mapped, just return as if alloc worked.
+            logv("do_map_allocate_VirtualAlloc2: requested 0x%llx got 0x%llx", addr, p);
+            //printMemBasicInfo(meminfo);
 
+            // If all already mapped, just return as if alloc worked.
             if (p <= addr && requested_end <= existing_end) {
-                logv("do_map_allocate: requested 0x%llx got 0x%lx contains all needed", addr, p);
+                logv("do_map_allocate_VirtualAlloc2: requested 0x%llx got 0x%lx contains all needed", addr, p);
                 return addr;
             }
 
             // Expand allocation?
             logv("    do_map_allocate_pd_VirtualAlloc2: clash, retry new base 0x%llx len 0x%llx", existing_end, remaining);
-            void * r = do_map_allocate_pd_VirtualAlloc2((void*) existing_end, remaining);
+            void * r = do_map_allocate_pd_VirtualAlloc2((void*) existing_end, remaining, protRequested);
             // Return original requested address on success:
             if ((uint64_t) r == (uint64_t) existing_end) {
                 return addr;
@@ -468,20 +490,17 @@ void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length) {
 
         } else if (GetLastError() == ERROR_INVALID_ADDRESS) { // 0x1e7
             // Already mapped, conflict?
-            // Return success to proceed with copy.
-            logv("do_map_allocate: requested 0x%llx got 0x%lx not valid, already mapped?", addr, p);
-            logv("    VirtualQueryEx: 1 base 0x%llx len 0x%llx allocationprotect: 0x%lx protect: 0x%lx",
-                 (uint64_t) meminfo.BaseAddress, (uint64_t) meminfo.RegionSize, meminfo.AllocationProtect, meminfo.Protect);
-            // e.g. jvm data
-            // Is more allocation needed?
+            logv("do_map_allocate_pd__VirtualAlloc2: requested 0x%llx got 0x%lx not valid, already mapped?", addr, p);
+            // e.g. jvm data.  Is more allocation needed?
             uint64_t wanted_end = (uint64_t) addr + (uint64_t) length;
             if (wanted_end <= existing_end) {
-                logv("    do_map_allocate_pd: mapping covered by existing_end at 0x%llx", existing_end);
+                logv("    do_map_allocate_pd_VirtualAlloc2: mapping covered by existing_end at 0x%llx", existing_end);
                 return addr;
             } else {
                 size_t remaining = (uint64_t) wanted_end - existing_end;
-                logv("    do_map_allocate_pd: existing. remaining = 0x%llx", remaining);
-                void * r = do_map_allocate_pd_VirtualAlloc2((void*) existing_end, remaining);
+                logv("    do_map_allocate_pd_VirtualAlloc2: existing. remaining = 0x%llx protRequested = 0x%x", remaining, protRequested);
+                void* r = do_map_allocate_pd_VirtualAlloc2((void*) existing_end, remaining, protRequested);
+                logv("    do_map_allocate_pd_VirtualAlloc2: done recurse");
                 // Return original requested address on success:
                 if ((uint64_t) r == (uint64_t) existing_end) {
                     return addr;
@@ -496,22 +515,21 @@ void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length) {
     return p;
 }
 
-void *do_map_allocate_pd(void *vaddr, size_t length) {
-    // mappings file is created with minidump addresses, not necessarily 64k aligned.
+void *do_map_allocate_pd(void *vaddr, size_t length, int prot /* 0 for guarded, or 1 for standard RWX permission */) {
+    // Alignment: mappings file is created with minidump addresses, not necessarily 64k aligned.
     uint64_t vaddr_aligned = align_down((uint64_t) vaddr, vaddr_alignment_pd());
     uint64_t diff = (uint64_t) vaddr - (uint64_t) vaddr_aligned;
     size_t length_aligned = length + diff;
     length_aligned = align_up(length_aligned, vaddr_alignment_pd());
 
     if (vaddr_aligned != (uint64_t) vaddr) {
-        logd("    do_map_allocate_pd: vaddr 0x%p aligns -> 0x%p  len 0x%p adjusts -> 0x%p",
+        logd("  do_map_allocate_pd: vaddr 0x%p aligns -> 0x%p  len 0x%p adjusts -> 0x%p",
             (void*) vaddr, (void*) vaddr_aligned, length, length_aligned);
     }
-    uint64_t r = (uint64_t) do_map_allocate_pd_VirtualAlloc2((void*) vaddr_aligned, length_aligned);
 
+    uint64_t r = (uint64_t) do_map_allocate_pd_VirtualAlloc2((void*) vaddr_aligned, length_aligned, prot);
     // Accept the aligned down address and return as if the requested vaddr was honoured.
     if (r == vaddr_aligned) {
-        // set_prot((void*) vaddr_aligned, length_aligned);
         return vaddr;
     } else {
         return (void*) r;

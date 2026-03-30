@@ -170,6 +170,10 @@ bool mem_canwrite_pd(void* vaddr, size_t length) {
     return true;
 }
 
+bool can_lazycopy_pd(void* addr) {
+    return true;
+}
+
 void* do_mmap_pd(void* addr, size_t length, char* filename, int fd, size_t offset) {
     int flags = MAP_PRIVATE | MAP_FIXED;
     int prot = PROT_READ | PROT_WRITE | PROT_EXEC;
