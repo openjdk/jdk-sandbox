@@ -350,13 +350,12 @@ Segment* MiniDump::readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentR
  * Read a Segment from the MiniDump.
  * Call prepare_memory_ranges() first, then keep calling this method until it returns nullptr.
  * 
- * Use skipLibraries false to simple retrieve the list of memory segments.
- * Call with skipLibraries true for the purpose of building a list of regions for process revival.
+ * Call with parameter skipLibraries false to simply retrieve the list of memory segments.
+ * Skip segments that clash with modules (DLLs), if boolean param skipLibraries is true
+ * (for building a list of regions for process revival).
  *
- * Handle skipping of clashes with libraries/modules (DLLs), they are the "avoid list".
- *
- * Return a Segment* and update the output parameters.  currentRVA will be the dump file offset of the next segment.
- * Return nullptr when no further memory descriptors are found.
+ * Returns a Segment* and update the output parameters.  currentRVA will be the dump file offset of the next segment.
+ * Returns nullptr when no further memory descriptors are found.
  */
 Segment* MiniDump::readSegment(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentRVA, boolean skipLibraries) {
     Segment *seg = nullptr;
