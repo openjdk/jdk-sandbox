@@ -942,16 +942,15 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroA
   assert(CardTable::dirty_card_val() == 0, "must be");
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
-  // rscratch2 = addr >> CardTable::card_shift()
-  __ lea(rscratch2, address);
-  __ lsr(rscratch2, rscratch2, CardTable::card_shift());
-
   // rscratch1 = card table base (holder)
   Address curr_ct_holder_addr(rthread, in_bytes(ShenandoahThreadLocalData::card_table_offset()));
   __ ldr(rscratch1, curr_ct_holder_addr);
 
-  // rscratch2 = &card_table[card_index]
-  __ add(rscratch2, rscratch1, rscratch2);
+  // rscratch2 = addr
+  __ lea(rscratch2, address);
+
+  // rscratch2 = &card_table[ addr >> CardTable::card_shift() ]
+  __ add(rscratch2, rscratch1, rscratch2, Assembler::LSR, CardTable::card_shift());
 
   if (UseCondCardMark) {
     Label L_already_dirty;
