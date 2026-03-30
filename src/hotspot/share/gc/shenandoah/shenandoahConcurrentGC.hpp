@@ -88,6 +88,7 @@ protected:
   void entry_scan_remembered_set();
   void entry_mark();
   void entry_thread_roots();
+  void entry_recycle_collection_set();
   void entry_weak_refs();
   void entry_weak_roots();
   void entry_class_unloading();
@@ -111,6 +112,7 @@ protected:
   void op_mark();
   virtual void op_final_mark();
   void op_thread_roots();
+  void op_recycle_collection_set();
   void op_weak_refs();
   void op_weak_roots();
   void op_class_unloading();

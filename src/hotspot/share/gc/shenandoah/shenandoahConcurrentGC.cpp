@@ -221,6 +221,11 @@ bool ShenandoahConcurrentGC::collect(GCCause::Cause cause) {
       return false;
     }
 
+    // Now no mutator can hold a stale reference into a forwarding-table cset region.
+    // It is safe to recycle those regions into the Mutator free set.
+    // New allocations will overwrite former objects.
+    entry_recycle_collection_set();
+
     vmop_entry_final_update_refs();
 
     // Update references freed up collection set, kick the cleanup to reclaim the space.
@@ -579,6 +584,17 @@ void ShenandoahConcurrentGC::entry_update_thread_roots() {
   // No workers used in this phase, no setup required
   heap->try_inject_alloc_failure();
   op_update_thread_roots();
+}
+
+void ShenandoahConcurrentGC::entry_recycle_collection_set() {
+  ShenandoahHeap* const heap = ShenandoahHeap::heap();
+  TraceCollectorStats tcs(heap->monitoring_support()->concurrent_collection_counters());
+
+  static const char* msg = "Recycle collection set";
+  ShenandoahConcurrentPhase gc_phase(msg, ShenandoahPhaseTimings::conc_recycle_cset);
+  EventMark em("%s", msg);
+
+  op_recycle_collection_set();
 }
 
 void ShenandoahConcurrentGC::entry_update_refs() {
@@ -1172,6 +1188,12 @@ void ShenandoahConcurrentGC::op_update_thread_roots() {
     ShenandoahUpdateThreadHandshakeClosure cl;
     Handshake::execute(&cl);
   }
+}
+
+void ShenandoahConcurrentGC::op_recycle_collection_set() {
+  ShenandoahHeap* const heap = ShenandoahHeap::heap();
+  ShenandoahHeapLocker locker(heap->lock());
+  heap->free_set()->recycle_collection_set();
 }
 
 void ShenandoahConcurrentGC::op_final_update_refs() {

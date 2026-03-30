@@ -121,6 +121,7 @@ class outputStream;
   f(conc_update_refs_prepare,                       "Concurrent Update Refs Prepare")  \
   f(conc_update_refs,                               "Concurrent Update Refs")          \
   f(conc_update_thread_roots,                       "Concurrent Update Thread Roots")  \
+  f(conc_recycle_cset,                              "Concurrent Recycle CSet")         \
                                                                                        \
   f(final_update_refs_gross,                        "Pause Final Update Refs (G)")     \
   f(final_update_refs,                              "Pause Final Update Refs (N)")     \

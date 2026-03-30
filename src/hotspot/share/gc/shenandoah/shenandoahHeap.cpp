@@ -2543,7 +2543,7 @@ private:
       // Now that evacuation is done, we can reassign any regions that had been reserved to hold the results of evacuation
       // to the mutator free set.  At the end of GC, we will have cset_regions newly evacuated fully empty regions from
       // which we will be able to replenish the Collector free set and the OldCollector free set in preparation for the
-      // next GC cycle.
+      // next GC cycle. recycle_collection_set() for fwt regions is called separately.
       _heap->free_set()->move_regions_from_collector_to_mutator(cset_regions);
     }
     // If !CONCURRENT, there's no value in expanding Mutator free set

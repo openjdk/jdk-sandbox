@@ -236,7 +236,11 @@ inline size_t ShenandoahFreeSet::alloc_capacity(ShenandoahHeapRegion *r) const {
     // This would be recycled on allocation path
     return ShenandoahHeapRegion::region_size_bytes();
   } else {
-    return r->free();
+    // For regions with a forwarding table, allocations happen till alloc_end() instead of end().
+    // top may exceed alloc_end() during evacuation.
+    HeapWord* limit = r->alloc_end();
+    HeapWord* t     = r->top();
+    return (limit > t) ? pointer_delta(limit, t) * HeapWordSize : 0;
   }
 }
 
@@ -732,9 +736,9 @@ move_from_partition_to_partition_with_deferred_accounting(idx_t idx, ShenandoahF
   assert (available <= _region_size_bytes, "Available cannot exceed region size");
   assert (_membership[int(orig_partition)].is_set(idx), "Cannot move from partition unless in partition");
   assert ((r != nullptr) && ((r->is_trash() && (available == _region_size_bytes)) ||
-                             (r->used() + available == _region_size_bytes)),
-          "Used: %zu + available: %zu should equal region size: %zu",
-          ShenandoahHeap::heap()->get_region(idx)->used(), available, _region_size_bytes);
+                             (r->used_with_fwt() + available == _region_size_bytes)),
+          "Used: %zu + fwt tail: %zu + available: %zu should equal region size: %zu",
+          r->used(), r->fwt_tail_bytes(), available, _region_size_bytes);
 
   // Expected transitions:
   //  During rebuild:         Mutator => Collector
@@ -1171,7 +1175,14 @@ void ShenandoahRegionPartitions::assert_bounds() {
   assert(capacities[int(ShenandoahFreeSetPartitionId::Collector)] == _capacity[int(ShenandoahFreeSetPartitionId::Collector)],
          "Collector capacities must match");
   assert(used[int(ShenandoahFreeSetPartitionId::Collector)] == _used[int(ShenandoahFreeSetPartitionId::Collector)],
-         "Collector used must match");
+         "Collector used must match: counted=%zu running=%zu "
+         "(mutator: counted=%zu running=%zu shortfall=%zu, young_retired_used=%zu before reconcile)",
+         used[int(ShenandoahFreeSetPartitionId::Collector)],
+         _used[int(ShenandoahFreeSetPartitionId::Collector)],
+         used[int(ShenandoahFreeSetPartitionId::Mutator)],
+         _used[int(ShenandoahFreeSetPartitionId::Mutator)],
+         mutator_used_shortfall,
+         young_retired_used + mutator_used_shortfall);
   assert(regions[int(ShenandoahFreeSetPartitionId::Collector)]
          == _capacity[int(ShenandoahFreeSetPartitionId::Collector)] / _region_size_bytes, "Collector regions must match");
   assert(_capacity[int(ShenandoahFreeSetPartitionId::Collector)] >= _used[int(ShenandoahFreeSetPartitionId::Collector)],
@@ -1576,7 +1587,8 @@ HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, Shenandoah
   // req.size() is in words, r->free() is in bytes.
   if (req.is_lab_alloc()) {
     size_t adjusted_size = req.size();
-    size_t free = r->free();    // free represents bytes available within region r
+    // For regions with a forwarding table, allocations happen until alloc_end() not end().
+    size_t free = alloc_capacity(r);  // bytes available within region r for allocation
     if (req.is_old()) {
       // This is a PLAB allocation(lab alloc in old gen)
       assert(_heap->mode()->is_generational(), "PLABs are only for generational mode");
@@ -1665,7 +1677,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, Shenandoah
     if ((result != nullptr) && in_new_region) {
       _partitions.one_region_is_no_longer_empty(orig_partition);
     }
-    size_t waste_bytes = _partitions.retire_from_partition(orig_partition, idx, r->used());
+    size_t waste_bytes = _partitions.retire_from_partition(orig_partition, idx, r->used_with_fwt());
     if (req.is_mutator_alloc() && (waste_bytes > 0)) {
       increase_bytes_allocated(waste_bytes);
     }
@@ -2477,7 +2489,7 @@ transfer_non_empty_regions_from_collector_set_to_mutator_set(ShenandoahFreeSetPa
                                /* AffiliatedChangesAreYoungNeutral */ false, /* AffiliatedChangesAreGlobalNeutral */ true,
                                /* UnaffiliatedChangesAreYoungNeutral */ true>();
   } else {
-    recompute_total_affiliated</* MutatorEmptiesChanged */ true, /* CollecteorEmptiesChanged */true,
+    recompute_total_affiliated</* MutatorEmptiesChanged */ true, /* CollectorEmptiesChanged */true,
                                /* OldCollectorEmptiesChanged */ false, /* MutatorSizeChanged */ true,
                                /* CollectorSizeChanged */ true, /* OldCollectorSizeChanged */ false,
                                /* AffiliatedChangesAreYoungNeutral */ true, /* AffiliatedChangesAreGlobalNeutral */ true,
@@ -2527,6 +2539,85 @@ void ShenandoahFreeSet::move_regions_from_collector_to_mutator(size_t max_xfer_r
                      byte_size_in_proper_unit(total_xfer), proper_unit_for_byte_size(total_xfer),
                      byte_size_in_proper_unit(collector_xfer), proper_unit_for_byte_size(collector_xfer),
                      byte_size_in_proper_unit(old_collector_xfer), proper_unit_for_byte_size(old_collector_xfer));
+}
+
+// Add a cset region that have a forwarding table to the Mutator free set.
+// Each such region had its top reset to bottom at end of evacuation.
+// Admit the available memory to the Mutator partition.
+bool ShenandoahFreeSet::recycle_fwt_region(ShenandoahHeapRegion* r, size_t region_size_bytes,
+                                           idx_t& mutator_low_idx, idx_t& mutator_high_idx,
+                                           size_t& recycled_bytes, size_t& recycled_regions) {
+  assert(_heap->collection_set()->use_forward_table(r), "precondition: region must have a forwarding table");
+  size_t i = r->index();
+  assert(_partitions.membership(i) == ShenandoahFreeSetPartitionId::NotFree,
+         "Cset region must not already be in a free partition");
+
+  _heap->collection_set()->remove_region(r);
+  r->make_regular_from_cset();
+
+  // The old objects were evacuated. The forwarding table maps their former locations.
+  // Reset top and TAMS to bottom so fresh allocations start from the bottom.
+  r->set_top(r->bottom());
+  _heap->marking_context()->reset_top_at_mark_start(r);
+
+  // Available space is capped at forwarding_table_start().
+  size_t available = r->capacity() - r->fwt_tail_bytes();
+  if (available < PLAB::min_size() * HeapWordSize) {
+    // Region is too small to be useful (fwt fills almost all of it).
+    return false;
+  }
+
+  _partitions.make_free(i, ShenandoahFreeSetPartitionId::Mutator, available);
+
+  mutator_low_idx  = MIN2(mutator_low_idx,  (idx_t)i);
+  mutator_high_idx = MAX2(mutator_high_idx, (idx_t)i);
+
+  _partitions.decrease_used(ShenandoahFreeSetPartitionId::Mutator, available);
+  _partitions.increase_region_counts(ShenandoahFreeSetPartitionId::Mutator, 1);
+
+  recycled_bytes += available;
+  recycled_regions++;
+  return true;
+}
+
+void ShenandoahFreeSet::recycle_collection_set() {
+  shenandoah_assert_heaplocked();
+  const size_t region_size_bytes = ShenandoahHeapRegion::region_size_bytes();
+  size_t recycled_regions = 0;
+  size_t recycled_bytes = 0;
+  idx_t mutator_low_idx = _partitions.max();
+  idx_t mutator_high_idx = -1;
+
+  ShenandoahCollectionSet* cset = _heap->collection_set();
+  for (size_t i = 0; i < _heap->num_regions(); i++) {
+    ShenandoahHeapRegion* r = _heap->get_region(i);
+    if (cset->use_forward_table(r)) {
+      recycle_fwt_region(r, region_size_bytes,
+                         mutator_low_idx, mutator_high_idx,
+                         recycled_bytes, recycled_regions);
+    }
+  }
+
+  if (recycled_regions > 0) {
+    _partitions.expand_interval_if_range_modifies_either_boundary(
+      ShenandoahFreeSetPartitionId::Mutator, mutator_low_idx, mutator_high_idx,
+      _partitions.max(), -1);
+    _total_young_regions += recycled_regions;
+    // Recycled but not empty regions added to Mutator.
+    recompute_total_used</* UsedByMutatorChanged */ true,
+                         /* UsedByCollectorChanged */ false, /* UsedByOldCollectorChanged */ false>();
+    recompute_total_affiliated</* MutatorEmptiesChanged */ false, /* CollectorEmptiesChanged */ false,
+                               /* OldCollectorEmptiesChanged */ false, /* MutatorSizeChanged */ true,
+                               /* CollectorSizeChanged */ false, /* OldCollectorSizeChanged */ false,
+                               /* AffiliatedChangesAreYoungNeutral */ true, /* AffiliatedChangesAreGlobalNeutral */ true,
+                               /* UnaffiliatedChangesAreYoungNeutral */ true>();
+    _partitions.assert_bounds();
+  }
+
+  log_info(gc, ergo)("At start of update refs, recycling %zu cset regions with forwarding tables,"
+                     " adding %zu%s to Mutator free set",
+                     recycled_regions,
+                     byte_size_in_proper_unit(recycled_bytes), proper_unit_for_byte_size(recycled_bytes));
 }
 
 // Overwrite arguments to represent the amount of memory in each generation that is about to be recycled
