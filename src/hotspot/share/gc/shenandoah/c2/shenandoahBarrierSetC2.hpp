@@ -208,7 +208,7 @@ public:
     _addr(addr),
     _do_load(do_load),
     _narrow(narrow),
-    _maybe_null(!src_not_null(node)),
+    _maybe_null(maybe_null(node)),
     _needs_load_ref_barrier(needs_load_ref_barrier(node)),
     _needs_load_ref_weak_barrier(needs_load_ref_barrier_weak(node)),
     _needs_keep_alive_barrier(needs_keep_alive_barrier(node)),
@@ -240,8 +240,8 @@ public:
   static bool needs_card_barrier(const MachNode* node) {
     return !ShenandoahSkipBarriers && ((node->barrier_data() & ShenandoahBitCardMark) != 0);
   }
-  static bool src_not_null(const MachNode* node) {
-    return (node->barrier_data() & ShenandoahBitNotNull) != 0;
+  static bool maybe_null(const MachNode* node) {
+    return (node->barrier_data() & ShenandoahBitNotNull) == 0;
   }
 
   static void gc_state_check_c2(MacroAssembler* masm, Register rscratch, const unsigned char test_state, ShenandoahBarrierStubC2* slow_stub);

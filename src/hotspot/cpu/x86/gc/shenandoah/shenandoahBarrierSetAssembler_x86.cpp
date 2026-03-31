@@ -1211,10 +1211,10 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   // TODO: Maybe there is a matcher way to test that src is unused after this?
   if (dst_narrow && !src_narrow) {
     __ movq(tmp, src);
-    if (ShenandoahBarrierStubC2::src_not_null(node)) {
-      __ encode_heap_oop_not_null(tmp);
-    } else {
+    if (ShenandoahBarrierStubC2::maybe_null(node)) {
       __ encode_heap_oop(tmp);
+    } else {
+      __ encode_heap_oop_not_null(tmp);
     }
     src = tmp;
   }

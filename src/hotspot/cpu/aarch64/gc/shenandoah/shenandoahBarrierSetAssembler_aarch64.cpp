@@ -879,10 +879,10 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
       // Need to encode into rscratch, because we cannot clobber src.
       // TODO: Maybe there is a matcher way to test that src is unused after this?
       __ mov(rscratch1, src);
-      if (ShenandoahBarrierStubC2::src_not_null(node)) {
-        __ encode_heap_oop_not_null(rscratch1);
-      } else {
+      if (ShenandoahBarrierStubC2::maybe_null(node)) {
         __ encode_heap_oop(rscratch1);
+      } else {
+        __ encode_heap_oop_not_null(rscratch1);
       }
       src = rscratch1;
     }
