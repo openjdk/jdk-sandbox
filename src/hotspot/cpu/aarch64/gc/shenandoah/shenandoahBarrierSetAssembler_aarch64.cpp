@@ -632,7 +632,10 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop(MacroAssembler* masm,
 }
 
 #ifdef COMPILER2
-bool ShenandoahBarrierStubC2::push_save_register_if_live(MacroAssembler* masm, Register reg) {
+#undef __
+#define __ masm.
+
+bool ShenandoahBarrierStubC2::push_save_register_if_live(MacroAssembler& masm, Register reg) {
   if (is_live(reg)) {
     push_save_register(masm, reg);
     return true;
@@ -641,11 +644,11 @@ bool ShenandoahBarrierStubC2::push_save_register_if_live(MacroAssembler* masm, R
   }
 }
 
-void ShenandoahBarrierStubC2::push_save_register(MacroAssembler* masm, Register reg) {
+void ShenandoahBarrierStubC2::push_save_register(MacroAssembler& masm, Register reg) {
   __ str(reg, Address(sp, push_save_slot()));
 }
 
-void ShenandoahBarrierStubC2::pop_save_register(MacroAssembler* masm, Register reg) {
+void ShenandoahBarrierStubC2::pop_save_register(MacroAssembler& masm, Register reg) {
   __ ldr(reg, Address(sp, pop_save_slot()));
 }
 
@@ -697,8 +700,8 @@ Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Addr
   return tmp;
 }
 
-void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler* masm, const char test_state) {
-  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state) {
+  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
   if (ShenandoahGCStateCheckRemove) {
     // Unrealistic: remove all barrier fastpath checks.
@@ -791,6 +794,9 @@ bool needs_acquiring_load_exclusive(const MachNode *n) {
   return true;
 }
 
+#undef __
+#define __ masm->
+
 void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr,
     Register oldval, Register newval, bool exchange, bool narrow, bool weak) {
   bool acquire = needs_acquiring_load_exclusive(node);
@@ -809,7 +815,7 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
     check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
     assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node), "Not supported for CAS");
-    stub->enter_if_gc_state(masm, check);
+    stub->enter_if_gc_state(*masm, check);
   }
 
   // CAS!
@@ -842,7 +848,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
     assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node), "Not supported for GAS");
-    stub->enter_if_gc_state(masm, check);
+    stub->enter_if_gc_state(*masm, check);
   }
 
   if (narrow) {
@@ -870,7 +876,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
     assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier(node), "Should not be required for stores");
     ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, noreg, dst, dst_narrow, /* do_load: */ true, __ offset());
-    stub->enter_if_gc_state(masm, ShenandoahHeap::MARKING);
+    stub->enter_if_gc_state(*masm, ShenandoahHeap::MARKING);
   }
 
   // Do the actual store
@@ -931,7 +937,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
     check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node) ? ShenandoahHeap::WEAK_ROOTS : 0;
-    stub->enter_if_gc_state(masm, check);
+    stub->enter_if_gc_state(*masm, check);
   }
 }
 
@@ -1076,7 +1082,7 @@ void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
   if (_do_load) {
     _obj = select_temp_register(selected_live, _addr, noreg);
     if (selected_live) {
-      push_save_register(&masm, _obj);
+      push_save_register(masm, _obj);
     }
 
     // This does the load and the decode if necessary
@@ -1096,9 +1102,9 @@ void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
     __ cbz(_obj, L_done);
   }
 
-  keepalive(&masm, _obj, rscratch1, rscratch2);
+  keepalive(masm, _obj, rscratch1, rscratch2);
 
-  lrb(&masm, _obj, _addr, rscratch1);
+  lrb(masm, _obj, _addr, rscratch1);
 
   // If object is narrow, we need to encode it before exiting.
   // For encoding, dst can only turn null if we are dealing with weak loads.
@@ -1116,17 +1122,14 @@ void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
 
   // If we picked up a live register to store the load of _addr then we restore it now
   if (selected_live) {
-    pop_save_register(&masm, _obj);
+    pop_save_register(masm, _obj);
   }
 
   // Go back to fast path
   __ b(*continuation());
 }
 
-#undef __
-#define __ masm->
-
-void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Register tmp1, Register tmp2) {
+void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Register tmp1, Register tmp2) {
   Address index(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
   Label L_runtime;
@@ -1179,7 +1182,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler* masm, Register obj, Regi
   __ bind(L_done);
 }
 
-void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address addr, Register tmp) {
+void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address addr, Register tmp) {
   Label L_done;
 
   // The node doesn't even need LRB barrier, just don't check anything else
@@ -1264,6 +1267,9 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler* masm, Register obj, Address ad
 
   __ bind(L_done);
 }
+
+#undef __
+#define __ masm->
 
 #endif // COMPILER2
 

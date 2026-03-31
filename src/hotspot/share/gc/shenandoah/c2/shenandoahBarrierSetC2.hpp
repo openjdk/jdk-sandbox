@@ -181,17 +181,17 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   // Manage save slots on stack. We cannot move SP freely when in statically-sized
   // C2 frame. These methods emulate the stack where a stub can save registers temporarily
   // without moving SP.
-  void push_save_register(MacroAssembler* masm, Register reg);
-  void pop_save_register(MacroAssembler* masm, Register reg);
-  bool push_save_register_if_live(MacroAssembler* masm, Register reg);
+  void push_save_register(MacroAssembler& masm, Register reg);
+  void pop_save_register(MacroAssembler& masm, Register reg);
+  bool push_save_register_if_live(MacroAssembler& masm, Register reg);
   int push_save_slot();
   int pop_save_slot();
 
   bool is_live(Register reg);
   Register select_temp_register(bool& selected_live, Address addr, Register reg1);
 
-  void keepalive(MacroAssembler* masm, Register obj, Register tmp1, Register tmp2);
-  void lrb(MacroAssembler* masm, Register obj, Address addr, Register tmp);
+  void keepalive(MacroAssembler& masm, Register obj, Register tmp1, Register tmp2);
+  void lrb(MacroAssembler& masm, Register obj, Address addr, Register tmp);
 
   address keepalive_runtime_entry_addr();
   address lrb_runtime_entry_addr();
@@ -247,6 +247,6 @@ public:
   static ShenandoahBarrierStubC2* create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load, int offset = 0);
   void emit_code(MacroAssembler& masm);
 
-  void enter_if_gc_state(MacroAssembler* masm, const char test_state);
+  void enter_if_gc_state(MacroAssembler& masm, const char test_state);
 };
 #endif // SHARE_GC_SHENANDOAH_C2_SHENANDOAHBARRIERSETC2_HPP
