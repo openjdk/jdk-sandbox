@@ -159,6 +159,10 @@ Node* ShenandoahBarrierSetC2::atomic_xchg_at_resolved(C2AtomicParseAccess& acces
 }
 
 void ShenandoahBarrierSetC2::refine_store(const Node* n) {
+  if (!ShenandoahElideBarriers) {
+    return;
+  }
+
   MemNode* store = n->as_Store();
   const Node* newval = n->in(MemNode::ValueIn);
   assert(newval != nullptr, "");
@@ -254,6 +258,10 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* n) {
 }
 
 void ShenandoahBarrierSetC2::refine_load(Node* n) {
+  if (!ShenandoahElideBarriers) {
+    return;
+  }
+
   MemNode* load = n->as_Load();
 
   uint8_t barrier_data = load->barrier_data();
@@ -350,6 +358,10 @@ void ShenandoahBarrierSetC2::elide_dominated_barrier(MachNode* mach) const {
 }
 
 void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
+  if (!ShenandoahElideBarriers) {
+    return;
+  }
+
   ResourceMark rm;
   Compile* const C = Compile::current();
   PhaseCFG* const cfg = C->cfg();
@@ -407,9 +419,7 @@ void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
           break;
         }
 
-        // Dominating atomics have dealt with false positives, and made the card
-        // table updates for a location. Even though CAS barriers are conditional,
-        // they perform all needed barriers when memory access is successful.
+        // Dominating atomics have dealt with everything as both loads and stores.
         // Therefore, subsequent barriers are no longer required.
         case Op_CompareAndExchangeN:
         case Op_CompareAndExchangeP:

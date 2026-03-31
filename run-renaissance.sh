@@ -78,8 +78,8 @@ echo "LBE: Concurrent"
 run_with $J_LBE $OPTS
 
 echo
-echo "LBE: Concurrent, hot-patchable GC state checks in fast-path"
-run_with $J_LBE $OPTS -XX:+ShenandoahGCStateCheckHotpatch
+echo "LBE: Concurrent, no barrier elision"
+run_with $J_LBE $OPTS -XX:-ShenandoahElideBarriers
 
 echo
 echo "LBE: Passive, No barriers"
@@ -88,11 +88,3 @@ run_with $J_LBE $OPTS_PASSIVE_NONE
 echo
 echo "LBE: Passive, All barriers"
 run_with $J_LBE $OPTS_PASSIVE_ALL
-
-echo
-echo "LBE: Passive, All barriers, remove GC state checks in fast-path"
-run_with $J_LBE $OPTS_PASSIVE_ALL -XX:+ShenandoahGCStateCheckRemove
-
-echo
-echo "LBE: Passive, All barriers, remove both fast- and slow-path"
-run_with $J_LBE $OPTS_PASSIVE_ALL -XX:+ShenandoahSkipBarriers

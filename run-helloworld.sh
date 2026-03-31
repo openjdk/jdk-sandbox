@@ -63,15 +63,5 @@ echo "LBE: All barriers"
 run_with $J_LBE $OPTS_ALL
 
 echo
-echo "LBE: All barriers, hot-patchable GC state checks in fast-path"
-run_with $J_LBE $OPTS_ALL -XX:+ShenandoahGCStateCheckHotpatch
-
-echo
-echo "LBE: All barriers, remove GC state checks in fast-path"
-run_with $J_LBE $OPTS_ALL -XX:+ShenandoahGCStateCheckRemove
-
-echo
-echo "LBE: All barriers, remove both fast- and slow-path"
-run_with $J_LBE $OPTS_ALL -XX:+ShenandoahSkipBarriers
-
-
+echo "LBE: All barriers, no barrier elision"
+run_with $J_LBE $OPTS_ALL -XX:-ShenandoahElideBarriers

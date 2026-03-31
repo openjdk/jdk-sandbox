@@ -570,7 +570,10 @@
   product(bool, ShenandoahCloneRuntime, false, DIAGNOSTIC,                  \
           "Handle clone in runtime instead of in copy stubs.")              \
                                                                             \
-  product(bool, ShenandoahGCStateCheckHotpatch, true, EXPERIMENTAL,        \
+  product(bool, ShenandoahElideBarriers, true, DIAGNOSTIC,                  \
+          "Elide redundant Shenandoah barriers.")                           \
+                                                                            \
+  product(bool, ShenandoahGCStateCheckHotpatch, true, EXPERIMENTAL,         \
           "VERY EXPERIMENTAL: Replace GC state checks with hot-patchable "  \
           "branches/nops in barrier fast-paths. Should improve performance "\
           "when GC is idle.")                                               \
