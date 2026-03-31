@@ -698,6 +698,8 @@ Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Addr
 }
 
 void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler* masm, const char test_state) {
+  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+
   if (ShenandoahGCStateCheckRemove) {
     // Unrealistic: remove all barrier fastpath checks.
   } else if (ShenandoahGCStateCheckHotpatch) {
