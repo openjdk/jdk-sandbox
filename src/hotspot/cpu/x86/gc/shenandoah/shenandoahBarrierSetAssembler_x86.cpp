@@ -1480,7 +1480,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   __ bind(*entry());
 
-  Label L_done;
+  Label L_done, L_barriers;
 
   // If we need to load ourselves, do it here.
   if (_do_load) {
@@ -1497,7 +1497,14 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   } else {
     __ testptr(_obj, _obj);
   }
-  __ jcc(Assembler::zero, L_done);
+  __ jccb(Assembler::notZero, L_barriers);
+
+  // Exit here.
+  __ bind(L_done);
+  __ jmp(*continuation());
+
+  // Barriers start here.
+  __ bind(L_barriers);
 
   // Barriers need temp to work, allocate one now.
   bool tmp_live;
@@ -1534,8 +1541,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
       __ encode_heap_oop_not_null(_obj);
     }
   }
-  __ bind(L_done);
-  __ jmp(*continuation());
+  __ jmp(L_done);
 }
 
 Label* ShenandoahBarrierStubC2::entry() {
