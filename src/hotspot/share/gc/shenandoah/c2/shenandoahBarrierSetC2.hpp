@@ -248,6 +248,5 @@ public:
   void emit_code(MacroAssembler& masm);
 
   void enter_if_gc_state(MacroAssembler* masm, const char test_state);
-  Label* entry();
 };
 #endif // SHARE_GC_SHENANDOAH_C2_SHENANDOAHBARRIERSETC2_HPP

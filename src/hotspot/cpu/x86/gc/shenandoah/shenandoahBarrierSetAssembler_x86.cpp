@@ -1544,10 +1544,6 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ jmp(L_done);
 }
 
-Label* ShenandoahBarrierStubC2::entry() {
-  return BarrierStubC2::entry();
-}
-
 void ShenandoahBarrierStubC2::post_init(int offset) {
   // Do nothing.
 }

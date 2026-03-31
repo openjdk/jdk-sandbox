@@ -718,7 +718,7 @@ void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler* masm, const char
     Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
     __ ldrb(rscratch1, gc_state_fast);
     if (_test_and_branch_reachable) {
-      __ tbnz(rscratch1, bit_to_check, *entry());
+      __ tbnz(rscratch1, bit_to_check, _test_and_branch_reachable_entry);
     } else {
       __ tbz(rscratch1, bit_to_check, *continuation());
       __ b(*entry());
@@ -1039,20 +1039,13 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
     if (aarch64_test_and_branch_reachable(next_branch_offset, target_offset + get_stub_size())) {
       emit_code_actual(masm);
     } else {
-      __ b(*BarrierStubC2::entry());
+      __ b(*entry());
       // By registering the stub again, after setting _skip_trampoline to true,
       // we'll effectivelly cause the stub to be emitted the next time
       // ::emit_code is called.
       ShenandoahBarrierStubC2::register_stub(this);
     }
   }
-}
-
-Label* ShenandoahBarrierStubC2::entry() {
-  if (!ShenandoahGCStateCheckHotpatch && _test_and_branch_reachable) {
-    return &_test_and_branch_reachable_entry;
-  }
-  return BarrierStubC2::entry();
 }
 
 int ShenandoahBarrierStubC2::get_stub_size() {
@@ -1073,7 +1066,7 @@ void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
   Label L_done;
 
   if (ShenandoahGCStateCheckHotpatch || !Compile::current()->output()->in_scratch_emit_size()) {
-    __ bind(*BarrierStubC2::entry());
+    __ bind(*entry());
   }
 
   // If we need to load ourselves, do it here.
