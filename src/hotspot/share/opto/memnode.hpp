@@ -707,13 +707,6 @@ public:
 
   MemBarNode* trailing_membar() const;
 
-#ifndef PRODUCT
-  virtual void dump_spec(outputStream *st) const {
-    MemNode::dump_spec(st);
-    if (is_release())  st->print("is_release");
-  }
-#endif
-
 private:
   virtual bool depends_only_on_test_impl() const { return false; }
 };
