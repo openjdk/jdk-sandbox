@@ -45,13 +45,13 @@ OPTS_PASSIVE_NONE="$OPTS -XX:ShenandoahGCMode=passive"
 OPTS_PASSIVE_ALL="$OPTS_PASSIVE_NONE -XX:+ShenandoahLoadRefBarrier -XX:+ShenandoahSATBBarrier -XX:+ShenandoahCASBarrier -XX:+ShenandoahCloneBarrier"
 
 run_with() {
-	P=$*
-	for I in `seq 1 3`; do
-		echo -n " run $I: "
-		$P $W 2>&1 | awk '/completed warmup|PASSED/ { printf "%s ", $(NF-2)} END { print "" }'
-	done
-	echo -n " stats: "
-	$P -XX:+CITime $W 2>&1 | grep Tier4
+  P=$*
+  for I in `seq 1 3`; do
+    echo -n " run $I: "
+    $P $W 2>&1 | awk '/completed warmup|PASSED/ { printf "%s ", $(NF-2)} END { print "" }'
+  done
+  echo -n " stats: "
+  $P -XX:+CITime $W 2>&1 | grep Tier4
 }
 
 echo
