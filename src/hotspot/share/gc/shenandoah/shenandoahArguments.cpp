@@ -188,6 +188,11 @@ void ShenandoahArguments::initialize() {
       " supports adaptive heuristics", ShenandoahGCHeuristics);
   }
 
+  if (ShenandoahGCStateCheckHotpatch && NMethodRelocation) {
+    log_warning(gc)("Hot patching is not yet supported with NMethod relocation, disabling");
+    FLAG_SET_DEFAULT(ShenandoahGCStateCheckHotpatch, false);
+  }
+
   FullGCForwarding::initialize_flags(MaxHeapSize);
 }
 

@@ -24,6 +24,7 @@
  */
 
 
+#include "gc/shenandoah/shenandoahBarrierSetAssembler.hpp"
 #include "gc/shenandoah/shenandoahClosures.inline.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahNMethod.inline.hpp"
@@ -31,8 +32,8 @@
 #include "runtime/continuation.hpp"
 #include "runtime/safepointVerifiers.hpp"
 
-ShenandoahNMethod::ShenandoahNMethod(nmethod* nm, GrowableArray<oop*>& oops, bool non_immediate_oops) :
-  _nm(nm), _oops(nullptr), _oops_count(0), _unregistered(false), _lock(), _ic_lock() {
+ShenandoahNMethod::ShenandoahNMethod(nmethod* nm, GrowableArray<oop*>& oops, bool non_immediate_oops, GrowableArray<ShenandoahNMethodBarrier>& barriers) :
+  _nm(nm), _oops(nullptr), _oops_count(0), _barriers(nullptr), _barriers_count(0), _unregistered(false), _lock(), _ic_lock() {
 
   if (!oops.is_empty()) {
     _oops_count = oops.length();
@@ -44,11 +45,22 @@ ShenandoahNMethod::ShenandoahNMethod(nmethod* nm, GrowableArray<oop*>& oops, boo
   _has_non_immed_oops = non_immediate_oops;
 
   assert_same_oops();
+
+  if (!barriers.is_empty()) {
+    _barriers_count = barriers.length();
+    _barriers = NEW_C_HEAP_ARRAY(ShenandoahNMethodBarrier, _barriers_count, mtGC);
+    for (int c = 0; c < _barriers_count; c++) {
+      _barriers[c] = barriers.at(c);
+    }
+  }
 }
 
 ShenandoahNMethod::~ShenandoahNMethod() {
   if (_oops != nullptr) {
     FREE_C_HEAP_ARRAY(oop*, _oops);
+  }
+  if (_barriers != nullptr) {
+    FREE_C_HEAP_ARRAY(ShenandoahNMethodBarrier, _barriers);
   }
 }
 
@@ -56,8 +68,9 @@ void ShenandoahNMethod::update() {
   ResourceMark rm;
   bool non_immediate_oops = false;
   GrowableArray<oop*> oops;
+  GrowableArray<ShenandoahNMethodBarrier> barriers;
 
-  detect_reloc_oops(nm(), oops, non_immediate_oops);
+  parse(nm(), oops, non_immediate_oops, barriers);
   if (oops.length() != _oops_count) {
     if (_oops != nullptr) {
       FREE_C_HEAP_ARRAY(oop*, _oops);
@@ -78,33 +91,49 @@ void ShenandoahNMethod::update() {
   assert_same_oops();
 }
 
-void ShenandoahNMethod::detect_reloc_oops(nmethod* nm, GrowableArray<oop*>& oops, bool& has_non_immed_oops) {
+void ShenandoahNMethod::parse(nmethod* nm, GrowableArray<oop*>& oops, bool& has_non_immed_oops, GrowableArray<ShenandoahNMethodBarrier>& barriers) {
   has_non_immed_oops = false;
-  // Find all oops relocations
   RelocIterator iter(nm);
   while (iter.next()) {
-    if (iter.type() != relocInfo::oop_type) {
-      // Not an oop
-      continue;
-    }
+    switch (iter.type()) {
+      case relocInfo::oop_type: {
+        oop_Relocation* r = iter.oop_reloc();
+        if (!r->oop_is_immediate()) {
+          // Non-immediate oop found
+          has_non_immed_oops = true;
+          break;
+        }
 
-    oop_Relocation* r = iter.oop_reloc();
-    if (!r->oop_is_immediate()) {
-      // Non-immediate oop found
-      has_non_immed_oops = true;
-      continue;
-    }
+        oop value = r->oop_value();
+        if (value != nullptr) {
+          oop* addr = r->oop_addr();
+          shenandoah_assert_correct(addr, value);
+          shenandoah_assert_not_in_cset_except(addr, value, ShenandoahHeap::heap()->cancelled_gc());
+          shenandoah_assert_not_forwarded(addr, value);
+          // Non-null immediate oop found. null oops can safely be
+          // ignored since the method will be re-registered if they
+          // are later patched to be non-null.
+          oops.push(addr);
+        }
+        break;
+      }
+#ifdef COMPILER2
+      case relocInfo::barrier_type: {
+        assert(ShenandoahGCStateCheckHotpatch, "Who emits these?");
+        barrier_Relocation* r = iter.barrier_reloc();
 
-    oop value = r->oop_value();
-    if (value != nullptr) {
-      oop* addr = r->oop_addr();
-      shenandoah_assert_correct(addr, value);
-      shenandoah_assert_not_in_cset_except(addr, value, ShenandoahHeap::heap()->cancelled_gc());
-      shenandoah_assert_not_forwarded(addr, value);
-      // Non-null immediate oop found. null oops can safely be
-      // ignored since the method will be re-registered if they
-      // are later patched to be non-null.
-      oops.push(addr);
+        ShenandoahNMethodBarrier b;
+        b._pc = r->addr();
+        b._stub_addr = ShenandoahBarrierSetAssembler::parse_stub_address(b._pc);
+        // TODO: Can technically figure out which GC state we care about in this reloc.
+        // b._gc_state_fast_bit = r->format();
+        barriers.push(b);
+        break;
+      }
+#endif
+      default:
+        // We do not care about other relocations.
+        break;
     }
   }
 }
@@ -113,9 +142,10 @@ ShenandoahNMethod* ShenandoahNMethod::for_nmethod(nmethod* nm) {
   ResourceMark rm;
   bool non_immediate_oops = false;
   GrowableArray<oop*> oops;
+  GrowableArray<ShenandoahNMethodBarrier> barriers;
 
-  detect_reloc_oops(nm, oops, non_immediate_oops);
-  return new ShenandoahNMethod(nm, oops, non_immediate_oops);
+  parse(nm, oops, non_immediate_oops, barriers);
+  return new ShenandoahNMethod(nm, oops, non_immediate_oops, barriers);
 }
 
 void ShenandoahNMethod::heal_nmethod(nmethod* nm) {
@@ -136,6 +166,26 @@ void ShenandoahNMethod::heal_nmethod(nmethod* nm) {
     // In this case, concurrent root phase is skipped and degenerated GC should be
     // followed, where nmethods are disarmed.
   }
+}
+
+void ShenandoahNMethod::update_barriers() {
+#ifdef COMPILER2
+  if (!ShenandoahGCStateCheckHotpatch) {
+    return;
+  }
+
+  ShenandoahHeap* heap = ShenandoahHeap::heap();
+
+  for (int c = 0; c < _barriers_count; c++) {
+    address pc = _barriers[c]._pc;
+    address stub_addr = _barriers[c]._stub_addr;
+    if (heap->is_idle()) {
+      ShenandoahBarrierSetAssembler::patch_branch_to_nop(pc);
+    } else {
+      ShenandoahBarrierSetAssembler::patch_nop_to_branch(pc, stub_addr);
+    }
+  }
+#endif
 }
 
 #ifdef ASSERT
@@ -206,8 +256,9 @@ void ShenandoahNMethod::assert_same_oops() {
       debug_stream.print_cr("-> " PTR_FORMAT, p2i(_oops[i]));
     }
     GrowableArray<oop*> check;
+    GrowableArray<ShenandoahNMethodBarrier> barriers;
     bool non_immed;
-    detect_reloc_oops(nm(), check, non_immed);
+    parse(nm(), check, non_immed, barriers);
     debug_stream.print_cr("check oops: %d", check.length());
     for (int i = 0; i < check.length(); i++) {
       debug_stream.print_cr("-> " PTR_FORMAT, p2i(check.at(i)));
@@ -243,6 +294,7 @@ void ShenandoahNMethodTable::register_nmethod(nmethod* nm) {
     wait_until_concurrent_iteration_done();
     ShenandoahNMethodLocker data_locker(data->lock());
     data->update();
+    data->update_barriers();
   } else {
     // For a new nmethod, we can safely append it to the list, because
     // concurrent iteration will not touch it.
@@ -252,6 +304,7 @@ void ShenandoahNMethodTable::register_nmethod(nmethod* nm) {
     ShenandoahLocker locker(&_lock);
     log_register_nmethod(nm);
     append(data);
+    data->update_barriers();
   }
   // Disarm new nmethod
   ShenandoahNMethod::disarm_nmethod(nm);

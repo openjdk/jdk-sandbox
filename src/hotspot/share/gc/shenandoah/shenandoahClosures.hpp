@@ -180,9 +180,6 @@ public:
 };
 
 class ShenandoahNMethodAndDisarmClosure : public NMethodToOopClosure {
-private:
-  BarrierSetNMethod* const _bs;
-
 public:
   inline ShenandoahNMethodAndDisarmClosure(OopClosure* cl);
   inline void do_nmethod(nmethod* nm);
@@ -243,6 +240,12 @@ public:
 //
 // ========= Utilities
 //
+
+class ShenandoahNoOpClosure : public OopClosure {
+public:
+  inline void do_oop(oop* p)       { }
+  inline void do_oop(narrowOop* p) { }
+};
 
 #ifdef ASSERT
 class ShenandoahAssertNotForwardedClosure : public OopClosure {

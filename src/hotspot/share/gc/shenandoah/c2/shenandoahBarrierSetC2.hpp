@@ -217,6 +217,7 @@ public:
     _skip_trampoline(),
     _test_and_branch_reachable_entry(),
     _save_slots_idx(0) {
+    assert(!ShenandoahSkipBarriers, "Do not touch stubs when disabled");
     assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
     post_init(offset);
   }
@@ -225,7 +226,7 @@ public:
     return (node->barrier_data() & ShenandoahBitNative) == 0;
   }
   static bool needs_slow_barrier(const MachNode* node) {
-    return needs_load_ref_barrier(node) || needs_keep_alive_barrier(node);
+    return !ShenandoahSkipBarriers && (needs_load_ref_barrier(node) || needs_keep_alive_barrier(node));
   }
   static bool needs_load_ref_barrier(const MachNode* node) {
     return (node->barrier_data() & (ShenandoahBitStrong | ShenandoahBitWeak | ShenandoahBitPhantom)) != 0;
@@ -237,7 +238,7 @@ public:
     return (node->barrier_data() & ShenandoahBitKeepAlive) != 0;
   }
   static bool needs_card_barrier(const MachNode* node) {
-    return (node->barrier_data() & ShenandoahBitCardMark) != 0;
+    return !ShenandoahSkipBarriers && ((node->barrier_data() & ShenandoahBitCardMark) != 0);
   }
   static bool maybe_null(const MachNode* node) {
     return (node->barrier_data() & ShenandoahBitNotNull) == 0;
