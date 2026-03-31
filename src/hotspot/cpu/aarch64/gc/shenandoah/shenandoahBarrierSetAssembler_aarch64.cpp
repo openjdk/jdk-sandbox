@@ -1008,7 +1008,7 @@ void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
 
   Label L_done;
 
-  if (ShenandoahGCStateCheckHotpatch || !Compile::current()->output()->in_scratch_emit_size()) {
+  if (!Compile::current()->output()->in_scratch_emit_size()) {
     __ bind(*entry());
   }
 
