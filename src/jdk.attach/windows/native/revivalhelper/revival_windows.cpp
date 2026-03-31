@@ -74,7 +74,7 @@ static void* lookup_kernelbase_symbol(const char* name) {
     }
     void* ret = ::GetProcAddress((HMODULE) handle, name);
     if (ret == nullptr) {
-        error("failed to lookup kernelbase symbol: %s", name);
+        error("Failed to lookup kernelbase symbol: %s", name);
     }
     return ret;
 }
@@ -118,8 +118,7 @@ bool dir_isempty_pd(const char *dirname) {
 }
 
 bool file_exists_pd(const char *filename) {
-    DWORD attr = GetFileAttributes(filename);
-    return attr != INVALID_FILE_ATTRIBUTES;
+    return  GetFileAttributes(filename) != INVALID_FILE_ATTRIBUTES;
 }
 
 bool file_exists_indir_pd(const char* dirname, const char* filename) {
@@ -197,7 +196,6 @@ void init_pd() {
         // Expected: dwAllocationGranularity = 65536
         warn("Note: dwAllocationGranularity not 64k, vaddr_align = %lld", vaddr_align);
     }
-
     install_kernelbase_1803_symbol_or_exit(pVirtualAlloc2, "VirtualAlloc2");
     install_kernelbase_1803_symbol_or_exit(pMapViewOfFile3, "MapViewOfFile3");
 }
@@ -218,7 +216,7 @@ void dump() {
         if (!MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hFile, dumpType, nullptr, nullptr, nullptr)) {
             warn("%s: MiniDumpWriteDump failed: 0x%x", filename, GetLastError());
         }
-        Sleep(60 * 1000);
+        CloseHandle(hFile);
     }
 }
 
@@ -227,11 +225,11 @@ void set_prot(void* addr, uint64_t length, DWORD prot) {
     // and set protection of that.
     DWORD lpfOldProtect;
     if (!VirtualProtect((PVOID) addr, length, prot, &lpfOldProtect)) {
-        logv("    set_prot: failed (1) setting prot (0x%lx) for: 0x%p, len 0x%lx: error 0x%x.",  prot, addr, length, GetLastError());
+        logv("set_prot: failed (1) setting prot (0x%lx) for: 0x%p, len 0x%lx: error 0x%x.",  prot, addr, length, GetLastError());
         if (logLevel >= LOG_VERBOSE) {
-            fprintf(stderr, "    ");
             printMemBasicInfo(addr);
         }
+        waitHitRet();
         HANDLE hProc = GetCurrentProcess();
         MEMORY_BASIC_INFORMATION meminfo;
         size_t q = VirtualQueryEx(hProc, (PVOID) addr, &meminfo, sizeof(meminfo));
@@ -239,11 +237,11 @@ void set_prot(void* addr, uint64_t length, DWORD prot) {
             warn("set_prot: VirtualQueryEx failed: returned 0x%x, error 0x%x", q, GetLastError());
         } else {
             if (!VirtualProtect((PVOID) meminfo.AllocationBase, meminfo.RegionSize, prot, &lpfOldProtect)) {
-                warn("        (2) set_prot: failed setting prot (0x%lx) for: 0x%p, len 0x%lx: error 0x%x.",
+                warn(" (2) set_prot: failed setting prot (0x%lx) for: 0x%p, len 0x%lx: error 0x%x.",
                     prot, meminfo.AllocationBase, meminfo.RegionSize, GetLastError());
                 waitHitRet();
             } else {
-                logd("        set_prot: OK setting prot (0x%lx) for: 0x%p, len 0x%lx",
+                logd("set_prot: OK setting prot (0x%lx) for: 0x%p, len 0x%lx",
                     prot, meminfo.AllocationBase, meminfo.RegionSize);
             }
         }
@@ -261,28 +259,24 @@ LONG WINAPI topLevelUnhandledExceptionFilter(struct _EXCEPTION_POINTERS* excepti
     error("revival: handler: unsupported platform");
 #endif
     uint64_t addr = (uint64_t) exceptionInfo->ExceptionRecord->ExceptionInformation[1];
-    warn("revival: handler: PID %ld thread: 0x%lx pc 0x%llx address 0x%llx ", _getpid(), GetCurrentThreadId(), pc, addr);
-    printMemBasicInfo((void*) addr);
+    logv("revival: handler: PID %ld thread: 0x%lx pc 0x%llx address 0x%llx ", _getpid(), GetCurrentThreadId(), pc, addr);
 
     std::list<Segment>::iterator iter;
     for (iter = delayedCopySegments.begin(); iter != delayedCopySegments.end(); iter++) {
         if (iter->contains((uint64_t) addr)) {
             logv("Delayed Copy Segment: si_addr = %p in segment %p", addr, iter->vaddr);
-            // Not needed using guard?
             set_prot(iter->vaddr, iter->length, stdProt);
-            printMemBasicInfo(iter->vaddr);
             revival_mapping_docopy(iter->vaddr, iter->length, iter->file_offset);
-            warn("done copy:");
-            printMemBasicInfo(iter->vaddr);
             return EXCEPTION_CONTINUE_EXECUTION;
         }
     }
+    warn("revival: handler: PID %ld thread: 0x%lx pc 0x%llx address 0x%llx: not handled. ", _getpid(), GetCurrentThreadId(), pc, addr);
     waitHitRet();
     if (logLevel >= LOG_DEBUG) {
         dump();
     }
     exitForRetry(); // Letting this process fail would send the wrong return code back to JCmd.
-    abort(); // not reached
+    abort(); // Not reached.
 }
 
 void install_handler() {
@@ -330,22 +324,23 @@ bool mem_canwrite_pd(void *vaddr, size_t length) {
 
     size_t q = VirtualQueryEx(hProc, vaddr, &meminfo, sizeof(meminfo));
     if (q == sizeof(meminfo)) {
-        warn("    mem_canwrite_pd:");
-        printMemBasicInfo(meminfo);
+        if (logLevel >= LOG_DEBUG) {
+            warn("mem_canwrite_pd:");
+            printMemBasicInfo(meminfo);
+        }
         int prot = meminfo.Protect & ~PAGE_GUARD; // Remove PAGE_GUARD for this comparison.
         if (prot == PAGE_EXECUTE_READWRITE
             || prot == PAGE_EXECUTE_WRITECOPY
             || prot == PAGE_READWRITE
             || prot == PAGE_WRITECOPY) {
-            logd("    mem_canwrite_pd: %p protect: 0x%lx: YES", vaddr, meminfo.Protect);
+            logd("mem_canwrite_pd: %p protect: 0x%lx: YES", vaddr, meminfo.Protect);
             return true;
         } else {
-            warn("    mem_canwrite_pd: %p protect: 0x%lx: NO", vaddr, meminfo.Protect);
-            printMemBasicInfo(meminfo);
+            logd("mem_canwrite_pd: %p protect: 0x%lx: NO", vaddr, meminfo.Protect);
             return false;
         }
     } else {
-        warn("    mem_canwrite_pd: %p VirtualQueryEx failed, returning false. Error 0x%x", vaddr, GetLastError());
+        warn("mem_canwrite_pd: %p VirtualQueryEx failed, returning false. Error 0x%x", vaddr, GetLastError());
     }
     return false;
 }
@@ -356,7 +351,7 @@ bool can_lazycopy_pd(void* addr) {
     size_t q = VirtualQueryEx(hProc, addr, &meminfo, sizeof(meminfo));
     if (q != sizeof(meminfo)) {
         warn("VirtualQueryEx failed");
-        return (void*) -1;
+        return false;
     }
     if ((meminfo.Protect & PAGE_GUARD) != 0) {
         return true;
@@ -380,12 +375,12 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offse
     DWORD mapViewAccess = FILE_MAP_READ | FILE_MAP_EXECUTE;
     h = CreateFile(filename, createFileDesiredAccess, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (h == nullptr) {
-        logv("    do_mmap_pd: CreateFile failed: %s: 0x%lx", filename, GetLastError());
+        logv("do_mmap_pd: CreateFile failed: %s: 0x%lx", filename, GetLastError());
         return (void *) -1;
     } else {
         h2 = CreateFileMapping(h, nullptr, mappingProt, 0, 0, nullptr);
         if (h2 == nullptr) {
-            logv("    do_mmap_pd: CreateFileMapping failed: %s: 0x%lx", filename, GetLastError());
+            logv("do_mmap_pd: CreateFileMapping failed: %s: 0x%lx", filename, GetLastError());
             return (void *) -1;
         }
     }
@@ -396,17 +391,17 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offse
         offset -= (size_t) ((uint64_t) addr - addr_aligned);
         // But offset must be multiple of allocation granularity
         if (offset != align_down(offset, vaddr_alignment_pd())) {
-            logv("    do_mmap_pd: file offset becomes unalinged.");
+            logv("do_mmap_pd: file offset becomes unalinged.");
         }
     }
-    logv("  do_mmap_pd: will map: addr 0x%p length 0x%llx file offset 0x%llx -> offset aligned 0x%llx",
+    logv("do_mmap_pd: will map: addr 0x%p length 0x%llx file offset 0x%llx -> offset aligned 0x%llx",
          addr, (unsigned long) length, (unsigned long) offset, (unsigned long) offsetAligned);
 
     HANDLE hProc = GetCurrentProcess();
     DWORD prot = stdProt;
     p = pMapViewOfFile3(h2, hProc, (PVOID) addr, offset, length, MEM_REPLACE_PLACEHOLDER, prot, nullptr, 0);
     if ((uint64_t) p != (uint64_t) addr) {
-        logv("    do_mmap_pd: MapViewOfFile3 0x%p failed, ret=0x%p error=0x%lx", addr, p, GetLastError());
+        logv("do_mmap_pd: MapViewOfFile3 0x%p failed, ret=0x%p error=0x%lx", addr, p, GetLastError());
         p = (void *) -1;
         waitHitRet();
     }
@@ -428,7 +423,7 @@ void *do_map_allocate_pd_MapViewOfFile(void *vaddr, size_t length) {
 
     HANDLE h = CreateFileMapping(INVALID_HANDLE_VALUE, nullptr, mappingProt, 0, (DWORD) length, nullptr);
     if (h == nullptr) {
-        warn("    do_map_allocate_pd_MapViewOfFile: CreateFileMapping returns = 0x%p : error = 0x%lx", h, GetLastError());
+        warn("do_map_allocate_pd_MapViewOfFile: CreateFileMapping returns = 0x%p : error = 0x%lx", h, GetLastError());
         return (void *) -1;
     }
     LPVOID p = MapViewOfFileEx(h, mapViewAccess, 0, 0, length, (void *) vaddr);
@@ -452,7 +447,7 @@ void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length, int protReques
         return (void*) -1;
     }
     void* p = pVirtualAlloc2(hProc, (PVOID) addr, length, MEM_RESERVE | MEM_COMMIT, prot, nullptr, 0);
-    logd("    do_map_allocate_pd_VirtualAlloc2: first alloc attempt 0x%p len 0x%zx prot 0x%x: returns = 0x%p, error = 0x%lx",
+    logd("do_map_allocate_pd_VirtualAlloc2: first alloc attempt 0x%p len 0x%zx prot 0x%x: returns = 0x%p, error = 0x%lx",
         (void *) addr, length, prot, p, GetLastError());
 
     q = VirtualQueryEx(hProc, addr, &meminfo, sizeof(meminfo));
@@ -479,7 +474,7 @@ void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length, int protReques
             }
 
             // Expand allocation?
-            logv("    do_map_allocate_pd_VirtualAlloc2: clash, retry new base 0x%llx len 0x%llx", existing_end, remaining);
+            logv("do_map_allocate_pd_VirtualAlloc2: clash, retry new base 0x%llx len 0x%llx", existing_end, remaining);
             void * r = do_map_allocate_pd_VirtualAlloc2((void*) existing_end, remaining, protRequested);
             // Return original requested address on success:
             if ((uint64_t) r == (uint64_t) existing_end) {
@@ -494,13 +489,13 @@ void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length, int protReques
             // e.g. jvm data.  Is more allocation needed?
             uint64_t wanted_end = (uint64_t) addr + (uint64_t) length;
             if (wanted_end <= existing_end) {
-                logv("    do_map_allocate_pd_VirtualAlloc2: mapping covered by existing_end at 0x%llx", existing_end);
+                logv("do_map_allocate_pd_VirtualAlloc2: mapping covered by existing_end at 0x%llx", existing_end);
                 return addr;
             } else {
                 size_t remaining = (uint64_t) wanted_end - existing_end;
-                logv("    do_map_allocate_pd_VirtualAlloc2: existing. remaining = 0x%llx protRequested = 0x%x", remaining, protRequested);
+                logv("do_map_allocate_pd_VirtualAlloc2: existing. remaining = 0x%llx protRequested = 0x%x", remaining, protRequested);
                 void* r = do_map_allocate_pd_VirtualAlloc2((void*) existing_end, remaining, protRequested);
-                logv("    do_map_allocate_pd_VirtualAlloc2: done recurse");
+                logv("do_map_allocate_pd_VirtualAlloc2: done recurse");
                 // Return original requested address on success:
                 if ((uint64_t) r == (uint64_t) existing_end) {
                     return addr;
@@ -523,7 +518,7 @@ void *do_map_allocate_pd(void *vaddr, size_t length, int prot /* 0 for guarded, 
     length_aligned = align_up(length_aligned, vaddr_alignment_pd());
 
     if (vaddr_aligned != (uint64_t) vaddr) {
-        logd("  do_map_allocate_pd: vaddr 0x%p aligns -> 0x%p  len 0x%p adjusts -> 0x%p",
+        logd("do_map_allocate_pd: vaddr 0x%p aligns -> 0x%p  len 0x%p adjusts -> 0x%p",
             (void*) vaddr, (void*) vaddr_aligned, length, length_aligned);
     }
 
