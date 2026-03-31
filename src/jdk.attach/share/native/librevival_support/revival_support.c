@@ -27,14 +27,6 @@
 #include <time.h>
 #include <stdio.h>
 
-#ifndef WINDOWS
-#include <dlfcn.h>
-#include <pthread.h>
-#ifndef RTLD_NEXT
-# define RTLD_NEXT      ((void *) -1l)
-#endif
-#endif
-
 // This library is not Java related, but include jni_md to get JNIEXPORT to set visibility.
 #include <jni_md.h>
 
@@ -42,20 +34,14 @@
 #define FALSE 0
 
 #ifndef WINDOWS
+#include <dlfcn.h>
+#include <pthread.h>
+#ifndef RTLD_NEXT
+# define RTLD_NEXT      ((void *) -1l)
+#endif
+
 int clock_enabled = FALSE;
-
 struct timespec local_ts;
-
-/**
- * Set the time that we will respond with to clock_gettime calls.
- * Parameter is in seconds.
- */
-JNIEXPORT
-void set_revival_time_s(unsigned long long t) {
-    local_ts.tv_sec = t;
-    local_ts.tv_nsec = 0;
-    clock_enabled = TRUE;
-}
 
 /**
  * Set the time that we will respond with to clock_gettime calls.
@@ -73,15 +59,14 @@ void set_revival_time_ns(unsigned long long t) {
  */
 JNIEXPORT
 int clock_gettime(clockid_t clockid, struct timespec* tp) {
-
     static int (*func)(clockid_t, struct timespec*); // real function
+    if (!func) {
+        // First call, get the real function.
+        func = (int(*)()) dlsym(RTLD_NEXT, "clock_gettime");
+    }
 
     if (!clock_enabled) {
-        if (!func) {
-            // First call, get the real function.
-            func = (int(*)()) dlsym(RTLD_NEXT, "clock_gettime");
-        }
-        return func(clockid, &local_ts);
+        return func(clockid, tp);
     } else {
         // Enabled: return our set value.
         tp->tv_sec = local_ts.tv_sec;
@@ -95,5 +80,5 @@ int pthread_getcpuclockid(pthread_t thread, clockid_t* clockid) {
     return ENOENT;
 }
 
-#endif // WINDOWS
+#endif // !WINDOWS
 

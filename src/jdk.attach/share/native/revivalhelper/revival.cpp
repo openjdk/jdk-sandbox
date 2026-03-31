@@ -893,7 +893,7 @@ int revive_image_cooperative() {
 #ifdef LINUX
     // Set value to be returned by interposed clock_gettime in revival support library (preloaded)
 #define NANOS_PER_SECOND 1000000000
-    void (*func)(unsigned long long) = (void(*)(unsigned long long)) dlsym(RTLD_NEXT, "set_revival_time_s");
+    void (*func)(unsigned long long) = (void(*)(unsigned long long)) dlsym(RTLD_NEXT, "set_revival_time_ns");
     if (func != nullptr) {
         double lifetime_s;
         if (rdata->error_time > 0) {
@@ -903,7 +903,7 @@ int revive_image_cooperative() {
             logv("revive_image: using core timestamp");
             lifetime_s = core_timestamp - rdata->initial_time_date;
         }
-        func(lifetime_s + (rdata->initial_time_count / NANOS_PER_SECOND));
+        func((lifetime_s * NANOS_PER_SECOND) + (rdata->initial_time_count));
     } else {
         // Lookup failed, or e.g. revivalhelper invoked directly without preload.
         logv("set_revival_time: symbol lookup failed.");

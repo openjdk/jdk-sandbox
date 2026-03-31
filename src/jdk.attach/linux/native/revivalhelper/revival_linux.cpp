@@ -353,7 +353,7 @@ void handler(int sig, siginfo_t* info, void* ucontext) {
     for (iter = delayedCopySegments.begin(); iter != delayedCopySegments.end(); iter++) {
         if (iter->contains((uint64_t) addr)) {
             logv("Delayed Copy Segment: si_addr = %p found in segment %p", addr, iter->vaddr);
-            // Fix mapping permissions.
+            // Set mapping permissions and copy data now:
             int e = mprotect(iter->vaddr, iter->length, PROT_READ | PROT_WRITE | PROT_EXEC);
             if (e < 0) {
                 error("revival: mprotect failed: %d", e);
@@ -362,7 +362,7 @@ void handler(int sig, siginfo_t* info, void* ucontext) {
             return;
         }
     }
-    warn("handler: si_addr = %p : not handled.", addr);
+    warn("revival: handler: si_addr = %p : not handled.", addr);
     exitForRetry();
 }
 
