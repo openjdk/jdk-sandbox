@@ -236,7 +236,7 @@ int clash(uint64_t v1, uint64_t v2, uint64_t t1, uint64_t t2) {
     // Either end of region v1, v2 is inside region t1, t2:
     if ((v2 > t1 && v2 < t2)
             || (v1 > t1 && v1 < t2)) {
-        return true; 
+        return true;
     }
     // No clash:
     return false;
@@ -368,10 +368,6 @@ int revival_mapping_copy(void* vaddr, size_t length, size_t offset, bool allocat
         // We needed to make the mapping to ensure it can be done, and not fail later.
         Segment* seg = new Segment(vaddr, length, offset, length);
         delayedCopySegments.push_back(*seg);
-        if (!mem_canwrite_pd(vaddr, length)) {
-            warn("Delayed copy uncertain for 0x%llx", (uint64_t) vaddr);
-            waitHitRet();
-        }
         return 0;
     } else {
         // Otherwise, copy now:
@@ -385,7 +381,7 @@ int revival_mapping_copy(void* vaddr, size_t length, size_t offset, bool allocat
  */
 void* load_sharedlibrary_fromdir(const char* dirname, const char* libname, void* vaddr, char* sum) {
     char buf[BUFLEN];
-    snprintf(buf, BUFLEN, "%s/%s", dirname, libname); 
+    snprintf(buf, BUFLEN, "%s/%s", dirname, libname);
     void* a = load_sharedobject_pd(buf, vaddr);
     logv("load_sharedobject_pd: %s: returns %p", buf, a);
     return a;
@@ -516,7 +512,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
                 exitForRetry();
                 continue;
             }
-            if (strncmp(s1, "M", 1) == 0) { 
+            if (strncmp(s1, "M", 1) == 0) {
                 // Map memory from core:
                 int e = revival_mapping_mmap(vaddr, length, offset, core_filename, core_fd);
                 if (e < 0) {
@@ -542,7 +538,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
                 } else {
                     m_count++;
                 }
-            } else if (strncmp(s1, "C", 1) == 0) { 
+            } else if (strncmp(s1, "C", 1) == 0) {
                 // Copy, no allocation: "C" lines are to populate allocations in "m" lines.
                 int e = revival_mapping_copy(vaddr, length, offset, false, core_filename, core_fd);
                 if (e < 0) {
@@ -555,14 +551,14 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
                 error("mappings_file_read: unrecognised mapping line %d: '%s'", lines, s1);
             }
             continue;
-        } 
+        }
         if (strlen(s1) > 0) {
             error("mappings_file_read: unrecognised line %d: '%s'", lines, s1);
         }
         break;
     }
     if (logLevel >= LOG_VERBOSE) {
-        warn("mappings_file_read: read %d lines, Mappings: %d  map allocs: %d  Copies: %d  M converted to C: %d", 
+        warn("mappings_file_read: read %d lines, Mappings: %d  map allocs: %d  Copies: %d  M converted to C: %d",
             lines, M_count, m_count, C_count, MtoC_count);
         warn("delayedCopySegments.size = %d", (int) delayedCopySegments.size());
     }
@@ -804,7 +800,7 @@ int mappings_file_create(const char* dirname, const char* corename) {
 // Create file and header lines:
 // core FILENAME size
 // time 123213123
-// 
+//
 // Shared libraries written later:
 // L jvm addresshex 0   (0 is placeholder for possible checksum)
     char buf[BUFLEN];
@@ -866,7 +862,7 @@ int revive_image_cooperative() {
     if (s == (void*) -1) {
         warn("revive_image: JVM helper function not found.");
         return -1;
-    }  
+    }
 #ifdef WINDOWS
     tls_fixup_pd(core_teb);
 #endif

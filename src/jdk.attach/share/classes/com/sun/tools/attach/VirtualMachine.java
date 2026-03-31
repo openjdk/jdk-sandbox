@@ -229,10 +229,10 @@ public abstract class VirtualMachine {
      * <caption style="display:none">
      *     Configurable properties that may be recongised by attach provider.
      * </caption>
-	 * <thead>
-	 *   <tr>
-	 *     <th scope="col">Name</th>
-	 *     <th scope="col">Data Type</th>
+     * <thead>
+     *   <tr>
+     *     <th scope="col">Name</th>
+     *     <th scope="col">Data Type</th>
      *     <th scope="col">Default Value</th>
      *     <th scope="col">Description</th>
      *   </tr>
