@@ -96,8 +96,6 @@ public:
   void compare_and_set_c2(const MachNode* node, MacroAssembler* masm, Register res, Address addr, Register oldval, Register newval,
                           Register tmp, bool narrow);
   void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register newval, Address addr, Register tmp, bool narrow);
-
-  void gc_state_check_c2(MacroAssembler* masm, const char test_state, BarrierStubC2* slow_stub);
   void card_barrier_c2(MacroAssembler* masm, Address dst, Register tmp);
   virtual void try_resolve_weak_handle_in_c2(MacroAssembler* masm, Register obj, Label& slowpath);
 #endif

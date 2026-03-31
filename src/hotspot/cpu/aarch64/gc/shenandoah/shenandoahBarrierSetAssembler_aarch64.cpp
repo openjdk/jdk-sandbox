@@ -697,37 +697,36 @@ Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Addr
   return tmp;
 }
 
-
-void ShenandoahBarrierStubC2::gc_state_check_c2(MacroAssembler* masm, Register gcstate, const unsigned char test_state, ShenandoahBarrierStubC2* slow_stub) {
+void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler* masm, const char test_state) {
   if (ShenandoahGCStateCheckRemove) {
     // Unrealistic: remove all barrier fastpath checks.
   } else if (ShenandoahGCStateCheckHotpatch) {
     // Emit the unconditional branch in the first version of the method.
     // Let the rest of runtime figure out how to manage it.
     __ relocate(barrier_Relocation::spec());
-    __ b(*slow_stub->entry());
+    __ b(*entry());
 
 #ifdef ASSERT
     Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
-    __ ldrb(gcstate, gc_state_fast);
-    __ cbz(gcstate, *slow_stub->continuation());
+    __ ldrb(rscratch1, gc_state_fast);
+    __ cbz(rscratch1, *continuation());
     __ hlt(0); // Correctness bug: barrier is NOP-ed, but heap is NOT IDLE
 #endif
-    __ bind(*slow_stub->continuation());
+    __ bind(*continuation());
   } else {
     int bit_to_check = ShenandoahThreadLocalData::gc_state_to_fast_bit(test_state);
     Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
-    __ ldrb(gcstate, gc_state_fast);
-    if (slow_stub->_test_and_branch_reachable) {
-      __ tbnz(gcstate, bit_to_check, *slow_stub->entry());
+    __ ldrb(rscratch1, gc_state_fast);
+    if (_test_and_branch_reachable) {
+      __ tbnz(rscratch1, bit_to_check, *entry());
     } else {
-      __ tbz(gcstate, bit_to_check, *slow_stub->continuation());
-      __ b(*slow_stub->entry());
+      __ tbz(rscratch1, bit_to_check, *continuation());
+      __ b(*entry());
     }
 
     // This is were the slowpath stub will return to or the code above will
     // jump to if the checks are false
-    __ bind(*slow_stub->continuation());
+    __ bind(*continuation());
   }
 }
 
@@ -808,7 +807,7 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
     check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
     assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node), "Not supported for CAS");
-    ShenandoahBarrierStubC2::gc_state_check_c2(masm, rscratch1, check, stub);
+    stub->enter_if_gc_state(masm, check);
   }
 
   // CAS!
@@ -841,7 +840,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
     assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node), "Not supported for GAS");
-    ShenandoahBarrierStubC2::gc_state_check_c2(masm, rscratch1, check, stub);
+    stub->enter_if_gc_state(masm, check);
   }
 
   if (narrow) {
@@ -869,7 +868,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
     assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier(node), "Should not be required for stores");
     ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, noreg, dst, dst_narrow, /* do_load: */ true, __ offset());
-    ShenandoahBarrierStubC2::gc_state_check_c2(masm, rscratch1, ShenandoahHeap::MARKING, stub);
+    stub->enter_if_gc_state(masm, ShenandoahHeap::MARKING);
   }
 
   // Do the actual store
@@ -930,7 +929,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
     check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node) ? ShenandoahHeap::WEAK_ROOTS : 0;
-    ShenandoahBarrierStubC2::gc_state_check_c2(masm, rscratch1, check, stub);
+    stub->enter_if_gc_state(masm, check);
   }
 }
 

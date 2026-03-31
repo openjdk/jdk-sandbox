@@ -244,9 +244,10 @@ public:
     return (node->barrier_data() & ShenandoahBitNotNull) == 0;
   }
 
-  static void gc_state_check_c2(MacroAssembler* masm, Register rscratch, const unsigned char test_state, ShenandoahBarrierStubC2* slow_stub);
   static ShenandoahBarrierStubC2* create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load, int offset = 0);
   void emit_code(MacroAssembler& masm);
+
+  void enter_if_gc_state(MacroAssembler* masm, const char test_state);
   Label* entry();
 };
 #endif // SHARE_GC_SHENANDOAH_C2_SHENANDOAHBARRIERSETC2_HPP
