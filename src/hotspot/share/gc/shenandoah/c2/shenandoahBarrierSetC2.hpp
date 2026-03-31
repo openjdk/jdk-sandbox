@@ -196,8 +196,13 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   address keepalive_runtime_entry_addr();
   address lrb_runtime_entry_addr();
 
+  void emit_code_actual(MacroAssembler& masm);
+
+  int get_stub_size();
+  void post_init(int offset);
+
 public:
-  ShenandoahBarrierStubC2(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load) :
+  ShenandoahBarrierStubC2(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load, int offset) :
     BarrierStubC2(node),
     _obj(obj),
     _addr(addr),
@@ -207,17 +212,15 @@ public:
     _needs_load_ref_barrier(needs_load_ref_barrier(node)),
     _needs_load_ref_weak_barrier(needs_load_ref_barrier_weak(node)),
     _needs_keep_alive_barrier(needs_keep_alive_barrier(node)),
-    _fastpath_branch_offset(),
+    _fastpath_branch_offset(offset),
     _test_and_branch_reachable(),
     _skip_trampoline(),
     _test_and_branch_reachable_entry(),
     _save_slots_idx(0) {
-
     assert(!ShenandoahSkipBarriers, "Do not touch stubs when disabled");
     assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
+    post_init(offset);
   }
-
-  ShenandoahBarrierStubC2(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load, int offset);
 
   static bool is_heap_access(const MachNode* node) {
     return (node->barrier_data() & ShenandoahBitNative) == 0;
@@ -242,11 +245,8 @@ public:
   }
 
   static void gc_state_check_c2(MacroAssembler* masm, Register rscratch, const unsigned char test_state, ShenandoahBarrierStubC2* slow_stub);
-  static ShenandoahBarrierStubC2* create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load);
-  static ShenandoahBarrierStubC2* create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load, int offset);
+  static ShenandoahBarrierStubC2* create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load, int offset = 0);
   void emit_code(MacroAssembler& masm);
-  void emit_code_actual(MacroAssembler& masm);
-  int get_stub_size();
   Label* entry();
 };
 #endif // SHARE_GC_SHENANDOAH_C2_SHENANDOAHBARRIERSETC2_HPP
