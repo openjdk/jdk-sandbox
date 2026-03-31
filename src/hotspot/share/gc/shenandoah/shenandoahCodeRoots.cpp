@@ -40,6 +40,20 @@
 ShenandoahNMethodTable* ShenandoahCodeRoots::_nmethod_table;
 int ShenandoahCodeRoots::_disarmed_value = 1;
 
+bool ShenandoahCodeRoots::use_nmethod_barriers_for_mark() {
+  // Continuations need nmethod barriers for scanning stack chunk nmethods.
+  if (Continuations::enabled()) return true;
+
+  // Concurrent class unloading needs nmethod barriers.
+  // When a nmethod is about to be executed, we need to make sure that all its
+  // metadata are marked. The alternative is to remark thread roots at final mark
+  // pause, which would cause latency issues.
+  if (ShenandoahHeap::heap()->unload_classes()) return true;
+
+  // Otherwise, we can go without nmethod barriers.
+  return false;
+}
+
 void ShenandoahCodeRoots::initialize() {
   _nmethod_table = new ShenandoahNMethodTable();
 }
@@ -54,27 +68,27 @@ void ShenandoahCodeRoots::unregister_nmethod(nmethod* nm) {
   _nmethod_table->unregister_nmethod(nm);
 }
 
-void ShenandoahCodeRoots::arm_nmethods() {
-  if (ShenandoahGCStateCheckHotpatch) {
-    char gc_state = ShenandoahHeap::heap()->gc_state();
-    log_info(gc)("Arming nmethods with GC state: %d [%s%s%s%s%s%s%s]",
-         gc_state,
-         ((gc_state & ShenandoahHeap::HAS_FORWARDED) > 0) ? "HAS_FORWARDED "  : "",
-         ((gc_state & ShenandoahHeap::MARKING) > 0)       ? "MARKING "        : "",
-         ((gc_state & ShenandoahHeap::EVACUATION) > 0)    ? "EVACUATION "     : "",
-         ((gc_state & ShenandoahHeap::UPDATE_REFS) > 0)   ? "UPDATE_REFS "    : "",
-         ((gc_state & ShenandoahHeap::WEAK_ROOTS) > 0)    ? "WEAK_ROOTS "     : "",
-         ((gc_state & ShenandoahHeap::YOUNG_MARKING) > 0) ? "YOUNG_MARKING "  : "",
-         ((gc_state & ShenandoahHeap::OLD_MARKING) > 0)   ? "OLD_MARKING "    : ""
-    );
+void ShenandoahCodeRoots::arm_nmethods_for_mark() {
+  if (use_nmethod_barriers_for_mark()) {
+    BarrierSet::barrier_set()->barrier_set_nmethod()->arm_all_nmethods();
   }
+}
+
+void ShenandoahCodeRoots::arm_nmethods_for_evac() {
   BarrierSet::barrier_set()->barrier_set_nmethod()->arm_all_nmethods();
 }
 
 class ShenandoahDisarmNMethodClosure : public NMethodClosure {
+private:
+  BarrierSetNMethod* const _bs;
+
 public:
+  ShenandoahDisarmNMethodClosure() :
+    _bs(BarrierSet::barrier_set()->barrier_set_nmethod()) {
+  }
+
   virtual void do_nmethod(nmethod* nm) {
-    ShenandoahNMethod::disarm_nmethod(nm);
+    _bs->disarm(nm);
   }
 };
 
@@ -86,7 +100,9 @@ private:
 public:
   ShenandoahDisarmNMethodsTask() :
     WorkerTask("Shenandoah Disarm NMethods"),
-    _iterator(ShenandoahCodeRoots::table()) {}
+    _iterator(ShenandoahCodeRoots::table()) {
+    assert(SafepointSynchronize::is_at_safepoint(), "Only at a safepoint");
+  }
 
   virtual void work(uint worker_id) {
     ShenandoahParallelWorkerSession worker_session(worker_id);
@@ -95,8 +111,10 @@ public:
 };
 
 void ShenandoahCodeRoots::disarm_nmethods() {
-  ShenandoahDisarmNMethodsTask task;
-  ShenandoahHeap::heap()->workers()->run_task(&task);
+  if (use_nmethod_barriers_for_mark()) {
+    ShenandoahDisarmNMethodsTask task;
+    ShenandoahHeap::heap()->workers()->run_task(&task);
+  }
 }
 
 class ShenandoahNMethodUnlinkClosure : public NMethodClosure {

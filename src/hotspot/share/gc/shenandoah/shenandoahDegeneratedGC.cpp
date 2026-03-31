@@ -36,7 +36,6 @@
 #include "gc/shenandoah/shenandoahMonitoringSupport.hpp"
 #include "gc/shenandoah/shenandoahOldGeneration.hpp"
 #include "gc/shenandoah/shenandoahRootProcessor.inline.hpp"
-#include "gc/shenandoah/shenandoahStackWatermark.hpp"
 #include "gc/shenandoah/shenandoahSTWMark.hpp"
 #include "gc/shenandoah/shenandoahUtils.hpp"
 #include "gc/shenandoah/shenandoahVerifier.hpp"
@@ -285,15 +284,9 @@ void ShenandoahDegenGC::op_degenerated() {
         assert(!heap->cancelled_gc(), "STW reference update can not OOM");
       }
 
-      if (ShenandoahGCStateCheckHotpatch) {
-        // Leaving degenerated GC, we need to flip barriers back to idle.
-        ShenandoahCodeRoots::arm_nmethods();
-        ShenandoahStackWatermark::change_epoch_id();
-      } else {
-        // Disarm nmethods that armed in concurrent cycle.
-        // In above case, update roots should disarm them
-        ShenandoahCodeRoots::disarm_nmethods();
-      }
+      // Disarm nmethods that armed in concurrent cycle.
+      // In above case, update roots should disarm them
+      ShenandoahCodeRoots::disarm_nmethods();
 
       op_cleanup_complete();
 

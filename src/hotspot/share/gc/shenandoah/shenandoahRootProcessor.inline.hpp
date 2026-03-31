@@ -170,8 +170,11 @@ void ShenandoahSTWRootScanner::roots_do(T* oops, uint worker_id) {
 
 template <typename IsAlive, typename KeepAlive>
 void ShenandoahRootUpdater::roots_do(uint worker_id, IsAlive* is_alive, KeepAlive* keep_alive) {
+  NMethodToOopClosure update_nmethods(keep_alive, NMethodToOopClosure::FixRelocations);
   ShenandoahNMethodAndDisarmClosure nmethods_and_disarm_Cl(keep_alive);
-  NMethodToOopClosure* codes_cl = static_cast<NMethodToOopClosure*>(&nmethods_and_disarm_Cl);
+  NMethodToOopClosure* codes_cl = ShenandoahCodeRoots::use_nmethod_barriers_for_mark() ?
+                                  static_cast<NMethodToOopClosure*>(&nmethods_and_disarm_Cl) :
+                                  static_cast<NMethodToOopClosure*>(&update_nmethods);
 
   CLDToOopClosure clds(keep_alive, ClassLoaderData::_claim_strong);
 

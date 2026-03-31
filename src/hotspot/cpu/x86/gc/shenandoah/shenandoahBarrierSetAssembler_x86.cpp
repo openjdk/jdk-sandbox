@@ -34,7 +34,6 @@
 #include "gc/shenandoah/shenandoahRuntime.hpp"
 #include "gc/shenandoah/shenandoahThreadLocalData.hpp"
 #include "interpreter/interpreter.hpp"
-#include "nativeInst_x86.hpp"
 #include "runtime/javaThread.hpp"
 #include "runtime/sharedRuntime.hpp"
 #include "utilities/macros.hpp"
@@ -1020,55 +1019,6 @@ void ShenandoahBarrierSetAssembler::generate_c1_load_reference_barrier_runtime_s
 
 #ifdef COMPILER2
 
-address ShenandoahBarrierSetAssembler::parse_stub_address(address pc) {
-  NativeInstruction* ni = nativeInstruction_at(pc);
-  assert(ni->is_jump(), "Initial code version: GC barrier fastpath must be a jump");
-  NativeJump* jmp = nativeJump_at(pc);
-  return jmp->jump_destination();
-}
-
-void insert_5_byte_nop(address pc) {
-  *(pc + 0) = 0x0F;
-  *(pc + 1) = 0x1F;
-  *(pc + 2) = 0x44;
-  *(pc + 3) = 0x00;
-  *(pc + 4) = 0x00;
-  ICache::invalidate_range(pc, 5);
-}
-
-bool is_5_byte_nop(address pc) {
-  if (*(pc + 0) != 0x0F) return false;
-  if (*(pc + 1) != 0x1F) return false;
-  if (*(pc + 2) != 0x44) return false;
-  if (*(pc + 3) != 0x00) return false;
-  if (*(pc + 4) != 0x00) return false;
-  return true;
-}
-
-void check_at(bool cond, address pc, const char* msg) {
-  assert(cond, "%s: at PC " PTR_FORMAT ": %02x%02x%02x%02x%02x",
-         msg, p2i(pc), *(pc + 0), *(pc + 1), *(pc + 2), *(pc + 3), *(pc + 4));
-}
-
-void ShenandoahBarrierSetAssembler::patch_branch_to_nop(address pc) {
-  NativeInstruction* ni = nativeInstruction_at(pc);
-  if (ni->is_jump()) {
-    insert_5_byte_nop(pc);
-  } else {
-    check_at(is_5_byte_nop(pc), pc, "Should already be nop");
-  }
-}
-
-void ShenandoahBarrierSetAssembler::patch_nop_to_branch(address pc, address stub_addr) {
-  NativeInstruction* ni = nativeInstruction_at(pc);
-  if (is_5_byte_nop(pc)) {
-    NativeJump::insert(pc, stub_addr);
-  } else {
-    check_at(ni->is_jump(), pc, "Should already be jump");
-    check_at(nativeJump_at(pc)->jump_destination() == stub_addr, pc, "Jump should be to the same address");
-  }
-}
-
 #undef __
 #define __ masm->
 
@@ -1236,35 +1186,10 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(MacroAssembler* masm, Addres
 void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
-  if (ShenandoahGCStateCheckRemove) {
-    // Unrealistic: remove all barrier fastpath checks.
-  } else if (ShenandoahGCStateCheckHotpatch) {
-    // Emit the unconditional branch in the first version of the method.
-    // Let the rest of runtime figure out how to manage it.
-    __ relocate(barrier_Relocation::spec());
-    __ jmp(*entry(), /* maybe_short = */ false);
-
-    Label L_done;
-#ifdef ASSERT
-    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ testb(gc_state, 0xFF);
-    __ jccb(Assembler::zero, L_done);
-    __ hlt(); // Correctness bug: barrier is NOP-ed, but heap is NOT IDLE
-#endif
-    __ bind(*continuation());
-// This is futile to assert, because barriers are turned off asynchronously.
-// #ifdef ASSERT
-//     __ testb(gc_state, 0xFF);
-//     __ jccb(Assembler::notZero, L_done);
-//     __ hlt(); // Performance bug: barrier is JMP-ed, but heap is IDLE
-// #endif
-    __ bind(L_done);
-  } else {
-    Address gc_state_fast(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
-    __ testb(gc_state_fast, ShenandoahThreadLocalData::gc_state_to_fast(test_state));
-    __ jcc(Assembler::notZero, *entry());
-    __ bind(*continuation());
-  }
+  Address gc_state_fast(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
+  __ testb(gc_state_fast, ShenandoahThreadLocalData::gc_state_to_fast(test_state));
+  __ jcc(Assembler::notZero, *entry());
+  __ bind(*continuation());
 }
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
@@ -1343,8 +1268,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
   Label L_fast, L_done;
 
   // If another barrier is enabled as well, do a runtime check for a specific barrier.
-  // Hotpatched GC checks only care about idle/non-idle state, so needs a check anyhow.
-  if (_needs_load_ref_barrier || ShenandoahGCStateCheckHotpatch) {
+  if (_needs_load_ref_barrier) {
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ testb(gc_state, ShenandoahHeap::MARKING);
     __ jccb(Assembler::zero, L_done);
@@ -1391,8 +1315,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
   Label L_done;
 
   // If another barrier is enabled as well, do a runtime check for a specific barrier.
-  // Hotpatched GC checks only care about idle/non-idle state, so needs a check anyhow.
-  if (_needs_keep_alive_barrier || ShenandoahGCStateCheckHotpatch) {
+  if (_needs_keep_alive_barrier) {
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0));
     __ jccb(Assembler::zero, L_done);

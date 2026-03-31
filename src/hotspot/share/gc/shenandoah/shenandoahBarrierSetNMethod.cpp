@@ -72,6 +72,6 @@ bool ShenandoahBarrierSetNMethod::nmethod_entry_barrier(nmethod* nm) {
   nm->mark_as_maybe_on_stack();
 
   // Disarm
-  ShenandoahNMethod::disarm_nmethod_unlocked(nm);
+  ShenandoahNMethod::disarm_nmethod(nm);
   return true;
 }

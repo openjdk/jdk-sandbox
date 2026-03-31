@@ -722,7 +722,8 @@ void ShenandoahConcurrentGC::op_init_mark() {
   OrderAccess::fence();
 
   // Arm nmethods for concurrent mark
-  ShenandoahCodeRoots::arm_nmethods();
+  ShenandoahCodeRoots::arm_nmethods_for_mark();
+
   ShenandoahStackWatermark::change_epoch_id();
 
   {
@@ -763,9 +764,7 @@ void ShenandoahConcurrentGC::op_final_mark() {
     // Has to be done after cset selection
     heap->prepare_concurrent_roots();
 
-    // ShenandoahGCStateCheckHotpatch: we need full cycle to patch barriers back to idle.
-    // final-roots is pauseless, so there is no way to arm barriers.
-    if (ShenandoahGCStateCheckHotpatch || !heap->collection_set()->is_empty()) {
+    if (!heap->collection_set()->is_empty()) {
       LogTarget(Debug, gc, cset) lt;
       if (lt.is_enabled()) {
         ResourceMark rm;
@@ -783,7 +782,7 @@ void ShenandoahConcurrentGC::op_final_mark() {
       heap->set_has_forwarded_objects(true);
 
       // Arm nmethods/stack for concurrent processing
-      ShenandoahCodeRoots::arm_nmethods();
+      ShenandoahCodeRoots::arm_nmethods_for_evac();
       ShenandoahStackWatermark::change_epoch_id();
 
     } else {
@@ -1029,7 +1028,7 @@ public:
     // nmethod_entry_barrier
     ShenandoahEvacOOMScope oom;
     data->oops_do(&_cl, true/*fix relocation*/);
-    ShenandoahNMethod::disarm_nmethod_unlocked(n);
+    _bs->disarm(n);
   }
 };
 
@@ -1218,12 +1217,6 @@ void ShenandoahConcurrentGC::op_final_update_refs() {
   heap->rebuild_free_set(true /*concurrent*/);
   _generation->heuristics()->start_idle_span();
 
-  if (ShenandoahGCStateCheckHotpatch) {
-    // Final pause: update GC barriers to idle state.
-    ShenandoahCodeRoots::arm_nmethods();
-    ShenandoahStackWatermark::change_epoch_id();
-  }
-
   {
     ShenandoahTimingsTracker timing(ShenandoahPhaseTimings::final_update_refs_propagate_gc_state);
     heap->propagate_gc_state_to_all_threads();
@@ -1280,11 +1273,6 @@ void ShenandoahConcurrentGC::op_reset_after_collect() {
     }
   } else {
     _generation->reset_mark_bitmap<false>();
-  }
-
-  // Also go and disable all barriers in all current nmethods.
-  if (ShenandoahGCStateCheckHotpatch) {
-    ShenandoahCodeRoots::disarm_nmethods();
   }
 }
 

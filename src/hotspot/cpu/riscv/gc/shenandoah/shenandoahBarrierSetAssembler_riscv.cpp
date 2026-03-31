@@ -802,20 +802,14 @@ void ShenandoahBarrierStubC2::gc_state_check_c2(MacroAssembler* masm,
                                                 Register gcstate,
                                                 const unsigned char test_state,
                                                 ShenandoahBarrierStubC2* slow_stub) {
-  if (ShenandoahGCStateCheckRemove) {
-    // Unrealistic: remove all barrier fastpath checks.
-  } else if (ShenandoahGCStateCheckHotpatch) {
-    __ nop();
-  } else {
-    int bit_to_check = ShenandoahThreadLocalData::gc_state_to_fast_bit(test_state);
-    Address gc_state_fast(xthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
-    __ lbu(gcstate, gc_state_fast);
-    __ test_bit(gcstate, gcstate, bit_to_check);
-    __ bnez(gcstate, *slow_stub->entry());
+  int bit_to_check = ShenandoahThreadLocalData::gc_state_to_fast_bit(test_state);
+  Address gc_state_fast(xthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
+  __ lbu(gcstate, gc_state_fast);
+  __ test_bit(gcstate, gcstate, bit_to_check);
+  __ bnez(gcstate, *slow_stub->entry());
 
-    // Fast path falls through here when the barrier is not needed.
-    __ bind(*slow_stub->continuation());
-  }
+  // Fast path falls through here when the barrier is not needed.
+  __ bind(*slow_stub->continuation());
 }
 
 void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr,
@@ -960,7 +954,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
 }
 
 void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroAssembler* masm, Address address) {
-  if (ShenandoahSkipBarriers || (node->barrier_data() & ShenandoahBitCardMark) == 0) {
+  if (!ShenandoahBarrierStubC2::needs_card_table_barrier(node)) {
     return;
   }
 

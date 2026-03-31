@@ -37,11 +37,6 @@
 typedef ShenandoahReentrantLock<ShenandoahSimpleLock> ShenandoahNMethodLock;
 typedef ShenandoahLocker<ShenandoahNMethodLock>       ShenandoahNMethodLocker;
 
-struct ShenandoahNMethodBarrier {
-  address _pc;
-  address _stub_addr;
-};
-
 // ShenandoahNMethod tuple records the internal locations of oop slots within reclocation stream in
 // the nmethod. This allows us to quickly scan the oops without doing the nmethod-internal scans,
 // that sometimes involves parsing the machine code. Note it does not record the oops themselves,
@@ -51,15 +46,13 @@ private:
   nmethod* const          _nm;
   oop**                   _oops;
   int                     _oops_count;
-  ShenandoahNMethodBarrier* _barriers;
-  int                     _barriers_count;
   bool                    _has_non_immed_oops;
   bool                    _unregistered;
   ShenandoahNMethodLock   _lock;
   ShenandoahNMethodLock   _ic_lock;
 
 public:
-  ShenandoahNMethod(nmethod *nm, GrowableArray<oop*>& oops, bool has_non_immed_oops, GrowableArray<ShenandoahNMethodBarrier>& barriers);
+  ShenandoahNMethod(nmethod *nm, GrowableArray<oop*>& oops, bool has_non_immed_oops);
   ~ShenandoahNMethod();
 
   inline nmethod* nm() const;
@@ -68,8 +61,6 @@ public:
   inline void oops_do(OopClosure* oops, bool fix_relocations = false);
   // Update oops when the nmethod is re-registered
   void update();
-
-  void update_barriers();
 
   inline bool is_unregistered() const;
 
@@ -80,7 +71,6 @@ public:
   static void heal_nmethod(nmethod* nm);
   static inline void heal_nmethod_metadata(ShenandoahNMethod* nmethod_data);
   static inline void disarm_nmethod(nmethod* nm);
-  static inline void disarm_nmethod_unlocked(nmethod* nm);
 
   static inline ShenandoahNMethod* gc_data(nmethod* nm);
   static inline void attach_gc_data(nmethod* nm, ShenandoahNMethod* gc_data);
@@ -89,7 +79,7 @@ public:
   void assert_same_oops() NOT_DEBUG_RETURN;
 
 private:
-  static void parse(nmethod* nm, GrowableArray<oop*>& oops, bool& _has_non_immed_oops, GrowableArray<ShenandoahNMethodBarrier>& barriers);
+  static void detect_reloc_oops(nmethod* nm, GrowableArray<oop*>& oops, bool& _has_non_immed_oops);
 };
 
 class ShenandoahNMethodTable;
