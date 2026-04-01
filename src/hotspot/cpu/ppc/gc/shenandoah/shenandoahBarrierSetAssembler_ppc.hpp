@@ -40,6 +40,12 @@ class StubAssembler;
 
 #endif
 
+#ifdef COMPILER2
+
+class MachNode;
+
+#endif
+
 class StubCodeGenerator;
 
 class ShenandoahBarrierSetAssembler: public BarrierSetAssembler {
@@ -122,7 +128,25 @@ public:
 
   virtual void try_resolve_jobject_in_native(MacroAssembler* masm, Register dst, Register jni_env,
                                              Register obj, Register tmp, Label& slowpath);
+
 #ifdef COMPILER2
+  // Entry points from Matcher
+  void load_c2(const MachNode* node, MacroAssembler* masm,
+               Register dst, Address addr);
+
+  void store_c2(const MachNode* node, MacroAssembler* masm,
+                Address dst, bool dst_narrow, Register src, bool src_narrow);
+
+  void compare_and_set_c2(const MachNode* node, MacroAssembler* masm,
+                          Register res, Register addr, Register oldval,
+                          Register newval, bool exchange, bool narrow, bool weak);
+
+  void get_and_set_c2(const MachNode* node, MacroAssembler* masm,
+                      Register preval, Register newval, Register addr);
+
+  void card_barrier_c2(const MachNode* node, MacroAssembler* masm,
+                       Address addr);
+
   virtual void try_resolve_weak_handle_in_c2(MacroAssembler* masm, Register obj, Register tmp, Label& slow_path);
 #endif
 };
