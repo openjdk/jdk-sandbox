@@ -799,6 +799,71 @@ static bool needs_acquiring_load_reserved(const MachNode* n) {
 #undef __
 #define __ masm.
 
+bool ShenandoahBarrierStubC2::push_save_register_if_live(MacroAssembler& masm, Register reg) {
+  if (is_live(reg)) {
+    push_save_register(masm, reg);
+    return true;
+  } else {
+    return false;
+  }
+}
+
+void ShenandoahBarrierStubC2::push_save_register(MacroAssembler& masm, Register reg) {
+  __ sw(reg, Address(sp, push_save_slot()));
+}
+
+void ShenandoahBarrierStubC2::pop_save_register(MacroAssembler& masm, Register reg) {
+  __ ld(reg, Address(sp, pop_save_slot()));
+}
+
+bool ShenandoahBarrierStubC2::is_live(Register reg) {
+  // TODO: Precompute the generic register map for faster lookups.
+  RegMaskIterator rmi(preserve_set());
+  while (rmi.has_next()) {
+    const OptoReg::Name opto_reg = rmi.next();
+    const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
+    if (vm_reg->is_Register() && reg == vm_reg->as_Register()) {
+      return true;
+    }
+  }
+  return false;
+}
+
+Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Address addr, Register reg1) {
+  Register tmp = noreg;
+  Register fallback_live = noreg;
+
+  // Try to select non-live first:
+  for (int i = 0; i < Register::available_gp_registers(); i++) {
+    Register r = as_Register(i);
+    if (r != fp && r != sp &&
+        r != xheapbase && r != xthread &&
+        r != t0 && r != t1 &&
+        r != reg1 && r != addr.base() && r != addr.index()) {
+      if (!is_live(r)) {
+        tmp = r;
+        break;
+      } else if (fallback_live == noreg) {
+        fallback_live = r;
+      }
+    }
+  }
+
+  // If we could not find a non-live register, select the live fallback:
+  if (tmp == noreg) {
+    tmp = fallback_live;
+    selected_live = true;
+  } else {
+    selected_live = false;
+  }
+
+  assert(tmp != noreg, "successfully selected");
+  assert_different_registers(tmp, reg1);
+  assert_different_registers(tmp, addr.base());
+  assert_different_registers(tmp, addr.index());
+  return tmp;
+}
+
 void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state) {
   int bit_to_check = ShenandoahThreadLocalData::gc_state_to_fast_bit(test_state);
   Address gc_state_fast(xthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
@@ -1013,7 +1078,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
     __ beqz(_obj, L_done);
   }
 
-  keepalive(masm, _obj, t0, t1);
+  keepalive(masm, _obj, t0);
 
   lrb(masm, _obj, _addr, noreg);
 
@@ -1034,7 +1099,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ j(*continuation());
 }
 
-void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Register tmp1, Register tmp2) {
+void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Register tmp1) {
   Address index(xthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(xthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
   Label L_runtime;
@@ -1058,6 +1123,12 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
   __ ld(tmp1, index);
   __ beqz(tmp1, L_runtime);
 
+  bool selected_live = false;
+  Register tmp2 = select_temp_register(selected_live, _addr, obj);
+  if (selected_live) {
+    push_save_register(masm, tmp2);
+  }
+
   // Push into SATB queue.
   __ subi(tmp1, tmp1, wordSize);
   __ sd(tmp1, index);
@@ -1077,6 +1148,10 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
   }
 
   __ bind(L_done);
+
+  if (selected_live) {
+    pop_save_register(masm, tmp2);
+  }
 }
 
 void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address addr, Register tmp) {
