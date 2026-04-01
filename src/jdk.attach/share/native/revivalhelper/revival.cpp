@@ -424,7 +424,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
     logv("mappings_file_read: revival data version %s", s1);
 
     // Read corefile details:
-    e = fscanf(f, "core %1024s %32s %128s\n", s1 /* core filename */, s2 /* length */, s3 /* possible checksum */); 
+    e = fscanf(f, "core %1024s %32s %128s\n", s1 /* core filename */, s2 /* length */, s3 /* possible checksum */);
     if (e != 3) {
         warn("mappings_file_read: unrecognised core file info in: %s", mappings_filename);
         return -1;
@@ -512,13 +512,12 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
             size_t offset = strtoul(s4, &endptr, 16);
             size_t length_file = strtoul(s5, &endptr, 16);
             if (length != length_file) {
-                // warn("revival: 1 and length in file not implemented");
+                logv("revival: differing length in memory and length in file not implemented (file size ignored)");
             }
             const char* danger = dangerous(vaddr, length);
             if (danger != nullptr) {
-                warn("revival: danger, skipping (%s): %p - %p len=%zx", danger, vaddr, (void*) ((unsigned long long) vaddr + length), length);
+                warn("revival: conflict: %p - %p len=%zx: %s", vaddr, (void*) ((unsigned long long) vaddr + length), length, danger);
                 exitForRetry();
-                continue;
             }
             if (strncmp(s1, "M", 1) == 0) {
                 // Map memory from core:
