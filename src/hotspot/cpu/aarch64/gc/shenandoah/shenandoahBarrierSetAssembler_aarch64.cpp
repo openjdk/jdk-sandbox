@@ -916,10 +916,17 @@ static bool aarch64_test_and_branch_reachable(int branch_offset, int target_offs
 }
 
 void ShenandoahBarrierStubC2::post_init(int offset) {
+  // If we are in scratch emit mode we assume worst case,
+  // and use no trampolines.
+  PhaseOutput* const output = Compile::current()->output();
+  if (output->in_scratch_emit_size()) {
+    return;
+  }
+
   // Assume that each trampoline is one single instruction and that the stubs
   // will follow immediately after the _code section. We emit trampolines until
   // we can no longer do it.
-  const int code_size = Compile::current()->output()->buffer_sizing_data()->_code;
+  const int code_size = output->buffer_sizing_data()->_code;
   const int trampoline_offset = trampoline_stubs_count() * NativeInstruction::instruction_size;
   _use_trampoline = aarch64_test_and_branch_reachable(_fastpath_branch_offset, code_size + trampoline_offset);
   if (_use_trampoline) {
