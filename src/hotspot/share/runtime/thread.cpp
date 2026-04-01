@@ -579,6 +579,8 @@ bool Thread::set_as_starting_thread(JavaThread* jt) {
 
 jboolean Thread::_revived_vm = false;
 
+#define REVIVAL_MAGIC 0x2e6e656b6e617266
+#define REVIVAL_VERSION 1
 struct revival_data {
   uint64_t magic;
   uint64_t version;
@@ -598,7 +600,6 @@ struct revival_data {
   void* vm_thread;
   void* tty;
   void* parse_and_execute;
-  void* throwable_print;
   void* info1;
   void* info2;
   void* info3;
@@ -606,7 +607,6 @@ struct revival_data {
 
 struct revival_data vm_revival_data;
 
-// VM Process Revival
 void* Thread::process_revival() {
   _revived_vm = true;
 #ifdef LINUX
@@ -631,10 +631,9 @@ void* Thread::process_revival() {
   if (c == nullptr) {
     return nullptr;
   }
+  // Reset some VM state/options:
   ostream_revive(); // Fix tty
-  // Set flag that we are at a Safepoint:
   SafepointSynchronize::set_is_at_safepoint();
-  // VM options:
   DisplayVMOutput = 1;
   LogVMOutput = 0;
   NativeMemoryTracking = nullptr;
@@ -643,8 +642,8 @@ void* Thread::process_revival() {
 
   struct revival_data* rdata = &vm_revival_data;
   memset(&vm_revival_data, 0, sizeof(struct revival_data));
-  rdata->magic = 0x100000001;
-  rdata->version = 0x1;
+  rdata->magic = REVIVAL_MAGIC;
+  rdata->version = REVIVAL_VERSION;
   rdata->size_this = sizeof(vm_revival_data);
   rdata->status = 1;
 
@@ -662,7 +661,6 @@ void* Thread::process_revival() {
   rdata->tty = tty;
 
   rdata->parse_and_execute = (void*) &DCmd::parse_and_execute;
-  rdata->throwable_print = (void*) &java_lang_Throwable::print;
   return (void*) rdata;
 }
 

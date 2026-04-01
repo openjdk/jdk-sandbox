@@ -884,11 +884,14 @@ int revive_image_cooperative() {
         return -1;
     }
     // Verify revival data from JVM:
+    if (rdata->magic != REVIVAL_MAGIC) {
+        error("revival: VM returns unrecognized data: %llx", (unsigned long long) rdata->magic);
+    }
     if (rdata->version == 0 || rdata->version > REVIVAL_VERSION) {
-        error("revival data: bad version: %llx", (unsigned long long) rdata->version);
+        error("revival: VM returns unrecognised data version: %llx", (unsigned long long) rdata->version);
     }
     if (rdata->size_this != sizeof(struct revival_data)) {
-        warn("revival data: size mismatch, this helper %ld VM data claims %ld", sizeof(struct revival_data), rdata->size_this);
+        warn("revival: VM data size mismatch, this helper %ld VM data claims %ld", sizeof(struct revival_data), rdata->size_this);
     }
     logv("revive_image: revival_data 0x%llx 0x%llx", (unsigned long long) rdata->magic, (unsigned long long) rdata->version);
     logv("revive_image: revival_data %s / %s / %s / %s", rdata->runtime_name, rdata->runtime_version, rdata->runtime_vendor_version,
