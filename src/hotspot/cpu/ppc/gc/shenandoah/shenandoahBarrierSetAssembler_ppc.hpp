@@ -129,6 +129,8 @@ public:
   virtual void try_resolve_jobject_in_native(MacroAssembler* masm, Register dst, Register jni_env,
                                              Register obj, Register tmp, Label& slowpath);
 
+  virtual void try_resolve_weak_handle(MacroAssembler* masm, Register obj, Register tmp, Label& slow_path);
+
 #ifdef COMPILER2
   // Entry points from Matcher
   void load_c2(const MachNode* node, MacroAssembler* masm,
@@ -146,8 +148,7 @@ public:
 
   void card_barrier_c2(const MachNode* node, MacroAssembler* masm,
                        Address addr);
-
-  virtual void try_resolve_weak_handle(MacroAssembler* masm, Register obj, Register tmp, Label& slow_path);
+#endif // COMPILER2
 };
 
 #endif // CPU_PPC_GC_SHENANDOAH_SHENANDOAHBARRIERSETASSEMBLER_PPC_HPP
