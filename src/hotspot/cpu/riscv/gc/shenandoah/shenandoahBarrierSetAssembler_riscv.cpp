@@ -992,6 +992,8 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroA
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
 
+  Label L_done;
+
   // Stub entry
   __ bind(*BarrierStubC2::entry());
 
@@ -1008,7 +1010,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
 
   if (_do_load || _maybe_null) {
-    __ beqz(_obj, *continuation());
+    __ beqz(_obj, L_done);
   }
 
   keepalive(masm, _obj, t0, t1);
@@ -1028,6 +1030,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
 
   // Go back to fast path
+  __ bind(L_done);
   __ j(*continuation());
 }
 
