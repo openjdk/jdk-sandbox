@@ -828,7 +828,7 @@ ShenandoahBarrierStubC2* ShenandoahBarrierStubC2::create(const MachNode* node, R
 }
 
 address ShenandoahBarrierStubC2::keepalive_runtime_entry_addr() {
-#if defined(AMD64) || defined(AARCH64)
+#if defined(AMD64) || defined(AARCH64) || defined(RISCV64)
   return SharedRuntime::shenandoah_keepalive();
 #endif
   assert(false, "sanity");
@@ -841,7 +841,7 @@ address ShenandoahBarrierStubC2::lrb_runtime_entry_addr() {
   bool is_phantom = (_node->barrier_data() & ShenandoahBitPhantom) != 0;
 
 // TODO: Remove once platforms migrate to runtime stubs.
-#if defined(AMD64) || defined(AARCH64)
+#if defined(AMD64) || defined(AARCH64) || defined(RISCV64)
   if (_narrow) {
     if (is_strong) {
       return SharedRuntime::shenandoah_lrb_strong_narrow();
