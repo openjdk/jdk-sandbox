@@ -706,8 +706,8 @@ void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char
   int bit_to_check = ShenandoahThreadLocalData::gc_state_to_fast_bit(test_state);
   Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
   __ ldrb(rscratch1, gc_state_fast);
-  if (_test_and_branch_reachable) {
-    __ tbnz(rscratch1, bit_to_check, _test_and_branch_reachable_entry);
+  if (_use_trampoline) {
+    __ tbnz(rscratch1, bit_to_check, _trampoline_entry);
   } else {
     __ tbz(rscratch1, bit_to_check, *continuation());
     __ b(*entry());
@@ -908,99 +908,42 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroA
 #define __ masm.
 
 // Only handles forward branch jumps, target_offset >= branch_offset
-// FIXME: copied verbatim from ZGC, duplicated code.
 static bool aarch64_test_and_branch_reachable(int branch_offset, int target_offset) {
   assert(branch_offset >= 0, "branch to stub offsets must be positive");
   assert(target_offset >= 0, "offset in stubs section must be positive");
   assert(target_offset >= branch_offset, "forward branches only, branch_offset -> target_offset");
-
-  const int test_and_branch_delta_limit = 32 * K;
-
-  const int test_and_branch_to_trampoline_delta = target_offset - branch_offset;
-
-  return test_and_branch_to_trampoline_delta < test_and_branch_delta_limit;
+  return (target_offset - branch_offset) < (int)(32*K);
 }
 
 void ShenandoahBarrierStubC2::post_init(int offset) {
-  // If we are in scratch emit mode we assume worse case by leaving
-  // _test_and_branch_reachable false.
-  PhaseOutput* const output = Compile::current()->output();
-  if (output->in_scratch_emit_size()) {
-    return;
-  }
-
   // Assume that each trampoline is one single instruction and that the stubs
-  // will follow immediatelly after the _code section. Therefore, we are
-  // checking if the distance between the fastpath branch and the
-  // trampoline/entry of the current Stub is less than 32K.
-  const int code_size = output->buffer_sizing_data()->_code;
+  // will follow immediately after the _code section. We emit trampolines until
+  // we can no longer do it.
+  const int code_size = Compile::current()->output()->buffer_sizing_data()->_code;
   const int trampoline_offset = trampoline_stubs_count() * NativeInstruction::instruction_size;
-  _test_and_branch_reachable = aarch64_test_and_branch_reachable(_fastpath_branch_offset, code_size + trampoline_offset);
-  if (_test_and_branch_reachable) {
+  _use_trampoline = aarch64_test_and_branch_reachable(_fastpath_branch_offset, code_size + trampoline_offset);
+  if (_use_trampoline) {
     inc_trampoline_stubs_count();
   }
 }
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
-  // If we reach here with _skip_trampoline set it means that earlier we
-  // emitted a trampoline to this stub and now we need to emit the actual stub.
-  if (_skip_trampoline) {
+  if (_do_emit_actual) {
     emit_code_actual(masm);
-  } else {
-    _skip_trampoline = true;
-
-    // The fastpath executes two branch instructions to reach this stub, let's
-    // just emit the stub here and not add a third one.
-    if (!_test_and_branch_reachable) {
-      // By registering the stub again, after setting _skip_trampoline, we'll
-      // effectivelly cause the stub to be emitted the next time ::emit_code is
-      // called.
-      ShenandoahBarrierStubC2::register_stub(this);
-      return;
-    }
-
-    // This is entry point when coming from fastpath, IFF it's able to reach here
-    // with a test and branch instruction, otherwise the entry is
-    // ShenandoahBarrierStubC2::entry();
-    const int target_offset = __ offset();
-    __ bind(_test_and_branch_reachable_entry);
-
-    #ifdef ASSERT
-      // Current assumption is that the barrier stubs are the first stubs emitted
-      // after the actual code
-      PhaseOutput* const output = Compile::current()->output();
-      assert(stubs_start_offset() <= output->buffer_sizing_data()->_code, "stubs are assumed to be emitted directly after code and code_size is a hard limit on where it can start");
-      assert(aarch64_test_and_branch_reachable(_fastpath_branch_offset, target_offset), "trampoline should be reachable");
-    #endif
-
-    // Next fastpath branch's offset is unknown, but it's > current _fastpath_branch_offset
-    const int next_branch_offset = _fastpath_branch_offset + NativeInstruction::instruction_size;
-
-    // If emitting the current stub directly does not interfere with emission of
-    // the next potential trampoline then do it to avoid executing additional
-    // branch when coming from fastpath.
-    if (aarch64_test_and_branch_reachable(next_branch_offset, target_offset + get_stub_size())) {
-      emit_code_actual(masm);
-    } else {
-      __ b(*entry());
-      // By registering the stub again, after setting _skip_trampoline to true,
-      // we'll effectivelly cause the stub to be emitted the next time
-      // ::emit_code is called.
-      ShenandoahBarrierStubC2::register_stub(this);
-    }
+    return;
   }
-}
 
-int ShenandoahBarrierStubC2::get_stub_size() {
-  PhaseOutput* const output = Compile::current()->output();
-  assert(!output->in_scratch_emit_size(), "only used when emitting stubs");
-  BufferBlob* const blob = output->scratch_buffer_blob();
-  CodeBuffer cb(blob->content_begin(), (address)output->scratch_locs_memory() - blob->content_begin());
-  MacroAssembler masm(&cb);
-  output->set_in_scratch_emit_size(true);
-  emit_code_actual(masm);
-  output->set_in_scratch_emit_size(false);
-  return cb.insts_size();
+  if (_use_trampoline) {
+    // Emit the trampoline and jump to real entry.
+    const int target_offset = __ offset();
+    assert(aarch64_test_and_branch_reachable(_fastpath_branch_offset, target_offset), "trampoline should be reachable");
+    __ bind(_trampoline_entry);
+    __ b(*entry());
+  }
+
+  // Do it again, this time with actual emits.
+  _do_emit_actual = true;
+  ShenandoahBarrierStubC2::register_stub(this);
 }
 
 void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
@@ -1008,9 +951,7 @@ void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
 
   Label L_done;
 
-  if (!Compile::current()->output()->in_scratch_emit_size()) {
-    __ bind(*entry());
-  }
+  __ bind(*entry());
 
   // If we need to load ourselves, do it here.
   bool selected_live = false;

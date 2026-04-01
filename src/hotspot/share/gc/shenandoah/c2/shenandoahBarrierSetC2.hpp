@@ -174,9 +174,9 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   const bool _needs_load_ref_weak_barrier;
   const bool _needs_keep_alive_barrier;
   const int _fastpath_branch_offset;
-  bool _test_and_branch_reachable;
-  bool _skip_trampoline;
-  Label _test_and_branch_reachable_entry;
+  bool _use_trampoline;
+  Label _trampoline_entry;
+  bool _do_emit_actual;
   int  _save_slots_idx;
 
   static void register_stub(ShenandoahBarrierStubC2* stub);
@@ -205,7 +205,6 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
 
   void emit_code_actual(MacroAssembler& masm);
 
-  int get_stub_size();
   void post_init(int offset);
 
 public:
@@ -220,9 +219,9 @@ public:
     _needs_load_ref_weak_barrier(needs_load_ref_barrier_weak(node)),
     _needs_keep_alive_barrier(needs_keep_alive_barrier(node)),
     _fastpath_branch_offset(offset),
-    _test_and_branch_reachable(),
-    _skip_trampoline(),
-    _test_and_branch_reachable_entry(),
+    _use_trampoline(),
+    _trampoline_entry(),
+    _do_emit_actual(),
     _save_slots_idx(0) {
     assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
     post_init(offset);

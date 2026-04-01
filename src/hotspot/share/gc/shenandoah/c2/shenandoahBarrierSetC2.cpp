@@ -757,9 +757,12 @@ int ShenandoahBarrierSetC2::estimate_stub_size() const {
 
 void ShenandoahBarrierSetC2::emit_stubs(CodeBuffer& cb) const {
   MacroAssembler masm(&cb);
-  GrowableArray<ShenandoahBarrierStubC2*>* const stubs = barrier_set_state()->stubs();
+
+  PhaseOutput* const output = Compile::current()->output();
+  assert(masm.offset() <= output->buffer_sizing_data()->_code,
+         "Stubs are assumed to be emitted directly after code and code_size is a hard limit on where it can start");
   barrier_set_state()->set_stubs_start_offset(masm.offset());
-  barrier_set_state()->set_save_slots_stack_offset(Compile::current()->output()->gc_barrier_save_slots_offset_in_bytes());
+  barrier_set_state()->set_save_slots_stack_offset(output->gc_barrier_save_slots_offset_in_bytes());
 
   // Stub generation uses nested skipped counters that can double-count.
   // Calculate the actual skipped amount by the real PC before/after stub generation.
@@ -767,6 +770,7 @@ void ShenandoahBarrierSetC2::emit_stubs(CodeBuffer& cb) const {
   int offset_before = masm.offset();
   int skipped_before = masm.get_skipped();
 
+  GrowableArray<ShenandoahBarrierStubC2*>* const stubs = barrier_set_state()->stubs();
   for (int i = 0; i < stubs->length(); i++) {
     // Make sure there is enough space in the code buffer
     if (cb.insts()->maybe_expand_to_ensure_remaining(PhaseOutput::MAX_inst_size) && cb.blob() == nullptr) {
