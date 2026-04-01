@@ -402,23 +402,31 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
     int e = 0;
     char s1[BUFLEN];
     char s2[BUFLEN];
+    char s3[BUFLEN];
     int lines = 0;
     int M_count = 0;
     int MtoC_count = 0;
     int m_count = 0;
     int C_count = 0;
-    memset(s1, 0, BUFLEN);
 
     FILE* f = fopen(mappings_filename, "r");
     if (!f) {
         warn("cannot open: '%s': %s", mappings_filename, strerror(errno));
         return -1;
     }
-    // Read corefile details:
     // Use generous sizes for scanf string destinations, easily within BUFLEN.
-    e = fscanf(f, "core %1024s %32s\n", s1 /* core filename */, s2 /* length */); 
-    if (e != 2) {
+    // Read header:
+    e = fscanf(f, "revival %32s\n", s1 /* version */);
+    if (e != 1) {
         warn("mappings_file_read: unrecognised header in: %s", mappings_filename);
+        return -1;
+    }
+    logv("mappings_file_read: revival data version %s", s1);
+
+    // Read corefile details:
+    e = fscanf(f, "core %1024s %32s %128s\n", s1 /* core filename */, s2 /* length */, s3 /* possible checksum */); 
+    if (e != 3) {
+        warn("mappings_file_read: unrecognised core file info in: %s", mappings_filename);
         return -1;
     }
     lines++;
@@ -463,7 +471,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
         char s5[BUFLEN];
         char s6[BUFLEN];
         char s7[BUFLEN];
-        e = fscanf(f, "L %32s %32s %32s\n", s1, s2, s3);
+        e = fscanf(f, "L %32s %32s %128s\n", s1, s2, s3);
         if (e == 3) {
             void* vaddr = (void*) strtoull(s2, nullptr, 16);
             logv("Load library '%s' required at %p...", s1, vaddr);
@@ -798,7 +806,7 @@ char* find_filename_in_libdir(const char* libdir, const char* filename) {
 
 int mappings_file_create(const char* dirname, const char* corename) {
 // Create file and header lines:
-// core FILENAME size
+// core FILENAME size 0 (0 is placeholder for possible checksum)
 // time 123213123
 //
 // Shared libraries written later:
@@ -815,10 +823,12 @@ int mappings_file_create(const char* dirname, const char* corename) {
         warn("mappings_file_create failed: %s: %s", buf, strerror(errno));
         return fd;
     }
-
+    // Header:
+    snprintf(buf, BUFLEN, "revival %d\n", REVIVAL_VERSION);
+    write0(fd, buf);
     // Write core file details.  Use base filename (no path), as it can be moved.
     unsigned long long coresize = file_size(corename);
-    snprintf(buf, BUFLEN, "core %s %lld\n", basename_pd((char*) corename), coresize);
+    snprintf(buf, BUFLEN, "core %s %lld 0\n", basename_pd((char*) corename), coresize);
     write0(fd, buf);
     snprintf(buf, BUFLEN, "time %llu\n", file_time(corename));
     write0(fd, buf);
