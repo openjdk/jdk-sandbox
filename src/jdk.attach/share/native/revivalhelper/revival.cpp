@@ -435,10 +435,9 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
     unsigned long long parsedSize = strtoull(s2, nullptr, 10);
     unsigned long long coresize = file_size(corename);
     if ((unsigned long long) coresize != parsedSize) {
-        error("%s: revival data recorded core size %lld, actual file size %lld", core_filename, parsedSize, coresize);
+        error("%s: error: size mismatch.  revival data recorded core size %lld, actual file size %lld", core_filename, parsedSize, coresize);
     }
 
-    // time:
     // timestamp from core file is used for time of crash if nothing better is available from VM.  millis since epoch.
     core_timestamp = 0;
     e = fscanf(f, "time %32s\n", s1);
