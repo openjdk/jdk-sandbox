@@ -1237,7 +1237,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   // Go for barriers. If both barriers are required (rare), do a runtime check for enabled barrier.
   if (_needs_keep_alive_barrier) {
-    keepalive(masm, _obj, tmp, noreg);
+    keepalive(masm, _obj, tmp);
   }
   if (_needs_load_ref_barrier) {
     lrb(masm, _obj, _addr, tmp);
@@ -1261,7 +1261,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ jmp(L_done);
 }
 
-void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Register tmp1, Register tmp2) {
+void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Register tmp1) {
   Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
 

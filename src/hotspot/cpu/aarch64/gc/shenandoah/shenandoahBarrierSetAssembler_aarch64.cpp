@@ -953,66 +953,62 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   ShenandoahBarrierStubC2::register_stub(this);
 }
 
-void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
-  assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
-
-  Label L_done;
-
-  __ bind(*entry());
-
-  // If we need to load ourselves, do it here.
-  bool selected_live = false;
+void ShenandoahBarrierStubC2::load_and_decode(MacroAssembler& masm, Label& target_if_null) {
   if (_do_load) {
-    _obj = select_temp_register(selected_live, _addr, noreg);
-    if (selected_live) {
-      push_save_register(masm, _obj);
-    }
+    // Fastpath sets _obj==noreg if it tells the slowpath to do the load
+    _obj = rscratch2;
 
     // This does the load and the decode if necessary
     __ load_heap_oop(_obj, _addr, noreg, noreg, AS_RAW);
-  }
 
-  // If object is narrow, we need to decode it first: barrier checks need full oops.
-  if (!_do_load && _narrow) {
+    __ cbz(_obj, target_if_null);
+  } else {
+    // If object is narrow, we need to decode it because everything else later
+    // will need full oops.
+    if (_narrow) {
+      if (_maybe_null) {
+        __ decode_heap_oop(_obj);
+      } else {
+        __ decode_heap_oop_not_null(_obj);
+      }
+    }
+
     if (_maybe_null) {
-      __ decode_heap_oop(_obj);
-    } else {
-      __ decode_heap_oop_not_null(_obj);
+      __ cbz(_obj, target_if_null);
     }
   }
+}
 
-  if (_do_load || _maybe_null) {
-    __ cbz(_obj, L_done);
-  }
-
-  keepalive(masm, _obj, rscratch1, rscratch2);
-
-  lrb(masm, _obj, _addr, rscratch1);
-
+void ShenandoahBarrierStubC2::reencode_if_needed(MacroAssembler& masm) {
   // If object is narrow, we need to encode it before exiting.
   // For encoding, dst can only turn null if we are dealing with weak loads.
   // Otherwise, we have already null-checked. We can skip all this if we performed
   // the load ourselves, which means the value is not used by caller.
-  if (_narrow && !_do_load) {
+  if (!_do_load && _narrow) {
     if (_needs_load_ref_weak_barrier) {
       __ encode_heap_oop(_obj);
     } else {
       __ encode_heap_oop_not_null(_obj);
     }
   }
+}
 
-  __ bind(L_done);
+void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
+  assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
+  __ bind(*entry());
 
-  // If we picked up a live register to store the load of _addr then we restore it now
-  if (selected_live) {
-    pop_save_register(masm, _obj);
-  }
+  load_and_decode(masm, *continuation());
 
-  // Go back to fast path
+  keepalive(masm, _obj, rscratch1);
+
+  lrb(masm, _obj, _addr, rscratch1);
+
+  reencode_if_needed(masm);
+
   __ b(*continuation());
 }
 
-void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Register tmp1, Register tmp2) {
+void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Register tmp1) {
   Address index(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
   Label L_runtime;
@@ -1033,6 +1029,12 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
   // If buffer is full, call into runtime.
   __ ldr(tmp1, index);
   __ cbz(tmp1, L_runtime);
+
+  bool selected_live = false;
+  Register tmp2 = select_temp_register(selected_live, _addr, obj);
+  if (selected_live) {
+    push_save_register(masm, tmp2);
+  }
 
   // The buffer is not full, store value into it.
   __ sub(tmp1, tmp1, wordSize);
@@ -1062,6 +1064,10 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
   }
 
   __ bind(L_done);
+
+  if (selected_live) {
+    pop_save_register(masm, tmp2);
+  }
 }
 
 void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address addr, Register tmp) {

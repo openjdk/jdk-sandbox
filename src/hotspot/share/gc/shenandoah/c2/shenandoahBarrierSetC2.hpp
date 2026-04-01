@@ -197,7 +197,10 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   bool is_live(Register reg);
   Register select_temp_register(bool& selected_live, Address addr, Register reg1);
 
-  void keepalive(MacroAssembler& masm, Register obj, Register tmp1, Register tmp2);
+  void load_and_decode(MacroAssembler& masm, Label& target_if_null);
+  void reencode_if_needed(MacroAssembler& masm);
+
+  void keepalive(MacroAssembler& masm, Register obj, Register tmp1);
   void lrb(MacroAssembler& masm, Register obj, Address addr, Register tmp);
 
   address keepalive_runtime_entry_addr();
