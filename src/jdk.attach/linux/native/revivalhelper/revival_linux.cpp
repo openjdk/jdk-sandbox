@@ -83,7 +83,7 @@ void init_pd() {
     long value = sysconf(_SC_PAGESIZE);
     if (value < 1) {
         warn("init_pd: sysconf retuns 0x%lx: %s", value, strerror(errno));
-        value = 0x1000; // consider exiting
+        value = 0x1000;
     }
     vaddr_align = value;
     logv("revival: init_pd: vaddr_alignment (pagesize) = 0x%llx", (unsigned long long) vaddr_alignment_pd());
@@ -262,23 +262,6 @@ const char* createTempFilename() {
     return tempName;
 }
 
-
-const char* corePageFilename;
-
-/**
- * Return the name of the temp file to use for writing.
- */
-const char* getCorePageFilename() {
-    if (corePageFilename == nullptr) {
-        // Create filename on demand.
-        corePageFilename = createTempFilename();
-        if (corePageFilename == nullptr) {
-            error("cannot create page file for writes to core file memory.");
-        }
-    }
-    return corePageFilename;
-}
-
 /**
  * Open a named file and append data for a Segment from the core.
  * Return the offset at which we wrote, or negative on error.
@@ -301,40 +284,6 @@ size_t writeTempFileBytes(const char* tempName, Segment seg) {
     close (fdTemp);
     return (size_t) pos;
 }
-
-/**
- * Remap a memory segment.  Copy bytes from core file to temp file, map with write permission.
- */
-void remap(Segment seg) {
-    const char* tempName = getCorePageFilename();
-    if (tempName == nullptr) {
-        error("remap: failed to create temp filename. errno = %d: %s",  errno, strerror(errno));
-    }
-    size_t offset = writeTempFileBytes(tempName, seg);
-    if (offset == (size_t) -1 ) {
-        warn("remap: failed to write bytes to temp file '%s'. errno = %d: %s", tempName, errno, strerror(errno));
-        abort();
-    }
-    int fd = open(tempName, O_RDWR);
-    if (fd<0) {
-        warn("remap: failed to open temp file. errno = %d: %s",  errno, strerror(errno));
-        abort();
-    }
-    int e1 = do_munmap_pd(seg.vaddr, seg.length);
-    if (e1) {
-        warn("remap: failed to munmap 0x%p failed: returns: %d: errno = %d: %s",  seg.vaddr, e1, errno, strerror(errno));
-        abort();
-    }
-    int flags = MAP_PRIVATE | MAP_FIXED;
-    int prot = PROT_READ | PROT_EXEC | PROT_WRITE;
-    void* e = mmap(seg.vaddr, seg.length, prot, flags, fd, offset);
-    if ((long long) e < 0) {
-        warn("remap: mmap 0x%p failed: returns: 0x%p: errno = %d: %s",  seg.vaddr, e, errno, strerror(errno));
-        abort();
-    }
-    close(fd);
-}
-
 
 /**
  * Signal handler.
