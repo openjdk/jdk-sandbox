@@ -871,12 +871,25 @@ void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char
   __ j(*entry());
 
 #ifdef ASSERT
-  Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
-  __ ldrb(rscratch1, gc_state_fast);
-  __ cbz(rscratch1, *continuation());
-  __ hlt(0); // Correctness bug: barrier is NOP-ed, but heap is NOT IDLE
+  Address gc_state_fast(xthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
+  __ ld(t0, gc_state_fast);
+  __ beqz(t0, *continuation());
+  __ illegal_instruction(Assembler::csr::time); // Correctness bug: barrier is NOP-ed, but heap is NOT IDLE
 #endif
   __ bind(*continuation());
+}
+
+address ShenandoahBarrierSetAssembler::parse_stub_address(address pc) {
+  Unimplemented();
+  return nullptr;
+}
+
+void ShenandoahBarrierSetAssembler::patch_branch_to_nop(address pc) {
+  Unimplemented();
+}
+
+void ShenandoahBarrierSetAssembler::patch_nop_to_branch(address pc, address stub_addr) {
+  Unimplemented();
 }
 
 #undef __
