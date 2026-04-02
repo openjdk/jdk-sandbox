@@ -662,6 +662,9 @@ bool ShenandoahBarrierStubC2::has_live_vector_registers() {
     } else if (vm_reg->is_FloatRegister()) {
       // Maybe vector, assume the worst right now
       return true;
+    } else if (vm_reg->is_PRegister()) {
+      // Vector-related register
+      return true;
     } else {
       fatal("Unexpected register type");
     }
