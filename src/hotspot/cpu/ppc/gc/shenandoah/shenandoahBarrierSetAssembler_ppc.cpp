@@ -1098,6 +1098,11 @@ void ShenandoahBarrierSetAssembler::generate_c1_load_reference_barrier_runtime_s
 #undef __
 #define __ masm.
 
+bool ShenandoahBarrierStubC2::has_live_vector_registers() {
+  // TODO: Implement; currently assumes vector registers.
+  return true;
+}
+
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
   Unimplemented();

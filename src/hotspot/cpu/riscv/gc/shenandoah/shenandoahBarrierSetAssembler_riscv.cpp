@@ -816,6 +816,11 @@ void ShenandoahBarrierStubC2::pop_save_register(MacroAssembler& masm, Register r
   __ ld(reg, Address(sp, pop_save_slot()));
 }
 
+bool ShenandoahBarrierStubC2::has_live_vector_registers() {
+  // TODO: Implement; currently assumes vector registers.
+  return true;
+}
+
 bool ShenandoahBarrierStubC2::is_live(Register reg) {
   // TODO: Precompute the generic register map for faster lookups.
   RegMaskIterator rmi(preserve_set());
