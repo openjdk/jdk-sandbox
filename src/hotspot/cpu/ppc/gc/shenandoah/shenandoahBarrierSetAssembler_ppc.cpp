@@ -1098,6 +1098,19 @@ void ShenandoahBarrierSetAssembler::generate_c1_load_reference_barrier_runtime_s
 #undef __
 #define __ masm.
 
+address ShenandoahBarrierSetAssembler::parse_stub_address(address pc) {
+  Unimplemented();
+  return nullptr;
+}
+
+void ShenandoahBarrierSetAssembler::patch_branch_to_nop(address pc) {
+  Unimplemented();
+}
+
+void ShenandoahBarrierSetAssembler::patch_nop_to_branch(address pc, address stub_addr) {
+  Unimplemented();
+}
+
 bool ShenandoahBarrierStubC2::has_live_vector_registers() {
   // TODO: Implement; currently assumes vector registers.
   return true;
