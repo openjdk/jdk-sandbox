@@ -572,6 +572,9 @@
   product(bool, ShenandoahFasterRuntimeStubs, true, DIAGNOSTIC,             \
           "Optimize register save/restore in runtime stubs.")               \
                                                                             \
+  product(bool, ShenandoahWeakRootsEarly, false, EXPERIMENTAL,              \
+          "Turn off weak roots earlier than usual. TODO: Upstream!")        \
+                                                                            \
   develop(bool, ShenandoahVerifyOptoBarriers, trueInDebug,                  \
           "Verify no missing barriers in C2.")                              \
                                                                             \
