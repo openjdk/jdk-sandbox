@@ -832,10 +832,13 @@ ShenandoahBarrierStubC2* ShenandoahBarrierStubC2::create(const MachNode* node, R
 }
 
 address ShenandoahBarrierStubC2::keepalive_runtime_entry_addr() {
-#if defined(AMD64) || defined(AARCH64) || defined(RISCV64)
-  return SharedRuntime::shenandoah_keepalive();
-#endif
-  assert(false, "sanity");
+  bool has_live_vectors = has_live_vector_registers();
+  if (has_live_vectors) {
+    return SharedRuntime::shenandoah_keepalive_vectors();
+  } else {
+    return SharedRuntime::shenandoah_keepalive();
+  }
+  ShouldNotReachHere();
   return nullptr;
 }
 
@@ -843,28 +846,46 @@ address ShenandoahBarrierStubC2::lrb_runtime_entry_addr() {
   bool is_strong  = (_node->barrier_data() & ShenandoahBitStrong)  != 0;
   bool is_weak    = (_node->barrier_data() & ShenandoahBitWeak)    != 0;
   bool is_phantom = (_node->barrier_data() & ShenandoahBitPhantom) != 0;
+  bool save_vectors = !ShenandoahFasterRuntimeStubs || has_live_vector_registers();
 
-// TODO: Remove once platforms migrate to runtime stubs.
-#if defined(AMD64) || defined(AARCH64) || defined(RISCV64)
-  if (_narrow) {
-    if (is_strong) {
-      return SharedRuntime::shenandoah_lrb_strong_narrow();
-    } else if (is_weak) {
-      return SharedRuntime::shenandoah_lrb_weak_narrow();
-    } else if (is_phantom) {
-      return SharedRuntime::shenandoah_lrb_phantom_narrow();
+  if (save_vectors) {
+    if (_narrow) {
+      if (is_strong) {
+        return SharedRuntime::shenandoah_lrb_strong_narrow_vectors();
+      } else if (is_weak) {
+        return SharedRuntime::shenandoah_lrb_weak_narrow_vectors();
+      } else if (is_phantom) {
+        return SharedRuntime::shenandoah_lrb_phantom_narrow_vectors();
+      }
+    } else {
+      if (is_strong) {
+        return SharedRuntime::shenandoah_lrb_strong_vectors();
+      } else if (is_weak) {
+        return SharedRuntime::shenandoah_lrb_weak_vectors();
+      } else if (is_phantom) {
+        return SharedRuntime::shenandoah_lrb_phantom_vectors();
+      }
     }
   } else {
-    if (is_strong) {
-      return SharedRuntime::shenandoah_lrb_strong();
-    } else if (is_weak) {
-      return SharedRuntime::shenandoah_lrb_weak();
-    } else if (is_phantom) {
-      return SharedRuntime::shenandoah_lrb_phantom();
+    if (_narrow) {
+      if (is_strong) {
+        return SharedRuntime::shenandoah_lrb_strong_narrow();
+      } else if (is_weak) {
+        return SharedRuntime::shenandoah_lrb_weak_narrow();
+      } else if (is_phantom) {
+        return SharedRuntime::shenandoah_lrb_phantom_narrow();
+      }
+    } else {
+      if (is_strong) {
+        return SharedRuntime::shenandoah_lrb_strong();
+      } else if (is_weak) {
+        return SharedRuntime::shenandoah_lrb_weak();
+      } else if (is_phantom) {
+        return SharedRuntime::shenandoah_lrb_phantom();
+      }
     }
   }
-#endif
-  assert(false, "sanity");
+  ShouldNotReachHere();
   return nullptr;
 }
 

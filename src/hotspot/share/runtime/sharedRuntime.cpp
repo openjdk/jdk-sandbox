@@ -191,6 +191,15 @@ void SharedRuntime::generate_stubs() {
     _shenandoah_lrb_strong_narrow_blob  = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_strong_narrow_id);
     _shenandoah_lrb_weak_narrow_blob    = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_weak_narrow_id);
     _shenandoah_lrb_phantom_narrow_blob = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_phantom_narrow_id);
+
+    _shenandoah_keepalive_vectors_blob          = generate_shenandoah_stub(StubId::shared_shenandoah_keepalive_vectors_id);
+    _shenandoah_lrb_strong_vectors_blob         = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_strong_vectors_id);
+    _shenandoah_lrb_weak_vectors_blob           = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_weak_vectors_id);
+    _shenandoah_lrb_phantom_vectors_blob        = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_phantom_vectors_id);
+    _shenandoah_lrb_strong_narrow_vectors_blob  = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_strong_narrow_vectors_id);
+    _shenandoah_lrb_weak_narrow_vectors_blob    = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_weak_narrow_vectors_id);
+    _shenandoah_lrb_phantom_narrow_vectors_blob = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_phantom_narrow_vectors_id);
+
   }
 #endif
 }

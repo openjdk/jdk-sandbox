@@ -652,6 +652,23 @@ void ShenandoahBarrierStubC2::pop_save_register(MacroAssembler& masm, Register r
   __ ldr(reg, Address(sp, pop_save_slot()));
 }
 
+bool ShenandoahBarrierStubC2::has_live_vector_registers() {
+  RegMaskIterator rmi(preserve_set());
+  while (rmi.has_next()) {
+    const OptoReg::Name opto_reg = rmi.next();
+    const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
+    if (vm_reg->is_Register()) {
+      // Not a vector
+    } else if (vm_reg->is_FloatRegister()) {
+      // Maybe vector, assume the worst right now
+      return true;
+    } else {
+      fatal("Unexpected register type");
+    }
+  }
+  return false;
+}
+
 bool ShenandoahBarrierStubC2::is_live(Register reg) {
   // TODO: Precompute the generic register map for faster lookups.
   RegMaskIterator rmi(preserve_set());

@@ -569,6 +569,9 @@
   product(bool, ShenandoahElideBarriers, true, DIAGNOSTIC,                  \
           "Elide redundant Shenandoah barriers.")                           \
                                                                             \
+  product(bool, ShenandoahFasterRuntimeStubs, true, DIAGNOSTIC,             \
+          "Optimize register save/restore in runtime stubs.")               \
+                                                                            \
   product(bool, ShenandoahGCStateCheckHotpatch, true, EXPERIMENTAL,         \
           "VERY EXPERIMENTAL: Replace GC state checks with hot-patchable "  \
           "branches/nops in barrier fast-paths. Should improve performance "\

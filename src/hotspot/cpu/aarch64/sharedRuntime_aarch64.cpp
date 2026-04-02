@@ -2918,33 +2918,66 @@ RuntimeStub* SharedRuntime::generate_shenandoah_stub(StubId stub_id) {
   bool returns_obj = true;
 
   switch (stub_id) {
-    case StubId::shared_shenandoah_keepalive_id: {
+    case StubId::shared_shenandoah_keepalive_id:
+    case StubId::shared_shenandoah_keepalive_vectors_id: {
       stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre);
       returns_obj = false;
       break;
     }
-    case StubId::shared_shenandoah_lrb_strong_id: {
+    case StubId::shared_shenandoah_lrb_strong_id:
+    case StubId::shared_shenandoah_lrb_strong_vectors_id: {
       stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong);
       break;
     }
-    case StubId::shared_shenandoah_lrb_weak_id: {
+    case StubId::shared_shenandoah_lrb_weak_id:
+    case StubId::shared_shenandoah_lrb_weak_vectors_id: {
       stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak);
       break;
     }
-    case StubId::shared_shenandoah_lrb_phantom_id: {
+    case StubId::shared_shenandoah_lrb_phantom_id:
+    case StubId::shared_shenandoah_lrb_phantom_vectors_id: {
       stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom);
       break;
     }
-    case StubId::shared_shenandoah_lrb_strong_narrow_id: {
+    case StubId::shared_shenandoah_lrb_strong_narrow_id:
+    case StubId::shared_shenandoah_lrb_strong_narrow_vectors_id: {
       stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow);
       break;
     }
-    case StubId::shared_shenandoah_lrb_weak_narrow_id: {
+    case StubId::shared_shenandoah_lrb_weak_narrow_id:
+    case StubId::shared_shenandoah_lrb_weak_narrow_vectors_id: {
       stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow);
       break;
     }
-    case StubId::shared_shenandoah_lrb_phantom_narrow_id: {
+    case StubId::shared_shenandoah_lrb_phantom_narrow_id:
+    case StubId::shared_shenandoah_lrb_phantom_narrow_vectors_id: {
       stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow);
+      break;
+    }
+    default:
+      ShouldNotReachHere();
+  }
+
+  bool save_vectors = true;
+  switch (stub_id) {
+    case StubId::shared_shenandoah_keepalive_vectors_id:
+    case StubId::shared_shenandoah_lrb_strong_vectors_id:
+    case StubId::shared_shenandoah_lrb_weak_vectors_id:
+    case StubId::shared_shenandoah_lrb_phantom_vectors_id:
+    case StubId::shared_shenandoah_lrb_strong_narrow_vectors_id:
+    case StubId::shared_shenandoah_lrb_weak_narrow_vectors_id:
+    case StubId::shared_shenandoah_lrb_phantom_narrow_vectors_id: {
+      save_vectors = true;
+      break;
+    }
+    case StubId::shared_shenandoah_keepalive_id:
+    case StubId::shared_shenandoah_lrb_strong_id:
+    case StubId::shared_shenandoah_lrb_weak_id:
+    case StubId::shared_shenandoah_lrb_phantom_id:
+    case StubId::shared_shenandoah_lrb_strong_narrow_id:
+    case StubId::shared_shenandoah_lrb_weak_narrow_id:
+    case StubId::shared_shenandoah_lrb_phantom_narrow_id: {
+      save_vectors = false;
       break;
     }
     default:
@@ -2956,7 +2989,7 @@ RuntimeStub* SharedRuntime::generate_shenandoah_stub(StubId stub_id) {
   address start = __ pc();
 
   int frame_size_in_words;
-  RegisterSaver reg_save(true /* save_vectors */);
+  RegisterSaver reg_save(save_vectors);
   OopMap* map = reg_save.save_live_registers(masm, 0, &frame_size_in_words);
   address frame_complete_pc = __ pc();
 
