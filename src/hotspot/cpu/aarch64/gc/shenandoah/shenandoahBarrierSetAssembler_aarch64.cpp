@@ -1071,32 +1071,39 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
 }
 
 void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address addr, Register tmp) {
-  Label L_done;
+  Label L_done, L_slow;
 
   // The node doesn't even need LRB barrier, just don't check anything else
   if (!_needs_load_ref_barrier) {
     return ;
   }
 
-  if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-    // If another barrier is enabled as well, do a runtime check for a specific barrier.
-    if (_needs_keep_alive_barrier) {
-      char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
-      int bit_to_check = ShenandoahThreadLocalData::gc_state_to_fast_bit(state_to_check);
-      Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
-      __ ldrb(tmp, gc_state_fast);
-      __ tbz(tmp, bit_to_check, L_done);
-    }
-
-    // Weak/phantom loads always need to go to runtime. For strong refs we
-    // check if the object in cset, if they are not, then we are done with LRB.
-    assert(ShenandoahHeapRegion::region_size_bytes_shift_jint() <= 63, "Maximum shift of the add is 63");
-    __ mov(tmp, ShenandoahHeap::in_cset_fast_test_addr());
-    __ add(tmp, tmp, obj, Assembler::LSR, ShenandoahHeapRegion::region_size_bytes_shift_jint());
-    __ ldrb(tmp, Address(tmp, 0));
-    __ cbz(tmp, L_done);
+  // If another barrier is enabled as well, do a runtime check for a specific barrier.
+  if (_needs_keep_alive_barrier) {
+    char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
+    int bit_to_check = ShenandoahThreadLocalData::gc_state_to_fast_bit(state_to_check);
+    Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
+    __ ldrb(tmp, gc_state_fast);
+    __ tbz(tmp, bit_to_check, L_done);
   }
 
+  // If weak references are being processed, weak/phantom loads need to go slow,
+  // regadless of their cset status.
+  if (_needs_load_ref_weak_barrier) {
+    Address gc_state(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+    __ ldrb(tmp, gc_state);
+    __ tbnz(tmp, ShenandoahHeap::WEAK_ROOTS_BITPOS, L_slow);
+  }
+
+  // Cset-check. Fall-through to slow if in collection set.
+  assert(ShenandoahHeapRegion::region_size_bytes_shift_jint() <= 63, "Maximum shift of the add is 63");
+  __ mov(tmp, ShenandoahHeap::in_cset_fast_test_addr());
+  __ add(tmp, tmp, obj, Assembler::LSR, ShenandoahHeapRegion::region_size_bytes_shift_jint());
+  __ ldrb(tmp, Address(tmp, 0));
+  __ cbz(tmp, L_done);
+
+  // Slow path
+  __ bind(L_slow);
   dont_preserve(obj);
   {
     // Shuffle in the arguments. The end result should be:
