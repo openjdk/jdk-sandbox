@@ -572,21 +572,6 @@
   product(bool, ShenandoahFasterRuntimeStubs, true, DIAGNOSTIC,             \
           "Optimize register save/restore in runtime stubs.")               \
                                                                             \
-  product(bool, ShenandoahGCStateCheckHotpatch, true, EXPERIMENTAL,         \
-          "VERY EXPERIMENTAL: Replace GC state checks with hot-patchable "  \
-          "branches/nops in barrier fast-paths. Should improve performance "\
-          "when GC is idle.")                                               \
-                                                                            \
-  product(bool, ShenandoahGCStateCheckRemove, false, EXPERIMENTAL,          \
-          "DANGEROUS, USE ONLY WITH PASSIVE MODE: Remove GC state checks "  \
-          "in barrier fast-paths. Measures code density impact from GC "    \
-          "state checks.")                                                  \
-                                                                            \
-  product(bool, ShenandoahSkipBarriers, false, EXPERIMENTAL,                \
-          "DANGEROUS, USE ONLY WITH PASSIVE MODE: Skip all barriers after " \
-          "expansion. Measures code density impact from additional code "   \
-          "at both fast- and slow-paths.")                                  \
-                                                                            \
   develop(bool, ShenandoahVerifyOptoBarriers, trueInDebug,                  \
           "Verify no missing barriers in C2.")                              \
                                                                             \
