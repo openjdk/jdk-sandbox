@@ -1198,6 +1198,8 @@ void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char
   __ jccb(Assembler::zero, *continuation());
   __ hlt(); // Correctness bug: barrier is NOP-ed, but heap is NOT IDLE
 #endif
+  // TODO: When barriers are consistently turned off at the end of the cycle, assert that barrier is NOP-ed
+
   __ bind(*continuation());
 }
 
