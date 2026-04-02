@@ -82,6 +82,7 @@
 #include "utilities/copy.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
+#include "utilities/exceptions.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/hashTable.hpp"
 #include "utilities/macros.hpp"
@@ -190,6 +191,15 @@ void SharedRuntime::generate_stubs() {
     _shenandoah_lrb_strong_narrow_blob  = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_strong_narrow_id);
     _shenandoah_lrb_weak_narrow_blob    = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_weak_narrow_id);
     _shenandoah_lrb_phantom_narrow_blob = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_phantom_narrow_id);
+
+    _shenandoah_keepalive_vectors_blob          = generate_shenandoah_stub(StubId::shared_shenandoah_keepalive_vectors_id);
+    _shenandoah_lrb_strong_vectors_blob         = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_strong_vectors_id);
+    _shenandoah_lrb_weak_vectors_blob           = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_weak_vectors_id);
+    _shenandoah_lrb_phantom_vectors_blob        = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_phantom_vectors_id);
+    _shenandoah_lrb_strong_narrow_vectors_blob  = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_strong_narrow_vectors_id);
+    _shenandoah_lrb_weak_narrow_vectors_blob    = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_weak_narrow_vectors_id);
+    _shenandoah_lrb_phantom_narrow_vectors_blob = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_phantom_narrow_vectors_id);
+
   }
 #endif
 }
@@ -947,7 +957,7 @@ void SharedRuntime::throw_StackOverflowError_common(JavaThread* current, bool de
   // bindings.
   current->clear_scopedValueBindings();
   // Increment counter for hs_err file reporting
-  AtomicAccess::inc(&Exceptions::_stack_overflow_errors);
+  Exceptions::increment_stack_overflow_errors();
   throw_and_post_jvmti_exception(current, exception);
 }
 

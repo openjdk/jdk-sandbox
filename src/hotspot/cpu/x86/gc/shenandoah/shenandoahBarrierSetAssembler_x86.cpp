@@ -1236,35 +1236,18 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(MacroAssembler* masm, Addres
 void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
-  if (ShenandoahGCStateCheckRemove) {
-    // Unrealistic: remove all barrier fastpath checks.
-  } else if (ShenandoahGCStateCheckHotpatch) {
-    // Emit the unconditional branch in the first version of the method.
-    // Let the rest of runtime figure out how to manage it.
-    __ relocate(barrier_Relocation::spec());
-    __ jmp(*entry(), /* maybe_short = */ false);
+  // Emit the unconditional branch in the first version of the method.
+  // Let the rest of runtime figure out how to manage it.
+  __ relocate(barrier_Relocation::spec());
+  __ jmp(*entry(), /* maybe_short = */ false);
 
-    Label L_done;
 #ifdef ASSERT
-    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ testb(gc_state, 0xFF);
-    __ jccb(Assembler::zero, L_done);
-    __ hlt(); // Correctness bug: barrier is NOP-ed, but heap is NOT IDLE
+  Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+  __ testb(gc_state, 0xFF);
+  __ jccb(Assembler::zero, *continuation());
+  __ hlt(); // Correctness bug: barrier is NOP-ed, but heap is NOT IDLE
 #endif
-    __ bind(*continuation());
-// This is futile to assert, because barriers are turned off asynchronously.
-// #ifdef ASSERT
-//     __ testb(gc_state, 0xFF);
-//     __ jccb(Assembler::notZero, L_done);
-//     __ hlt(); // Performance bug: barrier is JMP-ed, but heap is IDLE
-// #endif
-    __ bind(L_done);
-  } else {
-    Address gc_state_fast(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
-    __ testb(gc_state_fast, ShenandoahThreadLocalData::gc_state_to_fast(test_state));
-    __ jcc(Assembler::notZero, *entry());
-    __ bind(*continuation());
-  }
+  __ bind(*continuation());
 }
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
@@ -1312,7 +1295,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   // Go for barriers. If both barriers are required (rare), do a runtime check for enabled barrier.
   if (_needs_keep_alive_barrier) {
-    keepalive(masm, _obj, tmp, noreg);
+    keepalive(masm, _obj, tmp);
   }
   if (_needs_load_ref_barrier) {
     lrb(masm, _obj, _addr, tmp);
@@ -1336,19 +1319,16 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ jmp(L_done);
 }
 
-void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Register tmp1, Register tmp2) {
+void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Register tmp1) {
   Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
 
   Label L_fast, L_done;
 
-  // If another barrier is enabled as well, do a runtime check for a specific barrier.
-  // Hotpatched GC checks only care about idle/non-idle state, so needs a check anyhow.
-  if (_needs_load_ref_barrier || ShenandoahGCStateCheckHotpatch) {
-    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ testb(gc_state, ShenandoahHeap::MARKING);
-    __ jccb(Assembler::zero, L_done);
-  }
+  // Hotpatched GC checks only care about idle/non-idle state, so we need to check again here.
+  Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+  __ testb(gc_state, ShenandoahHeap::MARKING);
+  __ jccb(Assembler::zero, L_done);
 
   // Check if buffer is already full. Go slow, if so.
   __ movptr(tmp1, index);
@@ -1388,39 +1368,42 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
 }
 
 void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address addr, Register tmp) {
-  Label L_done;
+  Label L_done, L_slow;
 
-  // If another barrier is enabled as well, do a runtime check for a specific barrier.
-  // Hotpatched GC checks only care about idle/non-idle state, so needs a check anyhow.
-  if (_needs_keep_alive_barrier || ShenandoahGCStateCheckHotpatch) {
+  // Hotpatched GC checks only care about idle/non-idle state, so we need a check here.
+  Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+  __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0));
+  __ jccb(Assembler::zero, L_done);
+
+  // If weak references are being processed, weak/phantom loads need to go slow,
+  // regadless of their cset status.
+  if (_needs_load_ref_weak_barrier) {
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0));
-    __ jccb(Assembler::zero, L_done);
+    __ testb(gc_state, ShenandoahHeap::WEAK_ROOTS);
+    __ jccb(Assembler::notZero, L_slow);
   }
 
-  // Weak/phantom loads are handled in slow path.
-  if (!_needs_load_ref_weak_barrier) {
-    // Compute the cset bitmap index
-    __ movptr(tmp, obj);
-    __ shrptr(tmp, ShenandoahHeapRegion::region_size_bytes_shift_jint());
+  // Compute the cset bitmap index
+  __ movptr(tmp, obj);
+  __ shrptr(tmp, ShenandoahHeapRegion::region_size_bytes_shift_jint());
 
-    // If cset address is in good spot to just use it as offset. It almost always is.
-    Address cset_addr_arg;
-    intptr_t cset_addr = (intptr_t) ShenandoahHeap::in_cset_fast_test_addr();
-    if ((cset_addr >> 3) < INT32_MAX) {
-      assert(is_aligned(cset_addr, 8), "Sanity");
-      cset_addr_arg = Address(tmp, checked_cast<int>(cset_addr >> 3), Address::times_8);
-    } else {
-      __ addptr(tmp, cset_addr);
-      cset_addr_arg = Address(tmp, 0);
-    }
-
-    // Cset-check. Fall-through to slow if in collection set.
-    __ cmpb(cset_addr_arg, 0);
-    __ jccb(Assembler::equal, L_done);
+  // If cset address is in good spot to just use it as offset. It almost always is.
+  Address cset_addr_arg;
+  intptr_t cset_addr = (intptr_t) ShenandoahHeap::in_cset_fast_test_addr();
+  if ((cset_addr >> 3) < INT32_MAX) {
+    assert(is_aligned(cset_addr, 8), "Sanity");
+    cset_addr_arg = Address(tmp, checked_cast<int>(cset_addr >> 3), Address::times_8);
+  } else {
+    __ addptr(tmp, cset_addr);
+    cset_addr_arg = Address(tmp, 0);
   }
+
+  // Cset-check. Fall-through to slow if in collection set.
+  __ cmpb(cset_addr_arg, 0);
+  __ jccb(Assembler::equal, L_done);
 
   // Slow path
+  __ bind(L_slow);
   {
     assert_different_registers(rax, c_rarg0, c_rarg1);
 
@@ -1472,6 +1455,26 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
   }
 
   __ bind(L_done);
+}
+
+bool ShenandoahBarrierStubC2::has_live_vector_registers() {
+  RegMaskIterator rmi(preserve_set());
+  while (rmi.has_next()) {
+    const OptoReg::Name opto_reg = rmi.next();
+    const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
+    if (vm_reg->is_Register()) {
+      // Not a vector.
+    } else if (vm_reg->is_KRegister()) {
+      // Definitely vector.
+      return true;
+    } else if (vm_reg->is_XMMRegister()) {
+      // Maybe vector, assume the worst right now.
+      return true;
+    } else {
+      fatal("Unexpected register type");
+    }
+  }
+  return false;
 }
 
 bool ShenandoahBarrierStubC2::is_live(Register reg) {
@@ -1545,8 +1548,5 @@ Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Addr
   return tmp;
 }
 
-void ShenandoahBarrierStubC2::post_init(int offset) {
-  // Do nothing.
-}
 #undef __
 #endif

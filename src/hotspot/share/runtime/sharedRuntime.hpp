@@ -344,6 +344,42 @@ class SharedRuntime: AllStatic {
     return _shenandoah_lrb_phantom_narrow_blob->entry_point();
   }
 
+  static address shenandoah_keepalive_vectors() {
+    assert(_shenandoah_keepalive_vectors_blob != nullptr, "");
+    return _shenandoah_keepalive_vectors_blob->entry_point();
+  }
+
+  static address shenandoah_lrb_strong_vectors() {
+    assert(_shenandoah_lrb_strong_vectors_blob != nullptr, "");
+    return _shenandoah_lrb_strong_vectors_blob->entry_point();
+  }
+
+  static address shenandoah_lrb_weak_vectors() {
+    assert(_shenandoah_lrb_weak_vectors_blob != nullptr, "");
+    return _shenandoah_lrb_weak_vectors_blob->entry_point();
+  }
+
+  static address shenandoah_lrb_phantom_vectors() {
+    assert(_shenandoah_lrb_phantom_narrow_vectors_blob != nullptr, "");
+    return _shenandoah_lrb_phantom_narrow_vectors_blob->entry_point();
+  }
+
+  static address shenandoah_lrb_strong_narrow_vectors() {
+    assert(_shenandoah_lrb_strong_narrow_vectors_blob != nullptr, "");
+    return _shenandoah_lrb_strong_narrow_vectors_blob->entry_point();
+  }
+
+  static address shenandoah_lrb_weak_narrow_vectors() {
+    assert(_shenandoah_lrb_weak_narrow_vectors_blob != nullptr, "");
+    return _shenandoah_lrb_weak_narrow_vectors_blob->entry_point();
+  }
+
+  static address shenandoah_lrb_phantom_narrow_vectors() {
+    assert(_shenandoah_lrb_phantom_narrow_vectors_blob != nullptr, "");
+    return _shenandoah_lrb_phantom_narrow_vectors_blob->entry_point();
+  }
+
+
 
   // Counters
 #ifndef PRODUCT

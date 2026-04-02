@@ -652,6 +652,26 @@ void ShenandoahBarrierStubC2::pop_save_register(MacroAssembler& masm, Register r
   __ ldr(reg, Address(sp, pop_save_slot()));
 }
 
+bool ShenandoahBarrierStubC2::has_live_vector_registers() {
+  RegMaskIterator rmi(preserve_set());
+  while (rmi.has_next()) {
+    const OptoReg::Name opto_reg = rmi.next();
+    const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
+    if (vm_reg->is_Register()) {
+      // Not a vector
+    } else if (vm_reg->is_FloatRegister()) {
+      // Maybe vector, assume the worst right now
+      return true;
+    } else if (vm_reg->is_PRegister()) {
+      // Vector-related register
+      return true;
+    } else {
+      fatal("Unexpected register type");
+    }
+  }
+  return false;
+}
+
 bool ShenandoahBarrierStubC2::is_live(Register reg) {
   // TODO: Precompute the generic register map for faster lookups.
   RegMaskIterator rmi(preserve_set());
@@ -703,36 +723,18 @@ Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Addr
 void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
-  if (ShenandoahGCStateCheckRemove) {
-    // Unrealistic: remove all barrier fastpath checks.
-  } else if (ShenandoahGCStateCheckHotpatch) {
-    // Emit the unconditional branch in the first version of the method.
-    // Let the rest of runtime figure out how to manage it.
-    __ relocate(barrier_Relocation::spec());
-    __ b(*entry());
+  // Emit the unconditional branch in the first version of the method.
+  // Let the rest of runtime figure out how to manage it.
+  __ relocate(barrier_Relocation::spec());
+  __ b(*entry());
 
 #ifdef ASSERT
-    Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
-    __ ldrb(rscratch1, gc_state_fast);
-    __ cbz(rscratch1, *continuation());
-    __ hlt(0); // Correctness bug: barrier is NOP-ed, but heap is NOT IDLE
+  Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
+  __ ldrb(rscratch1, gc_state_fast);
+  __ cbz(rscratch1, *continuation());
+  __ hlt(0); // Correctness bug: barrier is NOP-ed, but heap is NOT IDLE
 #endif
-    __ bind(*continuation());
-  } else {
-    int bit_to_check = ShenandoahThreadLocalData::gc_state_to_fast_bit(test_state);
-    Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
-    __ ldrb(rscratch1, gc_state_fast);
-    if (_test_and_branch_reachable) {
-      __ tbnz(rscratch1, bit_to_check, _test_and_branch_reachable_entry);
-    } else {
-      __ tbz(rscratch1, bit_to_check, *continuation());
-      __ b(*entry());
-    }
-
-    // This is were the slowpath stub will return to or the code above will
-    // jump to if the checks are false
-    __ bind(*continuation());
-  }
+  __ bind(*continuation());
 }
 
 address ShenandoahBarrierSetAssembler::parse_stub_address(address pc) {
@@ -972,164 +974,62 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroA
 #undef __
 #define __ masm.
 
-// Only handles forward branch jumps, target_offset >= branch_offset
-// FIXME: copied verbatim from ZGC, duplicated code.
-static bool aarch64_test_and_branch_reachable(int branch_offset, int target_offset) {
-  assert(branch_offset >= 0, "branch to stub offsets must be positive");
-  assert(target_offset >= 0, "offset in stubs section must be positive");
-  assert(target_offset >= branch_offset, "forward branches only, branch_offset -> target_offset");
-
-  const int test_and_branch_delta_limit = 32 * K;
-
-  const int test_and_branch_to_trampoline_delta = target_offset - branch_offset;
-
-  return test_and_branch_to_trampoline_delta < test_and_branch_delta_limit;
-}
-
-void ShenandoahBarrierStubC2::post_init(int offset) {
-  // If we are in scratch emit mode we assume worse case by leaving
-  // _test_and_branch_reachable false.
-  PhaseOutput* const output = Compile::current()->output();
-  if (output->in_scratch_emit_size()) {
-    return;
-  }
-
-  // Assume that each trampoline is one single instruction and that the stubs
-  // will follow immediatelly after the _code section. Therefore, we are
-  // checking if the distance between the fastpath branch and the
-  // trampoline/entry of the current Stub is less than 32K.
-  const int code_size = output->buffer_sizing_data()->_code;
-  const int trampoline_offset = trampoline_stubs_count() * NativeInstruction::instruction_size;
-  _test_and_branch_reachable = aarch64_test_and_branch_reachable(_fastpath_branch_offset, code_size + trampoline_offset);
-  if (_test_and_branch_reachable) {
-    inc_trampoline_stubs_count();
-  }
-}
-
-void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
-  // If we reach here with _skip_trampoline set it means that earlier we
-  // emitted a trampoline to this stub and now we need to emit the actual stub.
-  if (ShenandoahGCStateCheckHotpatch || _skip_trampoline) {
-    emit_code_actual(masm);
-  } else {
-    _skip_trampoline = true;
-
-    // The fastpath executes two branch instructions to reach this stub, let's
-    // just emit the stub here and not add a third one.
-    if (!_test_and_branch_reachable) {
-      // By registering the stub again, after setting _skip_trampoline, we'll
-      // effectivelly cause the stub to be emitted the next time ::emit_code is
-      // called.
-      ShenandoahBarrierStubC2::register_stub(this);
-      return;
-    }
-
-    // This is entry point when coming from fastpath, IFF it's able to reach here
-    // with a test and branch instruction, otherwise the entry is
-    // ShenandoahBarrierStubC2::entry();
-    const int target_offset = __ offset();
-    __ bind(_test_and_branch_reachable_entry);
-
-    #ifdef ASSERT
-      // Current assumption is that the barrier stubs are the first stubs emitted
-      // after the actual code
-      PhaseOutput* const output = Compile::current()->output();
-      assert(stubs_start_offset() <= output->buffer_sizing_data()->_code, "stubs are assumed to be emitted directly after code and code_size is a hard limit on where it can start");
-      assert(aarch64_test_and_branch_reachable(_fastpath_branch_offset, target_offset), "trampoline should be reachable");
-    #endif
-
-    // Next fastpath branch's offset is unknown, but it's > current _fastpath_branch_offset
-    const int next_branch_offset = _fastpath_branch_offset + NativeInstruction::instruction_size;
-
-    // If emitting the current stub directly does not interfere with emission of
-    // the next potential trampoline then do it to avoid executing additional
-    // branch when coming from fastpath.
-    if (aarch64_test_and_branch_reachable(next_branch_offset, target_offset + get_stub_size())) {
-      emit_code_actual(masm);
-    } else {
-      __ b(*entry());
-      // By registering the stub again, after setting _skip_trampoline to true,
-      // we'll effectivelly cause the stub to be emitted the next time
-      // ::emit_code is called.
-      ShenandoahBarrierStubC2::register_stub(this);
-    }
-  }
-}
-
-int ShenandoahBarrierStubC2::get_stub_size() {
-  PhaseOutput* const output = Compile::current()->output();
-  assert(!output->in_scratch_emit_size(), "only used when emitting stubs");
-  BufferBlob* const blob = output->scratch_buffer_blob();
-  CodeBuffer cb(blob->content_begin(), (address)output->scratch_locs_memory() - blob->content_begin());
-  MacroAssembler masm(&cb);
-  output->set_in_scratch_emit_size(true);
-  emit_code_actual(masm);
-  output->set_in_scratch_emit_size(false);
-  return cb.insts_size();
-}
-
-void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
-  assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
-
-  Label L_done;
-
-  if (ShenandoahGCStateCheckHotpatch || !Compile::current()->output()->in_scratch_emit_size()) {
-    __ bind(*entry());
-  }
-
-  // If we need to load ourselves, do it here.
-  bool selected_live = false;
+void ShenandoahBarrierStubC2::load_and_decode(MacroAssembler& masm, Label& target_if_null) {
   if (_do_load) {
-    _obj = select_temp_register(selected_live, _addr, noreg);
-    if (selected_live) {
-      push_save_register(masm, _obj);
-    }
+    // Fastpath sets _obj==noreg if it tells the slowpath to do the load
+    _obj = rscratch2;
 
     // This does the load and the decode if necessary
     __ load_heap_oop(_obj, _addr, noreg, noreg, AS_RAW);
-  }
 
-  // If object is narrow, we need to decode it first: barrier checks need full oops.
-  if (!_do_load && _narrow) {
+    __ cbz(_obj, target_if_null);
+  } else {
+    // If object is narrow, we need to decode it because everything else later
+    // will need full oops.
+    if (_narrow) {
+      if (_maybe_null) {
+        __ decode_heap_oop(_obj);
+      } else {
+        __ decode_heap_oop_not_null(_obj);
+      }
+    }
+
     if (_maybe_null) {
-      __ decode_heap_oop(_obj);
-    } else {
-      __ decode_heap_oop_not_null(_obj);
+      __ cbz(_obj, target_if_null);
     }
   }
+}
 
-  if (_do_load || _maybe_null) {
-    __ cbz(_obj, L_done);
-  }
-
-  keepalive(masm, _obj, rscratch1, rscratch2);
-
-  lrb(masm, _obj, _addr, rscratch1);
-
+void ShenandoahBarrierStubC2::reencode_if_needed(MacroAssembler& masm) {
   // If object is narrow, we need to encode it before exiting.
   // For encoding, dst can only turn null if we are dealing with weak loads.
   // Otherwise, we have already null-checked. We can skip all this if we performed
   // the load ourselves, which means the value is not used by caller.
-  if (_narrow && !_do_load) {
+  if (!_do_load && _narrow) {
     if (_needs_load_ref_weak_barrier) {
       __ encode_heap_oop(_obj);
     } else {
       __ encode_heap_oop_not_null(_obj);
     }
   }
+}
 
-  __ bind(L_done);
+void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
+  assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
+  __ bind(*entry());
 
-  // If we picked up a live register to store the load of _addr then we restore it now
-  if (selected_live) {
-    pop_save_register(masm, _obj);
-  }
+  load_and_decode(masm, *continuation());
 
-  // Go back to fast path
+  keepalive(masm, _obj, rscratch1);
+
+  lrb(masm, _obj, _addr, rscratch1);
+
+  reencode_if_needed(masm);
+
   __ b(*continuation());
 }
 
-void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Register tmp1, Register tmp2) {
+void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Register tmp1) {
   Address index(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
   Label L_runtime;
@@ -1140,17 +1040,20 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
     return ;
   }
 
-  // If another barrier is enabled as well, do a runtime check for a specific barrier.
-  // Hotpatched GC checks only care about idle/non-idle state, so needs a check anyhow.
-  if (_needs_load_ref_barrier || ShenandoahGCStateCheckHotpatch) {
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb(tmp1, gcs_addr);
-    __ tbz(tmp1, ShenandoahHeap::MARKING_BITPOS, L_done);
-  }
+  // Hotpatched GC checks only care about idle/non-idle state, so we need to check specific state.
+  Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+  __ ldrb(tmp1, gcs_addr);
+  __ tbz(tmp1, ShenandoahHeap::MARKING_BITPOS, L_done);
 
   // If buffer is full, call into runtime.
   __ ldr(tmp1, index);
   __ cbz(tmp1, L_runtime);
+
+  bool selected_live = false;
+  Register tmp2 = select_temp_register(selected_live, _addr, obj);
+  if (selected_live) {
+    push_save_register(masm, tmp2);
+  }
 
   // The buffer is not full, store value into it.
   __ sub(tmp1, tmp1, wordSize);
@@ -1180,36 +1083,44 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
   }
 
   __ bind(L_done);
+
+  if (selected_live) {
+    pop_save_register(masm, tmp2);
+  }
 }
 
 void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address addr, Register tmp) {
-  Label L_done;
+  Label L_done, L_slow;
 
   // The node doesn't even need LRB barrier, just don't check anything else
   if (!_needs_load_ref_barrier) {
     return ;
   }
 
-  if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-    // If another barrier is enabled as well, do a runtime check for a specific barrier.
-    // Hotpatched GC checks only care about idle/non-idle state, so needs a check anyhow.
-    if (_needs_keep_alive_barrier || ShenandoahGCStateCheckHotpatch) {
-      char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
-      int bit_to_check = ShenandoahThreadLocalData::gc_state_to_fast_bit(state_to_check);
-      Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
-      __ ldrb(tmp, gc_state_fast);
-      __ tbz(tmp, bit_to_check, L_done);
-    }
+  // Hotpatched GC checks only care about idle/non-idle state, so we need to check again.
+  char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
+  int bit_to_check = ShenandoahThreadLocalData::gc_state_to_fast_bit(state_to_check);
+  Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
+  __ ldrb(tmp, gc_state_fast);
+  __ tbz(tmp, bit_to_check, L_done);
 
-    // Weak/phantom loads always need to go to runtime. For strong refs we
-    // check if the object in cset, if they are not, then we are done with LRB.
-    assert(ShenandoahHeapRegion::region_size_bytes_shift_jint() <= 63, "Maximum shift of the add is 63");
-    __ mov(tmp, ShenandoahHeap::in_cset_fast_test_addr());
-    __ add(tmp, tmp, obj, Assembler::LSR, ShenandoahHeapRegion::region_size_bytes_shift_jint());
-    __ ldrb(tmp, Address(tmp, 0));
-    __ cbz(tmp, L_done);
+  // If weak references are being processed, weak/phantom loads need to go slow,
+  // regadless of their cset status.
+  if (_needs_load_ref_weak_barrier) {
+    Address gc_state(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+    __ ldrb(tmp, gc_state);
+    __ tbnz(tmp, ShenandoahHeap::WEAK_ROOTS_BITPOS, L_slow);
   }
 
+  // Cset-check. Fall-through to slow if in collection set.
+  assert(ShenandoahHeapRegion::region_size_bytes_shift_jint() <= 63, "Maximum shift of the add is 63");
+  __ mov(tmp, ShenandoahHeap::in_cset_fast_test_addr());
+  __ add(tmp, tmp, obj, Assembler::LSR, ShenandoahHeapRegion::region_size_bytes_shift_jint());
+  __ ldrb(tmp, Address(tmp, 0));
+  __ cbz(tmp, L_done);
+
+  // Slow path
+  __ bind(L_slow);
   dont_preserve(obj);
   {
     // Shuffle in the arguments. The end result should be:

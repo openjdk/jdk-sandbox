@@ -78,11 +78,8 @@ OopClosure* ShenandoahStackWatermark::closure_from_context(void* context) {
       return &_evac_update_oop_cl;
     } else if (_heap->is_concurrent_mark_in_progress()) {
       return &_keep_alive_cl;
-    } else if (ShenandoahGCStateCheckHotpatch) {
-      return &_no_op_cl;
     } else {
-      ShouldNotReachHere();
-      return nullptr;
+      return &_no_op_cl;
     }
   }
 }
@@ -103,10 +100,8 @@ void ShenandoahStackWatermark::start_processing_impl(void* context) {
     // the objects in them. Do not let mutators allocate any new objects in their current TLABs.
     // It is also a good place to resize the TLAB sizes for future allocations.
     retire_tlab();
-  } else if (ShenandoahGCStateCheckHotpatch) {
-    // Can be here for updating barriers. No TLAB retirement is needed.
   } else {
-    ShouldNotReachHere();
+    // Can be here for updating barriers. No TLAB retirement is needed.
   }
 
   // Process the non-frame part of the thread
@@ -131,8 +126,5 @@ void ShenandoahStackWatermark::process(const frame& fr, RegisterMap& register_ma
   OopClosure* oops = closure_from_context(context);
   assert(oops != nullptr, "Should not get to here");
   ShenandoahHeap* const heap = ShenandoahHeap::heap();
-  assert((heap->is_concurrent_weak_root_in_progress() && heap->is_evacuation_in_progress()) ||
-         heap->is_concurrent_mark_in_progress() || ShenandoahGCStateCheckHotpatch,
-         "Only these phases");
   fr.oops_do(oops, &_nm_cl, &register_map, DerivedPointerIterationMode::_directly);
 }

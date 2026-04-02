@@ -285,15 +285,9 @@ void ShenandoahDegenGC::op_degenerated() {
         assert(!heap->cancelled_gc(), "STW reference update can not OOM");
       }
 
-      if (ShenandoahGCStateCheckHotpatch) {
-        // Leaving degenerated GC, we need to flip barriers back to idle.
-        ShenandoahCodeRoots::arm_nmethods();
-        ShenandoahStackWatermark::change_epoch_id();
-      } else {
-        // Disarm nmethods that armed in concurrent cycle.
-        // In above case, update roots should disarm them
-        ShenandoahCodeRoots::disarm_nmethods();
-      }
+      // Leaving degenerated GC, we need to flip barriers back to idle.
+      ShenandoahCodeRoots::arm_nmethods();
+      ShenandoahStackWatermark::change_epoch_id();
 
       op_cleanup_complete();
 

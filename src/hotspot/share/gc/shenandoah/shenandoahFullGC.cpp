@@ -129,11 +129,9 @@ void ShenandoahFullGC::op_full(GCCause::Cause cause) {
   _generation->heuristics()->record_success_full();
   heap->shenandoah_policy()->record_success_full();
 
-  if (ShenandoahGCStateCheckHotpatch) {
-    // Leaving full GC, we need to flip barriers back to idle.
-    ShenandoahCodeRoots::arm_nmethods();
-    ShenandoahStackWatermark::change_epoch_id();
-  }
+  // Leaving full GC, we need to flip barriers back to idle.
+  ShenandoahCodeRoots::arm_nmethods();
+  ShenandoahStackWatermark::change_epoch_id();
 
   {
     ShenandoahTimingsTracker timing(ShenandoahPhaseTimings::full_gc_propagate_gc_state);
@@ -885,8 +883,11 @@ public:
       Copy::aligned_conjoint_words(compact_from, compact_to, size);
       oop new_obj = cast_to_oop(compact_to);
 
-      ContinuationGCSupport::relativize_stack_chunk(new_obj);
+      // Restore the mark word before relativizing the stack chunk. The copy's
+      // mark word contains the full GC forwarding encoding, which would cause
+      // is_stackChunk() to read garbage (especially with compact headers).
       new_obj->init_mark();
+      ContinuationGCSupport::relativize_stack_chunk(new_obj);
     }
   }
 };

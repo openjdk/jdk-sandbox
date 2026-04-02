@@ -741,7 +741,7 @@ Compile::Compile(ciEnv* ci_env, ciMethod* target, int osr_bci,
   if (StressLCM || StressGCM || StressIGVN || StressCCP ||
       StressIncrementalInlining || StressMacroExpansion ||
       StressMacroElimination || StressUnstableIfTraps ||
-      StressBailout || StressLoopPeeling) {
+      StressBailout || StressLoopPeeling || StressCountedLoop) {
     initialize_stress_seed(directive);
   }
 
@@ -2259,7 +2259,9 @@ bool Compile::optimize_loops(PhaseIterGVN& igvn, LoopOptsMode mode) {
       PhaseIdealLoop::optimize(igvn, mode);
       _loop_opts_cnt--;
       if (failing())  return false;
-      if (major_progress()) print_method(PHASE_PHASEIDEALLOOP_ITERATIONS, 2);
+      if (major_progress()) {
+        print_method(PHASE_PHASEIDEALLOOP_ITERATIONS, 2);
+      }
     }
   }
   return true;
@@ -2277,7 +2279,7 @@ void Compile::remove_root_to_sfpts_edges(PhaseIterGVN& igvn) {
       if (n != nullptr && n->is_SafePoint()) {
         r->rm_prec(i);
         if (n->outcnt() == 0) {
-          igvn.remove_dead_node(n);
+          igvn.remove_dead_node(n, PhaseIterGVN::NodeOrigin::Graph);
         }
         --i;
       }
@@ -2321,7 +2323,7 @@ void Compile::Optimize() {
 #endif
   {
     TracePhase tp(_t_iterGVN);
-    igvn.optimize();
+    igvn.optimize(true);
   }
 
   if (failing())  return;
@@ -2385,7 +2387,7 @@ void Compile::Optimize() {
       PhaseRenumberLive prl(initial_gvn(), *igvn_worklist());
     }
     igvn.reset();
-    igvn.optimize();
+    igvn.optimize(true);
     if (failing()) return;
   }
 
@@ -2418,7 +2420,7 @@ void Compile::Optimize() {
       int mcount = macro_count(); // Record number of allocations and locks before IGVN
 
       // Optimize out fields loads from scalar replaceable allocations.
-      igvn.optimize();
+      igvn.optimize(true);
       print_method(PHASE_ITER_GVN_AFTER_EA, 2);
 
       if (failing()) return;
@@ -2498,7 +2500,7 @@ void Compile::Optimize() {
   {
     TracePhase tp(_t_iterGVN2);
     igvn.reset_from_igvn(&ccp);
-    igvn.optimize();
+    igvn.optimize(true);
   }
   print_method(PHASE_ITER_GVN2, 2);
 
@@ -3414,8 +3416,7 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
     Node *addp = n->in(AddPNode::Address);
     assert(n->as_AddP()->address_input_has_same_base(), "Base pointers must match (addp %u)", addp->_idx );
 #ifdef _LP64
-    if ((UseCompressedOops || UseCompressedClassPointers) &&
-        addp->Opcode() == Op_ConP &&
+    if (addp->Opcode() == Op_ConP &&
         addp == n->in(AddPNode::Base) &&
         n->in(AddPNode::Offset)->is_Con()) {
       // If the transformation of ConP to ConN+DecodeN is beneficial depends
@@ -3428,7 +3429,7 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
       bool is_klass = t->isa_klassptr() != nullptr;
 
       if ((is_oop   && UseCompressedOops          && Matcher::const_oop_prefer_decode()  ) ||
-          (is_klass && UseCompressedClassPointers && Matcher::const_klass_prefer_decode() &&
+          (is_klass && Matcher::const_klass_prefer_decode() &&
            t->isa_klassptr()->exact_klass()->is_in_encoding_range())) {
         Node* nn = nullptr;
 
@@ -3800,7 +3801,11 @@ void Compile::final_graph_reshaping_main_switch(Node* n, Final_Reshape_Counts& f
     }
     break;
   case Op_Loop:
-    assert(!n->as_Loop()->is_loop_nest_inner_loop() || _loop_opts_cnt == 0, "should have been turned into a counted loop");
+    // When StressCountedLoop is enabled, this loop may intentionally avoid a counted loop conversion.
+    // This is expected behavior for the stress mode, which exercises alternative compilation paths.
+    if (!StressCountedLoop) {
+      assert(!n->as_Loop()->is_loop_nest_inner_loop() || _loop_opts_cnt == 0, "should have been turned into a counted loop");
+    }
   case Op_CountedLoop:
   case Op_LongCountedLoop:
   case Op_OuterStripMinedLoop:
@@ -3971,8 +3976,7 @@ void Compile::final_graph_reshaping_walk(Node_Stack& nstack, Node* root, Final_R
   }
 
   // Skip next transformation if compressed oops are not used.
-  if ((UseCompressedOops && !Matcher::gen_narrow_oop_implicit_null_checks()) ||
-      (!UseCompressedOops && !UseCompressedClassPointers))
+  if (UseCompressedOops && !Matcher::gen_narrow_oop_implicit_null_checks())
     return;
 
   // Go over safepoints nodes to skip DecodeN/DecodeNKlass nodes for debug edges.

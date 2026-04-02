@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018, 2022, Red Hat, Inc. All rights reserved.
- * Copyright (c) 2012, 2022 SAP SE. All rights reserved.
+ * Copyright (c) 2012, 2026 SAP SE. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -37,6 +37,12 @@ class LIR_Assembler;
 class ShenandoahPreBarrierStub;
 class ShenandoahLoadReferenceBarrierStub;
 class StubAssembler;
+
+#endif
+
+#ifdef COMPILER2
+
+class MachNode;
 
 #endif
 
@@ -122,9 +128,27 @@ public:
 
   virtual void try_resolve_jobject_in_native(MacroAssembler* masm, Register dst, Register jni_env,
                                              Register obj, Register tmp, Label& slowpath);
+
+  virtual void try_resolve_weak_handle(MacroAssembler* masm, Register obj, Register tmp, Label& slow_path);
+
 #ifdef COMPILER2
-  virtual void try_resolve_weak_handle_in_c2(MacroAssembler* masm, Register obj, Register tmp, Label& slow_path);
-#endif
+  // Entry points from Matcher
+  void load_c2(const MachNode* node, MacroAssembler* masm,
+               Register dst, Address addr);
+
+  void store_c2(const MachNode* node, MacroAssembler* masm,
+                Address dst, bool dst_narrow, Register src, bool src_narrow);
+
+  void compare_and_set_c2(const MachNode* node, MacroAssembler* masm,
+                          Register res, Register addr, Register oldval,
+                          Register newval, bool exchange, bool narrow, bool weak);
+
+  void get_and_set_c2(const MachNode* node, MacroAssembler* masm,
+                      Register preval, Register newval, Register addr);
+
+  void card_barrier_c2(const MachNode* node, MacroAssembler* masm,
+                       Address addr);
+#endif // COMPILER2
 };
 
 #endif // CPU_PPC_GC_SHENANDOAH_SHENANDOAHBARRIERSETASSEMBLER_PPC_HPP

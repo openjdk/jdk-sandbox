@@ -119,7 +119,6 @@ void ShenandoahNMethod::parse(nmethod* nm, GrowableArray<oop*>& oops, bool& has_
       }
 #ifdef COMPILER2
       case relocInfo::barrier_type: {
-        assert(ShenandoahGCStateCheckHotpatch, "Who emits these?");
         barrier_Relocation* r = iter.barrier_reloc();
 
         ShenandoahNMethodBarrier b;
@@ -170,10 +169,6 @@ void ShenandoahNMethod::heal_nmethod(nmethod* nm) {
 
 void ShenandoahNMethod::update_barriers() {
 #ifdef COMPILER2
-  if (!ShenandoahGCStateCheckHotpatch) {
-    return;
-  }
-
   ShenandoahHeap* heap = ShenandoahHeap::heap();
 
   for (int c = 0; c < _barriers_count; c++) {
