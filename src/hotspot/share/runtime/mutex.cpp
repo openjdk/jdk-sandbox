@@ -593,6 +593,19 @@ void Mutex::print_lock_ranks(outputStream* st) {
 #endif // ASSERT
 }
 
+void Mutex::revive_all() {
+  assert(Thread::is_revived(), "Must be in revived VM to revive Mutexes");
+  for (int i = 0; i < Mutex::_num_mutex; i++) {
+    _internal_mutex_arr[i]->revive();
+  }
+}
+
+void Mutex::revive() {
+  assert(Thread::is_revived(), "Must be in revived VM to revive Mutex");
+  raw_set_owner(nullptr);
+  _lock.unlock();
+}
+
 RecursiveMutex::RecursiveMutex() : _sem(1), _owner(nullptr), _recursions(0) {}
 
 void RecursiveMutex::lock(Thread* current) {

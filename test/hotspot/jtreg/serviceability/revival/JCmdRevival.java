@@ -131,9 +131,22 @@
  * @comment Compiler.CodeHeap_Analytics alone is likely to overrun the log.
  */
 
+/*
+ * @test id=WithLock
+ * @summary Test process revival for serviceability: jcmd on a core file.
+ * @requires os.family == "linux" | os.family == "windows"
+ * @requires vm.debug == true
+ * @library /test/lib
+ *
+ * @run main/othervm -Xmx1g -XX:TestCrashInErrorHandler=14 JCmdRevival oom2 GC.heap_info GC.heap_dump
+ *
+ * @comment Use test type oom2 to fill heap with actual objects.  Use error handler test that additionally holds heap lock.
+ */
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
@@ -180,6 +193,12 @@ public class JCmdRevival {
             for(int i = 0; i < oa.length; i++) {
                 oa[i] = new Object[Integer.MAX_VALUE / 2];
             }
+        } else if (args[0].equals("oom2")) {
+            List<Object> list = new LinkedList<>();
+            while (true) {
+                list.add("string");
+                list.add(123);
+            }
         } else {
             throw new RuntimeException("Unknown argument for test: " + args[0]);
         }
@@ -198,6 +217,11 @@ public class JCmdRevival {
             case ("oom"): {
                 return ProcessTools.createTestJavaProcessBuilder("-XX:+CreateCoredumpOnCrash",
                        "-Xmx128m", "-XX:MaxMetaspaceSize=64m", "-XX:+CrashOnOutOfMemoryError",
+                       JCmdRevival.class.getName(), type);
+            }
+            case ("oom2"): {
+                return ProcessTools.createTestJavaProcessBuilder("-XX:+CreateCoredumpOnCrash",
+                       "-Xmx1g", "-XX:+CrashOnOutOfMemoryError",
                        JCmdRevival.class.getName(), type);
             }
             case ("abortvmonexception"): {
@@ -343,7 +367,12 @@ public class JCmdRevival {
                         throw new RuntimeException("Could not find dump file '" + heapDumpName + "'");
                     } else {
                         System.out.println("Reading dump file '" + heapDumpName + "' size " + dumpFile.length());
-                        HprofParser.parse(dumpFile);
+                        try {
+                            HprofParser.parse(dumpFile);
+                        } catch ( java.lang.OutOfMemoryError oom) {
+                            // We have read as much as testlib parser can handle.
+                            System.out.println("HprofParser in testlib hits OOM (not a failure): " + oom);
+                        }
                     }
                     break;
                 }

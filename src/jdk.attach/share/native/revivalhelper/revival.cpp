@@ -893,22 +893,20 @@ int revive_image_cooperative() {
     if (rdata->size_this != sizeof(struct revival_data)) {
         warn("revival: VM data size mismatch, this helper %ld VM data claims %ld", sizeof(struct revival_data), rdata->size_this);
     }
-    logv("revive_image: revival_data 0x%llx 0x%llx", (unsigned long long) rdata->magic, (unsigned long long) rdata->version);
-    logv("revive_image: revival_data %s / %s / %s / %s", rdata->runtime_name, rdata->runtime_version, rdata->runtime_vendor_version,
-         rdata->jdk_debug_level);
+    logv("revive_image: revival_data %s/%s/%s/%s", rdata->runtime_name, rdata->runtime_version, rdata->runtime_vendor_version, rdata->jdk_debug_level);
     logv("revive_image: VM Thread object = %p", rdata->vm_thread);
     logv("revive_image: initial_time_count ns = %lld", (unsigned long long) rdata->initial_time_count);
     logv("revive_image: initial_time_date  s  = %lld", (unsigned long long) rdata->initial_time_date);
     logv("revive_image: error time         s  = %f", rdata->error_time);
 
 #ifdef LINUX
-    // Set value to be returned by interposed clock_gettime in revival support library (preloaded)
+    // Set value to be returned by interposed clock_gettime in revival support library (preloaded).
 #define NANOS_PER_SECOND 1000000000
     void (*func)(unsigned long long) = (void(*)(unsigned long long)) dlsym(RTLD_NEXT, "set_revival_time_ns");
     if (func != nullptr) {
         double lifetime_s;
         if (rdata->error_time > 0) {
-            logv("revive_image: using JVM first error time"); // which is better than relying on core file timestamp
+            logv("revive_image: using JVM first error time"); // ...which is better than relying on core file timestamp.
             lifetime_s = rdata->error_time;
         } else {
             logv("revive_image: using core timestamp");
@@ -916,8 +914,8 @@ int revive_image_cooperative() {
         }
         func((lifetime_s * NANOS_PER_SECOND) + (rdata->initial_time_count));
     } else {
-        // Lookup failed, or e.g. revivalhelper invoked directly without preload.
-        logv("set_revival_time: symbol lookup failed.");
+        // Lookup failed, e.g. revivalhelper invoked directly without preload.
+        logv("set_revival_time_ns: symbol lookup failed.");
     }
 #endif
     return 0;
@@ -996,7 +994,7 @@ void doVersionCheck(const char* corename, const char* directory, const char* fil
     uint64_t vm_release_offset = vm_release_relative_vaddr;
 #endif
 
-    logv("Version check: vm binary offset:  0x%lx in %s", vm_release_offset, jvm_filename);
+    logv("Version check: vm binary offset: 0x%lx in %s", vm_release_offset, jvm_filename);
     char* vm_release_binary = readstring_at_offset_pd(jvm_name, vm_release_offset);
     logv("Version check: vm release from binary:  %s", vm_release_binary);
 
