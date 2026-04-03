@@ -869,7 +869,10 @@ void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char
   Address gc_state_fast(xthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
   __ lbu(t0, gc_state_fast);
   __ test_bit(t0, t0, bit_to_check);
-  __ bnez(t0, *entry());
+
+  // The bnez cannot jumper further than +/-4Kb
+  __ beqz(t0, *continuation());
+  __ j(*entry());
 
   // Fast path falls through here when the barrier is not needed.
   __ bind(*continuation());
@@ -1041,11 +1044,11 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroA
   __ add(t1, t1, t0);
 
   if (UseCondCardMark) {
-    Label already_dirty;
+    Label L_already_dirty;
     __ lbu(t0, Address(t1));
-    __ beqz(t0, already_dirty);
+    __ beqz(t0, L_already_dirty);
     __ sb(zr, Address(t1));
-    __ bind(already_dirty);
+    __ bind(L_already_dirty);
   } else {
     __ sb(zr, Address(t1));
   }
