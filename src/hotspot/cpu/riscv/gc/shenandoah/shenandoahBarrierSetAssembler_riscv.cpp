@@ -973,9 +973,9 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
       assert(tmp != noreg, "need temp register");
       __ mv(tmp, src);
       if (ShenandoahBarrierStubC2::maybe_null(node)) {
-        __ encode_heap_oop_not_null(tmp, tmp);
-      } else {
         __ encode_heap_oop(tmp, tmp);
+      } else {
+        __ encode_heap_oop_not_null(tmp, tmp);
       }
       actual_src = tmp;
     }
