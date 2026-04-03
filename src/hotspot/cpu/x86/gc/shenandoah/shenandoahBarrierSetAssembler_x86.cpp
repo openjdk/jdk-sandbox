@@ -1312,7 +1312,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
 }
 
 void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address addr, Register tmp) {
-  Label L_done;
+  Label L_done, L_slow;
 
   // If another barrier is enabled as well, do a runtime check for a specific barrier.
   if (_needs_keep_alive_barrier) {
@@ -1321,29 +1321,35 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
     __ jccb(Assembler::zero, L_done);
   }
 
-  // Weak/phantom loads are handled in slow path.
-  if (!_needs_load_ref_weak_barrier) {
-    // Compute the cset bitmap index
-    __ movptr(tmp, obj);
-    __ shrptr(tmp, ShenandoahHeapRegion::region_size_bytes_shift_jint());
-
-    // If cset address is in good spot to just use it as offset. It almost always is.
-    Address cset_addr_arg;
-    intptr_t cset_addr = (intptr_t) ShenandoahHeap::in_cset_fast_test_addr();
-    if ((cset_addr >> 3) < INT32_MAX) {
-      assert(is_aligned(cset_addr, 8), "Sanity");
-      cset_addr_arg = Address(tmp, checked_cast<int>(cset_addr >> 3), Address::times_8);
-    } else {
-      __ addptr(tmp, cset_addr);
-      cset_addr_arg = Address(tmp, 0);
-    }
-
-    // Cset-check. Fall-through to slow if in collection set.
-    __ cmpb(cset_addr_arg, 0);
-    __ jccb(Assembler::equal, L_done);
+  // If weak references are being processed, weak/phantom loads need to go slow,
+  // regadless of their cset status.
+  if (_needs_load_ref_weak_barrier) {
+    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+    __ testb(gc_state, ShenandoahHeap::WEAK_ROOTS);
+    __ jccb(Assembler::notZero, L_slow);
   }
 
+  // Compute the cset bitmap index
+  __ movptr(tmp, obj);
+  __ shrptr(tmp, ShenandoahHeapRegion::region_size_bytes_shift_jint());
+
+  // If cset address is in good spot to just use it as offset. It almost always is.
+  Address cset_addr_arg;
+  intptr_t cset_addr = (intptr_t) ShenandoahHeap::in_cset_fast_test_addr();
+  if ((cset_addr >> 3) < INT32_MAX) {
+    assert(is_aligned(cset_addr, 8), "Sanity");
+    cset_addr_arg = Address(tmp, checked_cast<int>(cset_addr >> 3), Address::times_8);
+  } else {
+    __ addptr(tmp, cset_addr);
+    cset_addr_arg = Address(tmp, 0);
+  }
+
+  // Cset-check. Fall-through to slow if in collection set.
+  __ cmpb(cset_addr_arg, 0);
+  __ jccb(Assembler::equal, L_done);
+
   // Slow path
+  __ bind(L_slow);
   {
     assert_different_registers(rax, c_rarg0, c_rarg1);
 
@@ -1395,6 +1401,26 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
   }
 
   __ bind(L_done);
+}
+
+bool ShenandoahBarrierStubC2::has_live_vector_registers() {
+  RegMaskIterator rmi(preserve_set());
+  while (rmi.has_next()) {
+    const OptoReg::Name opto_reg = rmi.next();
+    const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
+    if (vm_reg->is_Register()) {
+      // Not a vector.
+    } else if (vm_reg->is_KRegister()) {
+      // Definitely vector.
+      return true;
+    } else if (vm_reg->is_XMMRegister()) {
+      // Maybe vector, assume the worst right now.
+      return true;
+    } else {
+      fatal("Unexpected register type");
+    }
+  }
+  return false;
 }
 
 bool ShenandoahBarrierStubC2::is_live(Register reg) {

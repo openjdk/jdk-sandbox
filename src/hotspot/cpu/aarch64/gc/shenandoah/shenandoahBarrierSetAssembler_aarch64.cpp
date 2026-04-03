@@ -652,6 +652,26 @@ void ShenandoahBarrierStubC2::pop_save_register(MacroAssembler& masm, Register r
   __ ldr(reg, Address(sp, pop_save_slot()));
 }
 
+bool ShenandoahBarrierStubC2::has_live_vector_registers() {
+  RegMaskIterator rmi(preserve_set());
+  while (rmi.has_next()) {
+    const OptoReg::Name opto_reg = rmi.next();
+    const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
+    if (vm_reg->is_Register()) {
+      // Not a vector
+    } else if (vm_reg->is_FloatRegister()) {
+      // Maybe vector, assume the worst right now
+      return true;
+    } else if (vm_reg->is_PRegister()) {
+      // Vector-related register
+      return true;
+    } else {
+      fatal("Unexpected register type");
+    }
+  }
+  return false;
+}
+
 bool ShenandoahBarrierStubC2::is_live(Register reg) {
   // TODO: Precompute the generic register map for faster lookups.
   RegMaskIterator rmi(preserve_set());
@@ -935,22 +955,33 @@ void ShenandoahBarrierStubC2::post_init(int offset) {
 }
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
+  assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
+
   if (_do_emit_actual) {
-    emit_code_actual(masm);
-    return;
-  }
+    __ bind(*entry());
 
-  if (_use_trampoline) {
-    // Emit the trampoline and jump to real entry.
-    const int target_offset = __ offset();
-    assert(aarch64_test_and_branch_reachable(_fastpath_branch_offset, target_offset), "trampoline should be reachable");
-    __ bind(_trampoline_entry);
-    __ b(*entry());
-  }
+    load_and_decode(masm, *continuation());
 
-  // Do it again, this time with actual emits.
-  _do_emit_actual = true;
-  ShenandoahBarrierStubC2::register_stub(this);
+    keepalive(masm, _obj, rscratch1);
+
+    lrb(masm, _obj, _addr, rscratch1);
+
+    reencode_if_needed(masm);
+
+    __ b(*continuation());
+  } else {
+    // If we'll need a trampoline for this stub emit it here.
+    if (_use_trampoline) {
+      const int target_offset = __ offset();
+      assert(aarch64_test_and_branch_reachable(_fastpath_branch_offset, target_offset), "trampoline should be reachable");
+      __ bind(_trampoline_entry);
+      __ b(*entry());
+    }
+
+    // Register this stub, this time with actual emits.
+    _do_emit_actual = true;
+    ShenandoahBarrierStubC2::register_stub(this);
+  }
 }
 
 void ShenandoahBarrierStubC2::load_and_decode(MacroAssembler& masm, Label& target_if_null) {
@@ -991,21 +1022,6 @@ void ShenandoahBarrierStubC2::reencode_if_needed(MacroAssembler& masm) {
       __ encode_heap_oop_not_null(_obj);
     }
   }
-}
-
-void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
-  assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
-  __ bind(*entry());
-
-  load_and_decode(masm, *continuation());
-
-  keepalive(masm, _obj, rscratch1);
-
-  lrb(masm, _obj, _addr, rscratch1);
-
-  reencode_if_needed(masm);
-
-  __ b(*continuation());
 }
 
 void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Register tmp1) {
@@ -1071,32 +1087,39 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
 }
 
 void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address addr, Register tmp) {
-  Label L_done;
+  Label L_done, L_slow;
 
   // The node doesn't even need LRB barrier, just don't check anything else
   if (!_needs_load_ref_barrier) {
     return ;
   }
 
-  if ((_node->barrier_data() & ShenandoahBitStrong) != 0) {
-    // If another barrier is enabled as well, do a runtime check for a specific barrier.
-    if (_needs_keep_alive_barrier) {
-      char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
-      int bit_to_check = ShenandoahThreadLocalData::gc_state_to_fast_bit(state_to_check);
-      Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
-      __ ldrb(tmp, gc_state_fast);
-      __ tbz(tmp, bit_to_check, L_done);
-    }
-
-    // Weak/phantom loads always need to go to runtime. For strong refs we
-    // check if the object in cset, if they are not, then we are done with LRB.
-    assert(ShenandoahHeapRegion::region_size_bytes_shift_jint() <= 63, "Maximum shift of the add is 63");
-    __ mov(tmp, ShenandoahHeap::in_cset_fast_test_addr());
-    __ add(tmp, tmp, obj, Assembler::LSR, ShenandoahHeapRegion::region_size_bytes_shift_jint());
-    __ ldrb(tmp, Address(tmp, 0));
-    __ cbz(tmp, L_done);
+  // If another barrier is enabled as well, do a runtime check for a specific barrier.
+  if (_needs_keep_alive_barrier) {
+    char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
+    int bit_to_check = ShenandoahThreadLocalData::gc_state_to_fast_bit(state_to_check);
+    Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
+    __ ldrb(tmp, gc_state_fast);
+    __ tbz(tmp, bit_to_check, L_done);
   }
 
+  // If weak references are being processed, weak/phantom loads need to go slow,
+  // regadless of their cset status.
+  if (_needs_load_ref_weak_barrier) {
+    Address gc_state(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+    __ ldrb(tmp, gc_state);
+    __ tbnz(tmp, ShenandoahHeap::WEAK_ROOTS_BITPOS, L_slow);
+  }
+
+  // Cset-check. Fall-through to slow if in collection set.
+  assert(ShenandoahHeapRegion::region_size_bytes_shift_jint() <= 63, "Maximum shift of the add is 63");
+  __ mov(tmp, ShenandoahHeap::in_cset_fast_test_addr());
+  __ add(tmp, tmp, obj, Assembler::LSR, ShenandoahHeapRegion::region_size_bytes_shift_jint());
+  __ ldrb(tmp, Address(tmp, 0));
+  __ cbz(tmp, L_done);
+
+  // Slow path
+  __ bind(L_slow);
   dont_preserve(obj);
   {
     // Shuffle in the arguments. The end result should be:

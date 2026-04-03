@@ -194,6 +194,7 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   int push_save_slot();
   int pop_save_slot();
 
+  bool has_live_vector_registers();
   bool is_live(Register reg);
   Register select_temp_register(bool& selected_live, Address addr, Register reg1);
 
@@ -205,8 +206,6 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
 
   address keepalive_runtime_entry_addr();
   address lrb_runtime_entry_addr();
-
-  void emit_code_actual(MacroAssembler& masm);
 
   void post_init(int offset);
 
