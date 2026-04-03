@@ -207,8 +207,6 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   address keepalive_runtime_entry_addr();
   address lrb_runtime_entry_addr();
 
-  void emit_code_actual(MacroAssembler& masm);
-
   void post_init(int offset);
 
 public:

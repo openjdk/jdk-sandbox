@@ -955,22 +955,33 @@ void ShenandoahBarrierStubC2::post_init(int offset) {
 }
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
+  assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
+
   if (_do_emit_actual) {
-    emit_code_actual(masm);
-    return;
-  }
+    __ bind(*entry());
 
-  if (_use_trampoline) {
-    // Emit the trampoline and jump to real entry.
-    const int target_offset = __ offset();
-    assert(aarch64_test_and_branch_reachable(_fastpath_branch_offset, target_offset), "trampoline should be reachable");
-    __ bind(_trampoline_entry);
-    __ b(*entry());
-  }
+    load_and_decode(masm, *continuation());
 
-  // Do it again, this time with actual emits.
-  _do_emit_actual = true;
-  ShenandoahBarrierStubC2::register_stub(this);
+    keepalive(masm, _obj, rscratch1);
+
+    lrb(masm, _obj, _addr, rscratch1);
+
+    reencode_if_needed(masm);
+
+    __ b(*continuation());
+  } else {
+    // If we'll need a trampoline for this stub emit it here.
+    if (_use_trampoline) {
+      const int target_offset = __ offset();
+      assert(aarch64_test_and_branch_reachable(_fastpath_branch_offset, target_offset), "trampoline should be reachable");
+      __ bind(_trampoline_entry);
+      __ b(*entry());
+    }
+
+    // Register this stub, this time with actual emits.
+    _do_emit_actual = true;
+    ShenandoahBarrierStubC2::register_stub(this);
+  }
 }
 
 void ShenandoahBarrierStubC2::load_and_decode(MacroAssembler& masm, Label& target_if_null) {
@@ -1011,21 +1022,6 @@ void ShenandoahBarrierStubC2::reencode_if_needed(MacroAssembler& masm) {
       __ encode_heap_oop_not_null(_obj);
     }
   }
-}
-
-void ShenandoahBarrierStubC2::emit_code_actual(MacroAssembler& masm) {
-  assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
-  __ bind(*entry());
-
-  load_and_decode(masm, *continuation());
-
-  keepalive(masm, _obj, rscratch1);
-
-  lrb(masm, _obj, _addr, rscratch1);
-
-  reencode_if_needed(masm);
-
-  __ b(*continuation());
 }
 
 void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Register tmp1) {
