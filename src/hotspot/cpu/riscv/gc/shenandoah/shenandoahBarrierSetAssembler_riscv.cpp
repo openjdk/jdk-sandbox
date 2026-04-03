@@ -843,7 +843,7 @@ Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Addr
     Register r = as_Register(i);
     if (r != fp && r != sp &&
         r != xheapbase && r != xthread &&
-        r != t0 && r != t1 &&
+        r != t0 && r != t1 && r != zr &&
         r != reg1 && r != addr.base() && r != addr.index()) {
       if (!is_live(r)) {
         tmp = r;
