@@ -958,9 +958,11 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
 
   if (_do_emit_actual) {
+    Label L_done;
+
     __ bind(*entry());
 
-    load_and_decode(masm, *continuation());
+    load_and_decode(masm, L_done);
 
     keepalive(masm, _obj, rscratch1);
 
@@ -968,6 +970,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
 
     reencode_if_needed(masm);
 
+    __ bind(L_done);
     __ b(*continuation());
   } else {
     // If we'll need a trampoline for this stub emit it here.
