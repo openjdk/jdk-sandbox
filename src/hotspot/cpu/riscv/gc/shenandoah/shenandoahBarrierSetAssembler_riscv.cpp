@@ -939,9 +939,9 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
 
   if (narrow) {
     if (acquire) {
-      __ atomic_xchgalw(preval, newval, addr);
+      __ atomic_xchgalwu(preval, newval, addr);
     } else {
-      __ atomic_xchgw(preval, newval, addr);
+      __ atomic_xchgwu(preval, newval, addr);
     }
   } else {
     if (acquire) {
