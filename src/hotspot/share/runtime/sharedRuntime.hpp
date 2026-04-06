@@ -379,8 +379,6 @@ class SharedRuntime: AllStatic {
     return _shenandoah_lrb_phantom_narrow_vectors_blob->entry_point();
   }
 
-
-
   // Counters
 #ifndef PRODUCT
   static address nof_megamorphic_calls_addr() { return (address)&_nof_megamorphic_calls; }

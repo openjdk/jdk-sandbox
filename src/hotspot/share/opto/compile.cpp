@@ -884,7 +884,9 @@ Compile::Compile(ciEnv* ci_env, ciMethod* target, int osr_bci,
 
   // Now that we know the size of all the monitors we can add the fixed slots
   // for GC barriers and the original deopt pc. All these slots should be able
-  // to fit an address.
+  // to fit an address. The reserved GC slots are used, for instance, by
+  // slowpath GC barrier stubs that need to save registers to the stack when
+  // making calls to GC runtime.
   int reserved_gc_slots = BarrierSet::barrier_set()->barrier_set_c2()->reserved_slots();
   int next_slot = fixed_slots() + (reserved_gc_slots + 1) * sizeof(address) / VMRegImpl::stack_slot_size;
   set_fixed_slots(next_slot);

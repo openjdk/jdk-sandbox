@@ -199,7 +199,6 @@ void SharedRuntime::generate_stubs() {
     _shenandoah_lrb_strong_narrow_vectors_blob  = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_strong_narrow_vectors_id);
     _shenandoah_lrb_weak_narrow_vectors_blob    = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_weak_narrow_vectors_id);
     _shenandoah_lrb_phantom_narrow_vectors_blob = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_phantom_narrow_vectors_id);
-
   }
 #endif
 }

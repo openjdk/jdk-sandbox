@@ -5248,7 +5248,7 @@ void  MacroAssembler::decode_heap_oop(Register d, Register s) {
     Label done;
     if (d != s)
       mov(d, s);
-    cbz(d, done);
+    cbz(s, done);
     add(d, rheapbase, s, Assembler::LSL, LogMinObjAlignmentInBytes);
     bind(done);
   }
