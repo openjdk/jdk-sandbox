@@ -771,15 +771,6 @@ uint8_t MemNode::barrier_data(const Node* n) {
   return 0;
 }
 
-MemNode::MemOrd MemNode::memory_order(const Node* n) {
-  if (n->is_Load()) {
-    return n->as_Load()->memory_order();
-  } else if (n->is_Store()) {
-    return n->as_Store()->memory_order();;
-  }
-  return MemNode::MemOrd::seqcst;
-}
-
 AccessAnalyzer::AccessAnalyzer(PhaseValues* phase, MemNode* n)
   : _phase(phase), _n(n), _memory_size(n->memory_size()), _alias_idx(-1) {
   Node* adr  = _n->in(MemNode::Address);
