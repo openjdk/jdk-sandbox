@@ -839,7 +839,7 @@ Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Addr
   Register fallback_live = noreg;
 
   // Try to select non-live first:
-  for (int i = 0; i < Register::available_gp_registers(); i++) {
+  for (int i = 0; i < Register::number_of_registers; i++) {
     Register r = as_Register(i);
     if (r != fp && r != sp &&
         r != xheapbase && r != xthread &&

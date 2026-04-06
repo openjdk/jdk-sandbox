@@ -653,6 +653,7 @@ public:
     assert((_mo == unordered || _mo == release), "unexpected");
     return _mo == release;
   }
+
   // Conservatively release stores of object references in order to
   // ensure visibility of object initialization.
   static inline MemOrd release_if_reference(const BasicType t) {

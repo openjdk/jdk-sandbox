@@ -106,11 +106,6 @@ class Register {
   int operator!=(const Register r) const { return _encoding != r._encoding; }
 
   constexpr const RegisterImpl* operator->() const { return RegisterImpl::first() + _encoding; }
-
-  // Actually available GP registers for use, depending on actual CPU capabilities and flags.
-  static int available_gp_registers() {
-    return number_of_registers;
-  }
 };
 
 extern Register::RegisterImpl all_RegisterImpls[Register::number_of_registers + 1] INTERNAL_VISIBILITY;
