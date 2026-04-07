@@ -363,18 +363,18 @@ public class JCmdRevival {
                 }
                 case "GC.heap_dump": {
                     File dumpFile = new File(heapDumpName);
-                    if (!dumpFile.exists() && dumpFile.isFile()) {
-                        throw new RuntimeException("Could not find dump file '" + heapDumpName + "'");
-                    } else {
+                    if (dumpFile.exists() && dumpFile.isFile()) {
                         System.out.println("Reading dump file '" + heapDumpName + "' size " + dumpFile.length());
                         try {
                             HprofParser.parse(dumpFile);
-                        } catch ( java.lang.OutOfMemoryError oom) {
+                        } catch (java.lang.OutOfMemoryError oom) {
                             // We have read as much as testlib parser can handle.
-                            System.out.println("HprofParser in testlib hits OOM (not a failure): " + oom);
+                            System.out.println("HprofParser in testlib hits OOM (not considered a failure): " + oom);
                         }
+                        break;
+                    } else {
+                        throw new RuntimeException("Could not find dump file '" + heapDumpName + "'");
                     }
-                    break;
                 }
                 case "GC.heap_info": {
                     out.shouldMatch("total reserved ");
