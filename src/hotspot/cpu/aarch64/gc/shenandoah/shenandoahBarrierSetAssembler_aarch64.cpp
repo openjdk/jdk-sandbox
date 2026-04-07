@@ -937,6 +937,8 @@ void ShenandoahBarrierStubC2::post_init(int offset) {
 }
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
+  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
+
   assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
 
   if (_do_emit_actual) {

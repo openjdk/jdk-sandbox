@@ -764,11 +764,12 @@ void ShenandoahBarrierSetC2::emit_stubs(CodeBuffer& cb) const {
   barrier_set_state()->set_stubs_start_offset(masm.offset());
   barrier_set_state()->set_save_slots_stack_offset(output->gc_barrier_save_slots_offset_in_bytes());
 
-  // Stub generation uses nested skipped counters that can double-count.
-  // Calculate the actual skipped amount by the real PC before/after stub generation.
-  // FIXME: This should be handled upstream.
+  // Stub generation counts all stubs as skipped for the sake of inlining policy.
+  // This is critical for performance, check it.
+#ifdef ASSERT
   int offset_before = masm.offset();
-  int skipped_before = masm.get_skipped();
+  int skipped_before = cb.total_skipped_instructions_size();
+#endif
 
   GrowableArray<ShenandoahBarrierStubC2*>* const stubs = barrier_set_state()->stubs();
   for (int i = 0; i < stubs->length(); i++) {
@@ -780,13 +781,14 @@ void ShenandoahBarrierSetC2::emit_stubs(CodeBuffer& cb) const {
     stubs->at(i)->emit_code(masm);
   }
 
+#ifdef ASSERT
   int offset_after = masm.offset();
-
-  // The real stubs section is coming up after this, so we have to account for alignment
-  // padding there. See CodeSection::alignment().
-  offset_after = align_up(offset_after, HeapWordSize);
-
-  masm.set_skipped(skipped_before + (offset_after - offset_before));
+  int skipped_after = cb.total_skipped_instructions_size();
+  assert(offset_after - offset_before == skipped_after - skipped_before,
+         "All stubs are counted as skipped. masm: %d - %d = %d, cb: %d - %d = %d",
+        offset_after, offset_before, offset_after - offset_before,
+        skipped_after, skipped_before, skipped_after - skipped_before);
+#endif
 
   masm.flush();
 }

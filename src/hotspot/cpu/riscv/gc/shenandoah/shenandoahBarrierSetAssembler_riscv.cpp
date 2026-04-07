@@ -1063,6 +1063,8 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroA
 #define __ masm.
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
+  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
+
   assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
 
   Label L_done;
