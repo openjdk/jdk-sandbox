@@ -3842,6 +3842,129 @@ RuntimeStub* SharedRuntime::generate_jfr_return_lease() {
 #if INCLUDE_SHENANDOAHGC
 RuntimeStub* SharedRuntime::generate_shenandoah_stub(StubId stub_id) {
   assert(UseShenandoahGC, "Only generate when Shenandoah is enabled");
-  return nullptr;
+
+  const char* name = SharedRuntime::stub_name(stub_id);
+  address stub_addr = nullptr;
+  bool returns_obj = true;
+
+  switch (stub_id) {
+    case StubId::shared_shenandoah_keepalive_id:
+    case StubId::shared_shenandoah_keepalive_vectors_id:
+      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre);
+      returns_obj = false;
+      break;
+
+    case StubId::shared_shenandoah_lrb_strong_id:
+    case StubId::shared_shenandoah_lrb_strong_vectors_id:
+      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong);
+      break;
+
+    case StubId::shared_shenandoah_lrb_weak_id:
+    case StubId::shared_shenandoah_lrb_weak_vectors_id:
+      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak);
+      break;
+
+    case StubId::shared_shenandoah_lrb_phantom_id:
+    case StubId::shared_shenandoah_lrb_phantom_vectors_id:
+      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom);
+      break;
+
+    case StubId::shared_shenandoah_lrb_strong_narrow_id:
+    case StubId::shared_shenandoah_lrb_strong_narrow_vectors_id:
+      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow);
+      break;
+
+    case StubId::shared_shenandoah_lrb_weak_narrow_id:
+    case StubId::shared_shenandoah_lrb_weak_narrow_vectors_id:
+      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow);
+      break;
+
+    case StubId::shared_shenandoah_lrb_phantom_narrow_id:
+    case StubId::shared_shenandoah_lrb_phantom_narrow_vectors_id:
+      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow);
+      break;
+
+    default:
+      ShouldNotReachHere();
+  }
+
+  bool save_vectors = true;
+  switch (stub_id) {
+    case StubId::shared_shenandoah_keepalive_vectors_id:
+    case StubId::shared_shenandoah_lrb_strong_vectors_id:
+    case StubId::shared_shenandoah_lrb_weak_vectors_id:
+    case StubId::shared_shenandoah_lrb_phantom_vectors_id:
+    case StubId::shared_shenandoah_lrb_strong_narrow_vectors_id:
+    case StubId::shared_shenandoah_lrb_weak_narrow_vectors_id:
+    case StubId::shared_shenandoah_lrb_phantom_narrow_vectors_id:
+      save_vectors = true;
+      break;
+
+    case StubId::shared_shenandoah_keepalive_id:
+    case StubId::shared_shenandoah_lrb_strong_id:
+    case StubId::shared_shenandoah_lrb_weak_id:
+    case StubId::shared_shenandoah_lrb_phantom_id:
+    case StubId::shared_shenandoah_lrb_strong_narrow_id:
+    case StubId::shared_shenandoah_lrb_weak_narrow_id:
+    case StubId::shared_shenandoah_lrb_phantom_narrow_id:
+      save_vectors = false;
+      break;
+
+    default:
+      ShouldNotReachHere();
+  }
+
+  CodeBuffer code(name, 2048, 64);
+  MacroAssembler* masm = new MacroAssembler(&code);
+  address start = __ pc();
+
+  int frame_size_in_bytes = 0;
+  OopMap* map = RegisterSaver::push_frame_reg_args_and_save_live_registers(masm,
+                                                                          &frame_size_in_bytes,
+                                                                          /*generate_oop_map=*/true,
+                                                                          RegisterSaver::return_pc_is_lr,
+                                                                          save_vectors);
+  address frame_complete_pc = __ pc();
+
+  // Exact post-call PC for the oop map.
+  __ call_c(stub_addr);
+  address post_call_pc = __ pc();
+
+  if (returns_obj) {
+    // restore_live_registers_and_pop_frame() restores the saved R3 slot,
+    // which would clobber the runtime return value in R3_RET.
+    //
+    // RegisterSaver_LiveRegs[] defines the save layout, and its order matches
+    // the stack layout:
+    //   F0..F31, then R2, R3, R4, ...
+    //
+    // So the saved R3 slot is:
+    //   register_save_offset + (32 * reg_size) + (1 * reg_size)
+    // where the +1 skips over saved R2.
+    const int regstosave_num = sizeof(RegisterSaver_LiveRegs) / sizeof(RegisterSaver::LiveRegType);
+    const int vecregs_num = sizeof(RegisterSaver_LiveVecRegs) / sizeof(RegisterSaver::LiveRegType);
+
+    const int vecregstosave_num = save_vectors ? vecregs_num : 0;
+    const int register_save_size = regstosave_num * RegisterSaver::reg_size + vecregstosave_num * RegisterSaver::vec_reg_size;
+    const int register_save_offset = frame_size_in_bytes - register_save_size;
+    const int r3_ret_offset = register_save_offset + (32 * RegisterSaver::reg_size) + (1 * RegisterSaver::reg_size);
+
+    __ std(R3_RET, r3_ret_offset, R1_SP);
+  }
+
+  OopMapSet* oop_maps = new OopMapSet();
+  oop_maps->add_gc_map(post_call_pc - start, map);
+
+  RegisterSaver::restore_live_registers_and_pop_frame(masm, frame_size_in_bytes, /* restore_ctr: */ true, save_vectors);
+  __ blr();
+
+  masm->flush();
+
+  return RuntimeStub::new_runtime_stub(name,
+                                       &code,
+                                       frame_complete_pc - start,
+                                       frame_size_in_bytes / wordSize,
+                                       oop_maps,
+                                       true);
 }
 #endif
