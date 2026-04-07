@@ -104,7 +104,7 @@ class SharedRuntime: AllStatic {
   // For c2: call to runtime to return a buffer lease.
   static RuntimeStub* generate_jfr_return_lease();
 #endif
-  static RuntimeStub* generate_shenandoah_stub(StubId stub_id);
+  static RuntimeStub* generate_gc_slow_call_blob(StubId stub_id, address stub_addr, bool has_return, bool save_vectors);
 
   static void init_adapter_library();
 
