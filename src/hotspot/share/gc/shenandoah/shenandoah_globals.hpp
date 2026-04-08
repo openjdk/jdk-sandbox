@@ -575,6 +575,10 @@
   product(bool, ShenandoahWeakRootsEarly, false, EXPERIMENTAL,              \
           "Turn off weak roots earlier than usual. TODO: Upstream!")        \
                                                                             \
+  product(int, ShenandoahDelayGC, 0, EXPERIMENTAL,                          \
+          "Delay GC phases by this amount of milliseconds. "                \
+          "Helps to measure active GC barriers costs.")                     \
+                                                                            \
   develop(bool, ShenandoahVerifyOptoBarriers, trueInDebug,                  \
           "Verify no missing barriers in C2.")                              \
                                                                             \

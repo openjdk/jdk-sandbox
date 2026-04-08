@@ -1197,9 +1197,8 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
 
+  __ align(InteriorEntryAlignment);
   __ bind(*entry());
-
-  Label L_done, L_barriers;
 
   // If we need to load ourselves, do it here.
   if (_do_load) {
@@ -1216,14 +1215,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   } else {
     __ testptr(_obj, _obj);
   }
-  __ jccb(Assembler::notZero, L_barriers);
-
-  // Exit here.
-  __ bind(L_done);
-  __ jmp(*continuation());
-
-  // Barriers start here.
-  __ bind(L_barriers);
+  __ jcc(Assembler::zero, *continuation());
 
   // Barriers need temp to work, allocate one now.
   bool tmp_live;
@@ -1232,48 +1224,40 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
     push_save_register(masm, tmp);
   }
 
-  // If object is narrow, we need to decode it first: barrier checks need full oops.
-  if (_narrow) {
-    __ decode_heap_oop_not_null(_obj);
-  }
-
   // Go for barriers. If both barriers are required (rare), do a runtime check for enabled barrier.
   if (_needs_keep_alive_barrier) {
     keepalive(masm, _obj, tmp);
   }
   if (_needs_load_ref_barrier) {
-    lrb(masm, _obj, _addr, tmp);
+    // TODO: This should be done cleaner. We are optimizing for the overwhelmingly
+    // major case of plain LRB loads.
+    Label L_fallthrough;
+    lrb(masm, _obj, _addr, tmp, tmp_live ? &L_fallthrough : continuation());
+    __ bind(L_fallthrough);
   }
 
   if (tmp_live) {
     pop_save_register(masm, tmp);
   }
 
-  // If object is narrow, we need to encode it before exiting.
-  // For encoding, dst can only turn null if we are dealing with weak loads.
-  // Otherwise, we have already null-checked. We can skip all this if we performed
-  // the load ourselves, which means the value is not used by caller.
-  if (_narrow && !_do_load) {
-    if (_needs_load_ref_weak_barrier) {
-      __ encode_heap_oop(_obj);
-    } else {
-      __ encode_heap_oop_not_null(_obj);
-    }
-  }
-  __ jmp(L_done);
+  __ jmp(*continuation());
 }
 
 void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Register tmp1) {
   Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
 
-  Label L_fast, L_done;
+  Label L_fast, L_pack_and_done, L_done;
 
   // If another barrier is enabled as well, do a runtime check for a specific barrier.
   if (_needs_load_ref_barrier) {
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ testb(gc_state, ShenandoahHeap::MARKING);
-    __ jccb(Assembler::zero, L_done);
+    __ jcc(Assembler::zero, L_done);
+  }
+
+  if (_narrow) {
+    __ decode_heap_oop_not_null(obj);
   }
 
   // Check if buffer is already full. Go slow, if so.
@@ -1300,7 +1284,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
     if (clobbered_c_rarg0) {
       pop_save_register(masm, c_rarg0);
     }
-    __ jmpb(L_done);
+    __ jmpb(L_pack_and_done);
   }
 
   // Fast-path: put object into buffer.
@@ -1310,17 +1294,21 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
   __ addptr(tmp1, buffer);
   __ movptr(Address(tmp1, 0), obj);
 
+  __ bind(L_pack_and_done);
+  if (_narrow) {
+    __ encode_heap_oop_not_null(obj);
+  }
   __ bind(L_done);
 }
 
-void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address addr, Register tmp) {
-  Label L_done, L_slow;
+void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address addr, Register tmp, Label* L_done) {
+  Label L_slow;
 
   // If another barrier is enabled as well, do a runtime check for a specific barrier.
   if (_needs_keep_alive_barrier) {
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0));
-    __ jccb(Assembler::zero, L_done);
+    __ jcc(Assembler::zero, *L_done);
   }
 
   // If weak references are being processed, weak/phantom loads need to go slow,
@@ -1332,7 +1320,11 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
   }
 
   // Compute the cset bitmap index
-  __ movptr(tmp, obj);
+  if (_narrow) {
+    __ decode_heap_oop_not_null(tmp, obj);
+  } else {
+    __ movptr(tmp, obj);
+  }
   __ shrptr(tmp, ShenandoahHeapRegion::region_size_bytes_shift_jint());
 
   // If cset address is in good spot to just use it as offset. It almost always is.
@@ -1348,7 +1340,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
 
   // Cset-check. Fall-through to slow if in collection set.
   __ cmpb(cset_addr_arg, 0);
-  __ jccb(Assembler::equal, L_done);
+  __ jcc(Assembler::equal, *L_done);
 
   // Slow path
   __ bind(L_slow);
@@ -1384,12 +1376,28 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
       clobbered_rax = push_save_register_if_live(masm, rax);
     }
 
+    // Decode if needed.
+    if (_narrow) {
+      __ decode_heap_oop_not_null(c_rarg0);
+    }
+
     // Go to runtime stub and handle the rest there.
     __ call(RuntimeAddress(lrb_runtime_entry_addr()));
 
     // Save the result where needed and restore the clobbered registers.
     if (obj != rax) {
       __ movptr(obj, rax);
+    }
+    // If object is narrow, we need to encode it before exiting.
+    // For encoding, dst can only turn null if we are dealing with weak loads.
+    // Otherwise, we have already null-checked. We can skip all this if we performed
+    // the load ourselves, which means the value is not used by caller.
+    if (_narrow && !_do_load) {
+      if (_needs_load_ref_weak_barrier) {
+        __ encode_heap_oop(obj);
+      } else {
+        __ encode_heap_oop_not_null(obj);
+      }
     }
     if (clobbered_rax) {
       pop_save_register(masm, rax);
@@ -1402,7 +1410,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
     }
   }
 
-  __ bind(L_done);
+  __ jmp(*L_done);
 }
 
 bool ShenandoahBarrierStubC2::has_live_vector_registers() {
