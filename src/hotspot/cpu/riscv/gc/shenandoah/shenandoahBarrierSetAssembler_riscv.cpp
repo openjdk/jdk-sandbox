@@ -786,16 +786,6 @@ void ShenandoahBarrierSetAssembler::generate_c1_load_reference_barrier_runtime_s
 
 #ifdef COMPILER2
 
-static bool needs_acquiring_load_reserved(const MachNode* n) {
-  assert(n->is_CAS(true), "expecting a compare and swap");
-  if (n->is_CAS(false)) {
-    assert(n->has_trailing_membar(), "expected trailing membar");
-  } else {
-    return n->has_trailing_membar();
-  }
-  return true;
-}
-
 #undef __
 #define __ masm.
 
@@ -887,8 +877,8 @@ void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char
 #define __ masm->
 
 void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr,
-    Register oldval, Register newval, Register tmp, bool exchange, bool maybe_null, bool narrow, bool weak) {
-  const Assembler::Aqrl acquire = needs_acquiring_load_reserved(node) ? Assembler::aq : Assembler::relaxed;
+    Register oldval, Register newval, Register tmp, bool exchange, bool maybe_null, bool narrow, bool weak, bool is_acquire) {
+  const Assembler::Aqrl acquire = is_acquire ? Assembler::aq : Assembler::relaxed;
   const Assembler::Aqrl release = Assembler::rl;
 
   // Pre-barrier covers several things:
@@ -918,8 +908,7 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
 }
 
 void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval,
-    Register newval, Register addr, Register tmp) {
-  const bool acquire = needs_acquiring_load_reserved(node);
+    Register newval, Register addr, Register tmp, bool is_acquire) {
   const bool narrow = node->bottom_type()->isa_narrowoop();
 
   // Pre-barrier covers several things:
@@ -938,13 +927,13 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
   }
 
   if (narrow) {
-    if (acquire) {
+    if (is_acquire) {
       __ atomic_xchgalwu(preval, newval, addr);
     } else {
       __ atomic_xchgwu(preval, newval, addr);
     }
   } else {
-    if (acquire) {
+    if (is_acquire) {
       __ atomic_xchgal(preval, newval, addr);
     } else {
       __ atomic_xchg(preval, newval, addr);
@@ -956,7 +945,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
 }
 
 void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm, Address dst, bool dst_narrow,
-    Register src, bool src_narrow, Register tmp) {
+    Register src, bool src_narrow, Register tmp, bool is_volatile) {
 
   // Pre-barrier: SATB / keep-alive on current value in memory.
   if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
@@ -966,7 +955,6 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   }
 
   // Do the actual store
-  const bool is_volatile = node->has_trailing_membar();
   if (dst_narrow) {
     Register actual_src = src;
     if (!src_narrow) {
@@ -999,19 +987,18 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   card_barrier_c2(node, masm, dst);
 }
 
-void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src) {
-  const bool acquire = node->memory_order() == MemNode::MemOrd::acquire;
+void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src, bool is_acquire) {
   const bool narrow = node->bottom_type()->isa_narrowoop();
 
   // Do the actual load. This load is the candidate for implicit null check, and MUST come first.
   if (narrow) {
     __ lwu(dst, src);
-    if (acquire) {
+    if (is_acquire) {
       __ membar(MacroAssembler::LoadLoad | MacroAssembler::LoadStore);
     }
   } else {
     __ ld(dst, src);
-    if (acquire) {
+    if (is_acquire) {
       __ membar(MacroAssembler::LoadLoad | MacroAssembler::LoadStore);
     }
   }
