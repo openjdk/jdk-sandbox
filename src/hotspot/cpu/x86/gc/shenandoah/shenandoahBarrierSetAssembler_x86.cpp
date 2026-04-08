@@ -1253,7 +1253,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
   if (_needs_load_ref_barrier) {
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ testb(gc_state, ShenandoahHeap::MARKING);
-    __ jccb(Assembler::zero, L_done);
+    __ jcc(Assembler::zero, L_done);
   }
 
   if (_narrow) {
