@@ -1229,7 +1229,11 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
     keepalive(masm, _obj, tmp);
   }
   if (_needs_load_ref_barrier) {
-    lrb(masm, _obj, _addr, tmp);
+    // TODO: This should be done cleaner. We are optimizing for the overwhelmingly
+    // major case of plain LRB loads.
+    Label L_fallthrough;
+    lrb(masm, _obj, _addr, tmp, tmp_live ? &L_fallthrough : continuation());
+    __ bind(L_fallthrough);
   }
 
   if (tmp_live) {
@@ -1297,14 +1301,14 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
   __ bind(L_done);
 }
 
-void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address addr, Register tmp) {
-  Label L_done, L_slow;
+void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address addr, Register tmp, Label* L_done) {
+  Label L_slow;
 
   // If another barrier is enabled as well, do a runtime check for a specific barrier.
   if (_needs_keep_alive_barrier) {
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0));
-    __ jccb(Assembler::zero, L_done);
+    __ jcc(Assembler::zero, *L_done);
   }
 
   // If weak references are being processed, weak/phantom loads need to go slow,
@@ -1336,7 +1340,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
 
   // Cset-check. Fall-through to slow if in collection set.
   __ cmpb(cset_addr_arg, 0);
-  __ jccb(Assembler::equal, L_done);
+  __ jcc(Assembler::equal, *L_done);
 
   // Slow path
   __ bind(L_slow);
@@ -1406,7 +1410,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
     }
   }
 
-  __ bind(L_done);
+  __ jmp(*L_done);
 }
 
 bool ShenandoahBarrierStubC2::has_live_vector_registers() {
