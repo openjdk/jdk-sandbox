@@ -111,7 +111,7 @@ int main(int argc, char** argv) {
 
     int e = revive_image(corename, javahome, libdir, revival_data);
     if (e < 0) {
-        fprintf(stderr, "Error: revive failed: %d\n", e);
+        logv("revivalhelper: revive failed: %d\n", e);
         // Will call _exit below, don't call error().
     } else {
         e = revival_dcmd(command);

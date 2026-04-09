@@ -123,14 +123,26 @@ bool dir_isempty_pd(const char* dirname) {
 bool file_exists_pd(const char* filename) {
     int fd = open(filename, O_RDONLY);
     if (fd < 0) {
+        logv("%s: error %d: %s", filename, errno, strerror(errno));
         if (errno != ENOENT) {
-            warn("Checking if file exists '%s': %d: %s", filename, errno, strerror(errno));
+            return true; // Exists, but e.g. no permission.
+        } else {
+            return false;
         }
     } else {
         close(fd);
         return true;
     }
-    return false;
+}
+
+bool file_canread_pd(const char* filename) {
+    int fd = open(filename, O_RDONLY);
+    if (fd < 0) {
+        return false;
+    } else {
+        close(fd);
+        return true;
+    }
 }
 
 bool file_exists_indir_pd(const char* dirname, const char* filename) {
@@ -312,13 +324,16 @@ void handler(int sig, siginfo_t* info, void* ucontext) {
         }
     }
     warn("revival: handler: si_addr = %p : not handled.", addr);
+    if (logLevel >= LOG_DEBUG) {
+        abort();
+    }
     exitForRetry();
 }
 
 /**
  * Install the signal hander.
  */
-void install_handler() {
+void install_handler_pd() {
     struct sigaction sa, old_sa;
     sigfillset(&sa.sa_mask);
     sa.sa_sigaction = handler;

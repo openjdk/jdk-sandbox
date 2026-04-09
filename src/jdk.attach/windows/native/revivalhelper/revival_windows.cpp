@@ -279,7 +279,7 @@ LONG WINAPI topLevelUnhandledExceptionFilter(struct _EXCEPTION_POINTERS* excepti
     abort(); // Not reached.
 }
 
-void install_handler() {
+void install_handler_pd() {
     previousUnhandledExceptionFilter = SetUnhandledExceptionFilter(topLevelUnhandledExceptionFilter);
 }
 

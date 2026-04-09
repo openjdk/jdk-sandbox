@@ -225,7 +225,7 @@ unsigned long long file_time(const char* filename) {
 }
 
 /**
- * Return true if vaddr range v1, v2 looks dangerous to map/unmap,
+ * Return true if vaddr range v1 to v2 is in conflict,
  * given t1, t2 describe an address range in use.
  */
 int clash(uint64_t v1, uint64_t v2, uint64_t t1, uint64_t t2) {
@@ -245,8 +245,8 @@ int clash(uint64_t v1, uint64_t v2, uint64_t t1, uint64_t t2) {
 int dangerous0(void* vaddr, unsigned long long length, uint64_t xaddr) {
     uint64_t v1 = (uint64_t) vaddr;
     uint64_t v2 = v1 + length;
-    uint64_t t1 = align_down(xaddr, 0xffffff);
-    uint64_t t2 = align_up(xaddr, 0xffffff);
+    uint64_t t1 = align_down(xaddr, vaddr_alignment_pd());
+    uint64_t t2 = align_up(xaddr, vaddr_alignment_pd());
     if (clash(v1, v2, t1, t2)) {
         return true;
     }
@@ -255,7 +255,7 @@ int dangerous0(void* vaddr, unsigned long long length, uint64_t xaddr) {
 
 /**
  * dangerous
- * Return true if the given vaddr, length appear dangerous to map,
+ * Return true if the given vaddr, length appear dangerous to map.
  * e.g. that range is in use the by calling stack or contains the current program.
  */
 const char* dangerous(void* vaddr, unsigned long long length) {
@@ -275,9 +275,6 @@ const char* dangerous(void* vaddr, unsigned long long length) {
     if (dangerous0(vaddr, length, (uint64_t) &gettimeofday)) {
         return "conflict gettimeofday";
     }
-#endif
-#ifdef WINDOWS
-    // consider testing a standard Windows library symbol..,.
 #endif
     return nullptr;
 }
@@ -524,6 +521,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
                 if (e < 0) {
                     // On failure, try copying.  Used for a Linux gcore (gdb) as file offsets are not aligned.
                     // Also on Windows, vaddr and file offset generally not aligned in MiniDump.
+                    // Allocate, and fail if allocation fails, to avoid accidentally overwriting e.g. existing libraries.
                     e  = revival_mapping_copy(vaddr, length, offset, true /* allocate */, core_filename, core_fd);
                     logv("mappings_file_read: retry M 0x%llx using revival_mapping_copy returns: %d", (unsigned long long) vaddr, e);
                     if (e < 0 ) {
@@ -545,8 +543,9 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
                     m_count++;
                 }
             } else if (strncmp(s1, "C", 1) == 0) {
-                // Copy, no allocation: "C" lines are to populate allocations in "m" lines.
-                int e = revival_mapping_copy(vaddr, length, offset, false, core_filename, core_fd);
+                // Copy: "C" lines are to populate allocations in "m" lines.
+                // No allocation, an "m" line already allocated.
+                int e = revival_mapping_copy(vaddr, length, offset, false /* allocate */, core_filename, core_fd);
                 if (e < 0) {
                     warn("mappings_file_read: 'C' copy failed for seg at 0x%llx: %d", (unsigned long long) vaddr, e);
                     exitForRetry();
@@ -818,6 +817,7 @@ int mappings_file_create(const char* dirname, const char* corename) {
     int fd = open(buf, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR);
 #endif
     if (fd < 0) {
+        // Failed to create: e.g. already exists but no permissions.
         warn("mappings_file_create failed: %s: %s", buf, strerror(errno));
         return fd;
     }
@@ -1022,21 +1022,25 @@ bool revival_cache_exists(char* dirname, const char* mappings_filename) {
 int revive_image(const char* corename, const char* javahome, const char* libdir, const char* revival_data_path) {
     int e;
     char* dirname;
+    if (rdata != nullptr && rdata->vm_thread) {
+        warn("revive_image: already called.");
+        return -1;
+    }
 #ifndef WINDOWS
     gettimeofday(&start_time, nullptr);
 #else
     start_time = GetTickCount64();
 #endif
     if (!file_exists_pd(corename)) {
-        warn("revive_image: '%s' not found", corename);
+        warn("revive_image: '%s': file  not found", corename);
+        return -1;
+    }
+    if (!file_canread_pd(corename)) {
+        warn("revive_image: '%s': cannot read file", corename);
         return -1;
     }
     if (!file_exists_pd(javahome)) {
         warn("revive_image: Java directory '%s' not found", javahome);
-        return -1;
-    }
-    if (rdata != nullptr && rdata->vm_thread) {
-        warn("revive_image: already called.");
         return -1;
     }
 
@@ -1069,17 +1073,23 @@ int revive_image(const char* corename, const char* javahome, const char* libdir,
     }
     // Decide core.revival directory name:
     dirname = revival_dirname_create(corename, revival_data_path);
+    if (file_exists_pd(dirname) && !file_canread_pd(dirname)) {
+        warn("%s: exists but cannot read.", dirname);
+        return -1;
+    }
+
     mappings_filename = mappings_filename_create(dirname);
 
-    // Does revival cache exist?
+    // Does revival cache exist? (the directory and some content)
     if (!revival_cache_exists(dirname, mappings_filename)) {
         // Create revival data:
         if (!dir_exists_pd(dirname)) {
             if (!create_directory_pd(dirname)) {
-                error("revival: cannot create directory '%s': use -R to specify usable location for cache directory.", dirname);
+                warn("revival: cannot create directory '%s': use -R to specify usable location for cache directory.", dirname);
+                return -1;
             }
         }
-        logv("Creating revival data: %s", dirname);
+        logv("Creating revival data cache in directory: %s", dirname);
         e = create_revival_cache_pd(corename, javahome, dirname, libdir);
         logv("revive_image: create_revival_cache_pd returns: %d", e);
         waitHitRet();
@@ -1104,12 +1114,12 @@ int revive_image(const char* corename, const char* javahome, const char* libdir,
     }
 
     if (jvm_address == nullptr) {
-        error("No JVM load address."); // Should have been set in mappings_file_read()
+        warn("No JVM load address."); // Should have been set in mappings_file_read()
+        return -1;
     }
 
-    // Install signal handler:
-    logv("Install handler...");
-    install_handler();
+    logv("Install signal handler...");
+    install_handler_pd();
 
     // Version check?
     if (!versionCheckEnabled) {

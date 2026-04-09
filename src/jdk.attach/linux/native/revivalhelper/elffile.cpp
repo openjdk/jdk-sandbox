@@ -682,7 +682,7 @@ void ELFFile::write_mem_mappings(int mappings_fd) {
                 }
             }
             if (skip) {
-                logd("Skipping due to nonwritable overlap at 0x%lx", phdr->p_vaddr);
+                logd("Skipping 0x%lx - 0x%lx due to nonwritable overlap", phdr->p_vaddr, phdr->p_vaddr + phdr->p_memsz);
                 n_skipped++;
                 phdr = next_ph(phdr);
                 continue;

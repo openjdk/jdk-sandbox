@@ -210,14 +210,11 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
                         System.out.println("(Retrying process revival)");
                     }
                     continue; // ...and retry.
-                } else if (e == 1) {
-                    // Actual error from JCmd, e.g. Exception thrown by command implementation.
+                } else if (e != 0) {
+                    // e=1: Actual error from JCmd, e.g. Exception thrown by command implementation.
+                    // Other non-zero values possible for other failures.
                     System.out.println(out);
                     throw new IOException("jcmd returned an error");  // JCmd caller will call System.exit(1)
-                } else if (e != 0) {
-                    // Other errors:
-                    System.out.println(out);
-                    System.out.println("jcmd returned an error: " + e);
                 }
                 // Success.
                 if (i > 1) {

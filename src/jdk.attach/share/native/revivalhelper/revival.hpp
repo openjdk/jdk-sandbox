@@ -62,7 +62,7 @@
 // This one is "C" and common to all platforms:
 #define SYM_REVIVE_VM "process_revival"
 
-void install_handler();
+void install_handler_pd();
 
 //
 // Platform specifics
@@ -268,6 +268,7 @@ void* revived_vm_thread();
 bool dir_exists_pd(const char* dirname);
 bool dir_isempty_pd(const char* dirname);
 bool file_exists_pd(const char* filename);
+bool file_canread_pd(const char* filename);
 bool file_exists_indir_pd(const char* dirname, const char* filename);
 
 char* find_filename_in_libdir(const char* libdir, const char* filename);
