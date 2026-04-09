@@ -39,12 +39,13 @@ import java.io.Serial;
  *   </li>
  *   <li>
  *     An access method is invoked for a non-existent value, such as
- *     {@code get()} for a missing member in a JSON object, or {@code element()}
- *     for an out-of-bounds index in a JSON array.
+ *     {@code get()} for a missing member in a {@code JsonObject}, or
+ *     {@code element()} for an out-of-bounds index in a {@code JsonArray}.
  *   </li>
  *   <li>
- *     {@code toLong()} or {@code toDouble()} is invoked on a JSON number that
- *     cannot be represented without loss of information by the target type.
+ *     {@code toInt()}, {@code toLong()}, or {@code toDouble()} is invoked on
+ *     a {@code JsonNumber} that cannot be represented without loss of
+ *     information by the target type.
  *   </li>
  * </ul>
  * @since 99
