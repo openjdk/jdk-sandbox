@@ -1299,7 +1299,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
   __ bind(L_pack_and_done);
 
   // Pack the object back if needed. We can skip this if we performed
-  // the load ourselves, which means the value is not used by caller.
+  // the load ourselves: the value is not used by the caller.
   if (_narrow && !_do_load) {
     __ encode_heap_oop_not_null(obj);
   }
@@ -1400,8 +1400,8 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
     }
     // If object is narrow, we need to encode it before exiting.
     // For encoding, dst can only turn null if we are dealing with weak loads.
-    // Otherwise, we have already null-checked. We can skip all this if we performed
-    // the load ourselves, which means the value is not used by caller.
+    // Otherwise, we have already null-checked. We can skip this if we performed
+    // the load ourselves: the value is not used by the caller.
     if (_narrow && !_do_load) {
       if (_needs_load_ref_weak_barrier) {
         __ encode_heap_oop(obj);
