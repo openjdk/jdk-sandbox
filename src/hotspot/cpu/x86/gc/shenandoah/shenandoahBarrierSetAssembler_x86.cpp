@@ -1256,6 +1256,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
     __ jcc(Assembler::zero, (L_done != nullptr) ? *L_done : L_through);
   }
 
+  // If object is narrow, we need to unpack it before inserting into buffer.
   if (_narrow) {
     __ decode_heap_oop_not_null(obj);
   }
@@ -1294,8 +1295,12 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
   __ addptr(tmp, buffer);
   __ movptr(Address(tmp, 0), obj);
 
+  // Exit here.
   __ bind(L_pack_and_done);
-  if (_narrow) {
+
+  // Pack the object back if needed. We can skip this if we performed
+  // the load ourselves, which means the value is not used by caller.
+  if (_narrow && !_do_load) {
     __ encode_heap_oop_not_null(obj);
   }
   if (L_done != nullptr) {
@@ -1414,6 +1419,8 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
       pop_save_register(masm, c_rarg0);
     }
   }
+
+  // Exit here
   if (L_done != nullptr) {
     __ jmp(*L_done);
   } else {
