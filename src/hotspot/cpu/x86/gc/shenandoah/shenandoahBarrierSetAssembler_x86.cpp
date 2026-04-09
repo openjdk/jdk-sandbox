@@ -1224,36 +1224,36 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
     push_save_register(masm, tmp);
   }
 
-  // Go for barriers. If both barriers are required (rare), do a runtime check for enabled barrier.
+  // Go for barriers. Barriers can return straight to continuation, as long
+  // as another barrier is not needed and tmp is not live.
   if (_needs_keep_alive_barrier) {
-    keepalive(masm, _obj, tmp);
+    keepalive(masm, _obj, tmp, (_needs_load_ref_barrier || tmp_live) ? nullptr : continuation());
   }
   if (_needs_load_ref_barrier) {
-    // TODO: This should be done cleaner. We are optimizing for the overwhelmingly
-    // major case of plain LRB loads.
-    Label L_fallthrough;
-    lrb(masm, _obj, _addr, tmp, tmp_live ? &L_fallthrough : continuation());
-    __ bind(L_fallthrough);
+    lrb(masm, _obj, _addr, tmp, (tmp_live) ? nullptr : continuation());
   }
 
   if (tmp_live) {
     pop_save_register(masm, tmp);
+    __ jmp(*continuation());
+  } else {
+#ifdef ASSERT
+    __ hlt(); // Should not reach here
+#endif
   }
-
-  __ jmp(*continuation());
 }
 
-void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Register tmp1) {
+void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Register tmp, Label* L_done) {
   Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
 
-  Label L_fast, L_pack_and_done, L_done;
+  Label L_through, L_fast, L_pack_and_done;
 
   // If another barrier is enabled as well, do a runtime check for a specific barrier.
   if (_needs_load_ref_barrier) {
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ testb(gc_state, ShenandoahHeap::MARKING);
-    __ jcc(Assembler::zero, L_done);
+    __ jcc(Assembler::zero, (L_done != nullptr) ? *L_done : L_through);
   }
 
   if (_narrow) {
@@ -1261,8 +1261,8 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
   }
 
   // Check if buffer is already full. Go slow, if so.
-  __ movptr(tmp1, index);
-  __ testptr(tmp1, tmp1);
+  __ movptr(tmp, index);
+  __ testptr(tmp, tmp);
   __ jccb(Assembler::notZero, L_fast);
 
   // Slow-path: call runtime to handle.
@@ -1289,26 +1289,31 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
 
   // Fast-path: put object into buffer.
   __ bind(L_fast);
-  __ subptr(tmp1, wordSize);
-  __ movptr(index, tmp1);
-  __ addptr(tmp1, buffer);
-  __ movptr(Address(tmp1, 0), obj);
+  __ subptr(tmp, wordSize);
+  __ movptr(index, tmp);
+  __ addptr(tmp, buffer);
+  __ movptr(Address(tmp, 0), obj);
 
   __ bind(L_pack_and_done);
   if (_narrow) {
     __ encode_heap_oop_not_null(obj);
   }
-  __ bind(L_done);
+  if (L_done != nullptr) {
+    __ jmp(*L_done);
+  } else {
+    // Fall-through
+    __ bind(L_through);
+  }
 }
 
 void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address addr, Register tmp, Label* L_done) {
-  Label L_slow;
+  Label L_through, L_slow;
 
   // If another barrier is enabled as well, do a runtime check for a specific barrier.
   if (_needs_keep_alive_barrier) {
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0));
-    __ jcc(Assembler::zero, *L_done);
+    __ jcc(Assembler::zero, (L_done != nullptr) ? *L_done : L_through);
   }
 
   // If weak references are being processed, weak/phantom loads need to go slow,
@@ -1340,7 +1345,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
 
   // Cset-check. Fall-through to slow if in collection set.
   __ cmpb(cset_addr_arg, 0);
-  __ jcc(Assembler::equal, *L_done);
+  __ jcc(Assembler::equal, (L_done != nullptr) ? *L_done : L_through);
 
   // Slow path
   __ bind(L_slow);
@@ -1409,8 +1414,12 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
       pop_save_register(masm, c_rarg0);
     }
   }
-
-  __ jmp(*L_done);
+  if (L_done != nullptr) {
+    __ jmp(*L_done);
+  } else {
+    // Fall-through.
+    __ bind(L_through);
+  }
 }
 
 bool ShenandoahBarrierStubC2::has_live_vector_registers() {

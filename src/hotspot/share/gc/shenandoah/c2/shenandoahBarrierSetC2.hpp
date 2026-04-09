@@ -201,7 +201,7 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   void load_and_decode(MacroAssembler& masm, Label& target_if_null);
   void reencode_if_needed(MacroAssembler& masm);
 
-  void keepalive(MacroAssembler& masm, Register obj, Register tmp1);
+  void keepalive(MacroAssembler& masm, Register obj, Register tmp, Label* L_done = nullptr);
   void lrb(MacroAssembler& masm, Register obj, Address addr, Register tmp, Label* L_done = nullptr);
 
   address keepalive_runtime_entry_addr();
