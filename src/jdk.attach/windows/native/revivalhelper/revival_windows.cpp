@@ -118,7 +118,21 @@ bool dir_isempty_pd(const char *dirname) {
 }
 
 bool file_exists_pd(const char *filename) {
-    return  GetFileAttributes(filename) != INVALID_FILE_ATTRIBUTES;
+    return GetFileAttributes(filename) != INVALID_FILE_ATTRIBUTES;
+}
+
+bool file_canread_pd(const char* filename) {
+    if (!file_exists_pd(filename)) {
+        return false;
+    }
+    HANDLE hFile = CreateFile(filename, GENERIC_READ, FILE_SHARE_READ, NULL,
+                              OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_BACKUP_SEMANTICS, NULL);
+    if (hFile == INVALID_HANDLE_VALUE) {
+        return false;
+    } else {
+        CloseHandle(hFile);
+        return true;
+    }
 }
 
 bool file_exists_indir_pd(const char* dirname, const char* filename) {
