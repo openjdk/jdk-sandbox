@@ -2541,10 +2541,10 @@ void ShenandoahFreeSet::move_regions_from_collector_to_mutator(size_t max_xfer_r
                      byte_size_in_proper_unit(old_collector_xfer), proper_unit_for_byte_size(old_collector_xfer));
 }
 
-// Add a cset region that have a forwarding table to the Mutator free set.
-// Each such region had its top reset to bottom at end of evacuation.
-// Admit the available memory to the Mutator partition.
-bool ShenandoahFreeSet::recycle_fwt_region(ShenandoahHeapRegion* r, size_t region_size_bytes,
+// Recycle the space below the FWT.
+// The region's state transitions to _regular so the allocator can use it,
+// but its cset-map entry stays FWDTABLE_* during update-refs.
+bool ShenandoahFreeSet::recycle_fwt_region(ShenandoahHeapRegion* r,
                                            idx_t& mutator_low_idx, idx_t& mutator_high_idx,
                                            size_t& recycled_bytes, size_t& recycled_regions) {
   assert(_heap->collection_set()->use_forward_table(r), "precondition: region must have a forwarding table");
@@ -2552,12 +2552,12 @@ bool ShenandoahFreeSet::recycle_fwt_region(ShenandoahHeapRegion* r, size_t regio
   assert(_partitions.membership(i) == ShenandoahFreeSetPartitionId::NotFree,
          "Cset region must not already be in a free partition");
 
-  _heap->collection_set()->remove_region(r);
   r->make_regular_from_cset();
 
   // The old objects were evacuated. The forwarding table maps their former locations.
   // Reset top and TAMS to bottom so fresh allocations start from the bottom.
   r->set_top(r->bottom());
+  r->set_update_watermark(r->top());
   _heap->marking_context()->reset_top_at_mark_start(r);
 
   // Available space is capped at forwarding_table_start().
@@ -2582,7 +2582,6 @@ bool ShenandoahFreeSet::recycle_fwt_region(ShenandoahHeapRegion* r, size_t regio
 
 void ShenandoahFreeSet::recycle_collection_set() {
   shenandoah_assert_heaplocked();
-  const size_t region_size_bytes = ShenandoahHeapRegion::region_size_bytes();
   size_t recycled_regions = 0;
   size_t recycled_bytes = 0;
   idx_t mutator_low_idx = _partitions.max();
@@ -2592,7 +2591,7 @@ void ShenandoahFreeSet::recycle_collection_set() {
   for (size_t i = 0; i < _heap->num_regions(); i++) {
     ShenandoahHeapRegion* r = _heap->get_region(i);
     if (cset->use_forward_table(r)) {
-      recycle_fwt_region(r, region_size_bytes,
+      recycle_fwt_region(r,
                          mutator_low_idx, mutator_high_idx,
                          recycled_bytes, recycled_regions);
     }
@@ -2603,7 +2602,6 @@ void ShenandoahFreeSet::recycle_collection_set() {
       ShenandoahFreeSetPartitionId::Mutator, mutator_low_idx, mutator_high_idx,
       _partitions.max(), -1);
     _total_young_regions += recycled_regions;
-    // Recycled but not empty regions added to Mutator.
     recompute_total_used</* UsedByMutatorChanged */ true,
                          /* UsedByCollectorChanged */ false, /* UsedByOldCollectorChanged */ false>();
     recompute_total_affiliated</* MutatorEmptiesChanged */ false, /* CollectorEmptiesChanged */ false,
@@ -2614,10 +2612,38 @@ void ShenandoahFreeSet::recycle_collection_set() {
     _partitions.assert_bounds();
   }
 
-  log_info(gc, ergo)("At start of update refs, recycling %zu cset regions with forwarding tables,"
-                     " adding %zu%s to Mutator free set",
+  log_info(gc, ergo)("Recycled %zu FWT cset regions (below-FWT space),"
+                     " added %zu%s to Mutator free set",
                      recycled_regions,
                      byte_size_in_proper_unit(recycled_bytes), proper_unit_for_byte_size(recycled_bytes));
+}
+
+// Recycle the the FWT space.
+void ShenandoahFreeSet::account_fwt_tails() {
+  shenandoah_assert_heaplocked();
+  size_t released_regions = 0;
+  size_t released_bytes = 0;
+
+  ShenandoahCollectionSet* cset = _heap->collection_set();
+  for (size_t i = 0; i < _heap->num_regions(); i++) {
+    ShenandoahHeapRegion* r = _heap->get_region(i);
+    if (cset->use_forward_table(r)) {
+      assert(_partitions.membership(i) == ShenandoahFreeSetPartitionId::Mutator,
+             "When FWT is released, the region must already be in Mutator partition");
+      size_t tail = r->fwt_tail_bytes();
+
+      // Expand the Mutator partition to include the former FWT tail.
+      _partitions.increase_capacity(ShenandoahFreeSetPartitionId::Mutator, tail);
+
+      released_bytes += tail;
+      released_regions++;
+    }
+  }
+
+  log_info(gc, ergo)("Released FWT tails for %zu regions,"
+                     " adding %zu%s to Mutator free set",
+                     released_regions,
+                     byte_size_in_proper_unit(released_bytes), proper_unit_for_byte_size(released_bytes));
 }
 
 // Overwrite arguments to represent the amount of memory in each generation that is about to be recycled

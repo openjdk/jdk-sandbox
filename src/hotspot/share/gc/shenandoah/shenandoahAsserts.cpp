@@ -450,7 +450,7 @@ void ShenandoahAsserts::assert_not_in_cset(void* interior_loc, oop obj, const ch
   assert_correct(interior_loc, obj, file, line);
 
   ShenandoahHeap* heap = ShenandoahHeap::heap();
-  if (heap->in_collection_set(obj)) {
+  if (heap->in_collection_set(obj) && (heap->heap_region_containing(obj)->forwarding_table_start() == nullptr)) {
     print_failure(_safe_all, obj, interior_loc, nullptr, "Shenandoah assert_not_in_cset failed",
                   "Object should not be in collection set",
                   file, line);
@@ -459,7 +459,7 @@ void ShenandoahAsserts::assert_not_in_cset(void* interior_loc, oop obj, const ch
 
 void ShenandoahAsserts::assert_not_in_cset_loc(void* interior_loc, const char* file, int line) {
   ShenandoahHeap* heap = ShenandoahHeap::heap();
-  if (heap->in_collection_set_loc(interior_loc)) {
+  if (heap->in_collection_set_loc(interior_loc) && (heap->heap_region_containing(interior_loc)->forwarding_table_start() == nullptr)) {
     print_failure(_safe_unknown, nullptr, interior_loc, nullptr, "Shenandoah assert_not_in_cset_loc failed",
                   "Interior location should not be in collection set",
                   file, line);

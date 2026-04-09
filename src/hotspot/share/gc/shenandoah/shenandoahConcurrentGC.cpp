@@ -221,9 +221,8 @@ bool ShenandoahConcurrentGC::collect(GCCause::Cause cause) {
       return false;
     }
 
-    // Now no mutator can hold a stale reference into a forwarding-table cset region.
-    // It is safe to recycle those regions into the Mutator free set.
-    // New allocations will overwrite former objects.
+    // Recycle the memory below the FWT in cset regions.
+    // The FWT itself remains in place.
     entry_recycle_collection_set();
 
     vmop_entry_final_update_refs();
@@ -590,7 +589,7 @@ void ShenandoahConcurrentGC::entry_recycle_collection_set() {
   ShenandoahHeap* const heap = ShenandoahHeap::heap();
   TraceCollectorStats tcs(heap->monitoring_support()->concurrent_collection_counters());
 
-  static const char* msg = "Recycle collection set";
+  static const char* msg = "Recycle collection set (below FWT)";
   ShenandoahConcurrentPhase gc_phase(msg, ShenandoahPhaseTimings::conc_recycle_cset);
   EventMark em("%s", msg);
 

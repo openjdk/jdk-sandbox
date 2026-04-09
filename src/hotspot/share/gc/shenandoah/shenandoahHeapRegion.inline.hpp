@@ -110,7 +110,8 @@ HeapWord* ShenandoahHeapRegion::allocate(size_t size, const ShenandoahAllocReque
   assert(is_object_aligned(size), "alloc size breaks alignment: %zu", size);
 
   HeapWord* obj = top();
-  HeapWord* alloc_limit = alloc_end();
+  HeapWord* const fwt_start = forwarding_table_start();
+  HeapWord* alloc_limit = (fwt_start != nullptr) ? fwt_start : _end;
   if (pointer_delta(alloc_limit, obj) >= size) {
     make_regular_allocation(req.affiliation());
     adjust_alloc_metadata(req, size);
@@ -121,8 +122,8 @@ HeapWord* ShenandoahHeapRegion::allocate(size_t size, const ShenandoahAllocReque
     assert(is_object_aligned(new_top), "new top breaks alignment: " PTR_FORMAT, p2i(new_top));
     assert(is_object_aligned(obj),     "obj is not aligned: "       PTR_FORMAT, p2i(obj));
 
-    if (alloc_limit != _end) {
-      log_debug(gc, alloc)("Allocated %zu words at " PTR_FORMAT " in recycled region %zu"
+    if (fwt_start != nullptr) {
+      log_debug(gc, alloc)("Allocated %zu words at " PTR_FORMAT " in early-recycled FWT region %zu"
                            " (alloc_end: " PTR_FORMAT ", end: " PTR_FORMAT ")",
                            size, p2i(obj), index(), p2i(alloc_limit), p2i(_end));
     }

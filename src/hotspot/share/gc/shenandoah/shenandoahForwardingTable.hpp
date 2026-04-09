@@ -132,6 +132,11 @@ public:
 
   bool build(size_t num_forwardings);
 
+  void reset() {
+    _table = nullptr;
+    _num_entries = 0;
+  }
+
   HeapWord* start() const {
     return reinterpret_cast<HeapWord*>(_table);
   }

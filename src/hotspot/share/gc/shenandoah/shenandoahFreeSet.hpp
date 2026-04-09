@@ -643,7 +643,7 @@ private:
 
   // Admit a cset region with a forwarding table into the Mutator free set and update the counters.
   // Returns true if the region was admitted, false if it is too small to be useful.
-  bool recycle_fwt_region(ShenandoahHeapRegion* r, size_t region_size_bytes,
+  bool recycle_fwt_region(ShenandoahHeapRegion* r,
                           idx_t& mutator_low_idx, idx_t& mutator_high_idx,
                           size_t& recycled_bytes, size_t& recycled_regions);
 
@@ -779,6 +779,7 @@ public:
 
   // Add cset regions that have a forwarding table to the Mutator free set.
   void recycle_collection_set();
+  void account_fwt_tails();
 
   void transfer_humongous_regions_from_mutator_to_old_collector(size_t xfer_regions, size_t humongous_waste_words);
 

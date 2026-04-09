@@ -1456,12 +1456,20 @@ bool ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t nu
 void ShenandoahHeap::trash_cset_regions() {
   ShenandoahHeapLocker locker(lock());
 
+  free_set()->account_fwt_tails();
+
   ShenandoahCollectionSet* set = collection_set();
   ShenandoahHeapRegion* r;
   set->clear_current_index();
   while ((r = set->next()) != nullptr) {
     //log_info(gc)("Make region trash: %lu", r->index());
-    r->make_trash();
+    if (set->use_forward_table(r)) {
+      r->reset_forwarding_table();
+      set->remove_region(r);
+      // r stays regular
+    } else {
+      r->make_trash();
+    }
   }
   //log_info(gc)("Clearing cset");
   collection_set()->clear();
