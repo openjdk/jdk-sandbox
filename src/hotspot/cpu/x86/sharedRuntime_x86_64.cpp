@@ -3655,7 +3655,7 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
   OopMapSet* oop_maps = new OopMapSet();
   oop_maps->add_gc_map(post_call_pc - start, map);
 
-  RegisterSaver::restore_live_registers(masm, true);
+  RegisterSaver::restore_live_registers(masm, save_vectors);
   __ ret(0);
 
   return RuntimeStub::new_runtime_stub(name,
