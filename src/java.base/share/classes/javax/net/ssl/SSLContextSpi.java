@@ -145,6 +145,34 @@ public abstract class SSLContextSpi {
     protected abstract SSLEngine engineCreateSSLEngine(String host, int port);
 
     /**
+     * Creates a QUIC {@code SSLEngine} using this context.
+     * <P>
+     * Applications using this factory method are providing hints
+     * for an internal session reuse strategy.
+     *
+     * @implSpec
+     * The implementation in this class throws
+     * {@code UnsupportedOperationException} and performs no other action.
+
+     * @param host the non-authoritative name of the host
+     * @param port the non-authoritative port
+     * @param quicTransport the QUIC transport associated with this engine
+     * @return  the {@code SSLEngine} Object
+     * @throws IllegalStateException if the SSLContextImpl requires
+     *         initialization and the {@code engineInit()}
+     *         has not been called
+     * @throws UnsupportedOperationException if the underlying provider
+     *         does not implement the operation.
+     *
+     * @see     SSLContext#createQUICEngine(String, int, QuicTransport)
+     *
+     * @since   27
+     */
+    public SSLEngine engineCreateQUICEngine(String host, int port, QuicTransport quicTransport) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
      * Returns a server {@code SSLSessionContext} object for
      * this context.
      *

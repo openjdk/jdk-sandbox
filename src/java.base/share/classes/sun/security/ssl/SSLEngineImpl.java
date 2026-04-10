@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiFunction;
+import javax.net.ssl.QuicTransport;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
@@ -53,6 +54,7 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
     private final SSLContextImpl        sslContext;
     final TransportContext              conContext;
     private final ReentrantLock         engineLock = new ReentrantLock();
+    final QuicTransport quicTransport;
 
     /**
      * Constructor for an SSLEngine from SSLContext, without
@@ -66,21 +68,51 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
     }
 
     /**
+     * Constructor for a QUIC SSLEngine from SSLContext, without
+     * host/port hints.
+     *
+     * This Engine will not be able to cache sessions, but must renegotiate
+     * everything by hand.
+     */
+    SSLEngineImpl(SSLContextImpl sslContext, QuicTransport quicTransport) {
+        this(sslContext, null, -1, quicTransport);
+    }
+
+    /**
      * Constructor for an SSLEngine from SSLContext.
      */
     SSLEngineImpl(SSLContextImpl sslContext,
             String host, int port) {
+        this(sslContext, host, port, null);
+    }
+    /**
+     * Constructor for a QUIC SSLEngine from SSLContext.
+     */
+    SSLEngineImpl(SSLContextImpl sslContext,
+            String host, int port, QuicTransport quicTransport) {
         super(host, port);
         this.sslContext = sslContext;
+        this.quicTransport = quicTransport;
         HandshakeHash handshakeHash = new HandshakeHash();
         if (sslContext.isDTLS()) {
+            if (quicTransport != null) {
+                throw new IllegalArgumentException(
+                        "DTLS context does not support QUIC");
+            }
             this.conContext = new TransportContext(sslContext, this,
                     new DTLSInputRecord(handshakeHash),
                     new DTLSOutputRecord(handshakeHash));
         } else {
-            this.conContext = new TransportContext(sslContext, this,
-                    new SSLEngineInputRecord(handshakeHash),
-                    new SSLEngineOutputRecord(handshakeHash));
+            if (quicTransport != null) {
+                this.conContext = new TransportContext(sslContext, this,
+                        new SSLEngineInputRecord(handshakeHash),
+                        new QuicEngineOutputRecord(handshakeHash));
+                this.conContext.setQuic(true);
+            } else {
+                this.conContext = new TransportContext(sslContext, this,
+                        new SSLEngineInputRecord(handshakeHash),
+                        new SSLEngineOutputRecord(handshakeHash));
+            }
         }
 
         // Server name indication is a connection scope extension.

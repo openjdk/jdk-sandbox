@@ -413,6 +413,43 @@ public class SSLContext {
     }
 
     /**
+     * Creates a new {@code SSLEngine} using this context using
+     * advisory peer information.
+     * <P>
+     * Applications using this factory method are providing hints
+     * for an internal session reuse strategy.
+     *
+     * @implNote
+     * It is provider-specific if the returned SSLEngine uses client or
+     * server mode by default for the (D)TLS connection. The JDK SunJSSE
+     * provider implementation uses server mode by default.  However, it
+     * is recommended to always set the desired mode explicitly by calling
+     * {@link SSLEngine#setUseClientMode(boolean) SSLEngine.setUseClientMode()}
+     * before invoking other methods of the SSLEngine.
+     *
+     * @param   peerHost the non-authoritative name of the host
+     * @param   peerPort the non-authoritative port
+     * @param   quicTransport the QUIC transport associated with this engine
+     * @return  the new {@code SSLEngine} object
+     * @throws  UnsupportedOperationException if the underlying provider
+     *          does not implement the operation.
+     * @throws  IllegalStateException if the SSLContextImpl requires
+     *          initialization and the {@code init()} has not been called
+     * @since   27
+     */
+    public final SSLEngine createQUICEngine(String peerHost, int peerPort,
+                                            QuicTransport quicTransport) {
+        // TODO evaluate if engineCreateQUICEngine should be abstract
+        try {
+            return contextSpi.engineCreateQUICEngine(peerHost, peerPort,
+                    quicTransport);
+        } catch (AbstractMethodError e) {
+            throw new UnsupportedOperationException(
+                    "Provider: " + getProvider() +
+                            " does not support this operation", e);
+        }
+    }
+    /**
      * Returns the server session context, which represents the set of
      * SSL sessions available for use during the handshake phase of
      * server-side SSL sockets.
