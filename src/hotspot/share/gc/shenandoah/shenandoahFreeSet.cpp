@@ -2603,11 +2603,11 @@ void ShenandoahFreeSet::recycle_collection_set() {
     _total_young_regions += recycled_regions;
     recompute_total_used</* UsedByMutatorChanged */ true,
                          /* UsedByCollectorChanged */ false, /* UsedByOldCollectorChanged */ false>();
-    recompute_total_affiliated</* MutatorEmptiesChanged */ false, /* CollectorEmptiesChanged */ false,
+    recompute_total_affiliated</* MutatorEmptiesChanged */ true, /* CollectorEmptiesChanged */ false,
                                /* OldCollectorEmptiesChanged */ false, /* MutatorSizeChanged */ true,
                                /* CollectorSizeChanged */ false, /* OldCollectorSizeChanged */ false,
-                               /* AffiliatedChangesAreYoungNeutral */ true, /* AffiliatedChangesAreGlobalNeutral */ true,
-                               /* UnaffiliatedChangesAreYoungNeutral */ true>();
+                               /* AffiliatedChangesAreYoungNeutral */ false, /* AffiliatedChangesAreGlobalNeutral */ false,
+                               /* UnaffiliatedChangesAreYoungNeutral */ false>();
     _partitions.assert_bounds();
   }
 
