@@ -23,6 +23,7 @@
 package sun.security.ssl;
 
 import javax.crypto.SecretKey;
+import javax.net.ssl.SSLEngineResult;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.security.GeneralSecurityException;
@@ -49,9 +50,9 @@ public final class QuicTLSEngineImplAccessor {
     // visible for testing
     public static void completeHandshake(final QuicTLSEngineImpl engine) {
         try {
-            final Field f = QuicTLSEngineImpl.class.getDeclaredField("handshakeState");
+            final Field f = QuicTLSEngineImpl.class.getDeclaredField("handshakeStatus");
             f.setAccessible(true);
-            f.set(engine, QuicTLSEngine.HandshakeState.HANDSHAKE_CONFIRMED);
+            f.set(engine, SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

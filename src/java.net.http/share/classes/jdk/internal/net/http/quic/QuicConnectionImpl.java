@@ -62,6 +62,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLParameters;
 
@@ -121,7 +122,6 @@ import jdk.internal.net.http.quic.packets.QuicPacket.PacketType;
 import jdk.internal.net.quic.QuicKeyUnavailableException;
 import jdk.internal.net.quic.QuicOneRttContext;
 import jdk.internal.net.quic.QuicTLSEngine;
-import jdk.internal.net.quic.QuicTLSEngine.HandshakeState;
 import jdk.internal.net.quic.QuicTLSEngine.KeySpace;
 import jdk.internal.net.quic.QuicTransportErrors;
 import jdk.internal.net.quic.QuicTransportException;
@@ -572,7 +572,7 @@ public class QuicConnectionImpl extends QuicConnection implements QuicPacketRece
      */
     protected final class HandshakeFlow {
 
-        private final CompletableFuture<HandshakeState> handshakeCF;
+        private final CompletableFuture<SSLEngineResult.HandshakeStatus> handshakeCF;
         // a CompletableFuture which will get completed when the handshake initiated locally,
         // has "reached" the peer i.e. when the peer acknowledges or replies to the first
         // INITIAL packet sent by an endpoint
@@ -604,7 +604,7 @@ public class QuicConnectionImpl extends QuicConnection implements QuicPacketRece
         /**
          * {@return the CompletableFuture representing a handshake}
          */
-        public CompletableFuture<HandshakeState> handshakeCF() {
+        public CompletableFuture<SSLEngineResult.HandshakeStatus> handshakeCF() {
             return this.handshakeCF;
         }
 
@@ -1024,7 +1024,7 @@ public class QuicConnectionImpl extends QuicConnection implements QuicPacketRece
         if (handshakeCF.isDone()) {
             return;
         }
-        var handshakeState = quicTLSEngine.getHandshakeState();
+        var handshakeState = quicTLSEngine.getHandshakeStatus();
         if (executor != null) {
             handshakeCF.completeAsync(() -> handshakeState, executor);
         } else {
@@ -2292,7 +2292,7 @@ public class QuicConnectionImpl extends QuicConnection implements QuicPacketRece
                 // received initial packet from server - we won't need to replay anything now
                 handshakeFlow.localInitial.discardReplayData();
                 continueHandshake();
-                if (quicTLSEngine.getHandshakeState() == HandshakeState.NEED_RECV_CRYPTO &&
+                if (quicTLSEngine.getHandshakeStatus() == SSLEngineResult.HandshakeStatus.NEED_UNWRAP &&
                         quicTLSEngine.keysAvailable(KeySpace.HANDSHAKE)) {
                     // arm the anti-deadlock PTO timer
                     packetSpaces.handshake.runTransmitter();
@@ -2934,7 +2934,7 @@ public class QuicConnectionImpl extends QuicConnection implements QuicPacketRece
      * This method is called when the handshake is successfully completed.
      * @param result the result of the handshake
      */
-    protected QuicEndpoint onHandshakeCompletion(final HandshakeState result) {
+    protected QuicEndpoint onHandshakeCompletion(final SSLEngineResult.HandshakeStatus result) {
         if (debug.on()) {
             debug.log("Quic handshake successfully completed with %s(%s)",
                     quicTLSEngine.getApplicationProtocol(), peerAddress());
@@ -3134,11 +3134,11 @@ public class QuicConnectionImpl extends QuicConnection implements QuicPacketRece
         boolean handshakeDataAvailable = false;
         boolean initialDataAvailable = false;
         for (;;) {
-            var handshakeState = quicTLSEngine.getHandshakeState();
+            var handshakeState = quicTLSEngine.getHandshakeStatus();
             if (debug.on()) {
                 debug.log("continueHandshake: state: %s", handshakeState);
             }
-            if (handshakeState == QuicTLSEngine.HandshakeState.NEED_SEND_CRYPTO) {
+            if (handshakeState == SSLEngineResult.HandshakeStatus.NEED_WRAP) {
                 // buffer next TLS message
                 KeySpace keySpace = quicTLSEngine.getCurrentSendKeySpace();
                 ByteBuffer payloadBuffer;
@@ -3163,7 +3163,7 @@ public class QuicConnectionImpl extends QuicConnection implements QuicPacketRece
                     debug.log("continueHandshake: buffered %s bytes in %s keyspace",
                             payloadBuffer.remaining(), keySpace);
                 }
-            } else if (handshakeState == QuicTLSEngine.HandshakeState.NEED_TASK) {
+            } else if (handshakeState == SSLEngineResult.HandshakeStatus.NEED_TASK) {
                 quicTLSEngine.getDelegatedTask().run();
             } else {
                 if (debug.on()) {
@@ -3316,7 +3316,7 @@ public class QuicConnectionImpl extends QuicConnection implements QuicPacketRece
                         peerAddress(), packet.size());
             }
             pushDatagram(ProtectionRecord.single(packet, this::allocateDatagramForEncryption));
-            var handshakeState = quicTLSEngine.getHandshakeState();
+            var handshakeState = quicTLSEngine.getHandshakeStatus();
             if (debug.on()) {
                 debug.log("Handshake state is now: %s", handshakeState);
             }

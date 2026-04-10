@@ -66,6 +66,8 @@ import jdk.internal.net.quic.QuicTLSEngine;
 import jdk.internal.net.quic.QuicTransportErrors;
 import jdk.internal.net.quic.QuicTransportException;
 
+import javax.net.ssl.SSLEngineResult;
+
 /**
  * A {@code PacketSpaceManager} takes care of acknowledgement and
  * retransmission of packets for a given {@link PacketNumberSpace}.
@@ -1845,7 +1847,7 @@ public sealed class PacketSpaceManager implements PacketSpace
             return null;
         }
         // Application space deadline can only be set when handshake is confirmed
-        if (isApplicationSpace() && quicTLSEngine.getHandshakeState() != QuicTLSEngine.HandshakeState.HANDSHAKE_CONFIRMED) {
+        if (isApplicationSpace() && quicTLSEngine.getHandshakeStatus() != SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING) {
             return null;
         }
         return lastAckElicitingTime.plus(getPtoDuration());

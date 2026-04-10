@@ -54,6 +54,7 @@ import jdk.internal.net.quic.QuicTransportParametersConsumer;
 import jdk.internal.net.http.quic.VariableLengthEncoder;
 
 import javax.crypto.AEADBadTagException;
+import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
 import java.io.IOException;
@@ -176,7 +177,7 @@ public class PacketEncodingTest {
 
     private static class DummyQuicTLSEngine implements QuicTLSEngine {
         @Override
-        public HandshakeState getHandshakeState() {
+        public SSLEngineResult.HandshakeStatus getHandshakeStatus() {
             throw new AssertionError("should not come here!");
         }
 

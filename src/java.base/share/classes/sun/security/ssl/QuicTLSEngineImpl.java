@@ -39,6 +39,7 @@ import javax.crypto.AEADBadTagException;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.ShortBufferException;
+import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
@@ -55,7 +56,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.function.IntFunction;
 
-import static jdk.internal.net.quic.QuicTLSEngine.HandshakeState.*;
 import static jdk.internal.net.quic.QuicTLSEngine.KeySpace.*;
 
 /**
@@ -89,8 +89,8 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
             final Class<?> quicTlsEngineImpl = QuicTLSEngineImpl.class;
             HANDSHAKE_STATE_HANDLE = lookup.findVarHandle(
                     quicTlsEngineImpl,
-                    "handshakeState",
-                    HandshakeState.class);
+                    "handshakeStatus",
+                    SSLEngineResult.HandshakeStatus.class);
         } catch (Exception e) {
             throw new ExceptionInInitializerError(e);
         }
@@ -99,7 +99,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
     private final TransportContext conContext;
     private final String peerHost;
     private final int peerPort;
-    private volatile HandshakeState handshakeState;
+    private volatile SSLEngineResult.HandshakeStatus handshakeStatus;
     private volatile KeySpace sendKeySpace;
     // next message to send or receive
     private volatile ByteBuffer localQuicTransportParameters;
@@ -144,9 +144,9 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
     @Override
     public void setUseClientMode(boolean mode) {
         conContext.setUseClientMode(mode);
-        this.handshakeState = mode
-                ? HandshakeState.NEED_SEND_CRYPTO
-                : HandshakeState.NEED_RECV_CRYPTO;
+        this.handshakeStatus = mode
+                ? SSLEngineResult.HandshakeStatus.NEED_WRAP
+                : SSLEngineResult.HandshakeStatus.NEED_UNWRAP;
     }
 
     @Override
@@ -253,11 +253,11 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
      * that could be decrypted can be received before the handshake has
      * completed, but should not be decrypted until it is complete
      *
-     * @return the HandshakeState
+     * @return the HandshakeStatus
      */
     @Override
-    public HandshakeState getHandshakeState() {
-        return handshakeState;
+    public SSLEngineResult.HandshakeStatus getHandshakeStatus() {
+        return handshakeStatus;
     }
 
     /**
@@ -438,7 +438,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
             throw new IllegalStateException("Unexpected key space: "
                     + keySpace + " (expected " + sendKeySpace + ")");
         }
-        if (handshakeState == HandshakeState.NEED_SEND_CRYPTO ||
+        if (handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_WRAP ||
                 !conContext.outputRecord.isEmpty()) { // session ticket
             byte[] bytes = produceNextHandshakeMessage();
             return ByteBuffer.wrap(bytes);
@@ -454,14 +454,14 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
             conContext.kickstart();
         }
         byte[] message = conContext.outputRecord.getHandshakeMessage();
-        if (handshakeState == NEED_SEND_CRYPTO) {
+        if (handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_WRAP) {
             if (conContext.outputRecord.isEmpty()) {
                 if (conContext.isNegotiated) {
                     // client, done
-                    handshakeState = NEED_RECV_HANDSHAKE_DONE;
+                    handshakeStatus = SSLEngineResult.HandshakeStatus.FINISHED;
                     sendKeySpace = ONE_RTT;
                 } else {
-                    handshakeState = NEED_RECV_CRYPTO;
+                    handshakeStatus = SSLEngineResult.HandshakeStatus.NEED_UNWRAP;
                 }
             } else if (sendKeySpace == INITIAL && !getUseClientMode()) {
                 // Server sends handshake messages immediately after
@@ -504,14 +504,14 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
         // or large enough to hold the entire message.
         while (payload.hasRemaining()) {
             if (keySpace != KeySpace.ONE_RTT &&
-                    handshakeState != HandshakeState.NEED_RECV_CRYPTO) {
+                    handshakeStatus != SSLEngineResult.HandshakeStatus.NEED_UNWRAP) {
                 // in one-rtt we may receive session tickets at any time;
                 // during handshake we're either sending or receiving
                 throw new QuicTransportException("Unexpected message", null, 0,
                         BASE_CRYPTO_ERROR + Alert.UNEXPECTED_MESSAGE.id,
                         new SSLHandshakeException(
                                 "Not expecting a handshake message, state: " +
-                                        handshakeState));
+                                        handshakeStatus));
             }
             if (incomingCryptoBuffer != null) {
                 // message type validated already; pump more bytes
@@ -665,11 +665,11 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        if (handshakeState == NEED_RECV_CRYPTO) {
+        if (handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_UNWRAP) {
             if (conContext.outputRecord.isEmpty()) {
                 if (conContext.isNegotiated) {
                     // dead code? done, server side, no session ticket
-                    handshakeState = NEED_SEND_HANDSHAKE_DONE;
+                    handshakeStatus = SSLEngineResult.HandshakeStatus.FINISHED;
                     sendKeySpace = ONE_RTT;
                 } else {
                     // expect more messages
@@ -683,11 +683,11 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
                 // our turn to send
                 if (conContext.isNegotiated && !useClientMode) {
                     // done, server side, wants to send session ticket
-                    handshakeState = NEED_SEND_HANDSHAKE_DONE;
+                    handshakeStatus = SSLEngineResult.HandshakeStatus.FINISHED;
                     sendKeySpace = ONE_RTT;
                 } else {
                     // more messages needed to finish handshake
-                    handshakeState = HandshakeState.NEED_SEND_CRYPTO;
+                    handshakeStatus = SSLEngineResult.HandshakeStatus.NEED_WRAP;
                 }
             }
         } else {
@@ -793,7 +793,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
         if (negotiatedVersion != null) {
             throw new IllegalStateException("Version already negotiated");
         }
-        if (sendKeySpace != INITIAL || handshakeState != NEED_RECV_CRYPTO) {
+        if (sendKeySpace != INITIAL || handshakeStatus != SSLEngineResult.HandshakeStatus.NEED_UNWRAP) {
             throw new IllegalStateException("Unexpected handshake state");
         }
         HandshakeContext context = conContext.handshakeContext;
@@ -811,7 +811,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
 
         // produce handshake message
         chc.initialClientHelloMsg.write(chc.handshakeOutput);
-        handshakeState = NEED_SEND_CRYPTO;
+        handshakeStatus = SSLEngineResult.HandshakeStatus.NEED_WRAP;
     }
 
     @Override
@@ -833,11 +833,11 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
                     "Not expected to be called in client mode");
         }
         final boolean confirmed = HANDSHAKE_STATE_HANDLE.compareAndSet(this,
-                NEED_SEND_HANDSHAKE_DONE, HANDSHAKE_CONFIRMED);
+                SSLEngineResult.HandshakeStatus.FINISHED, SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING);
         if (confirmed) {
             if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
                 SSLLogger.fine("QuicTLSEngine (server) marked handshake " +
-                        "state as HANDSHAKE_CONFIRMED");
+                        "state as NOT_HANDSHAKING");
             }
         }
         return confirmed;
@@ -851,12 +851,12 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
                     "Not expected to receive HANDSHAKE_DONE in server mode");
         }
         final boolean confirmed = HANDSHAKE_STATE_HANDLE.compareAndSet(this,
-                NEED_RECV_HANDSHAKE_DONE, HANDSHAKE_CONFIRMED);
+                SSLEngineResult.HandshakeStatus.FINISHED, SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING);
         if (confirmed) {
             if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
                 SSLLogger.fine(
                         "QuicTLSEngine (client) received HANDSHAKE_DONE," +
-                        " marking state as HANDSHAKE_DONE");
+                        " marking state as NOT_HANDSHAKING");
             }
         }
         return confirmed;
@@ -865,7 +865,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
     @Override
     public boolean isTLSHandshakeComplete() {
         final boolean isClient = getUseClientMode();
-        final HandshakeState hsState = this.handshakeState;
+        final SSLEngineResult.HandshakeStatus hsState = this.handshakeStatus;
         if (isClient) {
             // the client has received TLS Finished message from server and
             // has sent its own TLS Finished message and is waiting for the server
@@ -875,11 +875,12 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
             // has sent its own TLS Finished message and has even received the
             // QUIC HANDSHAKE_DONE frame.
             // Either of these implies the TLS handshake is complete for the client
-            return hsState == NEED_RECV_HANDSHAKE_DONE || hsState == HANDSHAKE_CONFIRMED;
+            return hsState == SSLEngineResult.HandshakeStatus.FINISHED ||
+                    hsState == SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
         }
         // on the server side the TLS handshake is complete only when the server has
         // sent a TLS Finished message and received the client's Finished message.
-        return hsState == HANDSHAKE_CONFIRMED;
+        return hsState == SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
     }
 
     /**

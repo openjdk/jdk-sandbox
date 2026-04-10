@@ -27,6 +27,7 @@ package jdk.internal.net.quic;
 import javax.crypto.AEADBadTagException;
 import javax.crypto.ShortBufferException;
 import javax.net.ssl.SSLEngine;
+import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
 import java.io.IOException;
@@ -51,39 +52,6 @@ public interface QuicTLSEngine {
         RETRY, // Special algorithm used for this packet
         ZERO_RTT,
         ONE_RTT
-    }
-
-    enum HandshakeState {
-        /**
-         * Need to receive a CRYPTO frame
-         */
-        NEED_RECV_CRYPTO,
-        /**
-         * Need to receive a HANDSHAKE_DONE frame from server to complete the
-         * handshake, but application data can be sent in this state (client
-         * only state).
-         */
-        NEED_RECV_HANDSHAKE_DONE,
-        /**
-         * Need to send a CRYPTO frame
-         */
-        NEED_SEND_CRYPTO,
-        /**
-         * Need to send a HANDSHAKE_DONE frame to complete the handshake, but
-         * application data can be sent in this state (server only state)
-         */
-        NEED_SEND_HANDSHAKE_DONE,
-        /**
-         * Need to execute a task
-         */
-        NEED_TASK,
-        /**
-         * Handshake is confirmed, as specified in section 4.1.2 of RFC-9001
-         */
-        // On client side this happens when client receives HANDSHAKE_DONE
-        // frame. On server side this happens when the TLS stack has both
-        // sent a Finished message and verified the peer's Finished message.
-        HANDSHAKE_CONFIRMED,
     }
 
     /**
@@ -155,9 +123,9 @@ public interface QuicTLSEngine {
      * that could be decrypted can be received before the handshake has
      * completed, but should not be decrypted until it is complete
      *
-     * @return the HandshakeState
+     * @return the HandshakeStatus
      */
-    HandshakeState getHandshakeState();
+    SSLEngineResult.HandshakeStatus getHandshakeStatus();
 
     /**
      * Returns true if the TLS handshake is considered complete.
@@ -395,10 +363,10 @@ public interface QuicTLSEngine {
             ByteBuffer packet) throws AEADBadTagException, QuicTransportException;
 
     /**
-     * If the current handshake state is {@link HandshakeState#NEED_SEND_CRYPTO}
+     * If the current handshake state is {@link SSLEngineResult.HandshakeStatus#NEED_WRAP}
      * meaning that a CRYPTO frame needs to be sent then this method is called
      * to obtain the contents of the frame. Current handshake state
-     * can be obtained from {@link #getHandshakeState()}, and the current
+     * can be obtained from {@link #getHandshakeStatus()}, and the current
      * key space can be obtained with {@link #getCurrentSendKeySpace()}
      * The bytes returned by this call are used to build a CRYPTO frame.
      *
@@ -451,13 +419,13 @@ public interface QuicTLSEngine {
      * server. This method will only be called for a {@code QuicTLSEngine} which
      * is in {@linkplain #getUseClientMode() server mode}. If the current TLS handshake
      * state is
-     * {@link  HandshakeState#NEED_SEND_HANDSHAKE_DONE
-     * NEED_SEND_HANDSHAKE_DONE} then this method returns {@code true} and
+     * {@link  SSLEngineResult.HandshakeStatus#FINISHED
+     * FINISHED} then this method returns {@code true} and
      * advances the TLS handshake state to
-     * {@link  HandshakeState#HANDSHAKE_CONFIRMED HANDSHAKE_CONFIRMED}. Else
+     * {@link  SSLEngineResult.HandshakeStatus#NOT_HANDSHAKING NOT_HANDSHAKING}. Else
      * returns {@code false}.
      *
-     * @return true if handshake state was {@code NEED_SEND_HANDSHAKE_DONE},
+     * @return true if handshake state was {@code FINISHED},
      *         false otherwise
      * @throws IllegalStateException If this {@code QuicTLSEngine} is
      *         not in server mode
@@ -469,13 +437,13 @@ public interface QuicTLSEngine {
      * method will only be called for a {@code QuicTLSEngine} which is in
      * {@linkplain #getUseClientMode() client mode}. If the current TLS handshake state
      * is
-     * {@link  HandshakeState#NEED_RECV_HANDSHAKE_DONE
-     * NEED_RECV_HANDSHAKE_DONE} then this method returns {@code true} and
+     * {@link  SSLEngineResult.HandshakeStatus#FINISHED
+     * FINISHED} then this method returns {@code true} and
      * advances the TLS handshake state to
-     * {@link  HandshakeState#HANDSHAKE_CONFIRMED HANDSHAKE_CONFIRMED}. Else
+     * {@link  SSLEngineResult.HandshakeStatus#NOT_HANDSHAKING NOT_HANDSHAKING}. Else
      * returns {@code false}.
      *
-     * @return true if handshake state was {@code NEED_RECV_HANDSHAKE_DONE},
+     * @return true if handshake state was {@code FINISHED},
      *         false otherwise
      * @throws IllegalStateException if this {@code QuicTLSEngine} is
      *         not in client mode

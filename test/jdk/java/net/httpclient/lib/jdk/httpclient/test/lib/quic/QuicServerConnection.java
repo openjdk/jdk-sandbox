@@ -38,6 +38,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLParameters;
 
 import jdk.internal.net.http.common.Log;
@@ -62,7 +63,6 @@ import jdk.internal.net.http.quic.packets.QuicPacket.PacketType;
 import jdk.internal.net.http.quic.packets.QuicPacketDecoder;
 import jdk.internal.net.quic.QuicKeyUnavailableException;
 import jdk.internal.net.quic.QuicTLSEngine;
-import jdk.internal.net.quic.QuicTLSEngine.HandshakeState;
 import jdk.internal.net.quic.QuicTransportErrors;
 import jdk.internal.net.quic.QuicTransportException;
 import jdk.internal.net.quic.QuicVersion;
@@ -269,9 +269,9 @@ public final class QuicServerConnection extends QuicConnectionImpl {
             if (initialPacket.frames().stream().anyMatch(f -> f instanceof CryptoFrame)) {
                 debug.log("ClientHello received");
             }
-            var hsState = getTLSEngine().getHandshakeState();
+            var hsState = getTLSEngine().getHandshakeStatus();
             debug.log("hsState: " + hsState);
-            if (hsState == QuicTLSEngine.HandshakeState.NEED_SEND_CRYPTO) {
+            if (hsState == SSLEngineResult.HandshakeStatus.NEED_WRAP) {
                 debug.log("Continuing handshake");
                 continueHandshake();
             } else if (quicPacket.isAckEliciting() &&
@@ -299,8 +299,9 @@ public final class QuicServerConnection extends QuicConnectionImpl {
             packetNumberSpaces().initial().close();
         }
         QuicTLSEngine engine = getTLSEngine();
-        switch (engine.getHandshakeState()) {
-            case NEED_SEND_HANDSHAKE_DONE -> {
+        switch (engine.getHandshakeStatus()) {
+            // TODO change this
+            case SSLEngineResult.HandshakeStatus.FINISHED -> {
                 // should ack handshake and possibly send HandshakeDoneFrame
                 // the HANDSHAKE space will be closed after sending the
                 // HANDSHAKE_DONE frame (see sendStreamData)
@@ -536,7 +537,7 @@ public final class QuicServerConnection extends QuicConnectionImpl {
     }
 
     @Override
-    protected QuicEndpoint onHandshakeCompletion(HandshakeState result) {
+    protected QuicEndpoint onHandshakeCompletion(SSLEngineResult.HandshakeStatus result) {
         super.onHandshakeCompletion(result);
         // send a new token frame to the client, for use in new connection attempts.
         sendNewToken();
