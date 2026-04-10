@@ -154,7 +154,7 @@ struct revival_data {
  *
  * Return 0 for success, -1 for failure.
  */
-int revive_image(const char* corefile, const char* javahome, const char* libdir, const char* revival_data_path);
+int revive_image(const char* corefile, const char* libdir, const char* revival_data_path);
 
 /**
  * Invoke the given jcmd operation, e.g. "Thread.print" or a string containing command and parameters
@@ -293,7 +293,7 @@ int relocate_sharedlib_pd(const char* filename, const void* addr);
  * Copy JVM library, relocate, read core to create mappings list, and symbols.
  * Return zero on success.
  */
-int create_revival_cache_pd(const char* corename, const char* javahome, const char* dirname, const char* libdir);
+int create_revival_cache_pd(const char* corename, const char* dirname, const char* libdir);
 
 /**
  * Create the named "core.mappings" file and write the header.
