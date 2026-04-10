@@ -789,9 +789,11 @@ bool ShenandoahHeap::is_in(const void* p) const {
   }
 
   // Now check if we point to a live section in active region.
-  const ShenandoahHeapRegion* r = heap_region_containing(p);
+  ShenandoahHeapRegion* r = heap_region_containing(p);
   if (p >= r->top()) {
-    return false;
+    if (!_collection_set->use_forward_table(r)) {
+      return false;
+    }
   }
 
   if (r->is_active()) {
@@ -1444,11 +1446,17 @@ bool ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t nu
       assert(!Thread::current()->is_suspendible_thread(), "must not hold STS join across rendezvous");
       rendezvous_threads("Switch to Forward Table");
     }
-    // Do not zap or overwrite former-object memory here.  Mutator threads may
-    // still hold stale references to objects in this region (references loaded
-    // before the rendezvous handshake).
-    // New allocations will naturally overwrite former-object data as they
-    // advance top from bottom in recycle_collection_set().
+
+    {
+      class SetupFillerWords {
+      public:
+        static void do_object(oop obj) {
+          *reinterpret_cast<uintptr_t*>(cast_from_oop<HeapWord*>(obj)) = CollectedHeap::in_fwt_addr_filler_word;
+        }
+      } cl;
+      HeapWord* limit = MIN2(r->forwarding_table_start(), r->top());
+      marked_object_iterate(r, &cl, limit);
+    }
   }
   return use_fwd_table;
 }

@@ -281,6 +281,9 @@ inline void ShenandoahConcUpdateRefsClosure::work(T* p) {
         break;
       default: ShouldNotReachHere();
     }
+
+    if (_cset_map.use_forward_table(cset_state) && fwd == obj) return;
+
     // Corner case: when evacuation fails, there are objects in collection
     // set that are not really forwarded. We can still go and try CAS-update them
     // (uselessly) to simplify the common path.

@@ -112,6 +112,14 @@ HeapWord* ShenandoahHeapRegion::allocate(size_t size, const ShenandoahAllocReque
   HeapWord* obj = top();
   HeapWord* const fwt_start = forwarding_table_start();
   HeapWord* alloc_limit = (fwt_start != nullptr) ? fwt_start : _end;
+
+  // Don't allocate at adresses that are in the FWT.
+  if (fwt_start != nullptr) {
+    while (obj < alloc_limit && *reinterpret_cast<uintptr_t*>(obj) == CollectedHeap::in_fwt_addr_filler_word) {
+      obj += MinObjAlignment;
+    }
+  }
+
   if (pointer_delta(alloc_limit, obj) >= size) {
     make_regular_allocation(req.affiliation());
     adjust_alloc_metadata(req, size);

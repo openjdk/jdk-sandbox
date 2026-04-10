@@ -38,6 +38,13 @@
 inline HeapWord* ThreadLocalAllocBuffer::allocate(size_t size) {
   invariants();
   HeapWord* obj = top();
+
+  // Don't allocate at adresses that are in the FWT.
+  while (obj < end() &&
+         *reinterpret_cast<uintptr_t*>(obj) == CollectedHeap::in_fwt_addr_filler_word) {
+    obj += MinObjAlignment;
+  }
+
   if (pointer_delta(end(), obj) >= size) {
     // Successful thread-local allocation.
 

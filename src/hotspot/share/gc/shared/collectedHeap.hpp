@@ -316,6 +316,9 @@ protected:
     return oopDesc::header_size();
   }
 
+  // Sentinel value preventing allocations at table-forwarded object addresses.
+  static constexpr uintptr_t in_fwt_addr_filler_word = 0x0303030303030303ULL;
+
   static size_t lab_alignment_reserve() {
     assert(_lab_alignment_reserve != SIZE_MAX, "uninitialized");
     return _lab_alignment_reserve;
