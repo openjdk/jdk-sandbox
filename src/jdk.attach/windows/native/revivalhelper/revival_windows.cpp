@@ -908,7 +908,7 @@ void copy_and_relocate(MiniDump dump, const char* destdir) {
     }
 }
 
-int create_revival_cache_pd(const char* corename, const char* javahome, const char* revival_dirname, const char* libdir) {
+int create_revival_cache_pd(const char* corename, const char* revival_dirname, const char* libdir) {
     logv("create_revival_cache_pd");
     editbin = check_editbin();
 

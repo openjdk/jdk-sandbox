@@ -1019,7 +1019,7 @@ bool revival_cache_exists(char* dirname, const char* mappings_filename) {
     return true;
 }
 
-int revive_image(const char* corename, const char* javahome, const char* libdir, const char* revival_data_path) {
+int revive_image(const char* corename, const char* libdir, const char* revival_data_path) {
     int e;
     char* dirname;
     if (rdata != nullptr && rdata->vm_thread) {
@@ -1037,10 +1037,6 @@ int revive_image(const char* corename, const char* javahome, const char* libdir,
     }
     if (!file_canread_pd(corename)) {
         warn("revive_image: '%s': cannot read file", corename);
-        return -1;
-    }
-    if (!file_exists_pd(javahome)) {
-        warn("revive_image: Java directory '%s' not found", javahome);
         return -1;
     }
 
@@ -1090,7 +1086,7 @@ int revive_image(const char* corename, const char* javahome, const char* libdir,
             }
         }
         logv("Creating revival data cache in directory: %s", dirname);
-        e = create_revival_cache_pd(corename, javahome, dirname, libdir);
+        e = create_revival_cache_pd(corename, dirname, libdir);
         logv("revive_image: create_revival_cache_pd returns: %d", e);
         waitHitRet();
         if (e != 0) {

@@ -544,7 +544,7 @@ void copy_and_relocate(ELFFile core, const char* destdir) {
  *
  * Also take a copy of libjvm.debuginfo if present.
  */
-int create_revival_cache_pd(const char* corename, const char* javahome, const char* revival_dirname, const char* libdir) {
+int create_revival_cache_pd(const char* corename, const char* revival_dirname, const char* libdir) {
     logv("create_revival_cache_pd");
 
     ELFFile core(corename, libdir);
