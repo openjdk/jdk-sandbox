@@ -2541,9 +2541,7 @@ void ShenandoahFreeSet::move_regions_from_collector_to_mutator(size_t max_xfer_r
                      byte_size_in_proper_unit(old_collector_xfer), proper_unit_for_byte_size(old_collector_xfer));
 }
 
-// Recycle the space below the FWT.
-// The region's state transitions to _regular so the allocator can use it,
-// but its cset-map entry stays FWDTABLE_* during update-refs.
+// Admit a fwt cset region's below-FWT space into the Mutator free set.
 bool ShenandoahFreeSet::recycle_fwt_region(ShenandoahHeapRegion* r,
                                            idx_t& mutator_low_idx, idx_t& mutator_high_idx,
                                            size_t& recycled_bytes, size_t& recycled_regions) {
@@ -2554,16 +2552,14 @@ bool ShenandoahFreeSet::recycle_fwt_region(ShenandoahHeapRegion* r,
 
   r->make_regular_from_cset();
 
-  // The old objects were evacuated. The forwarding table maps their former locations.
-  // Reset top and TAMS to bottom so fresh allocations start from the bottom.
+  // Reset top/TAMS: new allocs start from bottom, FWT handles old object lookup.
   r->set_top(r->bottom());
   r->set_update_watermark(r->top());
   _heap->marking_context()->reset_top_at_mark_start(r);
 
-  // Available space is capped at forwarding_table_start().
   size_t available = r->capacity() - r->fwt_tail_bytes();
   if (available < PLAB::min_size() * HeapWordSize) {
-    // Region is too small to be useful (fwt fills almost all of it).
+    // FWT fills nearly the whole region.
     return false;
   }
 
@@ -2572,7 +2568,10 @@ bool ShenandoahFreeSet::recycle_fwt_region(ShenandoahHeapRegion* r,
   mutator_low_idx  = MIN2(mutator_low_idx,  (idx_t)i);
   mutator_high_idx = MAX2(mutator_high_idx, (idx_t)i);
 
-  _partitions.decrease_used(ShenandoahFreeSetPartitionId::Mutator, available);
+  _partitions.increase_capacity(ShenandoahFreeSetPartitionId::Mutator, ShenandoahHeapRegion::region_size_bytes());
+  if (r->fwt_tail_bytes() > 0) {
+    _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, r->fwt_tail_bytes());
+  }
   _partitions.increase_region_counts(ShenandoahFreeSetPartitionId::Mutator, 1);
 
   recycled_bytes += available;

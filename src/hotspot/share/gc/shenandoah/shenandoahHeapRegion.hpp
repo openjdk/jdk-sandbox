@@ -469,9 +469,7 @@ public:
 
   HeapWord* bottom() const      { return _bottom;  }
   HeapWord* end() const         { return _end;     }
-  // Upper bound for allocations:
-  // capped at the forwarding table when one is present,
-  // otherwise the physical region end.
+  // Allocation limit: fwt start if present, else end().
   HeapWord* alloc_end() const {
     HeapWord* fwt = forwarding_table_start();
     return (fwt != nullptr) ? fwt : _end;
@@ -481,7 +479,7 @@ public:
   size_t used() const           { return byte_size(bottom(), top()); }
   size_t used_before_promote() const { return byte_size(bottom(), get_top_before_promote()); }
   size_t free() const           { return byte_size(top(),    end()); }
-  // Bytes occupied by the forwarding-table tail, zero for normal regions.
+  // Bytes reserved by the FWT tail; 0 for non-fwt regions.
   size_t fwt_tail_bytes() const { return byte_size(alloc_end(), end()); }
   size_t used_with_fwt() const  { return used() + fwt_tail_bytes(); }
 
