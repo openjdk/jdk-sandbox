@@ -71,14 +71,6 @@ uint64_t vaddr_alignment_pd() {
     return vaddr_align;
 }
 
-uint64_t offset_alignment_pd() {
-    return vaddr_align;
-}
-
-uint64_t length_alignment_pd() {
-    return vaddr_align;
-}
-
 unsigned long long max_user_vaddr_pd() {
     return 0xffff800000000000;
 }
@@ -140,6 +132,12 @@ uint64_t end_address_for_sharedobject_live(void* h) {
 }
 
 void init_pd() {
+    // Check LD_USE_LOAD_BIAS is set:
+    char* env = getenv("LD_USE_LOAD_BIAS");
+    if (env == nullptr || strncmp(env, "1", 1) != 0) {
+        error("Error: LD_USE_LOAD_BIAS not set.");
+    }
+
     long value = sysconf(_SC_PAGESIZE); // Expect 0x1000
     if (value < 1) {
         warn("init_pd: sysconf retuns 0x%lx: %s", value, strerror(errno));
@@ -176,52 +174,32 @@ void init_pd() {
     heap_test = (uint64_t) malloc(1);
 }
 
-int dangerous0(void* vaddr, unsigned long long length, uint64_t xaddr) {
-    uint64_t v1 = (uint64_t) vaddr;
-    uint64_t v2 = v1 + length;
-    uint64_t t1 = align_down(xaddr, vaddr_alignment_pd());
-    uint64_t t2 = align_up(xaddr, vaddr_alignment_pd());
-    if (clash(v1, v2, t1, t2)) {
-        return true;
-    }
-    return false;
-}
-
-
 /**
  * Check if the given vaddr, length appears dangerous to map.
  * Return a char* message if a clash is found, or nullptr.
  */
-const char* dangerous(void* vaddr, unsigned long long length) {
+const char* conflict_check_pd(void* vaddr, unsigned long long length) {
     int x;
-    if (dangerous0(vaddr, length, (uint64_t) &x)) {
+    if (clash_addr(vaddr, length, (uint64_t) &x)) {
         return "conflict with local/stack";
     }
-    if (bin_addr !=0 && clash((uint64_t) vaddr, (uint64_t) vaddr + length, (uint64_t) bin_addr, bin_end)) {
+    if (bin_addr !=0 && range((uint64_t) vaddr, (uint64_t) vaddr + length, (uint64_t) bin_addr, bin_end)) {
         return "conflict with this binary";
     }
-    if (libc_addr != 0 && clash((uint64_t) vaddr, (uint64_t) vaddr + length, (uint64_t) libc_addr, libc_end)) {
+    if (libc_addr != 0 && clash_range((uint64_t) vaddr, (uint64_t) vaddr + length, (uint64_t) libc_addr, libc_end)) {
         return "conflict with libc";
     }
-    if (heap_test != 0 && clash((uint64_t) vaddr, (uint64_t) vaddr + length, (uint64_t) heap_test, heap_test)) {
+    if (heap_test != 0 && clash_addr((uint64_t) vaddr, (uint64_t) vaddr + length, (uint64_t) heap_test)) {
         return "conflict with live c heap";
     }
     return nullptr;
-}
-
-void conflict_check_pd(void* vaddr, size_t length) {
-     const char* msg = dangerous(vaddr, length);
-     if (msg != nullptr) {
-         warn("revival: conflict: %p - %p len=%zx: %s", vaddr, (void*) ((unsigned long long) vaddr + length), length, msg);
-         exitForRetry();
-     }
 }
 
 bool dir_exists_pd(const char* dirname) {
     int fd = open(dirname, O_DIRECTORY);
     if (fd < 0) {
         if (errno != ENOENT) {
-            warn("checking revivaldirectory '%s': %d: %s", dirname, errno, strerror(errno));
+            warn("Checking directory exists: '%s': %d: %s", dirname, errno, strerror(errno));
         }
     } else {
         close(fd);
@@ -349,15 +327,6 @@ void* do_map_allocate_pd(void* vaddr, size_t length, int prot) {
              vaddr, length, prot, flags, h, errno, strerror(errno));
     }
     return h;
-}
-
-int revival_checks_pd(const char* dirname) {
-    // Check LD_USE_LOAD_BIAS is set:
-    char* env = getenv("LD_USE_LOAD_BIAS");
-    if (env == nullptr || strncmp(env, "1", 1) != 0) {
-        error("Error: LD_USE_LOAD_BIAS not set.");
-    }
-    return 0;
 }
 
 void* symbol_dynamiclookup_pd(void* h, const char* str) {
@@ -501,10 +470,6 @@ void* load_sharedobject_pd(const char* name, void* vaddr) {
         exitForRetry();
 	}
     return h;
-}
-
-int unload_sharedobject_pd(void* h) {
-    return dlclose(h); // zero on success
 }
 
 void copy_file_pd(const char* srcfile, const char* destfile) {

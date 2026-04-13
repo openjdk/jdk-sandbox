@@ -36,7 +36,7 @@
  * Show usage message, and exit with an error status.
  */
 void usageExit(const char* s) {
-    error("usage: %s [ -L/path/to/libdir ] [ -R/path/for/revival_data ] COREFILE jcmd DCOMMAND...\n", s);
+    error("usage: %s [ -L/path/to/libdir ] [ -R/path/for/dir ] COREFILE jcmd DCOMMAND...\n", s);
 }
 
 int main(int argc, char** argv) {
@@ -61,12 +61,12 @@ int main(int argc, char** argv) {
                 error("Use -L/PATH to specify library directory, e.g. -L/my/libs");
             }
         } else if (strncmp(argv[n], "-R", 2) == 0) {
-            // -R/path/for/revival_data
+            // -R/path/for/dir
             if (strlen(argv[n]) > 2) {
                 revival_data = argv[n] + 2;
                 n++;
             } else {
-                error("Use -R/PATH to specify revival data path, e.g. -R/my/dir");
+                error("Use -R/PATH to specify directory to contain revival cache, e.g. -R/my/dir");
             }
         } else {
             break;
@@ -82,11 +82,10 @@ int main(int argc, char** argv) {
     if (strcmp(argv[n++], "jcmd") != 0) {
         error("jcmd keyword expected.");
     }
-    // Build jcmd from all additional arguments:
+    // Build jcmd command line from all additional arguments:
     for (int i = n; i < argc; i++) {
         if (i != n) {
-            // Add a space if not adding the first item.
-            strncat(command, " ", BUFLEN - 1);
+            strncat(command, " ", BUFLEN - 1); // Add a space if not adding the first item.
         }
         strncat(command, argv[i], BUFLEN - 1);
     }
@@ -94,9 +93,9 @@ int main(int argc, char** argv) {
     int e = revive_image(corename, libdir, revival_data);
     if (e < 0) {
         logv("revivalhelper: revive failed: %d\n", e);
-        // Will call _exit below, don't call error().
+        // Will call revived_exit below, don't call error().
     } else {
-        e = revival_dcmd(command);
+        e = revived_dcmd(command);
     }
-    revival_exit(e);
+    revived_exit(e);
 }

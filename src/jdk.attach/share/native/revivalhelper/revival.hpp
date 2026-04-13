@@ -62,7 +62,6 @@
 // This one is "C" and common to all platforms:
 #define SYM_REVIVE_VM "process_revival"
 
-
 //
 // Platform specifics
 //
@@ -104,15 +103,12 @@ void tls_fixup_pd(void* tlsPtr);
 
 #define SYM_VM_RELEASE "_s_vm_release_global"
 
-#define _exit _Exit
-
 #else
 #error "revival.hpp: OS Not implemented."
 #endif
 
-
 //
-// The revival interface:
+// The process revival interface:
 //
 
 // One structure to keep in sync with the JVM:
@@ -142,15 +138,12 @@ struct revival_data {
   void* info3;
 };
 
-// The revivalhelper tool uses only these three functions:
+// The revivalhelper tool uses the  functions: revive_image, revived_dcmd, revived_exit
 
 /**
- * Main revival setup entry point.
- * Given a core file name, create mappings data if necessary, and
- * revive into the current process.
- *
- * Accept optional library search directory, and directory for stored revival data directory, which may both be null.
- *
+ * Process Revival setup entry point.
+ * Given a core file name, create mappings data if necessary, and revive into the current process.
+ * Accept optional library search directory, and directory for revival cache directory, which may both be null.
  * Return 0 for success, -1 for failure.
  */
 int revive_image(const char* corefile, const char* libdir, const char* revival_data_path);
@@ -162,12 +155,15 @@ int revive_image(const char* corefile, const char* libdir, const char* revival_d
  * Calls into the revived JVM:
  * void DCmd::parse_and_execute(DCmdSource source, outputStream* out, const char* cmdline, char delim, TRAPS)
  */
-int revival_dcmd(const char* command);
+int revived_dcmd(const char* command);
 
 /**
  * Perform any cleanup after revival operation and exit process.
  */
-void revival_exit(int e);
+void revived_exit(int e);
+
+// Exit code signalling caller should retry, e.g. address space clash.
+#define EXIT_SUGGEST_RETRY 7
 
 //
 // Revival internals:
@@ -188,16 +184,27 @@ extern bool allLibraries;
 extern char* jvm_filename;
 extern void* jvm_address;
 extern void* h; // Opaque handle to libjvm
-extern std::list<Segment> writableSegments;
 extern std::list<Segment> delayedCopySegments;
 extern struct revival_data* rdata;
 
-// Exit signalling caller should retry, e.g. address space clash.
-#define EXIT_SUGGEST_RETRY 7
 void exitForRetry(); // exit process using above exit code to signal a retry
 
-bool clash(uint64_t v1, uint64_t v2, uint64_t t1, uint64_t t2);
-void conflict_check_pd(void* vaddr, size_t length);
+/**
+ * Return true if two address ranges are in conflict.
+ */
+bool clash_range(uint64_t v1, uint64_t v2, uint64_t t1, uint64_t t2);
+
+/**
+ * Return true if an address range contains pointer.
+ */
+bool clash_addr(uint64_t vaddr, size_t length, uint64_t xaddr);
+
+/**
+ * Check if the given vaddr, length appears dangerous to map.
+ * Return a char* message if a clash is found, or nullptr.
+ */
+const char* conflict_check_pd(void* vaddr, size_t length);
+
 void install_handler_pd();
 
 char* readstring(int fd);
@@ -209,9 +216,6 @@ uint64_t read_pointer_at_offset_pd(const char* filename, uint64_t offset);
 
 char* basename_pd(char* path);
 bool create_directory_pd(char* dirname);
-
-bool try_init_jvm_filename_if_exists(const char* path, const char* suffix);
-void init_jvm_filename_from_libdir(const char* libdir);
 
 // Symbol lookup
 void* symbol(const char* symbol);
@@ -238,12 +242,18 @@ void* symbol_call5(const char* sym, void* arg1, void* arg2, void* arg3, void* ar
 uint64_t align_down(uint64_t ptr, uint64_t mask);
 uint64_t align_up(uint64_t ptr, uint64_t mask);
 
-uint64_t vaddr_alignment_pd(); // return a mask, e.g. 0xfff
-uint64_t offset_alignment_pd();
-uint64_t length_alignment_pd();
+/**
+ * Return a mask for alignment, e.g. 0xfff
+ */
+uint64_t vaddr_alignment_pd();
 
 /**
- * Platform-specific setup, e.g. find system alignment.
+ * If we know an upper limit on process virtual address, return it, or return 0 if not known.
+ */
+unsigned long long max_user_vaddr_pd();
+
+/**
+ * Platform-specific setup.
  */
 void init_pd();
 
@@ -278,8 +288,6 @@ char* find_filename_in_libdir(const char* libdir, const char* filename);
 
 unsigned long long file_size(const char* filename);
 
-int revival_mapping_allocate(void* vaddr, size_t length);
-
 /**
  * Copy dump file bytes to memory.
  * Called directly when mapping core file memory, or later to implement lazy copying
@@ -311,30 +319,14 @@ int mappings_file_create(const char* filename, const char* corename);
  */
 int symbols_file_create(const char* filename);
 
-int generate_symbols_pd(const char* name, int fd);
-
 /**
  * Load a shared library.  Return an opaque handle (not the load address), or -1 for error.
  */
 void* load_sharedobject_pd(const char* name, void* vaddr);
 
-/**
- * Unload a shared library identified by handle.  Return zero on success. 
- */
-int unload_sharedobject_pd(void* h);
-
 bool mem_canwrite_pd(void* vaddr, size_t length);
 
 bool can_lazycopy_pd(void* vaddr);
-
-int revival_checks_pd(const char* dirname);
-int dangerous0(void* vaddr, unsigned long long length, uint64_t xaddr);
-const char* dangerous( void* vaddr, unsigned long long length);
-
-/**
- * If we know an upper limit on process virtual address, return it, or return 0 if not known.
- */
-unsigned long long max_user_vaddr_pd();
 
 /**
  * Diagnostics:

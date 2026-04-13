@@ -38,7 +38,6 @@ bool Segment::is_relevant() {
 }
 
 bool Segment::conflict(Segment* seg) {
-    // Any overlap at all.
     return this->contains(seg->start())
         || this->contains(seg->end())
         || seg->contains(this->start())
@@ -89,4 +88,3 @@ int Segment::toString(char* buf, int len) {
              (unsigned long long) file_length
             );
 }
-

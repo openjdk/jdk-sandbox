@@ -146,14 +146,6 @@ uint64_t vaddr_alignment_pd() {
     return vaddr_align;
 }
 
-uint64_t offset_alignment_pd() {
-    return vaddr_align;
-}
-
-uint64_t length_alignment_pd() {
-    return vaddr_align;
-}
-
 unsigned long long max_user_vaddr_pd() {
     return 0x7FFFFFFFFFFF;
 }
@@ -217,10 +209,6 @@ void init_pd() {
     heap_test = (uint64_t) malloc(1);
 }
 
-int revival_checks_pd(const char *dirname) {
-    return 0;
-}
-
 void dump() {
     char filename[BUFLEN];
     snprintf(filename, BUFLEN, "revival_dump_%ld.mdmp", _getpid());
@@ -237,38 +225,15 @@ void dump() {
     }
 }
 
-int dangerous0(void* vaddr, unsigned long long length, uint64_t xaddr) {
-    uint64_t v1 = (uint64_t) vaddr;
-    uint64_t v2 = v1 + length;
-    uint64_t t1 = align_down(xaddr, vaddr_alignment_pd());
-    uint64_t t2 = align_up(xaddr, vaddr_alignment_pd());
-    if (clash(v1, v2, t1, t2)) {
-        return true;
-    }
-    return false;
-}
-
-/**
- * Check if the given vaddr, length appears dangerous to map.
- * Return a char* message if a clash is found, or nullptr.
- */
-const char* dangerous(void* vaddr, unsigned long long length) {
+const char* conflict_check_pd(void* vaddr, unsigned long long length) {
     int x;
-    if (dangerous0(vaddr, length, (uint64_t) &x)) {
+    if (clash_addr((uint64_t) vaddr, length, (uint64_t) &x)) {
         return "conflict with local/stack";
     }
-    if (clash((uint64_t) vaddr, (uint64_t) vaddr + length, (uint64_t) heap_test, heap_test)) {
+    if (clash_addr((uint64_t) vaddr, (uint64_t) vaddr + length, (uint64_t) heap_test)) {
         return "conflict with live c heap";
     }
     return nullptr;
-}
-
-void conflict_check_pd(void* vaddr, size_t length) {
-     const char* msg = dangerous(vaddr, length);
-     if (msg != nullptr) {
-         warn("revival: conflict: %p - %p len=%zx: %s", vaddr, (void*) ((unsigned long long) vaddr + length), length, msg);
-         exitForRetry();
-     }
 }
 
 void set_prot(void* addr, uint64_t length, DWORD prot) {
@@ -359,14 +324,6 @@ void *load_sharedobject_pd(const char *name, void *vaddr) {
         }
     }
     return (void *) -1;
-}
-
-int unload_sharedobject_pd(void *h) {
-    if (!FreeLibrary((HMODULE) h)) { // Non-zero on success, zero on failure.
-        return GetLastError();
-    } else {
-        return 0;
-    }
 }
 
 bool mem_canwrite_pd(void *vaddr, size_t length) {

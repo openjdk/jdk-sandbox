@@ -55,10 +55,10 @@ ULONGLONG start_time;
 uint64_t* core_teb;
 #endif
 
-void revival_exit(int e) {
-       logv("revival_exit: %d", e);
+void revived_exit(int e) {
+       logv("revived_exit: %d", e);
 #ifdef WINDOWS
-	Sleep(500);
+	// Sleep(500);
     TerminateProcess(GetCurrentProcess(), e);
 #else
     _exit(e);
@@ -66,7 +66,7 @@ void revival_exit(int e) {
 }
 
 void exitForRetry() {
-    revival_exit(EXIT_SUGGEST_RETRY);
+    revived_exit(EXIT_SUGGEST_RETRY);
 }
 
 uint64_t align_down(uint64_t ptr, uint64_t mask) {
@@ -187,7 +187,7 @@ void error(const char* format, ...) {
     va_end(args);
     write0(2 /* stderr */, buffer);
     write0(2, "\n");
-    revival_exit(1);
+    revived_exit(1);
 }
 
 /**
@@ -224,11 +224,8 @@ unsigned long long file_time(const char* filename) {
    return (long long) sb.st_mtime;
 }
 
-/**
- * Return true if vaddr range v1 to v2 is in conflict,
- * given t1, t2 describe an address range in use.
- */
-bool clash(uint64_t v1, uint64_t v2, uint64_t t1, uint64_t t2) {
+
+bool clash_range(uint64_t v1, uint64_t v2, uint64_t t1, uint64_t t2) {
     // Region v1, v2 surrounds region t1,t2:
     if (v1 <= t1 && v2 >= t2) {
         return true;
@@ -239,6 +236,25 @@ bool clash(uint64_t v1, uint64_t v2, uint64_t t1, uint64_t t2) {
         return true;
     }
     return false;
+}
+
+bool clash_addr(uint64_t vaddr, size_t length, uint64_t xaddr) {
+    uint64_t v1 = vaddr;
+    uint64_t v2 = v1 + length;
+    uint64_t t1 = align_down(xaddr, vaddr_alignment_pd());
+    uint64_t t2 = align_up(xaddr, vaddr_alignment_pd());
+    if (clash_range(v1, v2, t1, t2)) {
+        return true;
+    }
+    return false;
+}
+
+void conflict_check(void* vaddr, size_t length) {
+     const char* msg = conflict_check_pd(vaddr, length);
+     if (msg != nullptr) {
+         warn("revival: conflict: %p - %p len=%zx: %s", vaddr, (void*) ((unsigned long long) vaddr + length), length, msg);
+         exitForRetry();
+     }
 }
 
 /**
@@ -261,6 +277,9 @@ int revival_mapping_mmap(void* vaddr, size_t length, size_t offset, char* filena
     return e;
 }
 
+/**
+ * Create a memory allocation at some address, length.
+ */
 int revival_mapping_allocate(void* vaddr, size_t length, int prot) {
     void* e = do_map_allocate_pd(vaddr, length, prot);
     if (e != vaddr) {
@@ -269,6 +288,9 @@ int revival_mapping_allocate(void* vaddr, size_t length, int prot) {
     return 0;
 }
 
+/**
+ * Copy the actual bytes from a core file offset to virtual address.
+ */
 int revival_mapping_docopy(void* vaddr, size_t length, size_t offset) {
     logv("revival_mapping_docopy: %p size 0x%lx pos=%zu", vaddr, length, offset);
     if (!mem_canwrite_pd(vaddr, length)) {
@@ -305,6 +327,9 @@ int revival_mapping_docopy(void* vaddr, size_t length, size_t offset) {
  * Copy bytes from some offset in a file, to memory.  Optionally create the memory allocation first.
  * Used when a mapping cannot be performed directly from the file, usually due to alignment problems
  * (so expect file offset to not be aligned).
+ *
+ * Usually set up a delayed copy to be satisfied later in response to a fault, but do the copy now if
+ * that is no possible.
  *
  * This method is used on Windows, where file alignment hinders direct mapping from MiniDump, and
  * also on a Linux "gcore" (dumped by gdb).
@@ -474,7 +499,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
             }
             if (strncmp(s1, "M", 1) == 0) {
                 // Map memory from core:
-                conflict_check_pd(vaddr, length);
+                conflict_check(vaddr, length);
                 int e = revival_mapping_mmap(vaddr, length, offset, core_filename, core_fd);
                 if (e < 0) {
                     // On failure, try copying.  Used for a Linux gcore (gdb) as file offsets are not aligned.
@@ -492,7 +517,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
                 }
             } else if (strncmp(s1, "m", 1) == 0) {
                 // Allocate only, file offset/length not used:
-                conflict_check_pd(vaddr, length);
+                conflict_check(vaddr, length);
                 int e = revival_mapping_allocate(vaddr, length, 0); // No permission, will be filled by a "C" line, delayed copy.
                 if (e < 0) {
                     warn("mappings_file_read: m 0x%llx failed: %d", (unsigned long long) vaddr, e);
@@ -1056,11 +1081,6 @@ int revive_image(const char* corename, const char* libdir, const char* revival_d
         logv("Using cached revival data: %s", dirname);
     }
 
-    if (revival_checks_pd(dirname) < 0) {
-        warn("revive_image: revival_checks failed: %s", dirname);
-        return -1;
-    }
-
     // Read mappings file: load library, map memory:
     e = mappings_file_read(corename, dirname, mappings_filename);
     if (e < 0) {
@@ -1073,7 +1093,7 @@ int revive_image(const char* corename, const char* libdir, const char* revival_d
         return -1;
     }
 
-    logv("Install signal handler...");
+    logv("Installing signal handler.");
     install_handler_pd();
 
     // Version check?
@@ -1109,20 +1129,20 @@ void* revived_tty() {
     return rdata->tty;
 }
 
-int revival_dcmd(const char* command) {
+int revived_dcmd(const char* command) {
     if (!revivaldir || !rdata) {
         error("revival_dcmd: call revive_image first.");
     }
     void* s = rdata->parse_and_execute;
     if (s == nullptr) {
-        error("revival_dcmd: no parse_and_execute in revival data.");
+        error("revived_dcmd: no parse_and_execute in revival data.");
     }
     if (revived_tty() == nullptr) {
         // null tty will cause a crash during DCmd output.
-        error("revival_dcmd: tty not set.");
+        error("revived_dcmd: tty not set.");
     }
 
-    logv("revival_dcmd: '%s'", command);
+    logv("revived_dcmd: '%s'", command);
     // We can call parse_and_execute like this:
     //   int(*dcmd_parse)(int, void*, const char*, char, void*) = (int(*)(int, void*, const char*, char, void*)) s;
     //   (dcmd_parse)(DCMD_SOURCE, revived_tty(), command, ' ', revived_vm_thread());

@@ -34,11 +34,14 @@
 void write0(int fd, const char* buf); // revival.cpp
 
 /**
- * A Segment describes a memory range, as required by the process revival mechanism, to enable jcmd to operate on a MiniDump.
+ * A Segment describes a memory range, as required by the process revival mechanism.
  * It may have a name, and may describe from what offset in a file its contents can be read.
  */
 class Segment {
     public:
+        Segment(void* v, size_t len) :
+            vaddr(v), length(len), name(nullptr), file_offset(0), file_length(0) {}
+
         Segment(char* n, void* v, size_t len) :
             name(n), vaddr(v), length(len), file_offset(0), file_length(0) {}
 
@@ -69,7 +72,7 @@ class Segment {
         bool contains(Segment* seg);
         bool contains(uint64_t addr);
         bool is_relevant(); // Is Segment trivially ignorable, e.g. zero-length.
-        bool conflict(Segment* seg);
+        bool conflict(Segment* seg); // Any overlap at all.
 
         int write_mapping(int fd, const char* type);
         int toString(char* buf, int len);
