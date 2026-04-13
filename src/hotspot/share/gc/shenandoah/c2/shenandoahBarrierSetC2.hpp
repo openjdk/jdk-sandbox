@@ -146,7 +146,7 @@ public:
   static void verify_gc_barrier_assert(bool cond, const char* msg, uint8_t bd, Node* n);
 #endif
 
-  int reserved_slots() const { return 4; }
+  int reserved_slots() const { return ShenandoahReservedStackSlots; }
   int estimate_stub_size() const /* override */;
   void emit_stubs(CodeBuffer& cb) const /* override */;
   void late_barrier_analysis() const /* override*/ {
@@ -179,6 +179,9 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   bool _do_emit_actual;
   int  _save_slots_idx;
 
+  GrowableArray<Register> _live_gp;
+  bool _has_live_vector_registers;
+
   static void register_stub(ShenandoahBarrierStubC2* stub);
   static void inc_trampoline_stubs_count();
   static int trampoline_stubs_count();
@@ -194,8 +197,7 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   int push_save_slot();
   int pop_save_slot();
 
-  int count_live(int type);
-
+  bool has_save_space_for_live_gp_registers();
   bool has_live_vector_registers();
   bool is_live(Register reg);
   Register select_temp_register(bool& selected_live, Address addr, Register reg1);
@@ -206,8 +208,19 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   void keepalive(MacroAssembler& masm, Register obj, Register tmp, Label* L_done = nullptr);
   void lrb(MacroAssembler& masm, Register obj, Address addr, Register tmp, Label* L_done = nullptr);
 
-  address keepalive_runtime_entry_addr();
-  address lrb_runtime_entry_addr();
+  void save_live_gp_regs(MacroAssembler& masm, bool has_return);
+  void restore_live_gp_regs(MacroAssembler& masm, bool has_return);
+  void call_lrb_runtime(MacroAssembler& masm);
+  void call_keepalive_runtime(MacroAssembler& masm);
+
+  enum SaveMode {
+    Nothing,
+    GP,
+    All
+  };
+
+  address keepalive_runtime_entry_addr(SaveMode mode = SaveMode::All);
+  address lrb_runtime_entry_addr(SaveMode mode = SaveMode::All);
 
   void post_init(int offset);
 

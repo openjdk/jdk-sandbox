@@ -122,6 +122,13 @@
   do_blob(shenandoah_lrb_strong_vectors, RuntimeStub)                  \
   do_blob(shenandoah_lrb_weak_vectors, RuntimeStub)                    \
   do_blob(shenandoah_lrb_phantom_vectors, RuntimeStub)                 \
+  do_blob(shenandoah_keepalive_nosave, RuntimeStub)                    \
+  do_blob(shenandoah_lrb_strong_narrow_nosave, RuntimeStub)            \
+  do_blob(shenandoah_lrb_weak_narrow_nosave, RuntimeStub)              \
+  do_blob(shenandoah_lrb_phantom_narrow_nosave, RuntimeStub)           \
+  do_blob(shenandoah_lrb_strong_nosave, RuntimeStub)                   \
+  do_blob(shenandoah_lrb_weak_nosave, RuntimeStub)                     \
+  do_blob(shenandoah_lrb_phantom_nosave, RuntimeStub)                  \
   /* other stubs */                                                    \
   SHARED_JFR_STUBS_DO(do_blob)                                         \
 

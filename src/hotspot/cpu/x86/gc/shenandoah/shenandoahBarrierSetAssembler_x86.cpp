@@ -1264,7 +1264,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
   // Check if buffer is already full. Go slow, if so.
   __ movptr(tmp, index);
   __ testptr(tmp, tmp);
-  __ jccb(Assembler::notZero, L_fast);
+  __ jcc(Assembler::notZero, L_fast);
 
   // Slow-path: call runtime to handle.
   {
@@ -1278,8 +1278,8 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
       __ mov(c_rarg0, obj);
     }
 
-    // Go to runtime stub and handle the rest there.
-    __ call(RuntimeAddress(keepalive_runtime_entry_addr()));
+    // Handle the rest there.
+    call_keepalive_runtime(masm);
 
     // Restore the clobbered registers.
     if (clobbered_c_rarg0) {
@@ -1392,7 +1392,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
     }
 
     // Go to runtime stub and handle the rest there.
-    __ call(RuntimeAddress(lrb_runtime_entry_addr()));
+    call_lrb_runtime(masm);
 
     // Save the result where needed and restore the clobbered registers.
     if (obj != rax) {
@@ -1430,64 +1430,55 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
 }
 
 bool ShenandoahBarrierStubC2::has_live_vector_registers() {
-  RegMaskIterator rmi(preserve_set());
-  while (rmi.has_next()) {
-    const OptoReg::Name opto_reg = rmi.next();
-    const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
-    if (vm_reg->is_Register()) {
-      // Not a vector.
-    } else if (vm_reg->is_KRegister()) {
-      // Definitely vector.
-      return true;
-    } else if (vm_reg->is_XMMRegister()) {
-      // Maybe vector, assume the worst right now.
-      return true;
-    } else {
-      fatal("Unexpected register type");
-    }
-  }
-  return false;
+  return _has_live_vector_registers;
 }
 
-int ShenandoahBarrierStubC2::count_live(int type) {
-  int c = 0;
-  RegMaskIterator rmi(preserve_set());
-  while (rmi.has_next()) {
-    const OptoReg::Name opto_reg = rmi.next();
-    const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
-    if (vm_reg->is_Register()) {
-      if (type == 0) c++;
-    } else if (vm_reg->is_KRegister()) {
-      if (type == 1) c++;
-    } else if (vm_reg->is_XMMRegister()) {
-      if (type == 2) c++;
-    } else {
-      fatal("Unexpected register type");
-    }
-  }
-  return c;
+bool ShenandoahBarrierStubC2::has_save_space_for_live_gp_registers() {
+  return _live_gp.length() <= ShenandoahBarrierSetC2::bsc2()->reserved_slots() - _save_slots_idx;
 }
-
 
 bool ShenandoahBarrierStubC2::is_live(Register reg) {
-  // TODO: Precompute the generic register map for faster lookups.
-  RegMaskIterator rmi(preserve_set());
-  while (rmi.has_next()) {
-    const OptoReg::Name opto_reg = rmi.next();
-    const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
-    if (vm_reg->is_Register()) {
-      if (reg == vm_reg->as_Register()) {
-        return true;
-      }
-    } else if (vm_reg->is_KRegister()) {
-      // Do not care, skip.
-    } else if (vm_reg->is_XMMRegister()) {
-      // Do not care, skip.
-    } else {
-      fatal("Unexpected register type");
-    }
+  return _live_gp.contains(reg);
+}
+
+void ShenandoahBarrierStubC2::save_live_gp_regs(MacroAssembler& masm, bool has_return) {
+  for (int i = 0; i < _live_gp.length(); i++) {
+    Register r = _live_gp.at(i);
+    if (has_return && (r == rax)) continue;
+    push_save_register(masm, r);
   }
-  return false;
+}
+
+void ShenandoahBarrierStubC2::restore_live_gp_regs(MacroAssembler& masm, bool has_return) {
+  for (int i = _live_gp.length() - 1; i >= 0; i--) {
+    Register r = _live_gp.at(i);
+    if (has_return && (r == rax)) continue;
+    pop_save_register(masm, r);
+  }
+}
+
+void ShenandoahBarrierStubC2::call_keepalive_runtime(MacroAssembler& masm) {
+  if (has_live_vector_registers()) {
+    __ call(RuntimeAddress(keepalive_runtime_entry_addr(SaveMode::All)));
+  } else if (has_save_space_for_live_gp_registers()) {
+    save_live_gp_regs(masm, /* has_return = */ false);
+    __ call(RuntimeAddress(keepalive_runtime_entry_addr(SaveMode::Nothing)));
+    restore_live_gp_regs(masm, /* has_return = */ false);
+  } else {
+    __ call(RuntimeAddress(keepalive_runtime_entry_addr(SaveMode::GP)));
+  }
+}
+
+void ShenandoahBarrierStubC2::call_lrb_runtime(MacroAssembler& masm) {
+  if (has_live_vector_registers()) {
+    __ call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::All)));
+  } else if (has_save_space_for_live_gp_registers()) {
+    save_live_gp_regs(masm, /* has_return = */ true);
+    __ call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::Nothing)));
+    restore_live_gp_regs(masm, /* has_return = */ true);
+  } else {
+    __ call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::GP)));
+  }
 }
 
 bool ShenandoahBarrierStubC2::push_save_register_if_live(MacroAssembler& masm, Register reg) {
@@ -1541,13 +1532,23 @@ Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Addr
 }
 
 void ShenandoahBarrierStubC2::post_init(int offset) {
-  // Do nothing.
-  int regular = count_live(0);
-  int vector = count_live(1);
-  int xmm = count_live(2);
-  log_info(nmethod)("%d total registers live", regular + vector + xmm);
-  log_info(nmethod)("%d regular registers live", ((vector+xmm) > 0 ? -1 : regular));
-  log_info(nmethod)("%d vector registers live", vector+xmm);
+  // Precompute live registers.
+  RegMaskIterator rmi(preserve_set());
+  while (rmi.has_next()) {
+    const OptoReg::Name opto_reg = rmi.next();
+    const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
+    if (vm_reg->is_Register()) {
+      Register r = vm_reg->as_Register();
+      if (r == rsp) continue;
+      _live_gp.push(r);
+    } else if (vm_reg->is_KRegister()) {
+      _has_live_vector_registers = true;
+    } else if (vm_reg->is_XMMRegister()) {
+      _has_live_vector_registers = true;
+    } else {
+      fatal("Unexpected register type");
+    }
+  }
 }
 #undef __
 #endif

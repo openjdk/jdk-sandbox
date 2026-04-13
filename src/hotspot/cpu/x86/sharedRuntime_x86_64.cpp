@@ -3606,15 +3606,20 @@ RuntimeStub* SharedRuntime::generate_jfr_return_lease() {
 
 #endif // INCLUDE_JFR
 
-RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address stub_addr, bool has_return, bool save_vectors) {
+RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address stub_addr, bool has_return, bool save_registers, bool save_vectors) {
   const char* name = SharedRuntime::stub_name(stub_id);
 
   CodeBuffer code(name, 2048, 64);
   MacroAssembler* masm = new MacroAssembler(&code);
   address start = __ pc();
 
-  int frame_size_in_words;
-  OopMap* map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words, save_vectors);
+  int frame_size_in_words = 0;
+  OopMap* map;
+  if (save_registers) {
+    map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words, save_vectors);
+  } else {
+    map = new OopMap(frame_size_in_words, 0); // FIXME: Correct?
+  }
   address frame_complete_pc = __ pc();
 
   address post_call_pc;
@@ -3646,7 +3651,7 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
     #endif
   }
 
-  if (has_return) {
+  if (save_registers && has_return) {
     // RegisterSaver would clobber the call result when restoring.
     // Carry the result out of this stub by overwriting saved register.
     __ movptr(Address(rsp, RegisterSaver::rax_offset_in_bytes()), rax);
@@ -3655,7 +3660,9 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
   OopMapSet* oop_maps = new OopMapSet();
   oop_maps->add_gc_map(post_call_pc - start, map);
 
-  RegisterSaver::restore_live_registers(masm, save_vectors);
+  if (save_registers) {
+    RegisterSaver::restore_live_registers(masm, save_vectors);
+  }
   __ ret(0);
 
   return RuntimeStub::new_runtime_stub(name,

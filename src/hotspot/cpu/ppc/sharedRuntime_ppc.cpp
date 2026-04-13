@@ -3839,7 +3839,7 @@ RuntimeStub* SharedRuntime::generate_jfr_return_lease() {
 
 #endif // INCLUDE_JFR
 
-RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address stub_addr, bool has_return, bool save_vectors) {
+RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address stub_addr, bool has_return, bool save_registers, bool save_vectors) {
   const char* name = SharedRuntime::stub_name(stub_id);
 
   CodeBuffer code(name, 2048, 64);
@@ -3847,18 +3847,23 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
   address start = __ pc();
 
   int frame_size_in_bytes = 0;
-  OopMap* map = RegisterSaver::push_frame_reg_args_and_save_live_registers(masm,
-                                                                          &frame_size_in_bytes,
-                                                                          /*generate_oop_map=*/true,
-                                                                          RegisterSaver::return_pc_is_lr,
-                                                                          save_vectors);
+  OopMap* map = nullptr
+  if (save_registers) {
+    map = RegisterSaver::push_frame_reg_args_and_save_live_registers(masm,
+                                                                     &frame_size_in_bytes,
+                                                                     /*generate_oop_map=*/true,
+                                                                     RegisterSaver::return_pc_is_lr,
+                                                                     save_vectors);
+  } else {
+    map = new OopMap(frame_size_in_bytes, 0);
+  }
   address frame_complete_pc = __ pc();
 
   // Exact post-call PC for the oop map.
   __ call_c(stub_addr);
   address post_call_pc = __ pc();
 
-  if (has_return) {
+  if (save_registers && has_return) {
     // restore_live_registers_and_pop_frame() restores the saved R3 slot,
     // which would clobber the runtime return value in R3_RET.
     //
@@ -3883,7 +3888,9 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
   OopMapSet* oop_maps = new OopMapSet();
   oop_maps->add_gc_map(post_call_pc - start, map);
 
-  RegisterSaver::restore_live_registers_and_pop_frame(masm, frame_size_in_bytes, /* restore_ctr: */ true, save_vectors);
+  if (save_registers) {
+    RegisterSaver::restore_live_registers_and_pop_frame(masm, frame_size_in_bytes, /* restore_ctr: */ true, save_vectors);
+  }
   __ blr();
 
   masm->flush();

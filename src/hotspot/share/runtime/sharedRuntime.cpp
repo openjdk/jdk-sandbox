@@ -187,65 +187,93 @@ void SharedRuntime::generate_stubs() {
     _shenandoah_keepalive_blob = 
       generate_gc_slow_call_blob(StubId::shared_shenandoah_keepalive_id,
                                  CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre),
-                                 /* has_return = */ false, /* save_vectors = */ false);
+                                 /* has_return = */ false, /* save_registers = */ true, /* save_vectors = */ false);
     _shenandoah_keepalive_vectors_blob =
       generate_gc_slow_call_blob(StubId::shared_shenandoah_keepalive_vectors_id,
                                  CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre),
-                                 /* has_return = */ false, /* save_vectors = */ true);
+                                 /* has_return = */ false, /* save_registers = */ true, /* save_vectors = */ true);
+    _shenandoah_keepalive_nosave_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_keepalive_nosave_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre),
+                                 /* has_return = */ false, /* save_registers = */ false, /* save_vectors = */ false);
 
     _shenandoah_lrb_strong_blob =
       generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_strong_id,
                                  CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong),
-                                 /* has_return = */ true, /* save_vectors = */ false);
+                                 /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ false);
     _shenandoah_lrb_strong_vectors_blob =
       generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_strong_vectors_id,
                                  CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong),
-                                 /* has_return = */ true, /* save_vectors = */ true);
+                                 /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ true);
+    _shenandoah_lrb_strong_nosave_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_strong_nosave_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong),
+                                 /* has_return = */ true, /* save_registers = */ false, /* save_vectors = */ false);
 
     _shenandoah_lrb_strong_narrow_blob =
       generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_strong_narrow_id,
                                  CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow),
-                                 /* has_return = */ true, /* save_vectors = */ false);
+                                 /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ false);
     _shenandoah_lrb_strong_narrow_vectors_blob =
       generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_strong_narrow_vectors_id,
                                  CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow),
-                                 /* has_return = */ true, /* save_vectors = */ true);
+                                 /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ true);
+    _shenandoah_lrb_strong_narrow_nosave_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_strong_narrow_nosave_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow),
+                                 /* has_return = */ true, /* save_registers = */ false, /* save_vectors = */ false);
 
     _shenandoah_lrb_weak_blob =
       generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_weak_id,
                                  CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak),
-                                 /* has_return = */ true, /* save_vectors = */ false);
+                                 /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ false);
     _shenandoah_lrb_weak_vectors_blob =
       generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_weak_vectors_id,
                                  CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak),
-                                 /* has_return = */ true, /* save_vectors = */ true);
+                                 /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ true);
+    _shenandoah_lrb_weak_nosave_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_weak_nosave_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak),
+                                 /* has_return = */ true, /* save_registers = */ false, /* save_vectors = */ false);
 
     _shenandoah_lrb_weak_narrow_blob  =
       generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_weak_narrow_id,
                                  CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow),
-                                 /* has_return = */ true, /* save_vectors = */ false);
+                                 /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ false);
     _shenandoah_lrb_weak_narrow_vectors_blob =
       generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_weak_narrow_vectors_id,
                                  CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow),
-                                 /* has_return = */ true, /* save_vectors = */ true);
+                                 /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ true);
+    _shenandoah_lrb_weak_narrow_nosave_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_weak_narrow_nosave_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow),
+                                 /* has_return = */ true, /* save_registers = */ false, /* save_vectors = */ false);
 
     _shenandoah_lrb_phantom_blob =
       generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_phantom_id,
                                  CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom),
-                                 /* has_return = */ true, /* save_vectors = */ false);
+                                 /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ false);
     _shenandoah_lrb_phantom_vectors_blob =
       generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_phantom_vectors_id,
                                  CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom),
-                                 /* has_return = */ true, /* save_vectors = */ true);
+                                 /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ true);
+    _shenandoah_lrb_phantom_nosave_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_phantom_nosave_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom),
+                                 /* has_return = */ true, /* save_registers = */ false, /* save_vectors = */ false);
 
     _shenandoah_lrb_phantom_narrow_blob =
       generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_phantom_narrow_id,
                                  CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow),
-                                 /* has_return = */ true, /* save_vectors = */ false);
+                                 /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ false);
     _shenandoah_lrb_phantom_narrow_vectors_blob =
       generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_phantom_narrow_vectors_id,
                                  CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow),
-                                 /* has_return = */ true, /* save_vectors = */ true);
+                                 /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ true);
+    _shenandoah_lrb_phantom_narrow_nosave_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_phantom_narrow_nosave_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow),
+                                 /* has_return = */ true, /* save_registers = */ false, /* save_vectors = */ false);
   }
 #endif
 }

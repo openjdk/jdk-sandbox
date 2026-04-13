@@ -575,6 +575,10 @@
   product(bool, ShenandoahWeakRootsEarly, false, EXPERIMENTAL,              \
           "Turn off weak roots earlier than usual. TODO: Upstream!")        \
                                                                             \
+  product(int, ShenandoahReservedStackSlots, 8, EXPERIMENTAL,               \
+          "How many stack slots to reserve in C2 frame for stub use.")      \
+          range(4, 32)                                                      \
+                                                                            \
   product(int, ShenandoahDelayGC, 0, EXPERIMENTAL,                          \
           "Delay GC phases by this amount of milliseconds. "                \
           "Helps to measure active GC barriers costs.")                     \
