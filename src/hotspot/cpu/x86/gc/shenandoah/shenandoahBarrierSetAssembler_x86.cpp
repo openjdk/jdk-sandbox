@@ -1449,6 +1449,26 @@ bool ShenandoahBarrierStubC2::has_live_vector_registers() {
   return false;
 }
 
+int ShenandoahBarrierStubC2::count_live(int type) {
+  int c = 0;
+  RegMaskIterator rmi(preserve_set());
+  while (rmi.has_next()) {
+    const OptoReg::Name opto_reg = rmi.next();
+    const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
+    if (vm_reg->is_Register()) {
+      if (type == 0) c++;
+    } else if (vm_reg->is_KRegister()) {
+      if (type == 1) c++;
+    } else if (vm_reg->is_XMMRegister()) {
+      if (type == 2) c++;
+    } else {
+      fatal("Unexpected register type");
+    }
+  }
+  return c;
+}
+
+
 bool ShenandoahBarrierStubC2::is_live(Register reg) {
   // TODO: Precompute the generic register map for faster lookups.
   RegMaskIterator rmi(preserve_set());
@@ -1522,6 +1542,12 @@ Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Addr
 
 void ShenandoahBarrierStubC2::post_init(int offset) {
   // Do nothing.
+  int regular = count_live(0);
+  int vector = count_live(1);
+  int xmm = count_live(2);
+  log_info(nmethod)("%d total registers live", regular + vector + xmm);
+  log_info(nmethod)("%d regular registers live", ((vector+xmm) > 0 ? -1 : regular));
+  log_info(nmethod)("%d vector registers live", vector+xmm);
 }
 #undef __
 #endif
