@@ -214,7 +214,7 @@ void init_pd() {
     install_kernelbase_1803_symbol_or_exit(pVirtualAlloc2, "VirtualAlloc2");
     install_kernelbase_1803_symbol_or_exit(pMapViewOfFile3, "MapViewOfFile3");
 
-    heap_test = malloc(1);
+    heap_test = (uint64_t) malloc(1);
 }
 
 int revival_checks_pd(const char *dirname) {
@@ -235,6 +235,17 @@ void dump() {
         }
         CloseHandle(hFile);
     }
+}
+
+int dangerous0(void* vaddr, unsigned long long length, uint64_t xaddr) {
+    uint64_t v1 = (uint64_t) vaddr;
+    uint64_t v2 = v1 + length;
+    uint64_t t1 = align_down(xaddr, vaddr_alignment_pd());
+    uint64_t t2 = align_up(xaddr, vaddr_alignment_pd());
+    if (clash(v1, v2, t1, t2)) {
+        return true;
+    }
+    return false;
 }
 
 /**
