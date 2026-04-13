@@ -55,12 +55,17 @@
 #include "revival.hpp"
 #include "elffile.hpp"
 
+long vaddr_align;
+uint64_t bin_addr;
+uint64_t bin_end;
+#define LIBC_NAME "libc.so.6"
+uint64_t libc_addr;
+uint64_t libc_end;
+uint64_t heap_test;
 
 char* basename_pd(char* s) {
     return basename(s);
 }
-
-long vaddr_align; // set by init_pd
 
 uint64_t vaddr_alignment_pd() {
     return vaddr_align;
@@ -78,15 +83,138 @@ unsigned long long max_user_vaddr_pd() {
     return 0xffff800000000000;
 }
 
+/**
+ * Return the actual load address for a shared object, given its opaque handle
+ * (the value returned from dlopen).
+ * More specifically this returns the difference from the preferred address.
+ * For a file with no preferred address, that is the loaded address.
+ * For a file with a specific address, will return zero if loaded at that address.
+ */
+void* base_address_for_sharedobject_live(void* h) {
+    struct link_map lm;
+    struct link_map* lp = &lm;
+    struct link_map** lpp = &lp;
+
+    int e = dlinfo(h, RTLD_DI_LINKMAP, (struct link_map **) lpp);
+    if (e == -1) {
+        warn("base_address_for_sharedobject_live: dlinfo error %d: %s", e, dlerror());
+        return (void*) -1;
+    }
+    return (void*) (*lpp)->l_addr;
+}
+
+// Holder struct for dl_iterate_phdr
+struct ph_data {
+    const char* name;
+    uint64_t end;
+};
+
+// Callback function for dl_iterate_phdr
+int ph_func(struct dl_phdr_info* info, size_t size, void* data) {
+    struct ph_data* d = (struct ph_data*) data;
+    if (!info->dlpi_name || strcmp(info->dlpi_name, d->name) != 0) {
+        return 0;
+    }
+    logd("ph_func found %s", d->name);
+    for (int i = 0; i < info->dlpi_phnum; i++) {
+        Elf64_Phdr* ph = (Elf64_Phdr*) &info->dlpi_phdr[i];
+        uint64_t end = (uint64_t) info->dlpi_addr + ph->p_vaddr + ph->p_memsz;
+        if (end > d->end) {
+            d->end = end;
+        }
+        logd("end: 0x%lx", d->end);
+    }
+    return 1;
+}
+
+uint64_t end_address_for_sharedobject_live(void* h) {
+    struct link_map *lm = nullptr;
+    if (dlinfo(h, RTLD_DI_LINKMAP, &lm) != 0 || lm == nullptr) {
+       return 0;
+    }
+    struct ph_data x;
+    x.name = lm->l_name;
+    x.end = 0;
+    dl_iterate_phdr(ph_func, &x);
+    return x.end;
+}
+
 void init_pd() {
-    // pagesize, expect 0x1000
-    long value = sysconf(_SC_PAGESIZE);
+    long value = sysconf(_SC_PAGESIZE); // Expect 0x1000
     if (value < 1) {
         warn("init_pd: sysconf retuns 0x%lx: %s", value, strerror(errno));
         value = 0x1000;
     }
     vaddr_align = value;
     logv("revival: init_pd: vaddr_alignment (pagesize) = 0x%llx", (unsigned long long) vaddr_alignment_pd());
+
+    // Lookup ourself and libc for later conflict checking:
+    // Main binary has dynamic load address.
+    void* h = dlopen(nullptr, RTLD_NOW | RTLD_LOCAL);
+    if (h == nullptr) {
+        warn("init_pd: dlopen failed");
+        bin_addr = 0;
+    } else {
+        bin_addr = (uint64_t) base_address_for_sharedobject_live(h);
+        logv("revivalhelper: binary address: 0x%lx", bin_addr);
+        bin_end = (uint64_t) end_address_for_sharedobject_live(h);
+        logv("revivalhelper: binary end: 0x%lx", bin_end);
+    }
+    h = dlopen(LIBC_NAME, RTLD_NOW | RTLD_LOCAL);
+    if (h == nullptr) {
+        warn("init_pd: dlopen " LIBC_NAME " failed");
+        libc_addr = 0;
+    } else {
+        libc_addr = (uint64_t) base_address_for_sharedobject_live(h);
+        logv("revivalhelper: libc address: 0x%lx", libc_addr);
+        libc_end = (uint64_t) end_address_for_sharedobject_live(h);
+        logv("revivalhelper: libc end: 0x%lx", libc_end);
+        libc_end += 0x200000;
+        logv("revivalhelper: libc end: 0x%lx", libc_end);
+    }
+
+    heap_test = (uint64_t) malloc(1);
+}
+
+int dangerous0(void* vaddr, unsigned long long length, uint64_t xaddr) {
+    uint64_t v1 = (uint64_t) vaddr;
+    uint64_t v2 = v1 + length;
+    uint64_t t1 = align_down(xaddr, vaddr_alignment_pd());
+    uint64_t t2 = align_up(xaddr, vaddr_alignment_pd());
+    if (clash(v1, v2, t1, t2)) {
+        return true;
+    }
+    return false;
+}
+
+
+/**
+ * Check if the given vaddr, length appears dangerous to map.
+ * Return a char* message if a clash is found, or nullptr.
+ */
+const char* dangerous(void* vaddr, unsigned long long length) {
+    int x;
+    if (dangerous0(vaddr, length, (uint64_t) &x)) {
+        return "conflict with local/stack";
+    }
+    if (bin_addr !=0 && clash((uint64_t) vaddr, (uint64_t) vaddr + length, (uint64_t) bin_addr, bin_end)) {
+        return "conflict with this binary";
+    }
+    if (libc_addr != 0 && clash((uint64_t) vaddr, (uint64_t) vaddr + length, (uint64_t) libc_addr, libc_end)) {
+        return "conflict with libc";
+    }
+    if (heap_test != 0 && clash((uint64_t) vaddr, (uint64_t) vaddr + length, (uint64_t) heap_test, heap_test)) {
+        return "conflict with live c heap";
+    }
+    return nullptr;
+}
+
+void conflict_check_pd(void* vaddr, size_t length) {
+     const char* msg = dangerous(vaddr, length);
+     if (msg != nullptr) {
+         warn("revival: conflict: %p - %p len=%zx: %s", vaddr, (void*) ((unsigned long long) vaddr + length), length, msg);
+         exitForRetry();
+     }
 }
 
 bool dir_exists_pd(const char* dirname) {
@@ -348,27 +476,6 @@ void install_handler_pd() {
     }
 }
 
-
-/**
- * Return the actual load address for a shared object, given its opaque handle
- * (the value returned from dlopen).
- * More specifically this returns the difference from the preferred address.
- * For a file with no preferred address, that is the loaded address.
- * For a file with a specific address, will return zero if loaded at that address.
- */
-void* base_address_for_sharedobject_live(void* h) {
-    struct link_map lm;
-    struct link_map* lp = &lm;
-    struct link_map** lpp = &lp;
-
-    int e = dlinfo(h, RTLD_DI_LINKMAP, (struct link_map **) lpp);
-    if (e == -1) {
-        warn("base_address_for_sharedobject_live: dlinfo error %d: %s", e, dlerror());
-        return (void*) -1;
-    }
-    return (void*) (*lpp)->l_addr;
-}
-
 /**
  * Use dlopen to load a sharedobject.
  * Verify the base address of the loaded library is as requested, if possible.
@@ -468,10 +575,9 @@ bool create_directory_pd(char* dirname) {
     return mkdir(dirname, S_IRUSR | S_IWUSR | S_IXUSR) == 0;
 }
 
-
 void write_sharedlib_mapping(int mappings_fd, char* filename, void* address) {
         char buf[BUFLEN];
-        const char* checksum = "0"; // possible enhancement
+        const char* checksum = "0";
         snprintf(buf, BUFLEN, "L %s %llx %s\n", basename(filename), (unsigned long long) address, checksum);
         write0(mappings_fd, buf);
 }

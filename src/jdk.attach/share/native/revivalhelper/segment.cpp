@@ -26,18 +26,23 @@
 #include "segment.hpp"
 
 bool Segment::contains(Segment* seg) {
-  return seg->start() >= this->start() && seg->end() <= this->end();
+    return seg->start() >= this->start() && seg->end() <= this->end();
 }
 
 bool Segment::contains(uint64_t addr) {
-  return addr >= this->start() && addr <= this->end();
+    return addr >= this->start() && addr <= this->end();
 }
 
-/**
- * Is this Segment not trivially ignorable, e.g. zero-length.
- */
 bool Segment::is_relevant() {
-  return length > 0 && file_length > 0;
+    return length > 0 && file_length > 0;
+}
+
+bool Segment::conflict(Segment* seg) {
+    // Any overlap at all.
+    return this->contains(seg->start())
+        || this->contains(seg->end())
+        || seg->contains(this->start())
+        || seg->contains(this->end());
 }
 
 /**

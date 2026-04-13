@@ -50,6 +50,7 @@
 
 DWORD stdProt = PAGE_EXECUTE_READWRITE;
 uint64_t vaddr_align;
+uint64_t heap_test;
 char *editbin = nullptr;
 
 typedef PVOID (*VirtualAlloc2Fn)(HANDLE, PVOID, SIZE_T, ULONG, ULONG, MEM_EXTENDED_PARAMETER*, ULONG);
@@ -212,6 +213,8 @@ void init_pd() {
     }
     install_kernelbase_1803_symbol_or_exit(pVirtualAlloc2, "VirtualAlloc2");
     install_kernelbase_1803_symbol_or_exit(pMapViewOfFile3, "MapViewOfFile3");
+
+    heap_test = malloc(1);
 }
 
 int revival_checks_pd(const char *dirname) {
@@ -232,6 +235,29 @@ void dump() {
         }
         CloseHandle(hFile);
     }
+}
+
+/**
+ * Check if the given vaddr, length appears dangerous to map.
+ * Return a char* message if a clash is found, or nullptr.
+ */
+const char* dangerous(void* vaddr, unsigned long long length) {
+    int x;
+    if (dangerous0(vaddr, length, (uint64_t) &x)) {
+        return "conflict with local/stack";
+    }
+    if (clash((uint64_t) vaddr, (uint64_t) vaddr + length, (uint64_t) heap_test, heap_test)) {
+        return "conflict with live c heap";
+    }
+    return nullptr;
+}
+
+void conflict_check_pd(void* vaddr, size_t length) {
+     const char* msg = dangerous(vaddr, length);
+     if (msg != nullptr) {
+         warn("revival: conflict: %p - %p len=%zx: %s", vaddr, (void*) ((unsigned long long) vaddr + length), length, msg);
+         exitForRetry();
+     }
 }
 
 void set_prot(void* addr, uint64_t length, DWORD prot) {

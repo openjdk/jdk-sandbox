@@ -62,7 +62,6 @@
 // This one is "C" and common to all platforms:
 #define SYM_REVIVE_VM "process_revival"
 
-void install_handler_pd();
 
 //
 // Platform specifics
@@ -196,6 +195,10 @@ extern struct revival_data* rdata;
 // Exit signalling caller should retry, e.g. address space clash.
 #define EXIT_SUGGEST_RETRY 7
 void exitForRetry(); // exit process using above exit code to signal a retry
+
+bool clash(uint64_t v1, uint64_t v2, uint64_t t1, uint64_t t2);
+void conflict_check_pd(void* vaddr, size_t length);
+void install_handler_pd();
 
 char* readstring(int fd);
 char* readstring_at_offset_pd(const char* filename, uint64_t offset);

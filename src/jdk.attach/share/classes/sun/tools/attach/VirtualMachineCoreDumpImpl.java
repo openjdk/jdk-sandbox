@@ -166,11 +166,11 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
         // Some System Properties are passed on to the native revival helper tool in the environment:
         Map<String, String> newEnv = pb.environment();
         String logString = System.getProperty("jdk.attach.core.log");
-        boolean verbose = false; // Used in this method as well as native helper
+        boolean verbose = false;
         if (logString != null) {
             logString = logString.toLowerCase();
-            newEnv.put("REVIVAL_LOG", logString);
-            verbose = logString.equals("verbose") || logString.equals("debug");
+            newEnv.put("REVIVAL_LOG", logString); // Logging in native helper
+            verbose = logString.equals("verbose") || logString.equals("debug"); // Logging in this method
         }
 
         if (Boolean.getBoolean("jdk.attach.core.skipVersionCheck")) {

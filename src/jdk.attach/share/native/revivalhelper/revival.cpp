@@ -228,7 +228,7 @@ unsigned long long file_time(const char* filename) {
  * Return true if vaddr range v1 to v2 is in conflict,
  * given t1, t2 describe an address range in use.
  */
-int clash(uint64_t v1, uint64_t v2, uint64_t t1, uint64_t t2) {
+bool clash(uint64_t v1, uint64_t v2, uint64_t t1, uint64_t t2) {
     // Region v1, v2 surrounds region t1,t2:
     if (v1 <= t1 && v2 >= t2) {
         return true;
@@ -238,45 +238,7 @@ int clash(uint64_t v1, uint64_t v2, uint64_t t1, uint64_t t2) {
             || (v1 > t1 && v1 < t2)) {
         return true;
     }
-    // No clash:
     return false;
-}
-
-int dangerous0(void* vaddr, unsigned long long length, uint64_t xaddr) {
-    uint64_t v1 = (uint64_t) vaddr;
-    uint64_t v2 = v1 + length;
-    uint64_t t1 = align_down(xaddr, vaddr_alignment_pd());
-    uint64_t t2 = align_up(xaddr, vaddr_alignment_pd());
-    if (clash(v1, v2, t1, t2)) {
-        return true;
-    }
-    return false;
-}
-
-/**
- * dangerous
- * Return true if the given vaddr, length appear dangerous to map.
- * e.g. that range is in use the by calling stack or contains the current program.
- */
-const char* dangerous(void* vaddr, unsigned long long length) {
-    // Check against a local variable (on stack):
-    int x;
-    if (dangerous0(vaddr, length, (uint64_t) &x)) {
-        return "conflict with local/stack";
-    }
-    // Check against this code:
-    if (dangerous0(vaddr, length, (uint64_t) &dangerous)) {
-        return "conflict with this code";
-    }
-#ifdef LINUX
-    if (dangerous0(vaddr, length, (uint64_t) &mmap)) {
-        return "conflict mmap";
-    }
-    if (dangerous0(vaddr, length, (uint64_t) &gettimeofday)) {
-        return "conflict gettimeofday";
-    }
-#endif
-    return nullptr;
 }
 
 /**
@@ -290,10 +252,10 @@ int revival_mapping_mmap(void* vaddr, size_t length, size_t offset, char* filena
 
     void* mapped_addr = do_mmap_pd(vaddr, length, filename, fd, offset);
     if (mapped_addr != vaddr) {
-        logv("  revival_mapping_mmap: mapping failed: wanted vaddr: %p returned: %p", vaddr, mapped_addr);
+        logv("revival_mapping_mmap: mapping failed: wanted vaddr: %p returned: %p", vaddr, mapped_addr);
         e = -1;
     } else {
-        logd("  revival_mapping_mmap: mapping OK %p", vaddr);
+        logd("revival_mapping_mmap: mapping OK %p", vaddr);
         e = 0;
     }
     return e;
@@ -310,7 +272,7 @@ int revival_mapping_allocate(void* vaddr, size_t length, int prot) {
 int revival_mapping_docopy(void* vaddr, size_t length, size_t offset) {
     logv("revival_mapping_docopy: %p size 0x%lx pos=%zu", vaddr, length, offset);
     if (!mem_canwrite_pd(vaddr, length)) {
-        warn("  revival_mapping_docopy: cannot write at vaddr 0x%p length " SIZE_FORMAT_X_0, vaddr, length);
+        warn("revival_mapping_docopy: cannot write at vaddr 0x%p length " SIZE_FORMAT_X_0, vaddr, length);
         return -1;
     }
     FILE* f = fopen(core_filename, "rb");
@@ -350,13 +312,13 @@ int revival_mapping_docopy(void* vaddr, size_t length, size_t offset) {
  * Return -1 on error.
  */
 int revival_mapping_copy(void* vaddr, size_t length, size_t offset, bool allocate, char* filename, int fd) {
-    logd("  revival_mapping_copy: alloc=%d vaddr " PTR_FORMAT " - " PTR_FORMAT " len=" SIZE_FORMAT_X_0 " from file offset 0x%llx",
+    logd("revival_mapping_copy: alloc=%d vaddr " PTR_FORMAT " - " PTR_FORMAT " len=" SIZE_FORMAT_X_0 " from file offset 0x%llx",
          allocate, (uintptr_t) vaddr, (uintptr_t) ((uint64_t) vaddr + length), length, (long long) offset);
 
     if (allocate) {
         int e = revival_mapping_allocate(vaddr, length, 0); // 0 for no permission, copy in on fault.
         if (e < 0) {
-            warn("  revival_mapping_copy: allocation required at 0x%llx : allocation failed: %d", (unsigned long long) vaddr, e);
+            warn("revival_mapping_copy: allocation required at 0x%llx : allocation failed: %d", (unsigned long long) vaddr, e);
             return -1;
         }
     }
@@ -510,13 +472,9 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
             if (length != length_file) {
                 logv("revival: differing length in memory and length in file not implemented (file size ignored)");
             }
-            const char* danger = dangerous(vaddr, length);
-            if (danger != nullptr) {
-                warn("revival: conflict: %p - %p len=%zx: %s", vaddr, (void*) ((unsigned long long) vaddr + length), length, danger);
-                exitForRetry();
-            }
             if (strncmp(s1, "M", 1) == 0) {
                 // Map memory from core:
+                conflict_check_pd(vaddr, length);
                 int e = revival_mapping_mmap(vaddr, length, offset, core_filename, core_fd);
                 if (e < 0) {
                     // On failure, try copying.  Used for a Linux gcore (gdb) as file offsets are not aligned.
@@ -534,6 +492,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
                 }
             } else if (strncmp(s1, "m", 1) == 0) {
                 // Allocate only, file offset/length not used:
+                conflict_check_pd(vaddr, length);
                 int e = revival_mapping_allocate(vaddr, length, 0); // No permission, will be filled by a "C" line, delayed copy.
                 if (e < 0) {
                     warn("mappings_file_read: m 0x%llx failed: %d", (unsigned long long) vaddr, e);

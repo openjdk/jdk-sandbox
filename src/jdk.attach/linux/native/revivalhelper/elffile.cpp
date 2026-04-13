@@ -68,9 +68,6 @@ bool should_relocate_program_header(Elf64_Phdr* phdr) {
 }
 
 bool should_relocate_dynamic_tag(Elf64_Dyn* dyn) {
-    // Dynamic entries that use the d_ptr union member should stay relative to base address?
-    // Or does that not apply to us, as will have a set load address...
-    // https://docs.oracle.com/cd/E19455-01/816-0559/chapter6-35405/index.html
     switch (dyn->d_tag) {
         case DT_INIT:
         case DT_FINI:
@@ -133,22 +130,6 @@ bool ELFFile::verify() {
         warn("%s: No section headers in shared library.", filename);
         return false;
     }
-/*
-    // Sanity check the pointer arithmetic:
-    Elf64_Phdr* p0 = program_header(0);
-    Elf64_Phdr* p1 = program_header(1);
-    long diff = (long) ((uint64_t) p1 - (uint64_t) p0);
-    Elf64_Phdr* p1a = next_ph(p0);
-    assert(p1 == p1a);
-    assert(diff == hdr->e_phentsize);
-
-    Elf64_Shdr* s0 = section_header(0);
-    Elf64_Shdr* s1 = section_header(1);
-    diff = (long) ((uint64_t) s1 - (uint64_t) s0);
-    Elf64_Shdr* s1a = next_sh(s0);
-    assert(s1 == s1a);
-    assert(diff == hdr->e_shentsize);
- */
     return true;
 }
 
@@ -184,7 +165,7 @@ ELFFile::ELFFile(const char* filename, const char* libdir) {
     // Set absolute ph and sh pointers for ease.
     // Careful with ptr arithmetic, do NOT use:
     // = (Elf64_Phdr*) (char*) m + (hdr->e_phoff);
-    // But use:
+    // Use:
     ph = (Elf64_Phdr*) ((char*) m + (hdr->e_phoff));
 
     if (hdr->e_shoff > 0) {
@@ -192,8 +173,7 @@ ELFFile::ELFFile(const char* filename, const char* libdir) {
         Elf64_Shdr* strndx_shdr = section_by_index(hdr->e_shstrndx);
         shdr_strings = (char*) m + strndx_shdr->sh_offset;
     } else {
-        // cores don't usually have Sections
-        sh = nullptr;
+        sh = nullptr; // cores don't usually have Sections
     }
 
     logd("ELFFile: %s hdr = %p phoff = 0x%lx shoff = 0x%lx   ph = %p sh = %p",
@@ -470,6 +450,17 @@ char* ELFFile::find_note_data(Elf64_Phdr* notes_ph, Elf64_Word type) {
     return nullptr;
 }
 
+bool use_lib(char* libname) {
+    // Filter on name from the NT_FILE list.
+    // Keep all files in NT_FILE list, not just ELF sharedlibs.
+    // But not classes.jsa as we really want the core file data for that.
+    if (strstr(libname, "classes.jsa") != nullptr) {
+        return false;
+    } else {
+        return true;
+    }
+}
+
 /**
  * Read shared library list from the NT_FILE NOTE in a core file.
  */
@@ -501,7 +492,7 @@ void ELFFile::read_sharedlibs() {
 
     Segment* sharedlibs = (Segment*) malloc(sizeof(Segment) * sharedlibs_count); // new Segment[sharedlibs_count];
 
-    // Two passes to read numerical data, then library names.
+    // Read numerical data, then library names.
     // NT_FILE lists can contain multiple entries for the same filename.
     for (int i = 0; i < sharedlibs_count; i++) {
         sharedlibs[i].vaddr= (void*) *(long*) note_nt_file;
@@ -517,25 +508,24 @@ void ELFFile::read_sharedlibs() {
         note_nt_file++; // terminator
     }
 
-    // Reread that info to build final library list.
-    // Use libdir if set, to rewrite paths.
-    //
-    // Considered skipping duplicate names, but would need to coalesce entries/ranges for same filename.
-    // Queries get first match and want to find base address, so all good.
+    // Reread that info to build final library list. Use libdir if set, to rewrite paths.
+    // Do not skip duplicate names, as would need to coalesce entries/ranges for same filename.
+    // Lookups later will get first match, and want to find base address, so all good.
     for (int i = 0; i < sharedlibs_count; i++) {
         logd("NT_FILE: 0x%lx - 0x%lx %s", (uint64_t) sharedlibs[i].vaddr, (uint64_t) sharedlibs[i].end(), sharedlibs[i].name);
-        Segment lib = sharedlibs[i];
-        char* name = lib.name;
-        if (libdir != nullptr) {
-            char* alt_name = find_filename_in_libdir(libdir, name);
-            if (alt_name != nullptr) {
-                logv("Using from libdir: '%s'", alt_name);
-                name = alt_name;
+        if (use_lib(sharedlibs[i].name)) {
+            Segment lib = sharedlibs[i];
+            char* name = lib.name;
+            if (libdir != nullptr) {
+                char* alt_name = find_filename_in_libdir(libdir, name);
+                if (alt_name != nullptr) {
+                    logv("Using from libdir: '%s'", alt_name);
+                    name = alt_name;
+                }
             }
+            Segment seg(name, lib.vaddr, lib.length);
+            libs.push_back(seg);
         }
-        // Keep all files in list, not just ELF sharedlibs.
-        Segment seg(name, lib.vaddr, lib.length);
-        libs.push_back(seg);
     }
 
     logd("sharedlibs size = %ld", libs.size());
@@ -677,12 +667,12 @@ void ELFFile::write_mem_mappings(int mappings_fd) {
             for (iter = libs.begin(); iter != libs.end(); iter++) {
                 Segment lib = *iter;
                 if (is_inside(phdr, lib.start(), lib.end())) {
+                    logv("Skipping core PH 0x%lx - 0x%lx due to overlap with %s", phdr->p_vaddr, phdr->p_vaddr + phdr->p_memsz, lib.name);
                     skip = true;
                     break;
                 }
             }
             if (skip) {
-                logd("Skipping 0x%lx - 0x%lx due to nonwritable overlap", phdr->p_vaddr, phdr->p_vaddr + phdr->p_memsz);
                 n_skipped++;
                 phdr = next_ph(phdr);
                 continue;
