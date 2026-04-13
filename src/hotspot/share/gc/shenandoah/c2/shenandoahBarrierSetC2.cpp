@@ -836,11 +836,11 @@ ShenandoahBarrierStubC2* ShenandoahBarrierStubC2::create(const MachNode* node, R
 address ShenandoahBarrierStubC2::keepalive_runtime_entry_addr(SaveMode save_mode) {
   switch (save_mode) {
     case SaveMode::Nothing:
-      return SharedRuntime::shenandoah_keepalive_nosave();
+      return SharedRuntime::shenandoah_keepalive_none();
     case SaveMode::GP:
-      return SharedRuntime::shenandoah_keepalive();
+      return SharedRuntime::shenandoah_keepalive_gp();
     case SaveMode::All:
-      return SharedRuntime::shenandoah_keepalive_vectors();
+      return SharedRuntime::shenandoah_keepalive_all();
   }
   ShouldNotReachHere();
   return nullptr;
@@ -855,19 +855,19 @@ address ShenandoahBarrierStubC2::lrb_runtime_entry_addr(SaveMode save_mode) {
     case SaveMode::Nothing: {
       if (_narrow) {
         if (is_strong) {
-          return SharedRuntime::shenandoah_lrb_strong_narrow_nosave();
+          return SharedRuntime::shenandoah_lrb_strong_narrow_none();
         } else if (is_weak) {
-          return SharedRuntime::shenandoah_lrb_weak_narrow_nosave();
+          return SharedRuntime::shenandoah_lrb_weak_narrow_none();
         } else if (is_phantom) {
-          return SharedRuntime::shenandoah_lrb_phantom_narrow_nosave();
+          return SharedRuntime::shenandoah_lrb_phantom_narrow_none();
         }
       } else {
         if (is_strong) {
-          return SharedRuntime::shenandoah_lrb_strong_nosave();
+          return SharedRuntime::shenandoah_lrb_strong_none();
         } else if (is_weak) {
-          return SharedRuntime::shenandoah_lrb_weak_nosave();
+          return SharedRuntime::shenandoah_lrb_weak_none();
         } else if (is_phantom) {
-          return SharedRuntime::shenandoah_lrb_phantom_nosave();
+          return SharedRuntime::shenandoah_lrb_phantom_none();
         }
       }
       break;
@@ -876,19 +876,19 @@ address ShenandoahBarrierStubC2::lrb_runtime_entry_addr(SaveMode save_mode) {
     case SaveMode::GP: {
       if (_narrow) {
         if (is_strong) {
-          return SharedRuntime::shenandoah_lrb_strong_narrow();
+          return SharedRuntime::shenandoah_lrb_strong_narrow_gp();
         } else if (is_weak) {
-          return SharedRuntime::shenandoah_lrb_weak_narrow();
+          return SharedRuntime::shenandoah_lrb_weak_narrow_gp();
         } else if (is_phantom) {
-          return SharedRuntime::shenandoah_lrb_phantom_narrow();
+          return SharedRuntime::shenandoah_lrb_phantom_narrow_gp();
         }
       } else {
         if (is_strong) {
-          return SharedRuntime::shenandoah_lrb_strong();
+          return SharedRuntime::shenandoah_lrb_strong_gp();
         } else if (is_weak) {
-          return SharedRuntime::shenandoah_lrb_weak();
+          return SharedRuntime::shenandoah_lrb_weak_gp();
         } else if (is_phantom) {
-          return SharedRuntime::shenandoah_lrb_phantom();
+          return SharedRuntime::shenandoah_lrb_phantom_gp();
         }
       }
       break;
@@ -897,19 +897,19 @@ address ShenandoahBarrierStubC2::lrb_runtime_entry_addr(SaveMode save_mode) {
     case SaveMode::All: {
       if (_narrow) {
         if (is_strong) {
-          return SharedRuntime::shenandoah_lrb_strong_narrow_vectors();
+          return SharedRuntime::shenandoah_lrb_strong_narrow_all();
         } else if (is_weak) {
-          return SharedRuntime::shenandoah_lrb_weak_narrow_vectors();
+          return SharedRuntime::shenandoah_lrb_weak_narrow_all();
         } else if (is_phantom) {
-          return SharedRuntime::shenandoah_lrb_phantom_narrow_vectors();
+          return SharedRuntime::shenandoah_lrb_phantom_narrow_all();
         }
       } else {
         if (is_strong) {
-          return SharedRuntime::shenandoah_lrb_strong_vectors();
+          return SharedRuntime::shenandoah_lrb_strong_all();
         } else if (is_weak) {
-          return SharedRuntime::shenandoah_lrb_weak_vectors();
+          return SharedRuntime::shenandoah_lrb_weak_all();
         } else if (is_phantom) {
-          return SharedRuntime::shenandoah_lrb_phantom_vectors();
+          return SharedRuntime::shenandoah_lrb_phantom_all();
         }
       }
       break;
