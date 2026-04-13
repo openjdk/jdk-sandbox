@@ -310,48 +310,48 @@ class SharedRuntime: AllStatic {
   }
 #endif
   static address shenandoah_keepalive() {
-    assert(_shenandoah_keepalive_blob != nullptr, "");
-    return _shenandoah_keepalive_blob->entry_point();
+    assert(     _shenandoah_keepalive_blob != nullptr, "");
+    return      _shenandoah_keepalive_blob->entry_point();
   }
 
   static address shenandoah_lrb_strong() {
-    assert(_shenandoah_lrb_strong_blob != nullptr, "");
-    return _shenandoah_lrb_strong_blob->entry_point();
+    assert(     _shenandoah_lrb_strong_blob != nullptr, "");
+    return      _shenandoah_lrb_strong_blob->entry_point();
   }
 
   static address shenandoah_lrb_weak() {
-    assert(_shenandoah_lrb_weak_blob != nullptr, "");
-    return _shenandoah_lrb_weak_blob->entry_point();
+    assert(     _shenandoah_lrb_weak_blob != nullptr, "");
+    return      _shenandoah_lrb_weak_blob->entry_point();
   }
 
   static address shenandoah_lrb_phantom() {
-    assert(_shenandoah_lrb_phantom_narrow_blob != nullptr, "");
-    return _shenandoah_lrb_phantom_narrow_blob->entry_point();
+    assert(     _shenandoah_lrb_phantom_blob != nullptr, "");
+    return      _shenandoah_lrb_phantom_blob->entry_point();
   }
 
   static address shenandoah_lrb_strong_narrow() {
-    assert(_shenandoah_lrb_strong_narrow_blob != nullptr, "");
-    return _shenandoah_lrb_strong_narrow_blob->entry_point();
+    assert(     _shenandoah_lrb_strong_narrow_blob != nullptr, "");
+    return      _shenandoah_lrb_strong_narrow_blob->entry_point();
   }
 
   static address shenandoah_lrb_weak_narrow() {
-    assert(_shenandoah_lrb_weak_narrow_blob != nullptr, "");
-    return _shenandoah_lrb_weak_narrow_blob->entry_point();
+    assert(     _shenandoah_lrb_weak_narrow_blob != nullptr, "");
+    return      _shenandoah_lrb_weak_narrow_blob->entry_point();
   }
 
   static address shenandoah_lrb_phantom_narrow() {
-    assert(_shenandoah_lrb_phantom_narrow_blob != nullptr, "");
-    return _shenandoah_lrb_phantom_narrow_blob->entry_point();
+    assert(     _shenandoah_lrb_phantom_narrow_blob != nullptr, "");
+    return      _shenandoah_lrb_phantom_narrow_blob->entry_point();
   }
 
   static address shenandoah_keepalive_vectors() {
-    assert(_shenandoah_keepalive_vectors_blob != nullptr, "");
-    return _shenandoah_keepalive_vectors_blob->entry_point();
+    assert(     _shenandoah_keepalive_vectors_blob != nullptr, "");
+    return      _shenandoah_keepalive_vectors_blob->entry_point();
   }
 
   static address shenandoah_lrb_strong_vectors() {
-    assert(_shenandoah_lrb_strong_vectors_blob != nullptr, "");
-    return _shenandoah_lrb_strong_vectors_blob->entry_point();
+    assert(     _shenandoah_lrb_strong_vectors_blob != nullptr, "");
+    return      _shenandoah_lrb_strong_vectors_blob->entry_point();
   }
 
   static address shenandoah_lrb_weak_vectors() {
@@ -360,8 +360,8 @@ class SharedRuntime: AllStatic {
   }
 
   static address shenandoah_lrb_phantom_vectors() {
-    assert(_shenandoah_lrb_phantom_narrow_vectors_blob != nullptr, "");
-    return _shenandoah_lrb_phantom_narrow_vectors_blob->entry_point();
+    assert(     _shenandoah_lrb_phantom_vectors_blob != nullptr, "");
+    return      _shenandoah_lrb_phantom_vectors_blob->entry_point();
   }
 
   static address shenandoah_lrb_strong_narrow_vectors() {
@@ -370,13 +370,13 @@ class SharedRuntime: AllStatic {
   }
 
   static address shenandoah_lrb_weak_narrow_vectors() {
-    assert(_shenandoah_lrb_weak_narrow_vectors_blob != nullptr, "");
-    return _shenandoah_lrb_weak_narrow_vectors_blob->entry_point();
+    assert(     _shenandoah_lrb_weak_narrow_vectors_blob != nullptr, "");
+    return      _shenandoah_lrb_weak_narrow_vectors_blob->entry_point();
   }
 
   static address shenandoah_lrb_phantom_narrow_vectors() {
-    assert(_shenandoah_lrb_phantom_narrow_vectors_blob != nullptr, "");
-    return _shenandoah_lrb_phantom_narrow_vectors_blob->entry_point();
+    assert(     _shenandoah_lrb_phantom_narrow_vectors_blob != nullptr, "");
+    return      _shenandoah_lrb_phantom_narrow_vectors_blob->entry_point();
   }
 
   // Counters
