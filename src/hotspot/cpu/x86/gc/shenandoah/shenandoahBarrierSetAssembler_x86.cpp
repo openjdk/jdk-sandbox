@@ -1279,7 +1279,15 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
     }
 
     // Handle the rest there.
-    call_keepalive_runtime(masm);
+    if (has_live_vector_registers()) {
+      __ call(RuntimeAddress(keepalive_runtime_entry_addr(SaveMode::All)));
+    } else if (has_save_space_for_live_gp_registers(clobbered_c_rarg0, false, false)) {
+      save_live_gp_regs(masm, clobbered_c_rarg0, false, false);
+      __ call(RuntimeAddress(keepalive_runtime_entry_addr(SaveMode::Nothing)));
+      restore_live_gp_regs(masm, clobbered_c_rarg0, false, false);
+    } else {
+      __ call(RuntimeAddress(keepalive_runtime_entry_addr(SaveMode::GP)));
+    }
 
     // Restore the clobbered registers.
     if (clobbered_c_rarg0) {
@@ -1392,7 +1400,15 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
     }
 
     // Go to runtime stub and handle the rest there.
-    call_lrb_runtime(masm);
+    if (has_live_vector_registers()) {
+      __ call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::All)));
+    } else if (has_save_space_for_live_gp_registers(clobbered_c_rarg0, clobbered_c_rarg1, true)) {
+      save_live_gp_regs(masm, clobbered_c_rarg0, clobbered_c_rarg1, true);
+      __ call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::Nothing)));
+      restore_live_gp_regs(masm, clobbered_c_rarg0, clobbered_c_rarg1, true);
+    } else {
+      __ call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::GP)));
+    }
 
     // Save the result where needed and restore the clobbered registers.
     if (obj != rax) {
@@ -1433,51 +1449,39 @@ bool ShenandoahBarrierStubC2::has_live_vector_registers() {
   return _has_live_vector_registers;
 }
 
-bool ShenandoahBarrierStubC2::has_save_space_for_live_gp_registers() {
-  return _live_gp.length() <= ShenandoahBarrierSetC2::bsc2()->reserved_slots() - _save_slots_idx;
-}
-
 bool ShenandoahBarrierStubC2::is_live(Register reg) {
   return _live_gp.contains(reg);
 }
 
-void ShenandoahBarrierStubC2::save_live_gp_regs(MacroAssembler& masm, bool has_return) {
+bool ShenandoahBarrierStubC2::has_save_space_for_live_gp_registers(bool skip_crarg0, bool skip_crarg1, bool skip_rax) {
+  int c = 0;
   for (int i = 0; i < _live_gp.length(); i++) {
     Register r = _live_gp.at(i);
-    if (has_return && (r == rax)) continue;
+    if (skip_rax    && (r == rax))     continue;
+    if (skip_crarg0 && (r == c_rarg0)) continue;
+    if (skip_crarg1 && (r == c_rarg1)) continue;
+    c++;
+  }
+  return c <= (ShenandoahBarrierSetC2::bsc2()->reserved_slots() - _save_slots_idx);
+}
+
+void ShenandoahBarrierStubC2::save_live_gp_regs(MacroAssembler& masm, bool skip_crarg0, bool skip_crarg1, bool skip_rax) {
+  for (int i = 0; i < _live_gp.length(); i++) {
+    Register r = _live_gp.at(i);
+    if (skip_rax    && (r == rax))     continue;
+    if (skip_crarg0 && (r == c_rarg0)) continue;
+    if (skip_crarg1 && (r == c_rarg1)) continue;
     push_save_register(masm, r);
   }
 }
 
-void ShenandoahBarrierStubC2::restore_live_gp_regs(MacroAssembler& masm, bool has_return) {
+void ShenandoahBarrierStubC2::restore_live_gp_regs(MacroAssembler& masm, bool skip_crarg0, bool skip_crarg1, bool skip_rax) {
   for (int i = _live_gp.length() - 1; i >= 0; i--) {
     Register r = _live_gp.at(i);
-    if (has_return && (r == rax)) continue;
+    if (skip_rax    && (r == rax))     continue;
+    if (skip_crarg0 && (r == c_rarg0)) continue;
+    if (skip_crarg1 && (r == c_rarg1)) continue;
     pop_save_register(masm, r);
-  }
-}
-
-void ShenandoahBarrierStubC2::call_keepalive_runtime(MacroAssembler& masm) {
-  if (has_live_vector_registers()) {
-    __ call(RuntimeAddress(keepalive_runtime_entry_addr(SaveMode::All)));
-  } else if (has_save_space_for_live_gp_registers()) {
-    save_live_gp_regs(masm, /* has_return = */ false);
-    __ call(RuntimeAddress(keepalive_runtime_entry_addr(SaveMode::Nothing)));
-    restore_live_gp_regs(masm, /* has_return = */ false);
-  } else {
-    __ call(RuntimeAddress(keepalive_runtime_entry_addr(SaveMode::GP)));
-  }
-}
-
-void ShenandoahBarrierStubC2::call_lrb_runtime(MacroAssembler& masm) {
-  if (has_live_vector_registers()) {
-    __ call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::All)));
-  } else if (has_save_space_for_live_gp_registers()) {
-    save_live_gp_regs(masm, /* has_return = */ true);
-    __ call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::Nothing)));
-    restore_live_gp_regs(masm, /* has_return = */ true);
-  } else {
-    __ call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::GP)));
   }
 }
 

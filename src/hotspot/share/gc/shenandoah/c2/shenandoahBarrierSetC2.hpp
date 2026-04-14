@@ -197,7 +197,7 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   int push_save_slot();
   int pop_save_slot();
 
-  bool has_save_space_for_live_gp_registers();
+  bool has_save_space_for_live_gp_registers(bool skip_crarg0, bool skip_crarg1, bool skip_rax);
   bool has_live_vector_registers();
   bool is_live(Register reg);
   Register select_temp_register(bool& selected_live, Address addr, Register reg1);
@@ -208,10 +208,8 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   void keepalive(MacroAssembler& masm, Register obj, Register tmp, Label* L_done = nullptr);
   void lrb(MacroAssembler& masm, Register obj, Address addr, Register tmp, Label* L_done = nullptr);
 
-  void save_live_gp_regs(MacroAssembler& masm, bool has_return);
-  void restore_live_gp_regs(MacroAssembler& masm, bool has_return);
-  void call_lrb_runtime(MacroAssembler& masm);
-  void call_keepalive_runtime(MacroAssembler& masm);
+  void save_live_gp_regs(MacroAssembler& masm, bool skip_crarg0, bool skip_crarg1, bool skip_rax);
+  void restore_live_gp_regs(MacroAssembler& masm, bool skip_crarg0, bool skip_crarg1, bool skip_rax);
 
   enum SaveMode {
     Nothing,
