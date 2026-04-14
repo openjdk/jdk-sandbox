@@ -33,7 +33,6 @@ bool allLibraries = false;
 
 // Revival prep state:
 char* core_filename;
-int core_fd;
 const char* revivaldir;
 unsigned long long core_timestamp;
 const char* mappings_filename;
@@ -386,7 +385,6 @@ void* load_sharedlibrary_fromdir(const char* dirname, const char* libname, void*
  * C 	copy data (into an earlier "m" allocation)  revival_mapping_copy(vaddr, length, offset, false, core_filename, core_fd);
  */
 int mappings_file_read(const char* corename, const char* dirname, const char* mappings_filename) {
-    int e = 0;
     char s1[BUFLEN];
     char s2[BUFLEN];
     char s3[BUFLEN];
@@ -403,9 +401,10 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
     }
     // Use generous sizes for scanf string destinations, easily within BUFLEN.
     // Read header:
-    e = fscanf(f, "revival %32s\n", s1 /* version */);
+    int e = fscanf(f, "revival %32s\n", s1 /* version */);
     if (e != 1) {
         warn("mappings_file_read: unrecognised header in: %s", mappings_filename);
+        fclose(f);
         return -1;
     }
     logv("mappings_file_read: revival data version %s", s1);
@@ -414,6 +413,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
     e = fscanf(f, "core %1024s %32s %128s\n", s1 /* core filename */, s2 /* length */, s3 /* possible checksum */);
     if (e != 3) {
         warn("mappings_file_read: unrecognised core file info in: %s", mappings_filename);
+        fclose(f);
         return -1;
     }
     lines++;
@@ -442,6 +442,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
     core_fd = open(core_filename, O_RDONLY);
     if (core_fd < 0) {
         warn("%s: %s", core_filename, strerror(errno));
+        fclose(f);
         return -1;
     }
 #endif
@@ -464,6 +465,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
             h = load_sharedlibrary_fromdir(dirname, s1, vaddr, s3);
             if (h == (void*) -1) {
                 warn("Load library '%s' failed to load at %p", s1, vaddr);
+                fclose(f);
                 return -1;
             }
             logv("Loaded library '%s' at %p", s1, vaddr);

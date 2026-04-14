@@ -219,9 +219,10 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
                         System.err.println("jcmd via revival: failed. tries=" + i);
                     }
                     throw new IOException("jcmd returned an error");  // JCmd caller will call System.exit(1)
+                } else {
+                    // Success.
+                    ok = true;
                 }
-                // Success.
-                ok = true;
             } catch (InterruptedException | ExecutionException | TimeoutException ex) {
                 System.err.println("VirtualMachineCoreDumpImpl.execute: " + ex);
                 if (verbose) {
