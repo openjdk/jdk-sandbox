@@ -370,51 +370,34 @@ bool can_lazycopy_pd(void* addr) {
 }
 
 void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offset) {
-    // Fail quickly if unaligned:
+    // Fail quickly if unaligned (MiniDump contents not usually aligned):
     uint64_t offsetAligned = align_down(offset, vaddr_alignment_pd());
     if (offsetAligned != offset) {
         logv("do_mmap_pd: address 0x%llx file offset 0x%llx not aligned, do not try mapping directly, return", addr, offset);
         return (void *) -1;
     }
     LPVOID p = nullptr;
-    HANDLE h;
     HANDLE h2;
-    DWORD createFileDesiredAccess = GENERIC_READ | GENERIC_EXECUTE;
-    DWORD mappingProt = stdProt;
-    DWORD mapViewAccess = FILE_MAP_READ | FILE_MAP_EXECUTE;
-    h = CreateFile(filename, createFileDesiredAccess, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
+    HANDLE h = CreateFile(filename, GENERIC_READ | GENERIC_EXECUTE, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (h == nullptr) {
         logv("do_mmap_pd: CreateFile failed: %s: 0x%lx", filename, GetLastError());
         return (void *) -1;
     } else {
-        h2 = CreateFileMapping(h, nullptr, mappingProt, 0, 0, nullptr);
+        h2 = CreateFileMapping(h, nullptr, stdProt, 0, 0, nullptr);
         if (h2 == nullptr) {
             logv("do_mmap_pd: CreateFileMapping failed: %s: 0x%lx", filename, GetLastError());
             return (void *) -1;
         }
     }
-    // Align virtual address:
-    uint64_t addr_aligned = align_down((uint64_t) addr, vaddr_alignment_pd());
-    // If vaddr changed, update offset:
-    if (addr_aligned != (uint64_t) addr) {
-        offset -= (size_t) ((uint64_t) addr - addr_aligned);
-        // But offset must be multiple of allocation granularity
-        if (offset != align_down(offset, vaddr_alignment_pd())) {
-            logv("do_mmap_pd: file offset becomes unalinged.");
-        }
-    }
-    logv("do_mmap_pd: will map: addr 0x%p length 0x%llx file offset 0x%llx -> offset aligned 0x%llx",
-         addr, (unsigned long) length, (unsigned long) offset, (unsigned long) offsetAligned);
-
     HANDLE hProc = GetCurrentProcess();
-    DWORD prot = stdProt;
-    p = pMapViewOfFile3(h2, hProc, (PVOID) addr, offset, length, MEM_REPLACE_PLACEHOLDER, prot, nullptr, 0);
+    p = pMapViewOfFile3(h2, hProc, (PVOID) addr, offset, length, MEM_REPLACE_PLACEHOLDER, stdProt, nullptr, 0);
     if ((uint64_t) p != (uint64_t) addr) {
         logv("do_mmap_pd: MapViewOfFile3 0x%p failed, ret=0x%p error=0x%lx", addr, p, GetLastError());
         p = (void *) -1;
         waitHitRet();
     }
     CloseHandle(h2);
+    CloseHandle(h);
     return (void *) p;
 }
 
