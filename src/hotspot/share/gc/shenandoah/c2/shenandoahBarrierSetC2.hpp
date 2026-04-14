@@ -237,7 +237,8 @@ public:
     _use_trampoline(),
     _trampoline_entry(),
     _do_emit_actual(),
-    _save_slots_idx(0) {
+    _save_slots_idx(0),
+    _has_live_vector_registers() {
     assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
     post_init(offset);
   }

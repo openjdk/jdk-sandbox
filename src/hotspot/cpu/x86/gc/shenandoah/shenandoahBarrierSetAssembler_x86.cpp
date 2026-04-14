@@ -1537,7 +1537,8 @@ Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Addr
 
 void ShenandoahBarrierStubC2::post_init(int offset) {
   // Precompute live registers.
-  assert(_live_gp.is_empty(), "sanity");
+  assert(_live_gp.is_empty(), "sanity: initial state");
+  assert(!_has_live_vector_registers, "sanity: initial state");
   RegMaskIterator rmi(preserve_set());
   while (rmi.has_next()) {
     const OptoReg::Name opto_reg = rmi.next();
