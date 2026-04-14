@@ -723,15 +723,22 @@ Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Addr
 void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
-  int bit_to_check = ShenandoahThreadLocalData::gc_state_to_fast_bit(test_state);
-  Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
-  __ ldrb(rscratch1, gc_state_fast);
   if (_use_trampoline) {
-    __ tbnz(rscratch1, bit_to_check, _trampoline_entry);
-  } else {
+    int bit_to_check = ShenandoahThreadLocalData::gc_state_to_fast_bit(test_state);
+    Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
+
+    __ ldrb(rscratch1, gc_state_fast);
     __ tbz(rscratch1, bit_to_check, *continuation());
     __ b(*entry());
+  } else {
+    int byte_index_to_check = ShenandoahThreadLocalData::gc_state_to_gc_state_array_index(test_state);
+    int gc_state_byte_addr = in_bytes(ShenandoahThreadLocalData::gc_state_array_byte_offset()) + byte_index_to_check;
+    Address gc_state_fast(rthread, gc_state_byte_addr);
+
+    __ ldrb(rscratch1, gc_state_fast);
+    __ cbnz(rscratch1, *entry());
   }
+
   // This is were the slowpath stub will return to or the code above will
   // jump to if the checks are false
   __ bind(*continuation());
@@ -909,68 +916,40 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroA
 #undef __
 #define __ masm.
 
-// Only handles forward branch jumps, target_offset >= branch_offset
-static bool aarch64_test_and_branch_reachable(int branch_offset, int target_offset) {
-  assert(branch_offset >= 0, "branch to stub offsets must be positive");
-  assert(target_offset >= 0, "offset in stubs section must be positive");
-  assert(target_offset >= branch_offset, "forward branches only, branch_offset -> target_offset");
-  return (target_offset - branch_offset) < (int)(32*K);
-}
-
 void ShenandoahBarrierStubC2::post_init(int offset) {
   // If we are in scratch emit mode we assume worst case,
-  // and use no trampolines.
+  // and force the use of trampolines
   PhaseOutput* const output = Compile::current()->output();
   if (output->in_scratch_emit_size()) {
+    _use_trampoline = true;
     return;
   }
 
-  // Assume that each trampoline is one single instruction and that the stubs
-  // will follow immediately after the _code section. We emit trampolines until
-  // we can no longer do it.
-  const int code_size = output->buffer_sizing_data()->_code;
-  const int trampoline_offset = trampoline_stubs_count() * NativeInstruction::instruction_size;
-
-  // Use trampoline if the branch CANNOT reach the target directly
-  _use_trampoline = aarch64_test_and_branch_reachable(_fastpath_branch_offset, code_size + trampoline_offset) == false;
-  if (_use_trampoline) {
-    inc_trampoline_stubs_count();
-  }
+  // TODO: how correct is this? factor out this into a method.
+  const int code_size = output->buffer_sizing_data()->_code +
+                        output->buffer_sizing_data()->_stub +
+                        output->buffer_sizing_data()->_reloc;
+  _use_trampoline = code_size >= (int)(1*M);
 }
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
-
   assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
 
-  if (_do_emit_actual) {
-    Label L_done;
+  Label L_done;
 
-    __ bind(*entry());
+  __ bind(*entry());
 
-    load_and_decode(masm, L_done);
+  load_and_decode(masm, L_done);
 
-    keepalive(masm, _obj, rscratch1);
+  keepalive(masm, _obj, rscratch1);
 
-    lrb(masm, _obj, _addr, rscratch1);
+  lrb(masm, _obj, _addr, rscratch1);
 
-    reencode_if_needed(masm);
+  reencode_if_needed(masm);
 
-    __ bind(L_done);
-    __ b(*continuation());
-  } else {
-    // If we'll need a trampoline for this stub emit it here.
-    if (_use_trampoline) {
-      const int target_offset = __ offset();
-      assert(aarch64_test_and_branch_reachable(_fastpath_branch_offset, target_offset), "trampoline should be reachable");
-      __ bind(_trampoline_entry);
-      __ b(*entry());
-    }
-
-    // Register this stub, this time with actual emits.
-    _do_emit_actual = true;
-    ShenandoahBarrierStubC2::register_stub(this);
-  }
+  __ bind(L_done);
+  __ b(*continuation());
 }
 
 void ShenandoahBarrierStubC2::load_and_decode(MacroAssembler& masm, Label& target_if_null) {
