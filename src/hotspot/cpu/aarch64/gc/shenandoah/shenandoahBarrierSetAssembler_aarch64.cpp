@@ -936,11 +936,9 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
   assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
 
-  Label L_done;
-
   __ bind(*entry());
 
-  load_and_decode(masm, L_done);
+  load_and_decode(masm, *continuation());
 
   keepalive(masm, _obj, rscratch1);
 
@@ -948,7 +946,6 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   reencode_if_needed(masm);
 
-  __ bind(L_done);
   __ b(*continuation());
 }
 
