@@ -930,7 +930,9 @@ void ShenandoahBarrierStubC2::post_init(int offset) {
   // we can no longer do it.
   const int code_size = output->buffer_sizing_data()->_code;
   const int trampoline_offset = trampoline_stubs_count() * NativeInstruction::instruction_size;
-  _use_trampoline = aarch64_test_and_branch_reachable(_fastpath_branch_offset, code_size + trampoline_offset);
+
+  // Use trampoline if the branch CANNOT reach the target directly
+  _use_trampoline = aarch64_test_and_branch_reachable(_fastpath_branch_offset, code_size + trampoline_offset) == false;
   if (_use_trampoline) {
     inc_trampoline_stubs_count();
   }
