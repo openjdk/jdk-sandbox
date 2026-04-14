@@ -575,7 +575,7 @@
   product(bool, ShenandoahWeakRootsEarly, false, EXPERIMENTAL,              \
           "Turn off weak roots earlier than usual. TODO: Upstream!")        \
                                                                             \
-  product(int, ShenandoahReservedStackSlots, 8, EXPERIMENTAL,               \
+  product(int, ShenandoahReservedStackSlots, 4, EXPERIMENTAL,               \
           "How many stack slots to reserve in C2 frame for stub use.")      \
           range(4, 32)                                                      \
                                                                             \
