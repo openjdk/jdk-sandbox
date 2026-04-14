@@ -1279,7 +1279,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
     }
 
     // Handle the rest there.
-    if (has_live_vector_registers()) {
+    if (!ShenandoahFasterRuntimeStubs || has_live_vector_registers()) {
       __ call(RuntimeAddress(keepalive_runtime_entry_addr(SaveMode::All)));
     } else if (has_save_space_for_live_gp_registers(clobbered_c_rarg0, false, false)) {
       save_live_gp_regs(masm, clobbered_c_rarg0, false, false);
@@ -1400,7 +1400,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
     }
 
     // Go to runtime stub and handle the rest there.
-    if (has_live_vector_registers()) {
+    if (!ShenandoahFasterRuntimeStubs || has_live_vector_registers()) {
       __ call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::All)));
     } else if (has_save_space_for_live_gp_registers(clobbered_c_rarg0, clobbered_c_rarg1, true)) {
       save_live_gp_regs(masm, clobbered_c_rarg0, clobbered_c_rarg1, true);
