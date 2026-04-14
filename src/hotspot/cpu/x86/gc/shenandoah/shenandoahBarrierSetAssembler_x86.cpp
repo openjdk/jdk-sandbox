@@ -1533,6 +1533,7 @@ Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Addr
 
 void ShenandoahBarrierStubC2::post_init(int offset) {
   // Precompute live registers.
+  assert(_live_gp.is_empty(), "sanity");
   RegMaskIterator rmi(preserve_set());
   while (rmi.has_next()) {
     const OptoReg::Name opto_reg = rmi.next();
@@ -1540,7 +1541,7 @@ void ShenandoahBarrierStubC2::post_init(int offset) {
     if (vm_reg->is_Register()) {
       Register r = vm_reg->as_Register();
       if (r == rsp) continue;
-      _live_gp.push(r);
+      _live_gp.append_if_missing(r);
     } else if (vm_reg->is_KRegister()) {
       _has_live_vector_registers = true;
     } else if (vm_reg->is_XMMRegister()) {
