@@ -3847,7 +3847,7 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
   address start = __ pc();
 
   int frame_size_in_bytes = 0;
-  OopMap* map = nullptr
+  OopMap* map = nullptr;
   if (save_registers) {
     map = RegisterSaver::push_frame_reg_args_and_save_live_registers(masm,
                                                                      &frame_size_in_bytes,
