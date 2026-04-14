@@ -86,7 +86,7 @@
  * @requires os.family == "linux" | os.family == "windows"
  * @library /test/lib
  *
- * @run main/othervm JCmdRevival abortvmonexception VM.classloaders VM.command_line VM.dynlibs VM.events
+ * @run main/othervm JCmdRevival abortvmonexception VM.classloaders VM.command_line VM.events
  */
 
 /*
@@ -410,10 +410,6 @@ public class JCmdRevival {
                 }
                 case "VM.command_line": {
                     out.shouldContain("Launcher Type: SUN_STANDARD");
-                    break;
-                }
-                case "VM.dynlibs": {
-                    out.shouldContain("");
                     break;
                 }
                 case "VM.events": {

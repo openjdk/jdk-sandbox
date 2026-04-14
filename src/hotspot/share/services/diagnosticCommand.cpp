@@ -104,7 +104,7 @@ void DCmd::register_dcmds() {
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<PrintSystemPropertiesDCmd>(live_export));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<PrintVMFlagsDCmd>(full_export));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<SetVMFlagDCmd>(live_export));
-  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<VMDynamicLibrariesDCmd>(full_export));
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<VMDynamicLibrariesDCmd>(live_export));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<VMUptimeDCmd>(live_export));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<VMInfoDCmd>(live_export));
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<SystemGCDCmd>(live_export));
@@ -169,7 +169,7 @@ void DCmd::register_dcmds() {
   DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<AOTEndRecordingDCmd>(live_export));
 #endif // INCLUDE_CDS
 
-  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<NMTDCmd>(live_export));
+  DCmdFactory::register_DCmdFactory(new DCmdFactoryImpl<NMTDCmd>(full_export));
 }
 
 HelpDCmd::HelpDCmd(outputStream* output, bool heap) : DCmdWithParser(output, heap),
