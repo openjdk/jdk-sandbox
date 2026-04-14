@@ -440,20 +440,23 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
         }
         if (handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_WRAP ||
                 !conContext.outputRecord.isEmpty()) { // session ticket
-            byte[] bytes = produceNextHandshakeMessage();
-            return ByteBuffer.wrap(bytes);
+            var buf = ByteBuffer.allocate(4096);
+            produceNextHandshakeMessage(buf);
+            return buf;
         } else {
             return null;
         }
     }
 
-    private byte[] produceNextHandshakeMessage() throws IOException {
+    private void produceNextHandshakeMessage(ByteBuffer buf) throws IOException {
         if (!conContext.isNegotiated && !conContext.isBroken &&
                 !conContext.isInboundClosed() &&
                 !conContext.isOutboundClosed()) {
             conContext.kickstart();
         }
-        byte[] message = conContext.outputRecord.getHandshakeMessage();
+        var ct = conContext.outputRecord.encode(null, 0, 0,
+                new ByteBuffer[]{buf}, 0, 1);
+        buf.flip();
         if (handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_WRAP) {
             if (conContext.outputRecord.isEmpty()) {
                 if (conContext.isNegotiated) {
@@ -471,7 +474,6 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
         } else {
             assert conContext.isNegotiated;
         }
-        return message;
     }
 
     @Override

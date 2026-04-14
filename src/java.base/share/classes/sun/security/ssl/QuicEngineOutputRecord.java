@@ -136,6 +136,27 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
     }
 
     @Override
+    Ciphertext encode(ByteBuffer[] srcs, int srcsOffset, int srcsLength, ByteBuffer[] dsts, int dstsOffset, int dstsLength) throws IOException {
+        recordLock.lock();
+        try {
+            assert srcs == null;
+
+            ByteBuffer dst = dsts[0];
+            if (alert != null) {
+                if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
+                    SSLLogger.warning("outbound has closed, ignore outbound " +
+                            "cached messages");
+                }
+
+                return null;
+            }
+            return fragmenter.acquireCiphertext(dst);
+        } finally {
+            recordLock.unlock();
+        }
+    }
+
+    @Override
     void changeWriteCiphers(SSLWriteCipher writeCipher, boolean useChangeCipherSpec) throws IOException {
         recordLock.lock();
         try {
@@ -148,16 +169,6 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
     @Override
     void changeWriteCiphers(SSLWriteCipher writeCipher, byte keyUpdateRequest) throws IOException {
         throw new UnsupportedOperationException("Should not call this");
-    }
-
-    @Override
-    byte[] getHandshakeMessage() {
-        recordLock.lock();
-        try {
-            return fragmenter.acquireCiphertext();
-        } finally {
-            recordLock.unlock();
-        }
     }
 
     @Override
@@ -196,6 +207,7 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
 
     // buffered record fragment
     private static class HandshakeMemo {
+        int acquireOffset;
         boolean changeSpace;
         byte[] fragment;
     }
@@ -227,15 +239,21 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
             }
         }
 
-        byte[] acquireCiphertext() {
+        Ciphertext acquireCiphertext(ByteBuffer dstBuf) throws IOException {
             HandshakeMemo hsMemo = handshakeMemos.pollFirst();
             if (hsMemo == null) {
                 return null;
             }
-            if (hsMemo.changeSpace) {
+            int fragLen = Math.min(dstBuf.remaining(), hsMemo.fragment.length - hsMemo.acquireOffset);
+            dstBuf.put(hsMemo.fragment, hsMemo.acquireOffset, fragLen);
+            hsMemo.acquireOffset += fragLen;
+            if (hsMemo.acquireOffset < hsMemo.fragment.length) {
+                handshakeMemos.addFirst(hsMemo);
+            } else if (hsMemo.changeSpace) {
                 currentPacketSpace++;
             }
-            return hsMemo.fragment;
+            return new Ciphertext(ContentType.HANDSHAKE.id,
+                    hsMemo.fragment[0], -1L);
         }
 
         boolean isEmpty() {

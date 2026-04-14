@@ -157,11 +157,6 @@ abstract class OutputRecord
     }
 
     // apply to QuicEngine only
-    byte[] getHandshakeMessage() {
-        throw new UnsupportedOperationException();
-    }
-
-    // apply to QuicEngine only
     QuicTLSEngine.KeySpace getHandshakeMessageKeySpace() {
         throw new UnsupportedOperationException();
     }
