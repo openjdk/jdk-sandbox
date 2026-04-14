@@ -226,11 +226,12 @@ void dump() {
 }
 
 const char* conflict_check_pd(void* vaddr, unsigned long long length) {
+    uint64_t vaddr_end = (uint64_t) vaddr + (uint64_t) length;
     int x;
-    if (clash_addr((uint64_t) vaddr, length, (uint64_t) &x)) {
+    if (clash_addr((uint64_t) vaddr, vaddr_end, (uint64_t) &x)) {
         return "conflict with local/stack";
     }
-    if (clash_addr((uint64_t) vaddr, (uint64_t) vaddr + length, (uint64_t) heap_test)) {
+    if (heap_test != 0 && clash_addr((uint64_t) vaddr, vaddr_end, heap_test)) {
         return "conflict with live c heap";
     }
     return nullptr;
