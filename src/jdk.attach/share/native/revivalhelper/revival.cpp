@@ -235,12 +235,15 @@ bool clash_range(uint64_t v1, uint64_t v2, uint64_t t1, uint64_t t2) {
             || (v1 > t1 && v1 < t2)) {
         return true;
     }
+    // Either end of region t1, t2 is inside region v1, v2:
+    if ((t2 >= v1 && t2 <= v2)
+            || (t1 >= v1 && t1 <= v2)) {
+        return true;
+    }
     return false;
 }
 
-bool clash_addr(uint64_t vaddr, size_t length, uint64_t xaddr) {
-    uint64_t v1 = vaddr;
-    uint64_t v2 = v1 + length;
+bool clash_addr(uint64_t v1, uint64_t v2, uint64_t xaddr) {
     uint64_t t1 = align_down(xaddr, vaddr_alignment_pd());
     uint64_t t2 = align_up(xaddr, vaddr_alignment_pd());
     if (clash_range(v1, v2, t1, t2)) {
@@ -252,7 +255,7 @@ bool clash_addr(uint64_t vaddr, size_t length, uint64_t xaddr) {
 void conflict_check(void* vaddr, size_t length) {
      const char* msg = conflict_check_pd(vaddr, length);
      if (msg != nullptr) {
-         warn("revival: conflict: %p - %p len=%zx: %s", vaddr, (void*) ((unsigned long long) vaddr + length), length, msg);
+         warn("revival: conflict: 0x%lx - 0x%lx len=%zx: %s", (uint64_t) vaddr, ((uint64_t) vaddr + length), length, msg);
          exitForRetry();
      }
 }

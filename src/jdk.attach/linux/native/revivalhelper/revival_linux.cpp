@@ -172,24 +172,22 @@ void init_pd() {
     }
 
     heap_test = (uint64_t) malloc(1);
+    logv("revivalhelper: heap test : 0x%lx", heap_test);
 }
 
-/**
- * Check if the given vaddr, length appears dangerous to map.
- * Return a char* message if a clash is found, or nullptr.
- */
 const char* conflict_check_pd(void* vaddr, size_t length) {
     int x;
     if (clash_addr((uint64_t) vaddr, length, (uint64_t) &x)) {
         return "conflict with local/stack";
     }
-    if (bin_addr !=0 && clash_range((uint64_t) vaddr, (uint64_t) vaddr + length, (uint64_t) bin_addr, bin_end)) {
+    uint64_t vaddr_end = (uint64_t) vaddr + (uint64_t) length;
+    if (bin_addr !=0 && clash_range((uint64_t) vaddr, vaddr_end, bin_addr, bin_end)) {
         return "conflict with this binary";
     }
-    if (libc_addr != 0 && clash_range((uint64_t) vaddr, (uint64_t) vaddr + length, (uint64_t) libc_addr, libc_end)) {
+    if (libc_addr != 0 && clash_range((uint64_t) vaddr, vaddr_end, libc_addr, libc_end)) {
         return "conflict with libc";
     }
-    if (heap_test != 0 && clash_addr((uint64_t) vaddr, (uint64_t) vaddr + length, (uint64_t) heap_test)) {
+    if (heap_test != 0 && clash_addr((uint64_t) vaddr, vaddr_end, heap_test)) {
         return "conflict with live c heap";
     }
     return nullptr;
