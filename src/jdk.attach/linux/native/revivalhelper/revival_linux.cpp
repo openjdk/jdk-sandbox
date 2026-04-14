@@ -178,12 +178,12 @@ void init_pd() {
  * Check if the given vaddr, length appears dangerous to map.
  * Return a char* message if a clash is found, or nullptr.
  */
-const char* conflict_check_pd(void* vaddr, unsigned long long length) {
+const char* conflict_check_pd(void* vaddr, size_t length) {
     int x;
-    if (clash_addr(vaddr, length, (uint64_t) &x)) {
+    if (clash_addr((uint64_t) vaddr, length, (uint64_t) &x)) {
         return "conflict with local/stack";
     }
-    if (bin_addr !=0 && range((uint64_t) vaddr, (uint64_t) vaddr + length, (uint64_t) bin_addr, bin_end)) {
+    if (bin_addr !=0 && clash_range((uint64_t) vaddr, (uint64_t) vaddr + length, (uint64_t) bin_addr, bin_end)) {
         return "conflict with this binary";
     }
     if (libc_addr != 0 && clash_range((uint64_t) vaddr, (uint64_t) vaddr + length, (uint64_t) libc_addr, libc_end)) {
@@ -466,7 +466,7 @@ void* load_sharedobject_pd(const char* name, void* vaddr) {
         // Most likely, Address Space Layout Randomisation has given us an inhospitable layout,
         // e.g. libc where we want to have libjvm.
         // Trying dlclose and forcing retry is not successful.
-        // Terminate with a value that means caller should retry:
+        // Terminate, for calling process to retry:
         exitForRetry();
 	}
     return h;

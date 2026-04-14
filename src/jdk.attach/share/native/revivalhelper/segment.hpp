@@ -39,9 +39,6 @@ void write0(int fd, const char* buf); // revival.cpp
  */
 class Segment {
     public:
-        Segment(void* v, size_t len) :
-            vaddr(v), length(len), name(nullptr), file_offset(0), file_length(0) {}
-
         Segment(char* n, void* v, size_t len) :
             name(n), vaddr(v), length(len), file_offset(0), file_length(0) {}
 
