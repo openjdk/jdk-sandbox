@@ -3855,7 +3855,9 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
                                                                      RegisterSaver::return_pc_is_lr,
                                                                      save_vectors);
   } else {
+    frame_size_in_bytes = frame::native_abi_reg_args_size / VMRegImpl::stack_slot_size;
     map = new OopMap(frame_size_in_bytes, 0);
+    // FIXME: enter frame
   }
   address frame_complete_pc = __ pc();
 
@@ -3890,6 +3892,8 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
 
   if (save_registers) {
     RegisterSaver::restore_live_registers_and_pop_frame(masm, frame_size_in_bytes, /* restore_ctr: */ true, save_vectors);
+  } else {
+    // FIXME: leave frame
   }
   __ blr();
 

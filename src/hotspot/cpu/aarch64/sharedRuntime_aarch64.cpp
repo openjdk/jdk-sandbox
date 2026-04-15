@@ -2918,12 +2918,15 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
 
   RegisterSaver reg_save(save_vectors);
 
+  // Set up the frame and optionally save the registers.
   int frame_size_in_words = 0;
   OopMap* map = nullptr;
   if (save_registers) {
     map = reg_save.save_live_registers(masm, 0, &frame_size_in_words);
   } else {
+    frame_size_in_words = 2; // link and return address
     map = new OopMap(frame_size_in_words, 0);
+    __ enter();
   }
   address frame_complete_pc = __ pc();
 
@@ -2954,6 +2957,8 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
 
   if (save_registers) {
     reg_save.restore_live_registers(masm);
+  } else {
+    __ leave();
   }
   __ ret(lr);
 

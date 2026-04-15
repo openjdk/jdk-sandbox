@@ -3613,12 +3613,15 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
   MacroAssembler* masm = new MacroAssembler(&code);
   address start = __ pc();
 
+  // Set up the frame and optionally save the registers.
   int frame_size_in_words = 0;
-  OopMap* map;
+  OopMap* map = nullptr;
   if (save_registers) {
     map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words, save_vectors);
   } else {
-    map = new OopMap(frame_size_in_words, 0); // FIXME: Correct?
+    frame_size_in_words = 2; // link and return address
+    map = new OopMap(frame_size_in_words, 0);
+    __ enter();
   }
   address frame_complete_pc = __ pc();
 
@@ -3662,6 +3665,8 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
 
   if (save_registers) {
     RegisterSaver::restore_live_registers(masm, save_vectors);
+  } else {
+    __ leave();
   }
   __ ret(0);
 
