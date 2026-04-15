@@ -935,11 +935,10 @@ void ShenandoahBarrierStubC2::post_init(int offset) {
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
   assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
-  Label L_stub_done;
 
   __ bind(*entry());
 
-  load_and_decode(masm, _use_double_jumps ? L_stub_done : *continuation());
+  load_and_decode(masm, *continuation());
 
   keepalive(masm, _obj, rscratch1);
 
@@ -947,7 +946,6 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   reencode_if_needed(masm);
 
-  __ bind(L_stub_done);
   __ b(*continuation());
 }
 
@@ -1004,9 +1002,8 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
 
   // If another barrier is enabled as well, do a runtime check for a specific barrier.
   if (_needs_load_ref_barrier) {
-    // No need to load the gcstate here because keepalive is always the first
-    // barrier to execute and therefore it can reuse the gcstate loaded in the
-    // fastpath.
+    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+    __ ldrb(tmp1, gcs_addr);
     __ tbz(tmp1, ShenandoahHeap::MARKING_BITPOS, L_done);
   }
 
@@ -1073,9 +1070,8 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
   // If weak references are being processed, weak/phantom loads need to go slow,
   // regadless of their cset status.
   if (_needs_load_ref_weak_barrier) {
-    // No need to load the gcstate here because it was loaded in the previous
-    // `if (_needs_keep_alive_barrier)` or it still contains the value loaded
-    // in the faspath check.
+    Address gc_state(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+    __ ldrb(tmp, gc_state);
     __ tbnz(tmp, ShenandoahHeap::WEAK_ROOTS_BITPOS, L_slow);
   }
 
