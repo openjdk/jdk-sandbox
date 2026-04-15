@@ -167,13 +167,12 @@ void init_pd() {
         libc_addr = (uint64_t) base_address_for_sharedobject_live(h);
         logv("revivalhelper: libc address: 0x%lx", libc_addr);
         libc_end = (uint64_t) end_address_for_sharedobject_live(h);
-        logv("revivalhelper: libc end: 0x%lx", libc_end);
-        libc_end += 0x100000;
+        // libc data area will be fairly predictable but add a generous margin.
+        libc_end += 0x200000;
         logv("revivalhelper: libc end: 0x%lx", libc_end);
     }
     // Here in the throwaway revivalhelper launcher app, we expect low native heap usage,
     // no large/mmap allocations. Traditional program break is adequate.
-    // libc data area will be fairly predictable also.
     heap_test = (uint64_t) malloc(1);
     heap_end = (uint64_t) sbrk(0) + 0x100000;
     logv("revivalhelper: heap test: 0x%lx heap end: 0x%lx", heap_test, heap_end);
