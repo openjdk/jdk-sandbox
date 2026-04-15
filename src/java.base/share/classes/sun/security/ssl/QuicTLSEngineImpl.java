@@ -27,7 +27,6 @@ package sun.security.ssl;
 import jdk.internal.net.quic.QuicKeyUnavailableException;
 import jdk.internal.net.quic.QuicOneRttContext;
 import jdk.internal.net.quic.QuicTLSEngine;
-import jdk.internal.net.quic.QuicTransportErrors;
 import jdk.internal.net.quic.QuicTransportException;
 import jdk.internal.net.quic.QuicTransportParametersConsumer;
 import jdk.internal.net.quic.QuicVersion;
@@ -67,15 +66,6 @@ import static jdk.internal.net.quic.QuicTLSEngine.KeySpace.*;
  */
 public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
 
-    private static final Map<Byte, KeySpace> messageTypeMap =
-            Map.of(SSLHandshake.CLIENT_HELLO.id, INITIAL,
-                    SSLHandshake.SERVER_HELLO.id, INITIAL,
-                    SSLHandshake.ENCRYPTED_EXTENSIONS.id, HANDSHAKE,
-                    SSLHandshake.CERTIFICATE_REQUEST.id, HANDSHAKE,
-                    SSLHandshake.CERTIFICATE.id, HANDSHAKE,
-                    SSLHandshake.CERTIFICATE_VERIFY.id, HANDSHAKE,
-                    SSLHandshake.FINISHED.id, HANDSHAKE,
-                    SSLHandshake.NEW_SESSION_TICKET.id, ONE_RTT);
     static final long BASE_CRYPTO_ERROR = 256;
 
     private static final Set<QuicVersion> SUPPORTED_QUIC_VERSIONS =
@@ -112,12 +102,6 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
             new HandshakeKeyManager();
     private final OneRttKeyManager oneRttKeyManager = new OneRttKeyManager();
 
-    // buffer for crypto data that was received but not yet processed (i.e.
-    // incomplete messages)
-    private volatile ByteBuffer incomingCryptoBuffer;
-    // key space for incomingCryptoBuffer
-    private volatile KeySpace incomingCryptoSpace;
-
     private volatile QuicVersion negotiatedVersion;
 
     public QuicTLSEngineImpl(SSLContextImpl sslContextImpl) {
@@ -130,7 +114,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
         this.sendKeySpace = INITIAL;
         HandshakeHash handshakeHash = new HandshakeHash();
         this.conContext = new TransportContext(sslContextImpl, this,
-                new SSLEngineInputRecord(handshakeHash),
+                new QuicEngineInputRecord(handshakeHash),
                 new QuicEngineOutputRecord(handshakeHash));
         conContext.sslConfig.enabledProtocols = List.of(ProtocolVersion.TLS13);
         if (peerHost != null) {
@@ -485,12 +469,6 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
         if (keySpace == KeySpace.ZERO_RTT) {
             throw new IllegalArgumentException("Crypto in zero-rtt");
         }
-        if (incomingCryptoSpace != null && incomingCryptoSpace != keySpace) {
-            throw new QuicTransportException("Unexpected message", null, 0,
-                    BASE_CRYPTO_ERROR + Alert.UNEXPECTED_MESSAGE.id,
-                    new SSLHandshakeException(
-                            "Unfinished message in " + incomingCryptoSpace));
-        }
         try {
             if (!conContext.isNegotiated && !conContext.isBroken &&
                     !conContext.isInboundClosed() &&
@@ -501,171 +479,18 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
             throw new QuicTransportException(e.toString(), null, 0,
                     BASE_CRYPTO_ERROR + Alert.INTERNAL_ERROR.id, e);
         }
-        // previously unconsumed bytes in incomingCryptoBuffer, new bytes in
-        // payload. if incomingCryptoBuffer is not null, it's either 4 bytes
-        // or large enough to hold the entire message.
-        while (payload.hasRemaining()) {
-            if (keySpace != KeySpace.ONE_RTT &&
-                    handshakeStatus != SSLEngineResult.HandshakeStatus.NEED_UNWRAP) {
-                // in one-rtt we may receive session tickets at any time;
-                // during handshake we're either sending or receiving
-                throw new QuicTransportException("Unexpected message", null, 0,
-                        BASE_CRYPTO_ERROR + Alert.UNEXPECTED_MESSAGE.id,
-                        new SSLHandshakeException(
-                                "Not expecting a handshake message, state: " +
-                                        handshakeStatus));
-            }
-            if (incomingCryptoBuffer != null) {
-                // message type validated already; pump more bytes
-                if (payload.remaining() <= incomingCryptoBuffer.remaining()) {
-                    incomingCryptoBuffer.put(payload);
-                } else {
-                    // more than one message in buffer, or we don't have a
-                    // header yet
-                    int remaining = incomingCryptoBuffer.remaining();
-                    incomingCryptoBuffer.put(incomingCryptoBuffer.position(),
-                            payload, payload.position(), remaining);
-                    incomingCryptoBuffer.position(incomingCryptoBuffer.limit());
-                    payload.position(payload.position() + remaining);
-                    if (incomingCryptoBuffer.capacity() == 4) {
-                        // small buffer for header only; retrieve size and
-                        // expand if necessary
-                        int messageSize =
-                                ((incomingCryptoBuffer.get(1) & 0xFF) << 16) |
-                                ((incomingCryptoBuffer.get(2) & 0xFF) << 8) |
-                                (incomingCryptoBuffer.get(3) & 0xFF);
-                        if (messageSize != 0) {
-                            if (messageSize > SSLConfiguration.maxHandshakeMessageSize) {
-                                throw new QuicTransportException(
-                                        "The size of the handshake message ("
-                                                + messageSize
-                                                + ") exceeds the maximum allowed size ("
-                                                + SSLConfiguration.maxHandshakeMessageSize
-                                                + ")",
-                                        null, 0,
-                                        QuicTransportErrors.CRYPTO_BUFFER_EXCEEDED);
-                            }
-                            ByteBuffer newBuffer =
-                                    ByteBuffer.allocate(messageSize + 4);
-                            incomingCryptoBuffer.flip();
-                            newBuffer.put(incomingCryptoBuffer);
-                            incomingCryptoBuffer = newBuffer;
-                            assert incomingCryptoBuffer.position() == 4 :
-                                    incomingCryptoBuffer.position();
-                            // start over with larger buffer
-                            continue;
-                        }
-                        // message size was zero... can it really happen?
-                    }
-                }
-            } else {
-                // incoming crypto buffer is null. Validate message type,
-                // check if size is available
-                byte messageType = payload.get(payload.position());
-                if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
-                    SSLLogger.fine("Received message of type 0x" +
-                            Integer.toHexString(messageType & 0xFF));
-                }
-                KeySpace expected = messageTypeMap.get(messageType);
-                if (expected != keySpace) {
-                    throw new QuicTransportException("Unexpected message",
-                            null, 0,
-                            BASE_CRYPTO_ERROR + Alert.UNEXPECTED_MESSAGE.id,
-                            new SSLHandshakeException("Message " + messageType +
-                                    " received in " + keySpace +
-                                    " but should be " + expected));
-                }
-                if (payload.remaining() < 4) {
-                    // partial message, length missing. Store in
-                    // incomingCryptoBuffer
-                    incomingCryptoBuffer = ByteBuffer.allocate(4);
-                    incomingCryptoBuffer.put(payload);
-                    incomingCryptoSpace = keySpace;
-                    return;
-                }
-                int payloadPos = payload.position();
-                int messageSize = ((payload.get(payloadPos + 1) & 0xFF) << 16)
-                        | ((payload.get(payloadPos + 2) & 0xFF) << 8)
-                        | (payload.get(payloadPos + 3) & 0xFF);
-                if (payload.remaining() < messageSize + 4) {
-                    // partial message, length known. Store in
-                    // incomingCryptoBuffer
-                    if (messageSize > SSLConfiguration.maxHandshakeMessageSize) {
-                        throw new QuicTransportException(
-                                "The size of the handshake message ("
-                                        + messageSize
-                                        + ") exceeds the maximum allowed size ("
-                                        + SSLConfiguration.maxHandshakeMessageSize
-                                        + ")",
-                                null, 0,
-                                QuicTransportErrors.CRYPTO_BUFFER_EXCEEDED);
-                    }
-                    incomingCryptoBuffer = ByteBuffer.allocate(messageSize + 4);
-                    incomingCryptoBuffer.put(payload);
-                    incomingCryptoSpace = keySpace;
-                    return;
-                }
-                incomingCryptoSpace = keySpace;
-                incomingCryptoBuffer = payload.slice(payloadPos,
-                        messageSize + 4);
-                // set position at end to indicate that the buffer is ready
-                // for processing
-                incomingCryptoBuffer.position(messageSize + 4);
-                assert !incomingCryptoBuffer.hasRemaining() :
-                        incomingCryptoBuffer.remaining();
-                payload.position(payloadPos + messageSize + 4);
-            }
-            if (!incomingCryptoBuffer.hasRemaining()) {
-                incomingCryptoBuffer.flip();
-                handleHandshakeMessage(keySpace, incomingCryptoBuffer);
-                incomingCryptoBuffer = null;
-                incomingCryptoSpace = null;
-            } else {
-                assert !payload.hasRemaining() : payload.remaining();
-                return;
-            }
-        }
-    }
-
-    private void handleHandshakeMessage(KeySpace keySpace, ByteBuffer message)
-            throws QuicTransportException {
-        // message param contains one whole TLS message
-        boolean useClientMode = getUseClientMode();
-        byte messageType = message.get();
-        int messageSize = ((message.get() & 0xFF) << 16)
-                | ((message.get() & 0xFF) << 8)
-                | (message.get() & 0xFF);
-
-        assert message.remaining() == messageSize :
-                message.remaining() - messageSize;
         try {
-            if (conContext.inputRecord.handshakeHash.isHashable(messageType)) {
-                ByteBuffer temp = message.duplicate();
-                temp.position(0);
-                conContext.inputRecord.handshakeHash.receive(temp);
-            }
-            if (conContext.handshakeContext == null) {
-                if (!conContext.isNegotiated) {
-                    throw new QuicTransportException(
-                            "Cannot process crypto message, broken: "
-                                    + conContext.isBroken,
-                            null, 0, QuicTransportErrors.INTERNAL_ERROR);
-                }
-                conContext.handshakeContext =
-                        new PostHandshakeContext(conContext);
-            }
-            conContext.handshakeContext.dispatch(messageType, message.slice());
-        } catch (SSLHandshakeException e) {
+            SSLTransport.decode(conContext, new ByteBuffer[]{payload}, 0, 1, null, 0, 0);
+        } catch (IOException e) {
             if (e.getCause() instanceof QuicTransportException qte) {
                 // rethrow quic transport parameters validation exception
                 throw qte;
             }
             Alert alert = ((QuicEngineOutputRecord)
                     conContext.outputRecord).getAlert();
-            throw new QuicTransportException(alert.description, keySpace, 0,
-                    BASE_CRYPTO_ERROR + alert.id, e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw new QuicTransportException(e.getMessage(), keySpace, 0,
+                    BASE_CRYPTO_ERROR + (alert != null ? alert.id : Alert.INTERNAL_ERROR.id), e);
+
         }
         if (handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_UNWRAP) {
             if (conContext.outputRecord.isEmpty()) {
@@ -678,12 +503,12 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
                     // client side: if we're still in INITIAL, switch
                     // to HANDSHAKE
                     if (sendKeySpace == INITIAL) {
-                        sendKeySpace = HANDSHAKE;
+                        sendKeySpace = conContext.outputRecord.getHandshakeMessageKeySpace();
                     }
                 }
             } else {
                 // our turn to send
-                if (conContext.isNegotiated && !useClientMode) {
+                if (conContext.isNegotiated && !getUseClientMode()) {
                     // done, server side, wants to send session ticket
                     handshakeStatus = SSLEngineResult.HandshakeStatus.FINISHED;
                     sendKeySpace = ONE_RTT;
@@ -772,7 +597,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
 
     @Override
     public boolean useDelegatedTask() {
-        return true;
+        return false;
     }
 
     public byte[] getLocalQuicTransportParameters() {
