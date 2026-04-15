@@ -1267,34 +1267,20 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
   __ jcc(Assembler::notZero, L_fast);
 
   // Slow-path: call runtime to handle.
+  preserve(obj);
   {
+    SaveLiveRegisters slr(&masm, this);
+
     // Shuffle in the arguments. The end result should be:
     //   c_rarg0 <-- obj
-    //
-    // Save clobbered registers before overwriting them.
-    bool clobbered_c_rarg0 = false;
     if (c_rarg0 != obj) {
-      clobbered_c_rarg0 = push_save_register_if_live(masm, c_rarg0);
       __ mov(c_rarg0, obj);
     }
 
     // Handle the rest there.
-    if (!ShenandoahFasterRuntimeStubs || has_live_vector_registers()) {
-      __ call(RuntimeAddress(keepalive_runtime_entry_addr(SaveMode::All)));
-    } else if (has_save_space_for_live_gp_registers(clobbered_c_rarg0, false, false)) {
-      save_live_gp_regs(masm, clobbered_c_rarg0, false, false);
-      __ call(RuntimeAddress(keepalive_runtime_entry_addr(SaveMode::Nothing)));
-      restore_live_gp_regs(masm, clobbered_c_rarg0, false, false);
-    } else {
-      __ call(RuntimeAddress(keepalive_runtime_entry_addr(SaveMode::GP)));
-    }
-
-    // Restore the clobbered registers.
-    if (clobbered_c_rarg0) {
-      pop_save_register(masm, c_rarg0);
-    }
-    __ jmpb(L_pack_and_done);
+    __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre), 1);
   }
+  __ jmpb(L_pack_and_done);
 
   // Fast-path: put object into buffer.
   __ bind(L_fast);
@@ -1362,36 +1348,25 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
 
   // Slow path
   __ bind(L_slow);
+  dont_preserve(obj);
   {
+    SaveLiveRegisters slr(&masm, this);
     assert_different_registers(rax, c_rarg0, c_rarg1);
 
     // Shuffle in the arguments. The end result should be:
     //   c_rarg0 <-- obj
     //   c_rarg1 <-- lea(addr)
     //
-    // Save clobbered registers before overwriting them, unless they
-    // carry obj, which would be overwritten on return.
-    bool clobbered_c_rarg0 = false;
-    bool clobbered_c_rarg1 = false;
-    bool clobbered_rax = false;
-
     if (obj == c_rarg0) {
-      clobbered_c_rarg1 = push_save_register_if_live(masm, c_rarg1);
       __ lea(c_rarg1, addr);
     } else if (obj == c_rarg1) {
       // Set up arguments in reverse, and then flip them
-      clobbered_c_rarg0 = push_save_register_if_live(masm, c_rarg0);
       __ lea(c_rarg0, addr);
       __ xchgptr(c_rarg0, c_rarg1);
     } else {
       assert_different_registers(obj, c_rarg0, c_rarg1);
-      clobbered_c_rarg0 = push_save_register_if_live(masm, c_rarg0);
-      clobbered_c_rarg1 = push_save_register_if_live(masm, c_rarg1);
       __ lea(c_rarg1, addr);
       __ movptr(c_rarg0, obj);
-    }
-    if (obj != rax) {
-      clobbered_rax = push_save_register_if_live(masm, rax);
     }
 
     // Decode if needed.
@@ -1400,14 +1375,26 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
     }
 
     // Go to runtime stub and handle the rest there.
-    if (!ShenandoahFasterRuntimeStubs || has_live_vector_registers()) {
-      __ call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::All)));
-    } else if (has_save_space_for_live_gp_registers(clobbered_c_rarg0, clobbered_c_rarg1, true)) {
-      save_live_gp_regs(masm, clobbered_c_rarg0, clobbered_c_rarg1, true);
-      __ call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::Nothing)));
-      restore_live_gp_regs(masm, clobbered_c_rarg0, clobbered_c_rarg1, true);
+    bool is_strong  = (_node->barrier_data() & ShenandoahBitStrong)  != 0;
+    bool is_weak    = (_node->barrier_data() & ShenandoahBitWeak)    != 0;
+    bool is_phantom = (_node->barrier_data() & ShenandoahBitPhantom) != 0;
+
+    if (_narrow) {
+      if (is_strong) {
+        __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow), 2);
+      } else if (is_weak) {
+        __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow), 2);
+      } else if (is_phantom) {
+        __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow), 2);
+      }
     } else {
-      __ call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::GP)));
+      if (is_strong) {
+        __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong), 2);
+      } else if (is_weak) {
+        __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak), 2);
+      } else if (is_phantom) {
+        __ call_VM_leaf(CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom), 2);
+      }
     }
 
     // Save the result where needed and restore the clobbered registers.
@@ -1424,15 +1411,6 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
       } else {
         __ encode_heap_oop_not_null(obj);
       }
-    }
-    if (clobbered_rax) {
-      pop_save_register(masm, rax);
-    }
-    if (clobbered_c_rarg1) {
-      pop_save_register(masm, c_rarg1);
-    }
-    if (clobbered_c_rarg0) {
-      pop_save_register(masm, c_rarg0);
     }
   }
 
