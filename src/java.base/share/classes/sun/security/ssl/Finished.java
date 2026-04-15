@@ -737,6 +737,7 @@ final class Finished {
                 }
 
                 chc.baseWriteSecret = writeSecret;
+                writeCipher.baseSecret = writeSecret;
                 chc.conContext.outputRecord.changeWriteCiphers(
                         writeCipher, false);
 
@@ -841,6 +842,7 @@ final class Finished {
                 }
 
                 shc.baseWriteSecret = writeSecret;
+                writeCipher.baseSecret = writeSecret;
                 shc.conContext.outputRecord.changeWriteCiphers(
                         writeCipher, false);
 
@@ -1016,6 +1018,7 @@ final class Finished {
                 }
 
                 chc.baseReadSecret = readSecret;
+                readCipher.baseSecret = readSecret;
                 chc.conContext.inputRecord.changeReadCiphers(readCipher);
 
                 // update the context for the following key derivation
@@ -1131,6 +1134,7 @@ final class Finished {
                 }
 
                 shc.baseReadSecret = readSecret;
+                readCipher.baseSecret = readSecret;
                 shc.conContext.inputRecord.changeReadCiphers(readCipher);
 
                 // Calculate/save the exporter_master_secret.  It uses

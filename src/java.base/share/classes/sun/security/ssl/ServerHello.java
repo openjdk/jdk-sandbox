@@ -682,6 +682,7 @@ final class ServerHello {
             }
 
             shc.baseReadSecret = readSecret;
+            readCipher.baseSecret = readSecret;
             shc.conContext.inputRecord.changeReadCiphers(readCipher);
 
             // update the handshake traffic write secret.
@@ -713,6 +714,7 @@ final class ServerHello {
             }
 
             shc.baseWriteSecret = writeSecret;
+            writeCipher.baseSecret = writeSecret;
             shc.conContext.outputRecord.changeWriteCiphers(
                     writeCipher, (clientHello.sessionId.length() != 0));
 
@@ -1393,6 +1395,7 @@ final class ServerHello {
             }
 
             chc.baseReadSecret = readSecret;
+            readCipher.baseSecret = readSecret;
             chc.conContext.inputRecord.changeReadCiphers(readCipher);
 
             // update the handshake traffic write keys.
@@ -1424,6 +1427,7 @@ final class ServerHello {
             }
 
             chc.baseWriteSecret = writeSecret;
+            writeCipher.baseSecret = writeSecret;
             chc.conContext.outputRecord.changeWriteCiphers(
                     writeCipher, (serverHello.sessionId.length() != 0));
 

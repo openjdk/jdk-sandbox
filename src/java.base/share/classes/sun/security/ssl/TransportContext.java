@@ -631,10 +631,6 @@ final class TransportContext implements ConnectionContext {
             outputRecord.tc = this;
             inputRecord.tc = this;
             cipherSuite = handshakeContext.negotiatedCipherSuite;
-            inputRecord.readCipher.baseSecret =
-                    handshakeContext.baseReadSecret;
-            outputRecord.writeCipher.baseSecret =
-                    handshakeContext.baseWriteSecret;
         }
 
         handshakeContext = null;
