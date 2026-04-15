@@ -32,8 +32,9 @@ import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.concurrent.locks.ReentrantLock;
 
-import jdk.internal.net.quic.QuicTLSEngine;
 import sun.security.ssl.SSLCipher.SSLWriteCipher;
+
+import javax.net.ssl.QuicTransport;
 
 /**
  * {@code OutputRecord} takes care of the management of SSL/(D)TLS
@@ -157,7 +158,7 @@ abstract class OutputRecord
     }
 
     // apply to QuicEngine only
-    QuicTLSEngine.KeySpace getHandshakeMessageKeySpace() {
+    QuicTransport.KeySpace getHandshakeMessageKeySpace() {
         throw new UnsupportedOperationException();
     }
 

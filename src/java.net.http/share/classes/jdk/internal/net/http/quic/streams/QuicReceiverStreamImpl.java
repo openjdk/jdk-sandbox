@@ -34,10 +34,10 @@ import jdk.internal.net.http.quic.frames.ConnectionCloseFrame;
 import jdk.internal.net.http.quic.frames.ResetStreamFrame;
 import jdk.internal.net.http.quic.frames.StreamDataBlockedFrame;
 import jdk.internal.net.http.quic.frames.StreamFrame;
-import jdk.internal.net.quic.QuicTLSEngine;
 import jdk.internal.net.quic.QuicTransportErrors;
 import jdk.internal.net.quic.QuicTransportException;
 
+import javax.net.ssl.QuicTransport;
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
@@ -117,7 +117,7 @@ final class QuicReceiverStreamImpl extends AbstractQuicStream implements QuicRec
         String reason = "Stream max data exceeded: offset=%s, length=%s, max stream data=%s"
                 .formatted(streamFrame.offset(), streamFrame.dataLength(), maxData);
         throw new QuicTransportException(reason,
-                QuicTLSEngine.KeySpace.ONE_RTT, streamFrame.getTypeField(), QuicTransportErrors.FLOW_CONTROL_ERROR);
+                QuicTransport.KeySpace.ONE_RTT, streamFrame.getTypeField(), QuicTransportErrors.FLOW_CONTROL_ERROR);
     }
 
     // debug tag for debug logger
@@ -373,7 +373,7 @@ final class QuicReceiverStreamImpl extends AbstractQuicStream implements QuicRec
                 // that follow a gap and can't be immediately released to the reader;
                 // we need to buffer them, and the memory overhead is unreasonably high.
                 throw new QuicTransportException("Excessive stream fragmentation",
-                        QuicTLSEngine.KeySpace.ONE_RTT, streamFrame.frameType(),
+                        QuicTransport.KeySpace.ONE_RTT, streamFrame.frameType(),
                         QuicTransportErrors.INTERNAL_ERROR);
             }
         }
@@ -422,7 +422,7 @@ final class QuicReceiverStreamImpl extends AbstractQuicStream implements QuicRec
             String reason = "Stream final size exceeded: offset=%s, length=%s, final size=%s"
                     .formatted(streamFrame.offset(), streamFrame.dataLength(), knownSize);
             throw new QuicTransportException(reason,
-                    QuicTLSEngine.KeySpace.ONE_RTT, streamFrame.getTypeField(), QuicTransportErrors.FINAL_SIZE_ERROR);
+                    QuicTransport.KeySpace.ONE_RTT, streamFrame.getTypeField(), QuicTransportErrors.FINAL_SIZE_ERROR);
         }
         // check maxData
         updateMaxReceivedData(size, streamFrame.getTypeField());
@@ -432,7 +432,7 @@ final class QuicReceiverStreamImpl extends AbstractQuicStream implements QuicRec
                 String reason = "Stream truncated: offset=%s, length=%s, max received=%s"
                         .formatted(streamFrame.offset(), streamFrame.dataLength(), maxReceivedData);
                 throw new QuicTransportException(reason,
-                        QuicTLSEngine.KeySpace.ONE_RTT, streamFrame.getTypeField(), QuicTransportErrors.FINAL_SIZE_ERROR);
+                        QuicTransport.KeySpace.ONE_RTT, streamFrame.getTypeField(), QuicTransportErrors.FINAL_SIZE_ERROR);
             }
             if (state == RECV && switchReceivingState(SIZE_KNOWN)) {
                 this.knownSize = size;
@@ -441,7 +441,7 @@ final class QuicReceiverStreamImpl extends AbstractQuicStream implements QuicRec
                     String reason = "Stream final size changed: offset=%s, length=%s, final size=%s"
                             .formatted(streamFrame.offset(), streamFrame.dataLength(), knownSize);
                     throw new QuicTransportException(reason,
-                            QuicTLSEngine.KeySpace.ONE_RTT, streamFrame.getTypeField(), QuicTransportErrors.FINAL_SIZE_ERROR);
+                            QuicTransport.KeySpace.ONE_RTT, streamFrame.getTypeField(), QuicTransportErrors.FINAL_SIZE_ERROR);
                 }
             }
         }
@@ -471,7 +471,7 @@ final class QuicReceiverStreamImpl extends AbstractQuicStream implements QuicRec
             String reason = "Stream max data exceeded: finalSize=%s, max stream data=%s"
                     .formatted(size, maxData);
             throw new QuicTransportException(reason,
-                    QuicTLSEngine.KeySpace.ONE_RTT, resetStreamFrame.getTypeField(), QuicTransportErrors.FLOW_CONTROL_ERROR);
+                    QuicTransport.KeySpace.ONE_RTT, resetStreamFrame.getTypeField(), QuicTransportErrors.FLOW_CONTROL_ERROR);
         }
         ReceivingStreamState state = receivingState;
         updateMaxReceivedData(size, resetStreamFrame.getTypeField());
@@ -480,7 +480,7 @@ final class QuicReceiverStreamImpl extends AbstractQuicStream implements QuicRec
             String reason = "Stream truncated: finalSize=%s, max received=%s"
                     .formatted(size, maxReceivedData);
             throw new QuicTransportException(reason,
-                    QuicTLSEngine.KeySpace.ONE_RTT, resetStreamFrame.getTypeField(), QuicTransportErrors.FINAL_SIZE_ERROR);
+                    QuicTransport.KeySpace.ONE_RTT, resetStreamFrame.getTypeField(), QuicTransportErrors.FINAL_SIZE_ERROR);
         }
         if (state == RECV && switchReceivingState(RESET_RECVD)) {
             this.knownSize = size;
@@ -492,7 +492,7 @@ final class QuicReceiverStreamImpl extends AbstractQuicStream implements QuicRec
                 String reason = "Stream final size changed: new finalSize=%s, old final size=%s"
                         .formatted(size, knownSize);
                 throw new QuicTransportException(reason,
-                        QuicTLSEngine.KeySpace.ONE_RTT, resetStreamFrame.getTypeField(), QuicTransportErrors.FINAL_SIZE_ERROR);
+                        QuicTransport.KeySpace.ONE_RTT, resetStreamFrame.getTypeField(), QuicTransportErrors.FINAL_SIZE_ERROR);
             }
         }
     }

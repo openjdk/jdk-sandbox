@@ -32,6 +32,7 @@ import javax.crypto.AEADBadTagException;
 import javax.crypto.SecretKey;
 import javax.crypto.ShortBufferException;
 import javax.crypto.spec.SecretKeySpec;
+import javax.net.ssl.QuicTransport;
 import javax.net.ssl.SSLContext;
 import java.nio.ByteBuffer;
 import java.security.NoSuchAlgorithmException;
@@ -181,8 +182,8 @@ public class Quicv2PacketEncryptionTest {
         final ByteBuffer payload = packet.slice(INITIAL_C_PAYLOAD_OFFSET, INITIAL_C_PAYLOAD_LENGTH).asReadOnlyBuffer();
 
         packet.position(INITIAL_C_PAYLOAD_OFFSET);
-        clientEngine.encryptPacket(QuicTLSEngine.KeySpace.INITIAL, INITIAL_C_PN, new FixedHeaderContent(header), payload, packet);
-        protect(QuicTLSEngine.KeySpace.INITIAL, packet, INITIAL_C_PN_OFFSET, INITIAL_C_PAYLOAD_OFFSET - INITIAL_C_PN_OFFSET, clientEngine, 0x0f);
+        clientEngine.encryptPacket(QuicTransport.KeySpace.INITIAL, INITIAL_C_PN, new FixedHeaderContent(header), payload, packet);
+        protect(QuicTransport.KeySpace.INITIAL, packet, INITIAL_C_PN_OFFSET, INITIAL_C_PAYLOAD_OFFSET - INITIAL_C_PN_OFFSET, clientEngine, 0x0f);
 
         assertEquals(ENCRYPTED_C_PAYLOAD, HexFormat.of().formatHex(packet.array()));
     }
@@ -194,11 +195,11 @@ public class Quicv2PacketEncryptionTest {
         serverEngine.deriveInitialKeys(QUIC_V2, dcid);
 
         ByteBuffer packet = ByteBuffer.wrap(HexFormat.of().parseHex(ENCRYPTED_C_PAYLOAD));
-        unprotect(QuicTLSEngine.KeySpace.INITIAL, packet, INITIAL_C_PN_OFFSET, INITIAL_C_PAYLOAD_OFFSET - INITIAL_C_PN_OFFSET, serverEngine, 0x0f);
+        unprotect(QuicTransport.KeySpace.INITIAL, packet, INITIAL_C_PN_OFFSET, INITIAL_C_PAYLOAD_OFFSET - INITIAL_C_PN_OFFSET, serverEngine, 0x0f);
         ByteBuffer src = packet.asReadOnlyBuffer();
         packet.position(INITIAL_C_PAYLOAD_OFFSET);
 
-        serverEngine.decryptPacket(QuicTLSEngine.KeySpace.INITIAL, INITIAL_C_PN, -1, src, INITIAL_C_PAYLOAD_OFFSET, packet);
+        serverEngine.decryptPacket(QuicTransport.KeySpace.INITIAL, INITIAL_C_PN, -1, src, INITIAL_C_PAYLOAD_OFFSET, packet);
 
         String expectedContents = INITIAL_C_HEADER + INITIAL_C_PAYLOAD;
 
@@ -212,12 +213,12 @@ public class Quicv2PacketEncryptionTest {
             ByteBuffer dcid = ByteBuffer.wrap(HexFormat.of().parseHex(INITIAL_DCID));
             serverEngine.deriveInitialKeys(QUIC_V2, dcid);
             ByteBuffer packet = ByteBuffer.wrap(HexFormat.of().parseHex(ENCRYPTED_C_PAYLOAD));
-            unprotect(QuicTLSEngine.KeySpace.INITIAL, packet, INITIAL_C_PN_OFFSET, INITIAL_C_PAYLOAD_OFFSET - INITIAL_C_PN_OFFSET, serverEngine, 0x0f);
+            unprotect(QuicTransport.KeySpace.INITIAL, packet, INITIAL_C_PN_OFFSET, INITIAL_C_PAYLOAD_OFFSET - INITIAL_C_PN_OFFSET, serverEngine, 0x0f);
             ByteBuffer src = packet.asReadOnlyBuffer();
             packet.position(INITIAL_C_PAYLOAD_OFFSET);
             // change one byte of AEAD tag
             packet.put(packet.limit() - 1, (byte)0);
-            serverEngine.decryptPacket(QuicTLSEngine.KeySpace.INITIAL, INITIAL_C_PN, -1, src, INITIAL_C_PAYLOAD_OFFSET, packet);
+            serverEngine.decryptPacket(QuicTransport.KeySpace.INITIAL, INITIAL_C_PN, -1, src, INITIAL_C_PAYLOAD_OFFSET, packet);
             fail("Decryption should have failed");
         });
     }
@@ -237,8 +238,8 @@ public class Quicv2PacketEncryptionTest {
         final ByteBuffer payload = packet.slice(INITIAL_S_PAYLOAD_OFFSET, INITIAL_S_PAYLOAD_LENGTH).asReadOnlyBuffer();
 
         packet.position(INITIAL_S_PAYLOAD_OFFSET);
-        serverEngine.encryptPacket(QuicTLSEngine.KeySpace.INITIAL, INITIAL_S_PN, new FixedHeaderContent(header), payload, packet);
-        protect(QuicTLSEngine.KeySpace.INITIAL, packet, INITIAL_S_PN_OFFSET, INITIAL_S_PAYLOAD_OFFSET - INITIAL_S_PN_OFFSET, serverEngine, 0x0f);
+        serverEngine.encryptPacket(QuicTransport.KeySpace.INITIAL, INITIAL_S_PN, new FixedHeaderContent(header), payload, packet);
+        protect(QuicTransport.KeySpace.INITIAL, packet, INITIAL_S_PN_OFFSET, INITIAL_S_PAYLOAD_OFFSET - INITIAL_S_PN_OFFSET, serverEngine, 0x0f);
 
         assertEquals(ENCRYPTED_S_PAYLOAD, HexFormat.of().formatHex(packet.array()));
     }
@@ -250,11 +251,11 @@ public class Quicv2PacketEncryptionTest {
         clientEngine.deriveInitialKeys(QUIC_V2, dcid);
 
         ByteBuffer packet = ByteBuffer.wrap(HexFormat.of().parseHex(ENCRYPTED_S_PAYLOAD));
-        unprotect(QuicTLSEngine.KeySpace.INITIAL, packet, INITIAL_S_PN_OFFSET, INITIAL_S_PAYLOAD_OFFSET - INITIAL_S_PN_OFFSET, clientEngine, 0x0f);
+        unprotect(QuicTransport.KeySpace.INITIAL, packet, INITIAL_S_PN_OFFSET, INITIAL_S_PAYLOAD_OFFSET - INITIAL_S_PN_OFFSET, clientEngine, 0x0f);
         ByteBuffer src = packet.asReadOnlyBuffer();
         packet.position(INITIAL_S_PAYLOAD_OFFSET);
 
-        clientEngine.decryptPacket(QuicTLSEngine.KeySpace.INITIAL, INITIAL_S_PN, -1, src, INITIAL_S_PAYLOAD_OFFSET, packet);
+        clientEngine.decryptPacket(QuicTransport.KeySpace.INITIAL, INITIAL_S_PN, -1, src, INITIAL_S_PAYLOAD_OFFSET, packet);
 
         String expectedContents = INITIAL_S_HEADER + INITIAL_S_PAYLOAD;
 
@@ -270,19 +271,19 @@ public class Quicv2PacketEncryptionTest {
 
         // attempt 1
         ByteBuffer packet = ByteBuffer.wrap(HexFormat.of().parseHex(ENCRYPTED_S_PAYLOAD));
-        unprotect(QuicTLSEngine.KeySpace.INITIAL, packet, INITIAL_S_PN_OFFSET, INITIAL_S_PAYLOAD_OFFSET - INITIAL_S_PN_OFFSET, clientEngine, 0x0f);
+        unprotect(QuicTransport.KeySpace.INITIAL, packet, INITIAL_S_PN_OFFSET, INITIAL_S_PAYLOAD_OFFSET - INITIAL_S_PN_OFFSET, clientEngine, 0x0f);
         ByteBuffer src = packet.asReadOnlyBuffer();
         packet.position(INITIAL_S_PAYLOAD_OFFSET);
-        clientEngine.decryptPacket(QuicTLSEngine.KeySpace.INITIAL, INITIAL_S_PN, -1, src, INITIAL_S_PAYLOAD_OFFSET, packet);
+        clientEngine.decryptPacket(QuicTransport.KeySpace.INITIAL, INITIAL_S_PN, -1, src, INITIAL_S_PAYLOAD_OFFSET, packet);
 
         // attempt 2
         packet = ByteBuffer.wrap(HexFormat.of().parseHex(ENCRYPTED_S_PAYLOAD));
         // must not throw
-        unprotect(QuicTLSEngine.KeySpace.INITIAL, packet, INITIAL_S_PN_OFFSET, INITIAL_S_PAYLOAD_OFFSET - INITIAL_S_PN_OFFSET, clientEngine, 0x0f);
+        unprotect(QuicTransport.KeySpace.INITIAL, packet, INITIAL_S_PN_OFFSET, INITIAL_S_PAYLOAD_OFFSET - INITIAL_S_PN_OFFSET, clientEngine, 0x0f);
         src = packet.asReadOnlyBuffer();
         packet.position(INITIAL_S_PAYLOAD_OFFSET);
         // must not throw
-        clientEngine.decryptPacket(QuicTLSEngine.KeySpace.INITIAL, INITIAL_S_PN, -1, src, INITIAL_S_PAYLOAD_OFFSET, packet);
+        clientEngine.decryptPacket(QuicTransport.KeySpace.INITIAL, INITIAL_S_PN, -1, src, INITIAL_S_PAYLOAD_OFFSET, packet);
     }
 
     @Test
@@ -340,8 +341,8 @@ public class Quicv2PacketEncryptionTest {
         final ByteBuffer payload = packet.slice(ONERTT_PAYLOAD_OFFSET, ONERTT_PAYLOAD_LENGTH).asReadOnlyBuffer();
 
         packet.position(ONERTT_PAYLOAD_OFFSET);
-        clientEngine.encryptPacket(QuicTLSEngine.KeySpace.ONE_RTT, ONERTT_PN , new FixedHeaderContent(header), payload, packet);
-        protect(QuicTLSEngine.KeySpace.ONE_RTT, packet, ONERTT_PN_OFFSET, ONERTT_PAYLOAD_OFFSET - ONERTT_PN_OFFSET, clientEngine, 0x1f);
+        clientEngine.encryptPacket(QuicTransport.KeySpace.ONE_RTT, ONERTT_PN , new FixedHeaderContent(header), payload, packet);
+        protect(QuicTransport.KeySpace.ONE_RTT, packet, ONERTT_PN_OFFSET, ONERTT_PAYLOAD_OFFSET - ONERTT_PN_OFFSET, clientEngine, 0x1f);
 
         assertEquals(ENCRYPTED_ONERTT_PAYLOAD, HexFormat.of().formatHex(packet.array()));
     }
@@ -355,11 +356,11 @@ public class Quicv2PacketEncryptionTest {
         QuicTLSEngineImplAccessor.testDeriveOneRTTKeys(QUIC_V2, serverEngine, key, key, "TLS_CHACHA20_POLY1305_SHA256", false);
 
         ByteBuffer packet = ByteBuffer.wrap(HexFormat.of().parseHex(ENCRYPTED_ONERTT_PAYLOAD));
-        unprotect(QuicTLSEngine.KeySpace.ONE_RTT, packet, ONERTT_PN_OFFSET, ONERTT_PAYLOAD_OFFSET - ONERTT_PN_OFFSET, serverEngine, 0x1f);
+        unprotect(QuicTransport.KeySpace.ONE_RTT, packet, ONERTT_PN_OFFSET, ONERTT_PAYLOAD_OFFSET - ONERTT_PN_OFFSET, serverEngine, 0x1f);
         ByteBuffer src = packet.asReadOnlyBuffer();
         packet.position(ONERTT_PAYLOAD_OFFSET);
 
-        serverEngine.decryptPacket(QuicTLSEngine.KeySpace.ONE_RTT, ONERTT_PN, 0, src, ONERTT_PAYLOAD_OFFSET, packet);
+        serverEngine.decryptPacket(QuicTransport.KeySpace.ONE_RTT, ONERTT_PN, 0, src, ONERTT_PAYLOAD_OFFSET, packet);
 
         String expectedContents = ONERTT_HEADER + ONERTT_PAYLOAD;
 
@@ -377,20 +378,20 @@ public class Quicv2PacketEncryptionTest {
 
         // attempt 1
         ByteBuffer packet = ByteBuffer.wrap(HexFormat.of().parseHex(ENCRYPTED_ONERTT_PAYLOAD));
-        unprotect(QuicTLSEngine.KeySpace.ONE_RTT, packet, ONERTT_PN_OFFSET, ONERTT_PAYLOAD_OFFSET - ONERTT_PN_OFFSET, serverEngine, 0x1f);
+        unprotect(QuicTransport.KeySpace.ONE_RTT, packet, ONERTT_PN_OFFSET, ONERTT_PAYLOAD_OFFSET - ONERTT_PN_OFFSET, serverEngine, 0x1f);
         ByteBuffer src = packet.asReadOnlyBuffer();
         packet.position(ONERTT_PAYLOAD_OFFSET);
         final int keyphase = 0;
-        serverEngine.decryptPacket(QuicTLSEngine.KeySpace.ONE_RTT, ONERTT_PN, keyphase, src, ONERTT_PAYLOAD_OFFSET, packet);
+        serverEngine.decryptPacket(QuicTransport.KeySpace.ONE_RTT, ONERTT_PN, keyphase, src, ONERTT_PAYLOAD_OFFSET, packet);
 
         // attempt 2
         packet = ByteBuffer.wrap(HexFormat.of().parseHex(ENCRYPTED_ONERTT_PAYLOAD));
         // must not throw
-        unprotect(QuicTLSEngine.KeySpace.ONE_RTT, packet, ONERTT_PN_OFFSET, ONERTT_PAYLOAD_OFFSET - ONERTT_PN_OFFSET, serverEngine, 0x1f);
+        unprotect(QuicTransport.KeySpace.ONE_RTT, packet, ONERTT_PN_OFFSET, ONERTT_PAYLOAD_OFFSET - ONERTT_PN_OFFSET, serverEngine, 0x1f);
         src = packet.asReadOnlyBuffer();
         packet.position(ONERTT_PAYLOAD_OFFSET);
         // must not throw
-        serverEngine.decryptPacket(QuicTLSEngine.KeySpace.ONE_RTT, ONERTT_PN, keyphase, src, ONERTT_PAYLOAD_OFFSET, packet);
+        serverEngine.decryptPacket(QuicTransport.KeySpace.ONE_RTT, ONERTT_PN, keyphase, src, ONERTT_PAYLOAD_OFFSET, packet);
     }
 
     @Test
@@ -402,18 +403,18 @@ public class Quicv2PacketEncryptionTest {
             SecretKey key = new SecretKeySpec(HexFormat.of().parseHex(ONERTT_SECRET), 0, 32, "ChaCha20-Poly1305");
             QuicTLSEngineImplAccessor.testDeriveOneRTTKeys(QUIC_V2, serverEngine, key, key, "TLS_CHACHA20_POLY1305_SHA256", false);
             ByteBuffer packet = ByteBuffer.wrap(HexFormat.of().parseHex(ENCRYPTED_ONERTT_PAYLOAD));
-            unprotect(QuicTLSEngine.KeySpace.ONE_RTT, packet, ONERTT_PN_OFFSET, ONERTT_PAYLOAD_OFFSET - ONERTT_PN_OFFSET, serverEngine, 0x1f);
+            unprotect(QuicTransport.KeySpace.ONE_RTT, packet, ONERTT_PN_OFFSET, ONERTT_PAYLOAD_OFFSET - ONERTT_PN_OFFSET, serverEngine, 0x1f);
             ByteBuffer src = packet.asReadOnlyBuffer();
             packet.position(ONERTT_PAYLOAD_OFFSET);
             // change one byte of AEAD tag
             packet.put(packet.limit() - 1, (byte)0);
-            serverEngine.decryptPacket(QuicTLSEngine.KeySpace.ONE_RTT, ONERTT_PN, 0, src, ONERTT_PAYLOAD_OFFSET, packet);
+            serverEngine.decryptPacket(QuicTransport.KeySpace.ONE_RTT, ONERTT_PN, 0, src, ONERTT_PAYLOAD_OFFSET, packet);
             fail("Decryption should have failed");
         });
     }
 
 
-    private void protect(QuicTLSEngine.KeySpace space, ByteBuffer buffer, int packetNumberStart,
+    private void protect(QuicTransport.KeySpace space, ByteBuffer buffer, int packetNumberStart,
                          int packetNumberLength, QuicTLSEngine tlsEngine, int headersMask)
             throws QuicKeyUnavailableException, QuicTransportException {
         ByteBuffer sample = buffer.slice(packetNumberStart + 4, 16);
@@ -424,7 +425,7 @@ public class Quicv2PacketEncryptionTest {
         maskPacketNumber(buffer, packetNumberStart, packetNumberLength, encryptedSample);
     }
 
-    private void unprotect(QuicTLSEngine.KeySpace keySpace, ByteBuffer buffer, int packetNumberStart,
+    private void unprotect(QuicTransport.KeySpace keySpace, ByteBuffer buffer, int packetNumberStart,
                            int packetNumberLength, QuicTLSEngine tlsEngine, int headersMask)
             throws QuicKeyUnavailableException, QuicTransportException {
         ByteBuffer sample = buffer.slice(packetNumberStart + 4, 16);

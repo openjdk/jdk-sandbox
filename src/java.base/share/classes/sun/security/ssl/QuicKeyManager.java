@@ -45,12 +45,12 @@ import javax.crypto.ShortBufferException;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.HKDFParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import javax.net.ssl.QuicTransport;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
 
 import jdk.internal.net.quic.QuicKeyUnavailableException;
 import jdk.internal.net.quic.QuicOneRttContext;
-import jdk.internal.net.quic.QuicTLSEngine;
 import jdk.internal.net.quic.QuicTransportException;
 import jdk.internal.net.quic.QuicVersion;
 import jdk.internal.vm.annotation.Stable;
@@ -58,9 +58,9 @@ import sun.security.ssl.QuicCipher.QuicReadCipher;
 import sun.security.ssl.QuicCipher.QuicWriteCipher;
 import sun.security.util.KeyUtil;
 
-import static jdk.internal.net.quic.QuicTLSEngine.KeySpace.HANDSHAKE;
-import static jdk.internal.net.quic.QuicTLSEngine.KeySpace.INITIAL;
-import static jdk.internal.net.quic.QuicTLSEngine.KeySpace.ONE_RTT;
+import static javax.net.ssl.QuicTransport.KeySpace.HANDSHAKE;
+import static javax.net.ssl.QuicTransport.KeySpace.INITIAL;
+import static javax.net.ssl.QuicTransport.KeySpace.ONE_RTT;
 import static jdk.internal.net.quic.QuicTransportErrors.AEAD_LIMIT_REACHED;
 import static jdk.internal.net.quic.QuicTransportErrors.KEY_UPDATE_ERROR;
 import static sun.security.ssl.QuicTLSEngineImpl.BASE_CRYPTO_ERROR;
@@ -90,12 +90,12 @@ sealed abstract class QuicKeyManager
         }
     }
 
-    final QuicTLSEngine.KeySpace keySpace;
+    final QuicTransport.KeySpace keySpace;
     // counter towards the integrity limit
     final AtomicLong invalidPackets = new AtomicLong();
     volatile boolean keysDiscarded;
 
-    private QuicKeyManager(final QuicTLSEngine.KeySpace keySpace) {
+    private QuicKeyManager(final QuicTransport.KeySpace keySpace) {
         this.keySpace = keySpace;
     }
 

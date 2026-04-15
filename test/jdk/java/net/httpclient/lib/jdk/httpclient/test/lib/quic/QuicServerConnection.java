@@ -38,6 +38,7 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
+import javax.net.ssl.QuicTransport;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLParameters;
 
@@ -275,7 +276,7 @@ public final class QuicServerConnection extends QuicConnectionImpl {
                 debug.log("Continuing handshake");
                 continueHandshake();
             } else if (quicPacket.isAckEliciting() &&
-                    getTLSEngine().getCurrentSendKeySpace() == QuicTLSEngine.KeySpace.HANDSHAKE) {
+                    getTLSEngine().getCurrentSendKeySpace() == QuicTransport.KeySpace.HANDSHAKE) {
                 packetNumberSpaces().initial().fastRetransmit();
             }
         } catch (Throwable t) {

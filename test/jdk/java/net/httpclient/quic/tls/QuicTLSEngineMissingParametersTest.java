@@ -28,6 +28,7 @@ import jdk.internal.net.quic.QuicVersion;
 import jdk.test.lib.net.SimpleSSLContext;
 import org.junit.jupiter.api.Test;
 
+import javax.net.ssl.QuicTransport;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import java.io.IOException;
@@ -52,9 +53,9 @@ public class QuicTLSEngineMissingParametersTest {
         QuicTLSContext qctx = new QuicTLSContext(ctx);
         QuicTLSEngine clientEngine = createClientEngine(qctx);
         QuicTLSEngine serverEngine = createServerEngine(qctx);
-        ByteBuffer cTOs = clientEngine.getHandshakeBytes(QuicTLSEngine.KeySpace.INITIAL);
+        ByteBuffer cTOs = clientEngine.getHandshakeBytes(QuicTransport.KeySpace.INITIAL);
         try {
-            serverEngine.consumeHandshakeBytes(QuicTLSEngine.KeySpace.INITIAL, cTOs);
+            serverEngine.consumeHandshakeBytes(QuicTransport.KeySpace.INITIAL, cTOs);
             fail("Expected exception not thrown");
         } catch (QuicTransportException e) {
             assertEquals(0x016d, e.getErrorCode(), "Unexpected error code");
@@ -69,17 +70,17 @@ public class QuicTLSEngineMissingParametersTest {
         QuicTLSEngine serverEngine = createServerEngine(qctx);
         clientEngine.setLocalQuicTransportParameters(ByteBuffer.allocate(0));
         // client hello
-        ByteBuffer cTOs = clientEngine.getHandshakeBytes(QuicTLSEngine.KeySpace.INITIAL);
-        serverEngine.consumeHandshakeBytes(QuicTLSEngine.KeySpace.INITIAL, cTOs);
+        ByteBuffer cTOs = clientEngine.getHandshakeBytes(QuicTransport.KeySpace.INITIAL);
+        serverEngine.consumeHandshakeBytes(QuicTransport.KeySpace.INITIAL, cTOs);
         assertFalse(cTOs.hasRemaining());
         // server hello
-        ByteBuffer sTOc = serverEngine.getHandshakeBytes(QuicTLSEngine.KeySpace.INITIAL);
-        clientEngine.consumeHandshakeBytes(QuicTLSEngine.KeySpace.INITIAL, sTOc);
+        ByteBuffer sTOc = serverEngine.getHandshakeBytes(QuicTransport.KeySpace.INITIAL);
+        clientEngine.consumeHandshakeBytes(QuicTransport.KeySpace.INITIAL, sTOc);
         assertFalse(sTOc.hasRemaining());
         // encrypted extensions
-        sTOc = serverEngine.getHandshakeBytes(QuicTLSEngine.KeySpace.HANDSHAKE);
+        sTOc = serverEngine.getHandshakeBytes(QuicTransport.KeySpace.HANDSHAKE);
         try {
-            clientEngine.consumeHandshakeBytes(QuicTLSEngine.KeySpace.HANDSHAKE, sTOc);
+            clientEngine.consumeHandshakeBytes(QuicTransport.KeySpace.HANDSHAKE, sTOc);
             fail("Expected exception not thrown");
         } catch (QuicTransportException e) {
             assertEquals(0x016d, e.getErrorCode(), "Unexpected error code");

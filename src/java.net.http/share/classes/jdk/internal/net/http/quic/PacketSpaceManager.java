@@ -66,6 +66,7 @@ import jdk.internal.net.quic.QuicTLSEngine;
 import jdk.internal.net.quic.QuicTransportErrors;
 import jdk.internal.net.quic.QuicTransportException;
 
+import javax.net.ssl.QuicTransport;
 import javax.net.ssl.SSLEngineResult;
 
 /**
@@ -1829,7 +1830,7 @@ public sealed class PacketSpaceManager implements PacketSpace
 
     private Deadline getPtoDeadline() {
         if (packetNumberSpace == PacketNumberSpace.INITIAL && lastAckElicitingTime != null) {
-            if (!quicTLSEngine.keysAvailable(QuicTLSEngine.KeySpace.HANDSHAKE)) {
+            if (!quicTLSEngine.keysAvailable(QuicTransport.KeySpace.HANDSHAKE)) {
                 // if handshake keys are not available, initial PTO must be set
                 return lastAckElicitingTime.plus(getPtoDuration());
             }
@@ -2290,12 +2291,12 @@ public sealed class PacketSpaceManager implements PacketSpace
      * returns the TLS encryption level of this packet space as specified
      * in RFC-9001, section 4, table 1.
      */
-    private QuicTLSEngine.KeySpace tlsEncryptionLevel() {
+    private QuicTransport.KeySpace tlsEncryptionLevel() {
         return switch (this.packetNumberSpace) {
-            case INITIAL -> QuicTLSEngine.KeySpace.INITIAL;
+            case INITIAL -> QuicTransport.KeySpace.INITIAL;
             // APPLICATION packet space could even mean 0-RTT, but currently we don't support 0-RTT
-            case APPLICATION -> QuicTLSEngine.KeySpace.ONE_RTT;
-            case HANDSHAKE -> QuicTLSEngine.KeySpace.HANDSHAKE;
+            case APPLICATION -> QuicTransport.KeySpace.ONE_RTT;
+            case HANDSHAKE -> QuicTransport.KeySpace.HANDSHAKE;
             default -> throw new IllegalStateException("No known TLS encryption level" +
                     " for packet space: " + this.packetNumberSpace);
         };

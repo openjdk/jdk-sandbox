@@ -43,6 +43,7 @@ import jdk.internal.net.http.quic.VariableLengthEncoder;
 
 import javax.crypto.AEADBadTagException;
 import javax.crypto.ShortBufferException;
+import javax.net.ssl.QuicTransport;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -600,7 +601,7 @@ public class QuicPacketDecoder {
             // check reserved bits after checking integrity, see RFC 9000, section 17.2
             if ((headers & 0xc) != 0) {
                 throw new QuicTransportException("Nonzero reserved bits in packet header",
-                        QuicTLSEngine.KeySpace.HANDSHAKE, 0, QuicTransportErrors.PROTOCOL_VIOLATION);
+                        QuicTransport.KeySpace.HANDSHAKE, 0, QuicTransportErrors.PROTOCOL_VIOLATION);
             }
 
             List<QuicFrame> frames = reader.parsePayloadSlice(payload);
@@ -737,7 +738,7 @@ public class QuicPacketDecoder {
             // check reserved bits after checking integrity, see RFC 9000, section 17.2
             if ((headers & 0xc) != 0) {
                 throw new QuicTransportException("Nonzero reserved bits in packet header",
-                        QuicTLSEngine.KeySpace.ZERO_RTT, 0, QuicTransportErrors.PROTOCOL_VIOLATION);
+                        QuicTransport.KeySpace.ZERO_RTT, 0, QuicTransportErrors.PROTOCOL_VIOLATION);
             }
             List<QuicFrame> frames = reader.parsePayloadSlice(payload);
             assert !payload.hasRemaining() : "remaining bytes in payload: " + payload.remaining();
@@ -871,7 +872,7 @@ public class QuicPacketDecoder {
             // check reserved bits after checking integrity, see RFC 9000, section 17.3.1
             if ((headers & 0x18) != 0) {
                 throw new QuicTransportException("Nonzero reserved bits in packet header",
-                        QuicTLSEngine.KeySpace.ONE_RTT, 0, QuicTransportErrors.PROTOCOL_VIOLATION);
+                        QuicTransport.KeySpace.ONE_RTT, 0, QuicTransportErrors.PROTOCOL_VIOLATION);
             }
             List<QuicFrame> frames = reader.parsePayloadSlice(payload);
             assert !payload.hasRemaining() : "remaining bytes in payload: " + payload.remaining();
@@ -1043,7 +1044,7 @@ public class QuicPacketDecoder {
             // check reserved bits after checking integrity, see RFC 9000, section 17.2
             if ((headers & 0xc) != 0) {
                 throw new QuicTransportException("Nonzero reserved bits in packet header",
-                        QuicTLSEngine.KeySpace.INITIAL, 0, QuicTransportErrors.PROTOCOL_VIOLATION);
+                        QuicTransport.KeySpace.INITIAL, 0, QuicTransportErrors.PROTOCOL_VIOLATION);
             }
             List<QuicFrame> frames = reader.parsePayloadSlice(payload);
             assert !payload.hasRemaining() : "remaining bytes in payload: " + payload.remaining();
@@ -1198,7 +1199,7 @@ public class QuicPacketDecoder {
         PacketType type = peekPacketType(buffer);
         PacketReader packetReader = new PacketReader(buffer, context, type);
 
-        QuicTLSEngine.KeySpace keySpace = type.keySpace().orElse(null);
+        QuicTransport.KeySpace keySpace = type.keySpace().orElse(null);
         if (keySpace != null && !context.getTLSEngine().keysAvailable(keySpace)) {
             if (debug.on()) {
                 debug.log("QuicPacketDecoder.decode(%s): no keys, skipping", packetReader);

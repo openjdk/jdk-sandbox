@@ -27,9 +27,11 @@ package jdk.internal.net.http.quic;
 import java.io.IOException;
 import java.util.Objects;
 
-import jdk.internal.net.quic.QuicTLSEngine;
 import jdk.internal.net.quic.QuicTransportErrors;
 import jdk.internal.net.quic.QuicTransportException;
+
+import javax.net.ssl.QuicTransport;
+
 import static jdk.internal.net.quic.QuicTransportErrors.NO_ERROR;
 
 // TODO: document this
@@ -139,7 +141,7 @@ public abstract sealed class TerminationCause {
 
     static final class TransportError extends TerminationCause {
         final long frameType;
-        final QuicTLSEngine.KeySpace keySpace;
+        final QuicTransport.KeySpace keySpace;
 
         private TransportError(final QuicTransportErrors err) {
             super(err.code(), err.name());

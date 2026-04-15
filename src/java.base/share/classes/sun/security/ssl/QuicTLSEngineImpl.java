@@ -38,8 +38,8 @@ import javax.crypto.AEADBadTagException;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.ShortBufferException;
+import javax.net.ssl.QuicTransport;
 import javax.net.ssl.SSLEngineResult;
-import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
 import java.io.IOException;
@@ -50,12 +50,11 @@ import java.security.AlgorithmConstraints;
 import java.security.GeneralSecurityException;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.IntFunction;
 
-import static jdk.internal.net.quic.QuicTLSEngine.KeySpace.*;
+import static javax.net.ssl.QuicTransport.KeySpace.*;
 
 /**
  * One instance per QUIC connection. Configuration methods similar to
@@ -90,7 +89,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
     private final String peerHost;
     private final int peerPort;
     private volatile SSLEngineResult.HandshakeStatus handshakeStatus;
-    private volatile KeySpace sendKeySpace;
+    private volatile QuicTransport.KeySpace sendKeySpace;
     // next message to send or receive
     private volatile ByteBuffer localQuicTransportParameters;
     private volatile QuicTransportParametersConsumer
@@ -250,12 +249,12 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
      * @return the current sending key space
      */
     @Override
-    public KeySpace getCurrentSendKeySpace() {
+    public QuicTransport.KeySpace getCurrentSendKeySpace() {
         return sendKeySpace;
     }
 
     @Override
-    public boolean keysAvailable(KeySpace keySpace) {
+    public boolean keysAvailable(QuicTransport.KeySpace keySpace) {
         return switch (keySpace) {
             case INITIAL -> this.initialKeyManager.keysAvailable();
             case HANDSHAKE -> this.handshakeKeyManager.keysAvailable();
@@ -267,7 +266,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
     }
 
     @Override
-    public void discardKeys(KeySpace keySpace) {
+    public void discardKeys(QuicTransport.KeySpace keySpace) {
         switch (keySpace) {
             case INITIAL -> this.initialKeyManager.discardKeys();
             case HANDSHAKE -> this.handshakeKeyManager.discardKeys();
@@ -278,7 +277,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
     }
 
     @Override
-    public int getHeaderProtectionSampleSize(KeySpace keySpace) {
+    public int getHeaderProtectionSampleSize(QuicTransport.KeySpace keySpace) {
         return switch (keySpace) {
             case INITIAL, HANDSHAKE, ZERO_RTT, ONE_RTT -> 16;
             default -> throw new IllegalArgumentException(
@@ -287,7 +286,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
     }
 
     @Override
-    public ByteBuffer computeHeaderProtectionMask(KeySpace keySpace,
+    public ByteBuffer computeHeaderProtectionMask(QuicTransport.KeySpace keySpace,
                                                   boolean incoming, ByteBuffer sample)
             throws QuicKeyUnavailableException, QuicTransportException {
         final QuicKeyManager keyManager = keyManager(keySpace);
@@ -313,7 +312,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
     }
 
     @Override
-    public void encryptPacket(final KeySpace keySpace, final long packetNumber,
+    public void encryptPacket(final QuicTransport.KeySpace keySpace, final long packetNumber,
                               final IntFunction<ByteBuffer> headerGenerator,
                               final ByteBuffer packetPayload, final ByteBuffer output)
             throws QuicKeyUnavailableException, QuicTransportException, ShortBufferException {
@@ -322,7 +321,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
     }
 
     @Override
-    public void decryptPacket(final KeySpace keySpace,
+    public void decryptPacket(final QuicTransport.KeySpace keySpace,
             final long packetNumber, final int keyPhase,
             final ByteBuffer packet, final int headerLength,
             final ByteBuffer output)
@@ -405,7 +404,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
         }
     }
 
-    private QuicKeyManager keyManager(final KeySpace keySpace) {
+    private QuicKeyManager keyManager(final QuicTransport.KeySpace keySpace) {
         return switch (keySpace) {
             case INITIAL -> this.initialKeyManager;
             case HANDSHAKE -> this.handshakeKeyManager;
@@ -416,7 +415,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
     }
 
     @Override
-    public ByteBuffer getHandshakeBytes(KeySpace keySpace) throws IOException {
+    public ByteBuffer getHandshakeBytes(QuicTransport.KeySpace keySpace) throws IOException {
         if (keySpace != sendKeySpace) {
             throw new IllegalStateException("Unexpected key space: "
                     + keySpace + " (expected " + sendKeySpace + ")");
@@ -460,12 +459,12 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
     }
 
     @Override
-    public void consumeHandshakeBytes(KeySpace keySpace, ByteBuffer payload)
+    public void consumeHandshakeBytes(QuicTransport.KeySpace keySpace, ByteBuffer payload)
             throws QuicTransportException {
         if (!payload.hasRemaining()) {
             throw new IllegalArgumentException("Empty crypto buffer");
         }
-        if (keySpace == KeySpace.ZERO_RTT) {
+        if (keySpace == QuicTransport.KeySpace.ZERO_RTT) {
             throw new IllegalArgumentException("Crypto in zero-rtt");
         }
         try {

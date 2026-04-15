@@ -24,6 +24,8 @@
  */
 package jdk.internal.net.quic;
 
+import javax.net.ssl.QuicTransport;
+
 /**
  * Exception that wraps QUIC transport error codes.
  * Thrown in response to packets or frames that violate QUIC protocol.
@@ -36,7 +38,7 @@ public final class QuicTransportException extends Exception {
     @java.io.Serial
     private static final long serialVersionUID = 5259674758792412464L;
 
-    private final QuicTLSEngine.KeySpace keySpace;
+    private final QuicTransport.KeySpace keySpace;
     private final long frameType;
     private final long errorCode;
 
@@ -52,7 +54,7 @@ public final class QuicTransportException extends Exception {
      *                  May be 0 if not related to any specific frame.
      * @param errorCode a quic transport error
      */
-    public QuicTransportException(String reason, QuicTLSEngine.KeySpace keySpace,
+    public QuicTransportException(String reason, QuicTransport.KeySpace keySpace,
                                   long frameType, QuicTransportErrors errorCode) {
         super(reason);
         this.keySpace = keySpace;
@@ -73,7 +75,7 @@ public final class QuicTransportException extends Exception {
      * @param errorCode a quic transport error code
      * @param cause     the cause
      */
-    public QuicTransportException(String reason, QuicTLSEngine.KeySpace keySpace,
+    public QuicTransportException(String reason, QuicTransport.KeySpace keySpace,
                                   long frameType, long errorCode, Throwable cause) {
         super(reason, cause);
         this.keySpace = keySpace;
@@ -91,7 +93,7 @@ public final class QuicTransportException extends Exception {
     /**
      * {@return the key space for which the error occurred, or {@code null}}
      */
-    public QuicTLSEngine.KeySpace getKeySpace() {
+    public QuicTransport.KeySpace getKeySpace() {
         return keySpace;
     }
 

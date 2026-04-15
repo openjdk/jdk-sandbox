@@ -25,9 +25,9 @@
 
 package sun.security.ssl;
 
-import jdk.internal.net.quic.QuicTLSEngine;
 import sun.security.ssl.SSLCipher.SSLWriteCipher;
 
+import javax.net.ssl.QuicTransport;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
@@ -172,13 +172,13 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
     }
 
     @Override
-    QuicTLSEngine.KeySpace getHandshakeMessageKeySpace() {
+    QuicTransport.KeySpace getHandshakeMessageKeySpace() {
         recordLock.lock();
         try {
             return switch (fragmenter.currentPacketSpace) {
-                case 0-> QuicTLSEngine.KeySpace.INITIAL;
-                case 1-> QuicTLSEngine.KeySpace.HANDSHAKE;
-                case 2-> QuicTLSEngine.KeySpace.ONE_RTT;
+                case 0-> QuicTransport.KeySpace.INITIAL;
+                case 1-> QuicTransport.KeySpace.HANDSHAKE;
+                case 2-> QuicTransport.KeySpace.ONE_RTT;
                 default -> throw new IllegalStateException("Unexpected state");
             };
         } finally {

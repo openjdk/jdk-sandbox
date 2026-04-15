@@ -29,7 +29,8 @@ import java.util.Optional;
 
 import jdk.internal.net.http.quic.QuicConnectionId;
 import jdk.internal.net.http.quic.frames.QuicFrame;
-import jdk.internal.net.quic.QuicTLSEngine.KeySpace;
+import javax.net.ssl.QuicTransport.KeySpace;
+import javax.net.ssl.QuicTransport;
 
 /**
  * A super-interface for all specific Quic packet implementation
