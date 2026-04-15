@@ -173,10 +173,7 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   const bool _needs_load_ref_barrier;
   const bool _needs_load_ref_weak_barrier;
   const bool _needs_keep_alive_barrier;
-  const int _fastpath_branch_offset;
-  bool _use_trampoline;
-  Label _trampoline_entry;
-  bool _do_emit_actual;
+  bool _use_double_jumps;
   int  _save_slots_idx;
 
   GrowableArray<Register> _live_gp;
@@ -233,10 +230,7 @@ public:
     _needs_load_ref_barrier(needs_load_ref_barrier(node)),
     _needs_load_ref_weak_barrier(needs_load_ref_barrier_weak(node)),
     _needs_keep_alive_barrier(needs_keep_alive_barrier(node)),
-    _fastpath_branch_offset(offset),
-    _use_trampoline(),
-    _trampoline_entry(),
-    _do_emit_actual(),
+    _use_double_jumps(),
     _save_slots_idx(0),
     _has_live_vector_registers() {
     assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");

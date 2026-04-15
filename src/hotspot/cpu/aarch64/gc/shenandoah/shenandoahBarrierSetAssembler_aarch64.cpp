@@ -723,7 +723,7 @@ Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Addr
 void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
-  if (_use_trampoline) {
+  if (_use_double_jumps) {
     int bit_to_check = ShenandoahThreadLocalData::gc_state_to_fast_bit(test_state);
     Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
 
@@ -921,7 +921,7 @@ void ShenandoahBarrierStubC2::post_init(int offset) {
   // and force the use of trampolines
   PhaseOutput* const output = Compile::current()->output();
   if (output->in_scratch_emit_size()) {
-    _use_trampoline = true;
+    _use_double_jumps = true;
     return;
   }
 
@@ -929,7 +929,7 @@ void ShenandoahBarrierStubC2::post_init(int offset) {
   const int code_size = output->buffer_sizing_data()->_code +
                         output->buffer_sizing_data()->_stub +
                         output->buffer_sizing_data()->_reloc;
-  _use_trampoline = code_size >= (int)(1*M);
+  _use_double_jumps = code_size >= (int)(1*M);
 }
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
@@ -1022,6 +1022,9 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
   __ str(tmp1, index);
   __ ldr(tmp2, buffer);
   __ str(obj, Address(tmp2, tmp1));
+  if (selected_live) {
+    pop_save_register(masm, tmp2);
+  }
   __ b(L_done);
 
   // Runtime call
@@ -1045,10 +1048,6 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
   }
 
   __ bind(L_done);
-
-  if (selected_live) {
-    pop_save_register(masm, tmp2);
-  }
 }
 
 void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address addr, Register tmp, Label* L_done_unused) {
