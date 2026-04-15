@@ -200,7 +200,7 @@ bool clash_range(uint64_t v1, uint64_t v2, uint64_t t1, uint64_t t2);
 bool clash_addr(uint64_t v1, uint64_t v2, uint64_t xaddr);
 
 /**
- * Check if the given vaddr, length appears dangerous to map.
+ * Check if the given vaddr, length appears unwise to map.
  * Return a char* message if a clash is found, or nullptr.
  */
 const char* conflict_check_pd(void* vaddr, size_t length);

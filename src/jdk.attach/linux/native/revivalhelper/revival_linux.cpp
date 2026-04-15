@@ -62,6 +62,7 @@ uint64_t bin_end;
 uint64_t libc_addr;
 uint64_t libc_end;
 uint64_t heap_test;
+uint64_t heap_end;
 
 char* basename_pd(char* s) {
     return basename(s);
@@ -146,13 +147,13 @@ void init_pd() {
     vaddr_align = value;
     logv("revival: init_pd: vaddr_alignment (pagesize) = 0x%llx", (unsigned long long) vaddr_alignment_pd());
 
-    // Lookup ourself and libc for later conflict checking:
-    // Main binary has dynamic load address.
+    // Addresses for later conflict checking.
     void* h = dlopen(nullptr, RTLD_NOW | RTLD_LOCAL);
     if (h == nullptr) {
         warn("init_pd: dlopen failed");
         bin_addr = 0;
     } else {
+        // Main binary has dynamic load address.
         bin_addr = (uint64_t) base_address_for_sharedobject_live(h);
         logv("revivalhelper: binary address: 0x%lx", bin_addr);
         bin_end = (uint64_t) end_address_for_sharedobject_live(h);
@@ -167,12 +168,15 @@ void init_pd() {
         logv("revivalhelper: libc address: 0x%lx", libc_addr);
         libc_end = (uint64_t) end_address_for_sharedobject_live(h);
         logv("revivalhelper: libc end: 0x%lx", libc_end);
-        libc_end += 0x200000;
+        libc_end += 0x100000;
         logv("revivalhelper: libc end: 0x%lx", libc_end);
     }
-
+    // Here in the throwaway revivalhelper launcher app, we expect low native heap usage,
+    // no large/mmap allocations. Traditional program break is adequate.
+    // libc data area will be fairly predictable also.
     heap_test = (uint64_t) malloc(1);
-    logv("revivalhelper: heap test : 0x%lx", heap_test);
+    heap_end = (uint64_t) sbrk(0) + 0x100000;
+    logv("revivalhelper: heap test: 0x%lx heap end: 0x%lx", heap_test, heap_end);
 }
 
 const char* conflict_check_pd(void* vaddr, size_t length) {
@@ -187,7 +191,8 @@ const char* conflict_check_pd(void* vaddr, size_t length) {
     if (libc_addr != 0 && clash_range((uint64_t) vaddr, vaddr_end, libc_addr, libc_end)) {
         return "conflict with libc";
     }
-    if (heap_test != 0 && clash_addr((uint64_t) vaddr, vaddr_end, heap_test)) {
+    // Checking from base of binary to end of heap is simple, if slightly over-cautious:
+    if (heap_end != 0 && clash_range((uint64_t) vaddr, vaddr_end, bin_addr, heap_end)) {
         return "conflict with live c heap";
     }
     return nullptr;

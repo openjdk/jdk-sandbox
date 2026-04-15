@@ -284,10 +284,10 @@ public class JCmdRevival {
         String heapDumpName = null;
 
         JDKToolLauncher launcher = JDKToolLauncher.createUsingTestJDK("jcmd");
-        // Run jcmd with -J-Dprop=value to pass any System property we care about: the verbose setting.
-        String verbose = System.getProperty("jdk.attach.core.verbose");
-        if (verbose != null) {
-            launcher.addVMArg("-Djdk.attach.core.verbose=" + verbose);
+        // Run jcmd with -J-Dprop=value to pass any System property we care about: the log level setting.
+        String logLevel = System.getProperty("jdk.attach.core.log");
+        if (logLevel != null) {
+            launcher.addVMArg("-Djdk.attach.core.log=" + logLevel);
         }
         launcher.addVMArgs(Utils.getTestJavaOpts()); // People do not generally run jcmd itself with other options.
         launcher.addToolArg(coreFileName);
@@ -422,9 +422,6 @@ public class JCmdRevival {
                     // Would be good to find a flag with a value we can verify in this test.
                     // ConcGCThreads can be set, but is changed on some test machines, e.g. to 2.
                     // out.shouldContain("-XX:ConcGCThreads=3"); // Recognise value set in test header
-                    break;
-                }
-                case "VM.log": {
                     break;
                 }
                 case "VM.metaspace": {
