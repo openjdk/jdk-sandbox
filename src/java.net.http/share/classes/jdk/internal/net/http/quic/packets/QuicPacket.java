@@ -91,7 +91,6 @@ public interface QuicPacket {
                 case ONE_RTT, ZERO_RTT -> APPLICATION;
                 case HANDSHAKE -> HANDSHAKE;
                 case INITIAL -> INITIAL;
-                case RETRY -> NONE;
             };
         }
     }
@@ -124,7 +123,7 @@ public interface QuicPacket {
             return switch (this) {
                 case INITIAL -> Optional.of(KeySpace.INITIAL);
                 case HANDSHAKE -> Optional.of(KeySpace.HANDSHAKE);
-                case RETRY -> Optional.of(KeySpace.RETRY);
+                case RETRY -> Optional.empty();
                 case ZERORTT -> Optional.of(KeySpace.ZERO_RTT);
                 case ONERTT -> Optional.of(KeySpace.ONE_RTT);
                 case VERSIONS -> Optional.empty();

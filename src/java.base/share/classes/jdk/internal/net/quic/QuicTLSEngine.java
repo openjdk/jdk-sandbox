@@ -49,7 +49,6 @@ public interface QuicTLSEngine {
     enum KeySpace {
         INITIAL,
         HANDSHAKE,
-        RETRY, // Special algorithm used for this packet
         ZERO_RTT,
         ONE_RTT
     }

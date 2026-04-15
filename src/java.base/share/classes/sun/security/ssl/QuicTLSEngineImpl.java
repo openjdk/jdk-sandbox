@@ -261,7 +261,6 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
             case HANDSHAKE -> this.handshakeKeyManager.keysAvailable();
             case ONE_RTT -> this.oneRttKeyManager.keysAvailable();
             case ZERO_RTT -> false;
-            case RETRY -> true;
             default -> throw new IllegalArgumentException(
                     keySpace + " not expected here");
         };
