@@ -3614,31 +3614,20 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
   address start = __ pc();
 
   // Set up the frame and optionally save the registers.
-  // Some registers need to be saved/restored regardless of !save_registers.
+  // Arch-specific calling convention allows us to skip callee-saved registers.
+  // At this level, we do not know which registers are callee-saved anymore, so
+  // we save/restore all registers. We have already filtered easy cases of small
+  // number of callee-saved registers before calling this stub.
   int frame_size_in_words = 0;
   OopMap* map = nullptr;
   if (save_registers) {
     map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words, save_vectors);
   } else {
-    frame_size_in_words = 4; // link, return address, two saved registers
+    frame_size_in_words = 2; // link and return address
     map = new OopMap(frame_size_in_words, 0);
     __ enter();
-    __ push(r12_heapbase);
-    __ push(r15_thread);
   }
   address frame_complete_pc = __ pc();
-
-#ifdef ASSERT
-  // Debugging aid: zap all registers to test that register save/restore works.
-  // Skip special registers and arguments, as we still need them.
-  for (int n = 0; n < Register::available_gp_registers(); n++) {
-    Register r = as_Register(n);
-    if (r == rsp || r == rbp) continue;
-    if (r == c_rarg0 || r == c_rarg1) continue;
-    __ movq(r, badAddressVal);
-  }
-  __ vzeroall();
-#endif
 
   // Call the runtime. This is what MacroAssember::call_VM_leaf does,
   // but we also want to have exact post-call PC for oop map location.
@@ -3667,15 +3656,6 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
       __ addptr(rsp, frame::arg_reg_save_area_bytes);
     #endif
   }
-
-#ifdef ASSERT
-  // Debugging aid: now zap arguments and optionally return as well.
-  assert_different_registers(rax, c_rarg0, c_rarg1);
-  if (!has_return) __ movq(rax, badAddressVal);
-  __ movq(c_rarg0, badAddressVal);
-  __ movq(c_rarg1, badAddressVal);
-#endif
-
   if (save_registers && has_return) {
     // RegisterSaver would clobber the call result when restoring.
     // Carry the result out of this stub by overwriting saved register.
@@ -3688,8 +3668,6 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
   if (save_registers) {
     RegisterSaver::restore_live_registers(masm, save_vectors);
   } else {
-    __ pop(r15_thread);
-    __ pop(r12_heapbase);
     __ leave();
   }
   __ ret(0);
