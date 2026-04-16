@@ -190,7 +190,7 @@ void ShenandoahBarrierSetC2::refine_store(const Node* n) {
   store->set_barrier_data(barrier_data);
 }
 
-bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* n) {
+bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* root) {
   // Check if all outs feed into nodes that do not expose the oops to the rest
   // of the runtime system. In this case, we can elide the LRB barrier. We bail
   // out with false at the first sight of trouble.
@@ -198,7 +198,7 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* n) {
   ResourceMark rm;
   VectorSet visited;
   Node_List worklist;
-  worklist.push(n);
+  worklist.push(root);
 
   while (worklist.size() > 0) {
     Node* n = worklist.pop();
@@ -209,6 +209,16 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* n) {
     for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
       Node* out = n->fast_out(i);
       switch (out->Opcode()) {
+        case Op_EncodeP:
+        case Op_DecodeN:
+        case Op_CastPP:
+        case Op_CheckCastPP:
+        case Op_AddP: {
+          // Transitive node, check if any other outs are doing anything troublesome.
+          worklist.push(out);
+          break;
+        }
+
         case Op_CmpN: {
           if (out->in(1) == n &&
               out->in(2)->Opcode() == Op_ConN &&
@@ -219,6 +229,7 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* n) {
             return false;
           }
         }
+
         case Op_CmpP: {
           if (out->in(1) == n &&
               out->in(2)->Opcode() == Op_ConP &&
@@ -229,12 +240,7 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* n) {
             return false;
           }
         }
-        case Op_DecodeN:
-        case Op_CastPP: {
-          // Check if any other outs are escaping.
-          worklist.push(out);
-          break;
-        }
+
         case Op_CallStaticJava: {
           if (out->as_CallStaticJava()->is_uncommon_trap()) {
             // Local feeds into uncommon trap. Deopt machinery handles barriers itself.
@@ -246,7 +252,6 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* n) {
 
         default: {
           // Paranoidly distrust any other nodes.
-          // TODO: Check if there are other patterns that benefit from this elision.
           return false;
         }
       }
