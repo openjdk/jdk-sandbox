@@ -2938,7 +2938,7 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
   // TODO: Actually put badAddressVal or something here.
   for (int n = 0; n < Register::number_of_registers; n++) {
     Register r = as_Register(n);
-    if (r == r31_sp || r == sp || r == lr || r == zr) continue;
+    if (r == r31_sp || r == sp || r == lr || r == rfp || r == zr) continue;
     if (r == c_rarg0 || r == c_rarg1) continue;
     __ mov(r, zr);
   }
