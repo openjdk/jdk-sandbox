@@ -3630,10 +3630,11 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
 
 #ifdef ASSERT
   // Debugging aid: zap all registers to test that register save/restore works.
-  // Skip stack pointers and arguments, as we still need them.
+  // Skip special registers and arguments, as we still need them.
   for (int n = 0; n < Register::available_gp_registers(); n++) {
     Register r = as_Register(n);
-    if (r == rsp || r == rbp || r == c_rarg0 || r == c_rarg1) continue;
+    if (r == rsp || r == rbp) continue;
+    if (r == c_rarg0 || r == c_rarg1) continue;
     __ movq(r, badAddressVal);
   }
   __ vzeroall();

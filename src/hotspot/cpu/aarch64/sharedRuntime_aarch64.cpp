@@ -2934,11 +2934,12 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
 
 #ifdef ASSERT
   // Debugging aid: zap all registers to test that register save/restore works.
-  // Skip stack pointers and arguments, as we still need them.
+  // Skip special registers and arguments, as we still need them.
   // TODO: Actually put badAddressVal or something here.
   for (int n = 0; n < Register::number_of_registers; n++) {
     Register r = as_Register(n);
-    if (r == r31_sp || r == lr || r == c_rarg0 || r == c_rarg1) continue;
+    if (r == r31_sp || r == sp || r == lr || r == zr) continue;
+    if (r == c_rarg0 || r == c_rarg1) continue;
     __ mov(r, zr);
   }
 #endif
@@ -2959,6 +2960,14 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
     __ addptr(rsp, frame::arg_reg_save_area_bytes);
   #endif
 
+#ifdef ASSERT
+  // Debugging aid: now zap arguments and optionally return as well.
+  assert_different_registers(r0, c_rarg1);
+  if (!has_return) __ mov(r0, zr);
+  assert(c_rarg0 == r0, "Must be");
+  __ mov(c_rarg1, zr);
+#endif
+
   if (save_registers && has_return) {
     // RegisterSaver would clobber the call result when restoring.
     // Carry the result out of this stub by overwriting saved register.
@@ -2967,14 +2976,6 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
 
   OopMapSet* oop_maps = new OopMapSet();
   oop_maps->add_gc_map(post_call_pc - start, map);
-
-#ifdef ASSERT
-  // Debugging aid: now zap arguments and optionally return as well.
-  assert_different_registers(r0, c_rarg1);
-  if (!has_return) __ mov(r0, zr);
-  assert(c_rarg0 == r0, "Must be");
-  __ mov(c_rarg1, zr);
-#endif
 
   if (save_registers) {
     reg_save.restore_live_registers(masm);
