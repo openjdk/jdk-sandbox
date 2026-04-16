@@ -653,23 +653,7 @@ void ShenandoahBarrierStubC2::pop_save_register(MacroAssembler& masm, Register r
 }
 
 bool ShenandoahBarrierStubC2::has_live_vector_registers() {
-  RegMaskIterator rmi(preserve_set());
-  while (rmi.has_next()) {
-    const OptoReg::Name opto_reg = rmi.next();
-    const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
-    if (vm_reg->is_Register()) {
-      // Not a vector
-    } else if (vm_reg->is_FloatRegister()) {
-      // Maybe vector, assume the worst right now
-      return true;
-    } else if (vm_reg->is_PRegister()) {
-      // Vector-related register
-      return true;
-    } else {
-      fatal("Unexpected register type");
-    }
-  }
-  return false;
+  return _has_live_vector_registers;
 }
 
 bool ShenandoahBarrierStubC2::is_live(Register reg) {
@@ -683,6 +667,38 @@ bool ShenandoahBarrierStubC2::is_live(Register reg) {
     }
   }
   return false;
+}
+
+bool ShenandoahBarrierStubC2::has_save_space_for_live_gp_registers(bool skip_crarg0, bool skip_crarg1, bool skip_r0) {
+  int c = 0;
+  for (int i = 0; i < _live_gp.length(); i++) {
+    Register r = _live_gp.at(i);
+    if (skip_r0     && (r == r0))      continue;
+    if (skip_crarg0 && (r == c_rarg0)) continue;
+    if (skip_crarg1 && (r == c_rarg1)) continue;
+    c++;
+  }
+  return c <= (ShenandoahBarrierSetC2::bsc2()->reserved_slots() - _save_slots_idx);
+}
+
+void ShenandoahBarrierStubC2::save_live_gp_regs(MacroAssembler& masm, bool skip_crarg0, bool skip_crarg1, bool skip_r0) {
+  for (int i = 0; i < _live_gp.length(); i++) {
+    Register r = _live_gp.at(i);
+    if (skip_r0     && (r == r0))      continue;
+    if (skip_crarg0 && (r == c_rarg0)) continue;
+    if (skip_crarg1 && (r == c_rarg1)) continue;
+    push_save_register(masm, r);
+  }
+}
+
+void ShenandoahBarrierStubC2::restore_live_gp_regs(MacroAssembler& masm, bool skip_crarg0, bool skip_crarg1, bool skip_r0) {
+  for (int i = _live_gp.length() - 1; i >= 0; i--) {
+    Register r = _live_gp.at(i);
+    if (skip_r0     && (r == r0))      continue;
+    if (skip_crarg0 && (r == c_rarg0)) continue;
+    if (skip_crarg1 && (r == c_rarg1)) continue;
+    pop_save_register(masm, r);
+  }
 }
 
 Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Address addr, Register reg1) {
@@ -930,6 +946,25 @@ void ShenandoahBarrierStubC2::post_init(int offset) {
                         output->buffer_sizing_data()->_stub +
                         output->buffer_sizing_data()->_reloc;
   _use_double_jumps = code_size >= (int)(1*M);
+
+  // Precompute live registers.
+  assert(_live_gp.is_empty(), "sanity: initial state");
+  assert(!_has_live_vector_registers, "sanity: initial state");
+  RegMaskIterator rmi(preserve_set());
+  while (rmi.has_next()) {
+    const OptoReg::Name opto_reg = rmi.next();
+    const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
+    if (vm_reg->is_Register()) {
+      Register r = vm_reg->as_Register();
+      _live_gp.append_if_missing(r);
+    } else if (vm_reg->is_FloatRegister()) {
+      _has_live_vector_registers = true;
+    } else if (vm_reg->is_PRegister()) {
+      _has_live_vector_registers = true;
+    } else {
+      fatal("Unexpected register type");
+    }
+  }
 }
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
@@ -1039,7 +1074,15 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
     }
 
     // Go to runtime stub and handle the rest there.
-    __ far_call(RuntimeAddress(keepalive_runtime_entry_addr()));
+    if (!ShenandoahFasterRuntimeStubs || has_live_vector_registers()) {
+      __ far_call(RuntimeAddress(keepalive_runtime_entry_addr(SaveMode::All)));
+    } else if (has_save_space_for_live_gp_registers(clobbered_c_rarg0, false, false)) {
+      save_live_gp_regs(masm, clobbered_c_rarg0, false, false);
+      __ far_call(RuntimeAddress(keepalive_runtime_entry_addr(SaveMode::Nothing)));
+      restore_live_gp_regs(masm, clobbered_c_rarg0, false, false);
+    } else {
+      __ far_call(RuntimeAddress(keepalive_runtime_entry_addr(SaveMode::GP)));
+    }
 
     // Restore the clobbered registers.
     if (clobbered_c_rarg0) {
@@ -1122,7 +1165,15 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
     }
 
     // Go to runtime stub and handle the rest there.
-    __ far_call(RuntimeAddress(lrb_runtime_entry_addr()));
+    if (!ShenandoahFasterRuntimeStubs || has_live_vector_registers()) {
+      __ far_call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::All)));
+    } else if (has_save_space_for_live_gp_registers(clobbered_c_rarg0, clobbered_c_rarg1, true)) {
+      save_live_gp_regs(masm, clobbered_c_rarg0, clobbered_c_rarg1, true);
+      __ far_call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::Nothing)));
+      restore_live_gp_regs(masm, clobbered_c_rarg0, clobbered_c_rarg1, true);
+    } else {
+      __ far_call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::GP)));
+    }
 
     // Save the result where needed and restore the clobbered registers.
     if (obj != r0) {
