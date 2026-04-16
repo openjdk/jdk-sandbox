@@ -1462,7 +1462,7 @@ bool ShenandoahBarrierStubC2::has_save_space_for_live_gp_registers(bool skip_cra
     if (skip_crarg1 && (r == c_rarg1)) continue;
     c++;
   }
-  return c <= (ShenandoahBarrierSetC2::bsc2()->reserved_slots() - _save_slots_idx);
+  return c <= fast_save_slots_available();
 }
 
 void ShenandoahBarrierStubC2::save_live_gp_regs(MacroAssembler& masm, bool skip_crarg0, bool skip_crarg1, bool skip_rax) {

@@ -920,6 +920,10 @@ address ShenandoahBarrierStubC2::lrb_runtime_entry_addr(SaveMode save_mode) {
   return nullptr;
 }
 
+int ShenandoahBarrierStubC2::fast_save_slots_available() {
+   return MIN2(ShenandoahFastSaveSlots, (ShenandoahBarrierSetC2::bsc2()->reserved_slots() - _save_slots_idx));
+}
+
 bool ShenandoahBarrierSetC2State::needs_liveness_data(const MachNode* mach) const {
   // Nodes that require slow-path stubs need liveness data.
   return ShenandoahBarrierStubC2::needs_slow_barrier(mach);

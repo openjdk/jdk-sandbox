@@ -2919,16 +2919,29 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
   RegisterSaver reg_save(save_vectors);
 
   // Set up the frame and optionally save the registers.
+  // Some registers need to be saved/restores regardless of !save_registers.
   int frame_size_in_words = 0;
   OopMap* map = nullptr;
   if (save_registers) {
     map = reg_save.save_live_registers(masm, 0, &frame_size_in_words);
   } else {
-    frame_size_in_words = 2; // link and return address
+    frame_size_in_words = 4; // link, return address, two saved registers
     map = new OopMap(frame_size_in_words, 0);
     __ enter();
+    __ stp(rthread, rheapbase, Address(__ pre(sp, -2 * wordSize)));
   }
   address frame_complete_pc = __ pc();
+
+#ifdef ASSERT
+  // Debugging aid: zap all registers to test that register save/restore works.
+  // Skip stack pointers and arguments, as we still need them.
+  // TODO: Actually put badAddressVal or something here.
+  for (int n = 0; n < Register::number_of_registers; n++) {
+    Register r = as_Register(n);
+    if (r == r31_sp || r == lr || r == c_rarg0 || r == c_rarg1) continue;
+    __ mov(r, zr);
+  }
+#endif
 
   // Call the runtime. This is what MacroAssember::call_VM_leaf does,
   // but we also want to have exact post-call PC for oop map location.
@@ -2955,9 +2968,18 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
   OopMapSet* oop_maps = new OopMapSet();
   oop_maps->add_gc_map(post_call_pc - start, map);
 
+#ifdef ASSERT
+  // Debugging aid: now zap arguments and optionally return as well.
+  assert_different_registers(r0, c_rarg1);
+  if (!has_return) __ mov(r0, zr);
+  assert(c_rarg0 == r0, "Must be");
+  __ mov(c_rarg1, zr);
+#endif
+
   if (save_registers) {
     reg_save.restore_live_registers(masm);
   } else {
+    __ ldp(rthread, rheapbase, Address(__ post(sp, 2 * wordSize)));
     __ leave();
   }
   __ ret(lr);

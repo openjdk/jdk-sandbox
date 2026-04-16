@@ -193,6 +193,7 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   bool push_save_register_if_live(MacroAssembler& masm, Register reg);
   int push_save_slot();
   int pop_save_slot();
+  int fast_save_slots_available();
 
   bool has_save_space_for_live_gp_registers(bool skip_crarg0, bool skip_crarg1, bool skip_rax);
   bool has_live_vector_registers();

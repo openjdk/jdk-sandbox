@@ -579,6 +579,10 @@
           "How many stack slots to reserve in C2 frame for stub use.")      \
           range(4, 32)                                                      \
                                                                             \
+  product(int, ShenandoahFastSaveSlots, 4, EXPERIMENTAL,                    \
+          "How many stack slots to use to save/restore before slow call.")  \
+          range(0, 32)                                                      \
+                                                                            \
   product(int, ShenandoahDelayGC, 0, EXPERIMENTAL,                          \
           "Delay GC phases by this amount of milliseconds. "                \
           "Helps to measure active GC barriers costs.")                     \
