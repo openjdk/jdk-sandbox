@@ -25,6 +25,7 @@
 package javax.net.ssl;
 
 import javax.crypto.SecretKey;
+import java.nio.ByteBuffer;
 
 /**
  * TODO add description
@@ -57,6 +58,11 @@ public interface QuicTransport {
     /**
      * Called when the read secrets associated
      * with a new key space are available.
+     * <p>
+     * After this method is called, subsequent calls to {@link SSLEngine#unwrap(ByteBuffer, ByteBuffer)}
+     * expect to receive CRYPTO data associated with the new KeySpace.
+     * If additional CRYPTO data is received in the previous KeySpace,
+     * the connection must be closed with CRYPTO_ERROR + UNEXPECTED_MESSAGE (0x10A) QUIC error code.
      * @param secretKey the base secret used for deriving the read keys
      * @param keySpace the key space
      */
@@ -67,6 +73,10 @@ public interface QuicTransport {
     /**
      * Called when the write secrets associated
      * with a new key space are available.
+     * <p>
+     * After this method is called, subsequent calls to {@link SSLEngine#wrap(ByteBuffer, ByteBuffer)}
+     * produce data for the new key space. If this method is called from {@code wrap},
+     * the data produced by that call is associated with the old key space.
      * @param secretKey the base secret used for deriving the write keys
      * @param keySpace the key space
      */

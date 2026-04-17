@@ -89,6 +89,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
     private final String peerHost;
     private final int peerPort;
     private volatile SSLEngineResult.HandshakeStatus handshakeStatus;
+    private volatile QuicTransport.KeySpace recvKeySpace;
     private volatile QuicTransport.KeySpace sendKeySpace;
     // next message to send or receive
     private volatile ByteBuffer localQuicTransportParameters;
@@ -112,6 +113,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
         this.peerHost = peerHost;
         this.peerPort = peerPort;
         this.sendKeySpace = INITIAL;
+        this.recvKeySpace = INITIAL;
         HandshakeHash handshakeHash = new HandshakeHash();
         this.conContext = new TransportContext(sslContextImpl, this,
                 new QuicEngineInputRecord(handshakeHash, this),
@@ -439,14 +441,9 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
                 if (conContext.isNegotiated) {
                     // client, done
                     handshakeStatus = SSLEngineResult.HandshakeStatus.FINISHED;
-                    sendKeySpace = ONE_RTT;
                 } else {
                     handshakeStatus = SSLEngineResult.HandshakeStatus.NEED_UNWRAP;
                 }
-            } else if (sendKeySpace == INITIAL && !getUseClientMode()) {
-                // Server sends handshake messages immediately after
-                // the initial server hello. Need to check the next key space.
-                sendKeySpace = conContext.outputRecord.getHandshakeMessageKeySpace();
             }
         } else {
             assert conContext.isNegotiated;
@@ -461,6 +458,10 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
         }
         if (keySpace == QuicTransport.KeySpace.ZERO_RTT) {
             throw new IllegalArgumentException("Crypto in zero-rtt");
+        }
+        if (keySpace != recvKeySpace) {
+            throw new IllegalStateException("Unexpected key space: "
+                    + keySpace + " (expected " + recvKeySpace + ")");
         }
         try {
             if (!conContext.isNegotiated && !conContext.isBroken &&
@@ -490,21 +491,12 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
                 if (conContext.isNegotiated) {
                     // dead code? done, server side, no session ticket
                     handshakeStatus = SSLEngineResult.HandshakeStatus.FINISHED;
-                    sendKeySpace = ONE_RTT;
-                } else {
-                    // expect more messages
-                    // client side: if we're still in INITIAL, switch
-                    // to HANDSHAKE
-                    if (sendKeySpace == INITIAL) {
-                        sendKeySpace = conContext.outputRecord.getHandshakeMessageKeySpace();
-                    }
                 }
             } else {
                 // our turn to send
                 if (conContext.isNegotiated && !getUseClientMode()) {
                     // done, server side, wants to send session ticket
                     handshakeStatus = SSLEngineResult.HandshakeStatus.FINISHED;
-                    sendKeySpace = ONE_RTT;
                 } else {
                     // more messages needed to finish handshake
                     handshakeStatus = SSLEngineResult.HandshakeStatus.NEED_WRAP;
@@ -555,6 +547,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
 
     @Override
     public void deriveReadSecrets(SecretKey secretKey, KeySpace keySpace) {
+        recvKeySpace = keySpace;
         String cs = populateCipherSuite();
         final QuicVersion quicVersion = getNegotiatedVersion();
         try {
@@ -571,6 +564,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
 
     @Override
     public void deriveWriteSecrets(SecretKey secretKey, KeySpace keySpace) {
+        sendKeySpace = keySpace;
         String cs = populateCipherSuite();
         final QuicVersion quicVersion = getNegotiatedVersion();
         try {
