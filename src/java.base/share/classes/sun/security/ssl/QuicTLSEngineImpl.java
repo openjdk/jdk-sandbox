@@ -100,8 +100,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
     private final HandshakeKeyManager handshakeKeyManager =
             new HandshakeKeyManager();
     private final OneRttKeyManager oneRttKeyManager = new OneRttKeyManager();
-    // Cipher suite selected during handshake; accessible for PacketEncryptionTest
-    String cipherSuite;
+    private String cipherSuite;
 
     private volatile QuicVersion negotiatedVersion;
 
@@ -329,13 +328,6 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
             final ByteBuffer output)
             throws QuicKeyUnavailableException, AEADBadTagException,
             QuicTransportException, ShortBufferException {
-        // TODO remove this
-        if (keySpace == ONE_RTT && !isTLSHandshakeComplete()) {
-            // RFC-9001, section 5.7 specifies that the server or the client MUST NOT
-            // decrypt 1-RTT packets, even if 1-RTT keys are available, before the
-            // TLS handshake is complete.
-            throw new QuicKeyUnavailableException("QUIC TLS handshake not yet complete", ONE_RTT);
-        }
         final QuicKeyManager keyManager = keyManager(keySpace);
         keyManager.decryptPacket(packetNumber, keyPhase, packet, headerLength,
                 output);

@@ -35,15 +35,10 @@ public final class QuicTLSEngineImplAccessor {
     // visible for testing
     public static void setCipherSuite(final QuicTLSEngineImpl engine,
                                       String negotiatedCipherSuite) {
-        engine.cipherSuite = negotiatedCipherSuite;
-    }
-
-    // visible for testing
-    public static void completeHandshake(final QuicTLSEngineImpl engine) {
         try {
-            final Field f = QuicTLSEngineImpl.class.getDeclaredField("handshakeStatus");
+            final Field f = QuicTLSEngineImpl.class.getDeclaredField("cipherSuite");
             f.setAccessible(true);
-            f.set(engine, SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING);
+            f.set(engine, negotiatedCipherSuite);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

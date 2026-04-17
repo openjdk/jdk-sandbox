@@ -358,7 +358,6 @@ public class PacketEncryptionTest {
     public void testDecryptChaCha() throws Exception {
         QuicTLSEngineImpl serverEngine = (QuicTLSEngineImpl) getQuicV1Engine(SSLContext.getDefault(), false);
         // mark the TLS handshake as FINISHED
-        QuicTLSEngineImplAccessor.completeHandshake(serverEngine);
         SecretKey key = new SecretKeySpec(HexFormat.of().parseHex(ONERTT_SECRET), 0, 32, "ChaCha20-Poly1305");
         QuicTLSEngineImplAccessor.setCipherSuite(serverEngine, "TLS_CHACHA20_POLY1305_SHA256");
         serverEngine.versionNegotiated(QUIC_V1);
@@ -383,7 +382,6 @@ public class PacketEncryptionTest {
         // verify that decrypting the same packet twice does not throw
         QuicTLSEngineImpl serverEngine = (QuicTLSEngineImpl) getQuicV1Engine(SSLContext.getDefault(), false);
         // mark the TLS handshake as FINISHED
-        QuicTLSEngineImplAccessor.completeHandshake(serverEngine);
         SecretKey key = new SecretKeySpec(HexFormat.of().parseHex(ONERTT_SECRET), 0, 32, "ChaCha20-Poly1305");
         QuicTLSEngineImplAccessor.setCipherSuite(serverEngine, "TLS_CHACHA20_POLY1305_SHA256");
         serverEngine.versionNegotiated(QUIC_V1);
@@ -413,7 +411,6 @@ public class PacketEncryptionTest {
         Assertions.assertThrows(AEADBadTagException.class, () -> {
             QuicTLSEngineImpl serverEngine = (QuicTLSEngineImpl) getQuicV1Engine(SSLContext.getDefault(), false);
             // mark the TLS handshake as FINISHED
-            QuicTLSEngineImplAccessor.completeHandshake(serverEngine);
             SecretKey key = new SecretKeySpec(HexFormat.of().parseHex(ONERTT_SECRET), 0, 32, "ChaCha20-Poly1305");
             QuicTLSEngineImplAccessor.setCipherSuite(serverEngine, "TLS_CHACHA20_POLY1305_SHA256");
             serverEngine.versionNegotiated(QUIC_V1);
