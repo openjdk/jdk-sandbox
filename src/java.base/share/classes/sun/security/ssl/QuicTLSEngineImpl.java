@@ -691,23 +691,8 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
 
     @Override
     public boolean isTLSHandshakeComplete() {
-        final boolean isClient = getUseClientMode();
-        final SSLEngineResult.HandshakeStatus hsState = this.handshakeStatus;
-        if (isClient) {
-            // the client has received TLS Finished message from server and
-            // has sent its own TLS Finished message and is waiting for the server
-            // to send QUIC HANDSHAKE_DONE frame.
-            // OR
-            // the client has received TLS Finished message from server and
-            // has sent its own TLS Finished message and has even received the
-            // QUIC HANDSHAKE_DONE frame.
-            // Either of these implies the TLS handshake is complete for the client
-            return hsState == SSLEngineResult.HandshakeStatus.FINISHED ||
-                    hsState == SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
-        }
-        // on the server side the TLS handshake is complete only when the server has
-        // sent a TLS Finished message and received the client's Finished message.
-        return hsState == SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING;
+        // the TLS handshake is complete when 1-RTT keys are available in both directions
+        return recvKeySpace == ONE_RTT && sendKeySpace == ONE_RTT;
     }
 
     /**

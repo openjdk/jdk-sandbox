@@ -300,19 +300,16 @@ public final class QuicServerConnection extends QuicConnectionImpl {
             packetNumberSpaces().initial().close();
         }
         QuicTLSEngine engine = getTLSEngine();
-        switch (engine.getHandshakeStatus()) {
-            // TODO change this
-            case SSLEngineResult.HandshakeStatus.FINISHED -> {
-                // should ack handshake and possibly send HandshakeDoneFrame
-                // the HANDSHAKE space will be closed after sending the
-                // HANDSHAKE_DONE frame (see sendStreamData)
-                packetSpace(PacketNumberSpace.HANDSHAKE).runTransmitter();
-                engine.tryMarkHandshakeDone();
-                enqueue1RTTFrame(new HandshakeDoneFrame());
-                debug.log("Adding HandshakeDoneFrame");
-                completeHandshakeCF();
-                packetSpace(PacketNumberSpace.APPLICATION).runTransmitter();
-            }
+        if (engine.isTLSHandshakeComplete()) {
+            // should ack handshake and possibly send HandshakeDoneFrame
+            // the HANDSHAKE space will be closed after sending the
+            // HANDSHAKE_DONE frame (see sendStreamData)
+            packetSpace(PacketNumberSpace.HANDSHAKE).runTransmitter();
+            engine.tryMarkHandshakeDone();
+            enqueue1RTTFrame(new HandshakeDoneFrame());
+            debug.log("Adding HandshakeDoneFrame");
+            completeHandshakeCF();
+            packetSpace(PacketNumberSpace.APPLICATION).runTransmitter();
         }
     }
 
