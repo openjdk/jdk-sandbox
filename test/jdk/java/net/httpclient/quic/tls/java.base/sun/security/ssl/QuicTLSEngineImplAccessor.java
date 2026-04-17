@@ -33,18 +33,9 @@ import jdk.internal.net.quic.QuicVersion;
 
 public final class QuicTLSEngineImplAccessor {
     // visible for testing
-    public static void testDeriveOneRTTKeys(QuicVersion version,
-                                            QuicTLSEngineImpl engine,
-                                            SecretKey client_application_traffic_secret_0,
-                                            SecretKey server_application_traffic_secret_0,
-                                            String negotiatedCipherSuite,
-                                            boolean clientMode)
-            throws IOException, GeneralSecurityException
-    {
-        engine.deriveOneRTTKeys(version, client_application_traffic_secret_0,
-                                server_application_traffic_secret_0,
-                                CipherSuite.valueOf(negotiatedCipherSuite),
-                                clientMode);
+    public static void setCipherSuite(final QuicTLSEngineImpl engine,
+                                      String negotiatedCipherSuite) {
+        engine.cipherSuite = negotiatedCipherSuite;
     }
 
     // visible for testing

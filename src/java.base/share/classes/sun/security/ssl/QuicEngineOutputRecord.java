@@ -27,6 +27,7 @@ package sun.security.ssl;
 
 import sun.security.ssl.SSLCipher.SSLWriteCipher;
 
+import javax.crypto.SecretKey;
 import javax.net.ssl.QuicTransport;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -38,13 +39,15 @@ import java.util.LinkedList;
 final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
 
     private final HandshakeFragment fragmenter = new HandshakeFragment();
+    private final QuicTransport quicTransport;
 
     private volatile boolean isCloseWaiting;
 
     private Alert alert;
 
-    QuicEngineOutputRecord(HandshakeHash handshakeHash) {
+    QuicEngineOutputRecord(HandshakeHash handshakeHash, QuicTransport quicTransport) {
         super(handshakeHash, SSLWriteCipher.nullTlsWriteCipher());
+        this.quicTransport = quicTransport;
 
         this.packetSize = SSLRecord.maxRecordSize;
         this.protocolVersion = ProtocolVersion.NONE;
@@ -160,7 +163,7 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
     void changeWriteCiphers(SSLWriteCipher writeCipher, boolean useChangeCipherSpec) throws IOException {
         recordLock.lock();
         try {
-            fragmenter.changePacketSpace();
+            fragmenter.changePacketSpace(writeCipher.baseSecret);
         } finally {
             recordLock.unlock();
         }
@@ -208,11 +211,11 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
     // buffered record fragment
     private static class HandshakeMemo {
         int acquireOffset;
-        boolean changeSpace;
+        SecretKey nextKey;
         byte[] fragment;
     }
 
-    static final class HandshakeFragment {
+    final class HandshakeFragment {
         private final LinkedList<HandshakeMemo> handshakeMemos =
                 new LinkedList<>();
 
@@ -230,12 +233,15 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
             handshakeMemos.add(memo);
         }
 
-        void changePacketSpace() {
+        void changePacketSpace(SecretKey baseSecret) {
             HandshakeMemo lastMemo = handshakeMemos.peekLast();
             if (lastMemo != null) {
-                lastMemo.changeSpace = true;
+                lastMemo.nextKey = baseSecret;
             } else {
                 currentPacketSpace++;
+                quicTransport.deriveWriteSecrets(baseSecret, currentPacketSpace == 1 ?
+                        QuicTransport.KeySpace.HANDSHAKE :
+                        QuicTransport.KeySpace.ONE_RTT);
             }
         }
 
@@ -249,8 +255,11 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
             hsMemo.acquireOffset += fragLen;
             if (hsMemo.acquireOffset < hsMemo.fragment.length) {
                 handshakeMemos.addFirst(hsMemo);
-            } else if (hsMemo.changeSpace) {
+            } else if (hsMemo.nextKey != null) {
                 currentPacketSpace++;
+                quicTransport.deriveWriteSecrets(hsMemo.nextKey, currentPacketSpace == 1 ?
+                        QuicTransport.KeySpace.HANDSHAKE :
+                        QuicTransport.KeySpace.ONE_RTT);
             }
             return new Ciphertext(ContentType.HANDSHAKE.id,
                     hsMemo.fragment[0], -1L);

@@ -27,6 +27,7 @@ package sun.security.ssl;
 
 import sun.security.ssl.SSLCipher.SSLReadCipher;
 
+import javax.net.ssl.QuicTransport;
 import javax.net.ssl.SSLProtocolException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -39,9 +40,13 @@ final class QuicEngineInputRecord extends InputRecord implements SSLRecord {
 
     // Cache for incomplete handshake messages.
     private ByteBuffer handshakeBuffer = null;
+    final QuicTransport quicTransport;
+    // 0 - initial, 1 - handshake, 2 - one-rtt
+    int epoch;
 
-    QuicEngineInputRecord(HandshakeHash handshakeHash) {
+    QuicEngineInputRecord(HandshakeHash handshakeHash, QuicTransport quicTransport) {
         super(handshakeHash, SSLReadCipher.nullTlsReadCipher());
+        this.quicTransport = quicTransport;
     }
 
     @Override
@@ -84,6 +89,15 @@ final class QuicEngineInputRecord extends InputRecord implements SSLRecord {
         }
 
         return decodeInputRecord(packet);
+    }
+
+    @Override
+    void changeReadCiphers(SSLReadCipher readCipher) {
+        super.changeReadCiphers(readCipher);
+        epoch++;
+        quicTransport.deriveReadSecrets(readCipher.baseSecret, epoch == 1 ?
+                QuicTransport.KeySpace.HANDSHAKE :
+                QuicTransport.KeySpace.ONE_RTT);
     }
 
     private Plaintext[] decodeInputRecord(ByteBuffer fragment)

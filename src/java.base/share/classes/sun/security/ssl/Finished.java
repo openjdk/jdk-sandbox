@@ -848,16 +848,6 @@ final class Finished {
 
                 // update the context for the following key derivation
                 shc.handshakeKeyDerivation = secretKD;
-                if (shc.sslConfig.isQuic) {
-                    QuicTLSEngineImpl engine =
-                            (QuicTLSEngineImpl) shc.conContext.transport;
-                    try {
-                        engine.deriveOneRTTKeys();
-                    } catch (IOException e) {
-                        throw shc.conContext.fatal(Alert.INTERNAL_ERROR,
-                                "Failure to derive application secrets", e);
-                    }
-                }
             } catch (GeneralSecurityException gse) {
                 throw shc.conContext.fatal(Alert.INTERNAL_ERROR,
                         "Failure to derive application secrets", gse);
@@ -1023,16 +1013,6 @@ final class Finished {
 
                 // update the context for the following key derivation
                 chc.handshakeKeyDerivation = secretKD;
-                if (chc.sslConfig.isQuic) {
-                    QuicTLSEngineImpl engine =
-                            (QuicTLSEngineImpl) chc.conContext.transport;
-                    try {
-                        engine.deriveOneRTTKeys();
-                    } catch (IOException e) {
-                        throw chc.conContext.fatal(Alert.INTERNAL_ERROR,
-                                "Failure to derive application secrets", e);
-                    }
-                }
             } catch (GeneralSecurityException gse) {
                 throw chc.conContext.fatal(Alert.INTERNAL_ERROR,
                         "Failure to derive application secrets", gse);

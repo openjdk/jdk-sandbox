@@ -63,7 +63,7 @@ import static javax.net.ssl.QuicTransport.KeySpace.*;
  * The implementation of this class uses the {@link QuicKeyManager} to maintain
  * all state relating to keys for each encryption levels.
  */
-public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
+public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, QuicTransport {
 
     static final long BASE_CRYPTO_ERROR = 256;
 
@@ -100,6 +100,8 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
     private final HandshakeKeyManager handshakeKeyManager =
             new HandshakeKeyManager();
     private final OneRttKeyManager oneRttKeyManager = new OneRttKeyManager();
+    // Cipher suite selected during handshake; accessible for PacketEncryptionTest
+    String cipherSuite;
 
     private volatile QuicVersion negotiatedVersion;
 
@@ -113,8 +115,8 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
         this.sendKeySpace = INITIAL;
         HandshakeHash handshakeHash = new HandshakeHash();
         this.conContext = new TransportContext(sslContextImpl, this,
-                new QuicEngineInputRecord(handshakeHash),
-                new QuicEngineOutputRecord(handshakeHash));
+                new QuicEngineInputRecord(handshakeHash, this),
+                new QuicEngineOutputRecord(handshakeHash, this));
         conContext.sslConfig.enabledProtocols = List.of(ProtocolVersion.TLS13);
         if (peerHost != null) {
             conContext.sslConfig.serverNames =
@@ -327,6 +329,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
             final ByteBuffer output)
             throws QuicKeyUnavailableException, AEADBadTagException,
             QuicTransportException, ShortBufferException {
+        // TODO remove this
         if (keySpace == ONE_RTT && !isTLSHandshakeComplete()) {
             // RFC-9001, section 5.7 specifies that the server or the client MUST NOT
             // decrypt 1-RTT packets, even if 1-RTT keys are available, before the
@@ -550,31 +553,44 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport {
         }
     }
 
-    public void deriveHandshakeKeys() throws IOException {
-        final QuicVersion quicVersion = getNegotiatedVersion();
-        this.handshakeKeyManager.deriveKeys(quicVersion,
-                this.conContext.handshakeContext,
-                getUseClientMode());
+    private String populateCipherSuite() {
+        if (cipherSuite != null)
+            return cipherSuite;
+        cipherSuite = conContext.handshakeContext.handshakeSession.getCipherSuite();
+        assert cipherSuite != null;
+        return cipherSuite;
     }
 
-    public void deriveOneRTTKeys() throws IOException {
+    @Override
+    public void deriveReadSecrets(SecretKey secretKey, KeySpace keySpace) {
+        String cs = populateCipherSuite();
         final QuicVersion quicVersion = getNegotiatedVersion();
-        this.oneRttKeyManager.deriveKeys(quicVersion,
-                this.conContext.handshakeContext,
-                getUseClientMode());
+        try {
+            switch (keySpace) {
+                case HANDSHAKE -> this.handshakeKeyManager.deriveReadKeys(quicVersion,
+                        secretKey, cs);
+                case ONE_RTT -> this.oneRttKeyManager.deriveReadKeys(quicVersion,
+                        secretKey, cs);
+            }
+        } catch (IOException | GeneralSecurityException e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    // for testing (PacketEncryptionTest)
-    void deriveOneRTTKeys(final QuicVersion version,
-                          final SecretKey client_application_traffic_secret_0,
-                          final SecretKey server_application_traffic_secret_0,
-                          final CipherSuite negotiatedCipherSuite,
-                          final boolean clientMode) throws IOException,
-            GeneralSecurityException {
-        this.oneRttKeyManager.deriveOneRttKeys(version,
-                client_application_traffic_secret_0,
-                server_application_traffic_secret_0,
-                negotiatedCipherSuite, clientMode);
+    @Override
+    public void deriveWriteSecrets(SecretKey secretKey, KeySpace keySpace) {
+        String cs = populateCipherSuite();
+        final QuicVersion quicVersion = getNegotiatedVersion();
+        try {
+            switch (keySpace) {
+                case HANDSHAKE -> this.handshakeKeyManager.deriveWriteKeys(quicVersion,
+                        secretKey, cs);
+                case ONE_RTT -> this.oneRttKeyManager.deriveWriteKeys(quicVersion,
+                        secretKey, cs);
+            }
+        } catch (IOException | GeneralSecurityException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override

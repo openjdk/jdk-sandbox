@@ -721,17 +721,6 @@ final class ServerHello {
             // Update the context for master key derivation.
             shc.handshakeKeyDerivation = kd;
 
-            if (shc.sslConfig.isQuic) {
-                QuicTLSEngineImpl engine =
-                        (QuicTLSEngineImpl) shc.conContext.transport;
-                try {
-                    engine.deriveHandshakeKeys();
-                } catch (IOException e) {
-                    // unlikely
-                    throw shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
-                            "Failed to derive keys", e);
-                }
-            }
             // Check if the server supports stateless resumption
             if (sessionCache.statelessEnabled()) {
                 shc.statelessResumption = true;
@@ -1435,18 +1424,6 @@ final class ServerHello {
             // chc.handshakeSession.setMasterSecret(masterSecret);
             // Update the context for master key derivation.
             chc.handshakeKeyDerivation = secretKD;
-
-            if (chc.sslConfig.isQuic) {
-                QuicTLSEngineImpl engine =
-                        (QuicTLSEngineImpl) chc.conContext.transport;
-                try {
-                    engine.deriveHandshakeKeys();
-                } catch (IOException e) {
-                    // unlikely
-                    throw chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
-                            "Failed to derive keys", e);
-                }
-            }
 
             // update the consumers and producers
             //

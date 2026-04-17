@@ -105,8 +105,8 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
         } else {
             if (quicTransport != null) {
                 this.conContext = new TransportContext(sslContext, this,
-                        new QuicEngineInputRecord(handshakeHash),
-                        new QuicEngineOutputRecord(handshakeHash));
+                        new QuicEngineInputRecord(handshakeHash, quicTransport),
+                        new QuicEngineOutputRecord(handshakeHash, quicTransport));
                 this.conContext.setQuic(true);
             } else {
                 this.conContext = new TransportContext(sslContext, this,

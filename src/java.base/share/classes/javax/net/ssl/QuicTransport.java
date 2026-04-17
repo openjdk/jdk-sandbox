@@ -24,6 +24,8 @@
  */
 package javax.net.ssl;
 
+import javax.crypto.SecretKey;
+
 /**
  * TODO add description
  *
@@ -51,4 +53,24 @@ public interface QuicTransport {
          */
         ONE_RTT
     }
+
+    /**
+     * Called when the read secrets associated
+     * with a new key space are available.
+     * @param secretKey the base secret used for deriving the read keys
+     * @param keySpace the key space
+     */
+    // TODO this will probably not work for 0-RTT, which uses previous session's
+    //  QUIC version, TLS version, and cipher suite
+    void deriveReadSecrets(SecretKey secretKey, KeySpace keySpace);
+
+    /**
+     * Called when the write secrets associated
+     * with a new key space are available.
+     * @param secretKey the base secret used for deriving the write keys
+     * @param keySpace the key space
+     */
+    // TODO this will probably not work for 0-RTT, which uses previous session's
+    //  QUIC version, TLS version, and cipher suite
+    void deriveWriteSecrets(SecretKey secretKey, KeySpace keySpace);
 }

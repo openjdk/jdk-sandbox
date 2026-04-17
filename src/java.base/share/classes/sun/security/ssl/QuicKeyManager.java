@@ -69,14 +69,42 @@ sealed abstract class QuicKeyManager
         permits QuicKeyManager.HandshakeKeyManager,
         QuicKeyManager.InitialKeyManager, QuicKeyManager.OneRttKeyManager {
 
+    protected QuicWriteCipher deriveWriteCipher(QuicVersion quicVersion, SecretKey secret, String cipherSuite) throws IOException, GeneralSecurityException {
+        CipherSuite cs = CipherSuite.valueOf(cipherSuite);
+        final QuicKeys keys = deriveQuicKeys(quicVersion,
+                cs,
+                secret);
+
+        return QuicCipher.createWriteCipher(cs,
+                secret,
+                keys.key, keys.iv,
+                keys.hp, 0);
+    }
+
+    protected QuicReadCipher deriveReadCipher(QuicVersion quicVersion, SecretKey secret, String cipherSuite) throws IOException, GeneralSecurityException {
+        CipherSuite cs = CipherSuite.valueOf(cipherSuite);
+        final QuicKeys keys = deriveQuicKeys(quicVersion,
+                cs,
+                secret);
+
+        return QuicCipher.createReadCipher(cs,
+                secret,
+                keys.key, keys.iv,
+                keys.hp, 0);
+    }
+
     private record QuicKeys(SecretKey key, byte[] iv, SecretKey hp) {
     }
 
     private record CipherPair(QuicReadCipher readCipher,
                               QuicWriteCipher writeCipher) {
         void discard(boolean destroyHP) {
-            writeCipher.discard(destroyHP);
-            readCipher.discard(destroyHP);
+            if (writeCipher != null) {
+                writeCipher.discard(destroyHP);
+            }
+            if (readCipher != null) {
+                readCipher.discard(destroyHP);
+            }
         }
 
         /**
@@ -85,7 +113,9 @@ sealed abstract class QuicKeyManager
          * keys are available to both of them}
          */
         boolean usedByBothEndpoints() {
-            return this.readCipher.hasDecryptedAny() &&
+            return readCipher != null &&
+                    writeCipher != null &&
+                    this.readCipher.hasDecryptedAny() &&
                     this.writeCipher.hasEncryptedAny();
         }
     }
@@ -283,8 +313,6 @@ sealed abstract class QuicKeyManager
                                         initial_secret,
                                         clientInfo,
                                         hashAlg.hashLength));
-                QuicKeys clientKeys = deriveQuicKeys(quicVersion, cs,
-                        client_initial_secret);
 
                 byte[] serverInfo = createHkdfInfo("server in",
                         hashAlg.hashLength);
@@ -294,30 +322,23 @@ sealed abstract class QuicKeyManager
                                         initial_secret,
                                         serverInfo,
                                         hashAlg.hashLength));
-                QuicKeys serverKeys = deriveQuicKeys(quicVersion, cs,
-                        server_initial_secret);
 
                 final QuicReadCipher readCipher;
                 final QuicWriteCipher writeCipher;
-                final int keyPhase = 0;
                 if (clientMode) {
-                    readCipher = QuicCipher.createReadCipher(cs,
+                    readCipher = deriveReadCipher(quicVersion,
                             server_initial_secret,
-                            serverKeys.key, serverKeys.iv, serverKeys.hp,
-                            keyPhase);
-                    writeCipher = QuicCipher.createWriteCipher(cs,
+                            cs.toString());
+                    writeCipher = deriveWriteCipher(quicVersion,
                             client_initial_secret,
-                            clientKeys.key, clientKeys.iv, clientKeys.hp,
-                            keyPhase);
+                            cs.toString());
                 } else {
-                    readCipher = QuicCipher.createReadCipher(cs,
+                    readCipher = deriveReadCipher(quicVersion,
                             client_initial_secret,
-                            clientKeys.key, clientKeys.iv, clientKeys.hp,
-                            keyPhase);
-                    writeCipher = QuicCipher.createWriteCipher(cs,
+                            cs.toString());
+                    writeCipher = deriveWriteCipher(quicVersion,
                             server_initial_secret,
-                            serverKeys.key, serverKeys.iv, serverKeys.hp,
-                            keyPhase);
+                            cs.toString());
                 }
                 final CipherPair old = this.cipherPair;
                 // we don't check if keys are already available, since it's a
@@ -359,7 +380,7 @@ sealed abstract class QuicKeyManager
         protected QuicReadCipher getReadCipher()
                 throws QuicKeyUnavailableException {
             final CipherPair pair = this.cipherPair;
-            if (pair == null) {
+            if (pair == null || pair.readCipher == null) {
                 final String msg = this.keysDiscarded
                         ? "Keys have been discarded"
                         : "Keys not available";
@@ -372,7 +393,7 @@ sealed abstract class QuicKeyManager
         protected QuicWriteCipher getWriteCipher()
                 throws QuicKeyUnavailableException {
             final CipherPair pair = this.cipherPair;
-            if (pair == null) {
+            if (pair == null || pair.writeCipher == null) {
                 final String msg = this.keysDiscarded
                         ? "Keys have been discarded"
                         : "Keys not available";
@@ -397,73 +418,29 @@ sealed abstract class QuicKeyManager
             toDiscard.discard(true);
         }
 
-        void deriveKeys(final QuicVersion quicVersion,
-                final HandshakeContext handshakeContext,
-                final boolean clientMode) throws IOException {
-            Objects.requireNonNull(quicVersion);
-            if (keysAvailable()) {
-                throw new IllegalStateException(
-                        "Keys already derived for " + this.keySpace +
-                                " key space");
+        public void deriveWriteKeys(QuicVersion quicVersion, SecretKey secret, String cipherSuite)
+                throws IOException, GeneralSecurityException {
+            final QuicWriteCipher writeCipher = deriveWriteCipher(quicVersion, secret, cipherSuite);
+            CipherPair cp = cipherPair;
+            if (cp == null) {
+                cipherPair = new CipherPair(null, writeCipher);
+            } else if (cp.writeCipher == null) {
+                cipherPair = new CipherPair(cp.readCipher, writeCipher);
+            } else {
+                throw new IllegalStateException("Write cipher already derived");
             }
-            SecretKey client_handshake_traffic_secret = null;
-            SecretKey server_handshake_traffic_secret = null;
-            try {
-                final SSLKeyDerivation kd =
-                        handshakeContext.handshakeKeyDerivation;
-                client_handshake_traffic_secret = kd.deriveKey(
-                        "TlsClientHandshakeTrafficSecret");
-                final QuicKeys clientKeys = deriveQuicKeys(quicVersion,
-                        handshakeContext.negotiatedCipherSuite,
-                        client_handshake_traffic_secret);
-                server_handshake_traffic_secret = kd.deriveKey(
-                        "TlsServerHandshakeTrafficSecret");
-                final QuicKeys serverKeys = deriveQuicKeys(quicVersion,
-                        handshakeContext.negotiatedCipherSuite,
-                        server_handshake_traffic_secret);
+        }
 
-                final CipherSuite negotiatedCipherSuite =
-                        handshakeContext.negotiatedCipherSuite;
-                final QuicReadCipher readCipher;
-                final QuicWriteCipher writeCipher;
-                final int keyPhase = 0;
-                if (clientMode) {
-                    readCipher =
-                            QuicCipher.createReadCipher(negotiatedCipherSuite,
-                                    server_handshake_traffic_secret,
-                                    serverKeys.key, serverKeys.iv,
-                                    serverKeys.hp, keyPhase);
-                    writeCipher =
-                            QuicCipher.createWriteCipher(negotiatedCipherSuite,
-                                    client_handshake_traffic_secret,
-                                    clientKeys.key, clientKeys.iv,
-                                    clientKeys.hp, keyPhase);
-                } else {
-                    readCipher =
-                            QuicCipher.createReadCipher(negotiatedCipherSuite,
-                                    client_handshake_traffic_secret,
-                                    clientKeys.key, clientKeys.iv,
-                                    clientKeys.hp, keyPhase);
-                    writeCipher =
-                            QuicCipher.createWriteCipher(negotiatedCipherSuite,
-                                    server_handshake_traffic_secret,
-                                    serverKeys.key, serverKeys.iv,
-                                    serverKeys.hp, keyPhase);
-                }
-                synchronized (this) {
-                    if (this.cipherPair != null) {
-                        // don't allow setting more than once
-                        throw new IllegalStateException("Keys already " +
-                                "available for keyspace: "
-                                + this.keySpace);
-                    }
-                    this.cipherPair = new CipherPair(readCipher, writeCipher);
-                }
-            } catch (GeneralSecurityException e) {
-                throw new SSLException("Missing cipher algorithm", e);
-            } finally {
-                KeyUtil.destroySecretKeys(client_handshake_traffic_secret,
-                        server_handshake_traffic_secret);
+        public void deriveReadKeys(QuicVersion quicVersion, SecretKey secret, String cipherSuite)
+                throws IOException, GeneralSecurityException {
+            final QuicReadCipher readCipher = deriveReadCipher(quicVersion, secret, cipherSuite);
+            CipherPair cp = cipherPair;
+            if (cp == null) {
+                cipherPair = new CipherPair(readCipher, null);
+            } else if (cp.readCipher == null) {
+                cipherPair = new CipherPair(readCipher, cp.writeCipher);
+            } else {
+                throw new IllegalStateException("Read cipher already derived");
             }
         }
     }
@@ -837,86 +814,79 @@ sealed abstract class QuicKeyManager
             rolloverKeys(this.negotiatedVersion, currentKeySeries);
         }
 
-        void deriveKeys(final QuicVersion negotiatedVersion,
-                final HandshakeContext handshakeContext,
-                final boolean clientMode) throws IOException {
-            Objects.requireNonNull(negotiatedVersion);
-            if (keysAvailable()) {
-                throw new IllegalStateException("Keys already derived for " +
-                        this.keySpace + " key space");
-            }
-            this.negotiatedVersion = negotiatedVersion;
-
-            try {
-                SSLKeyDerivation kd = handshakeContext.handshakeKeyDerivation;
-                SecretKey client_application_traffic_secret_0 = kd.deriveKey(
-                        "TlsClientAppTrafficSecret");
-                SecretKey server_application_traffic_secret_0 = kd.deriveKey(
-                        "TlsServerAppTrafficSecret");
-
-                deriveOneRttKeys(this.negotiatedVersion,
-                        client_application_traffic_secret_0,
-                        server_application_traffic_secret_0,
-                        handshakeContext.negotiatedCipherSuite,
-                        clientMode);
-            } catch (GeneralSecurityException e) {
-                throw new SSLException("Missing cipher algorithm", e);
-            }
-        }
-
-        void deriveOneRttKeys(final QuicVersion version,
-                final SecretKey client_application_traffic_secret_0,
-                final SecretKey server_application_traffic_secret_0,
-                final CipherSuite negotiatedCipherSuite,
-                final boolean clientMode) throws IOException,
+        void deriveReadKeys(final QuicVersion version,
+                final SecretKey secret,
+                String cipherSuite) throws IOException,
                 GeneralSecurityException {
-            final QuicKeys clientKeys = deriveQuicKeys(version,
-                    negotiatedCipherSuite,
-                    client_application_traffic_secret_0);
-            final QuicKeys serverKeys = deriveQuicKeys(version,
-                    negotiatedCipherSuite,
-                    server_application_traffic_secret_0);
-            final QuicReadCipher readCipher;
-            final QuicWriteCipher writeCipher;
-            // this method always derives the first key for the 1-RTT, so key
-            // phase is always 0
-            final int keyPhase = 0;
-            if (clientMode) {
-                readCipher = QuicCipher.createReadCipher(negotiatedCipherSuite,
-                        server_application_traffic_secret_0, serverKeys.key,
-                        serverKeys.iv, serverKeys.hp, keyPhase);
-                writeCipher =
-                        QuicCipher.createWriteCipher(negotiatedCipherSuite,
-                        client_application_traffic_secret_0, clientKeys.key,
-                        clientKeys.iv, clientKeys.hp, keyPhase);
-            } else {
-                readCipher = QuicCipher.createReadCipher(negotiatedCipherSuite,
-                        client_application_traffic_secret_0, clientKeys.key,
-                        clientKeys.iv, clientKeys.hp, keyPhase);
-                writeCipher =
-                        QuicCipher.createWriteCipher(negotiatedCipherSuite,
-                        server_application_traffic_secret_0, serverKeys.key,
-                        serverKeys.iv, serverKeys.hp, keyPhase);
-            }
-            // generate the next set of keys beforehand to prevent any timing
-            // attacks
-            // during key update
-            final QuicReadCipher nPlus1ReadCipher =
-                    generateNextReadCipher(version, readCipher);
-            final QuicWriteCipher nPlus1WriteCipher =
-                    generateNextWriteCipher(version, writeCipher);
+            this.negotiatedVersion = version;
+            CipherSuite negotiatedCipherSuite = CipherSuite.valueOf(cipherSuite);
+            final QuicReadCipher readCipher = deriveReadCipher(version,
+                    secret,
+                    negotiatedCipherSuite.toString());
             this.keySeriesLock.lock();
             try {
-                if (this.keySeries != null) {
+                if (this.keySeries != null && keySeries.current.readCipher != null) {
                     // don't allow deriving the first set of 1-RTT keys more
                     // than once
-                    throw new IllegalStateException("Keys already available " +
+                    throw new IllegalStateException("Read keys already available " +
                             "for keyspace: "
                             + this.keySpace);
                 }
-                this.keySeries = new KeySeries(null,
-                        new CipherPair(readCipher, writeCipher),
-                        new CipherPair(nPlus1ReadCipher, nPlus1WriteCipher));
+                if (this.keySeries != null) {
+                    QuicWriteCipher writeCipher = keySeries.current.writeCipher;
+                    // generate the next set of keys beforehand to prevent any timing
+                    // attacks during key update
+                    final QuicReadCipher nPlus1ReadCipher =
+                            generateNextReadCipher(version, readCipher);
+                    final QuicWriteCipher nPlus1WriteCipher =
+                            generateNextWriteCipher(version, writeCipher);
+                    this.keySeries = new KeySeries(null,
+                            new CipherPair(readCipher, writeCipher),
+                            new CipherPair(nPlus1ReadCipher, nPlus1WriteCipher));
+                } else {
+                    this.keySeries = new KeySeries(null,
+                            new CipherPair(readCipher, null),
+                            null);
+                }
+            } finally {
+                this.keySeriesLock.unlock();
+            }
+        }
+
+        void deriveWriteKeys(final QuicVersion version,
+                             final SecretKey secret,
+                             String cipherSuite) throws IOException,
+                GeneralSecurityException {
+            this.negotiatedVersion = version;
+            CipherSuite negotiatedCipherSuite = CipherSuite.valueOf(cipherSuite);
+            final QuicWriteCipher writeCipher = deriveWriteCipher(version,
+                    secret,
+                    negotiatedCipherSuite.toString());
+            this.keySeriesLock.lock();
+            try {
+                if (this.keySeries != null &&  keySeries.current.writeCipher != null) {
+                    // don't allow deriving the first set of 1-RTT keys more
+                    // than once
+                    throw new IllegalStateException("Write keys already available " +
+                            "for keyspace: "
+                            + this.keySpace);
+                }
+                if (this.keySeries != null) {
+                    QuicReadCipher readCipher = keySeries.current.readCipher;
+                    // generate the next set of keys beforehand to prevent any timing
+                    // attacks during key update
+                    final QuicReadCipher nPlus1ReadCipher =
+                            generateNextReadCipher(version, readCipher);
+                    final QuicWriteCipher nPlus1WriteCipher =
+                            generateNextWriteCipher(version, writeCipher);
+                    this.keySeries = new KeySeries(null,
+                            new CipherPair(readCipher, writeCipher),
+                            new CipherPair(nPlus1ReadCipher, nPlus1WriteCipher));
+                } else {
+                    this.keySeries = new KeySeries(null,
+                            new CipherPair(null, writeCipher),
+                            null);
+                }
             } finally {
                 this.keySeriesLock.unlock();
             }
