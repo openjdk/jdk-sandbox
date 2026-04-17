@@ -61,54 +61,54 @@ import java.util.Optional;
  * Use the conversion methods to produce a Java value from the {@code
  * JsonValue}. Each conversion methods corresponds to a JSON type:
  * <ul>
- *     <li>{@code string()} returns a String that represents the JSON string
+ *     <li>{@code asString()} returns a String that represents the JSON string
  *     with all RFC 8259 JSON escapes translated to their corresponding
  *     characters.</li>
- *     <li>{@code toInt()} returns an int provided the JSON number is a whole
+ *     <li>{@code asInt()} returns an int provided the JSON number is a whole
  *     number within range of {@code Integer.MIN_VALUE} and
  *     {@code Integer.MAX_VALUE}.
  *     </li>
- *     <li>{@code toLong()} returns a long provided the JSON number is a whole
+ *     <li>{@code asLong()} returns a long provided the JSON number is a whole
  *     number within range of {@code Long.MIN_VALUE} and {@code Long.MAX_VALUE}.
  *     </li>
- *     <li>{@code toDouble()} returns a double provided the JSON number is
+ *     <li>{@code asDouble()} returns a double provided the JSON number is
  *     within range of {@code -Double.MAX_VALUE} and {@code Double.MAX_VALUE}.
  *     </li>
- *     <li>{@code bool()} returns {@code true} or {@code false} for JSON
+ *     <li>{@code asBoolean()} returns {@code true} or {@code false} for JSON
  *     boolean literals.</li>
- *     <li>{@code members()} returns an unmodifiable map of {@code String} to
+ *     <li>{@code asMap()} returns an unmodifiable map of {@code String} to
  *     {@code JsonValue} for JSON object, guaranteed to contain neither null
  *     keys nor null values. If the JSON object contains no members, an empty
  *     map is returned.
  *     </li>
- *     <li>{@code elements()} returns an unmodifiable list of {@code JsonValue}s
+ *     <li>{@code asList()} returns an unmodifiable list of {@code JsonValue}s
  *     for JSON array, guaranteed to contain non-null values. If the JSON array
  *     contains no values, an empty list is returned.</li>
  * </ul>
  * For example,
  * {@snippet lang=java:
- * String bar = foo0.string();
+ * String bar = foo0.asString();
  * }
  * The code above retrieves the Java String "bar" from the JSON value {@code foo0}.
  * If an incorrect conversion method is used, which does not correspond to the matching
- * JSON type, for example {@code foo0.bool()}, a {@code JsonAssertionException} is thrown.
+ * JSON type, for example {@code foo0.asBoolean()}, a {@code JsonAssertionException} is thrown.
  * <p>
  * These conversion methods always return a value when the {@code JsonValue} is
- * of the correct JSON type. The exceptions are {@code toInt()}, {@code toLong()},
- * and {@code toDouble()}; the {@code to} prefix implies that they may throw a
+ * of the correct JSON type. The exceptions are {@code asInt()}, {@code asLong()},
+ * and {@code asDouble()}; the {@code to} prefix implies that they may throw a
  * {@code JsonAssertionException} even when the {@code JsonValue} is a JSON
  * number, for example if it is outside their supported ranges.
  * <h2>Subtypes of JsonValue</h2>
  * The {@code JsonValue} subtypes correspond to the JSON types. For example,
  * {@code JsonString} to JSON string. If the type of JSON value is unknown, it can
  * be retrieved as follows:
- * {@snippet lang=java:
+ * {@snippet lang = java:
  * switch (json.get("foo")) {
- *     case JsonString js -> js.string(); // handle the value as JSON string
- *     case JsonArray ja -> ja.element(0).string(); // handle the value as JSON array
+ *     case JsonString js -> js.asString(); // handle the value as JSON string
+ *     case JsonArray ja -> ja.element(0).asString(); // handle the value as JSON array
  *     default -> throw new JsonAssertionException("unexpected type");
  * }
- * }
+ *}
  * <h2>Missing Object Members</h2>
  * There are times when the member in a JSON object is optional. For those
  * cases, use the access method {@link #getOrAbsent(String)} which returns an
@@ -132,14 +132,14 @@ import java.util.Optional;
  * <h2>Handling variance</h2>
  * There may be times when a JSON document can vary, but providing a fallback
  * value is preferable to throwing an exception. For example:
- * {@snippet lang=java:
+ * {@snippet lang = java:
  * Optional.of(json)
  *     .filter(j -> j instanceof JsonObject)
  *     .flatMap(j -> j.getOrAbsent("foo"))
  *     .filter(j -> j instanceof JsonString)
- *     .map(JsonValue::string)
+ *     .map(JsonValue::asString)
  *     .orElse("bar");
- * }
+ *}
  * The code above ensures that if the root JSON document is not an object,
  * the member "foo" does not exist, or if "foo" is not a String, that the "bar"
  * fallback value is used over throwing an exception.
@@ -188,7 +188,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      *
      * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonBoolean}.
      */
-    default boolean bool() {
+    default boolean asBoolean() {
         throw Utils.composeTypeError(this, "JsonBoolean");
     }
 
@@ -211,7 +211,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      * @throws JsonAssertionException if this {@code JsonValue} is not an instance
      *      of {@code JsonNumber} nor can be represented as an {@code int}.
      */
-    default int toInt() {
+    default int asInt() {
         throw Utils.composeTypeError(this, "JsonNumber");
     }
 
@@ -233,7 +233,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      * @throws JsonAssertionException if this {@code JsonValue} is not an instance
      *      of {@code JsonNumber} nor can be represented as a {@code long}.
      */
-    default long toLong() {
+    default long asLong() {
         throw Utils.composeTypeError(this, "JsonNumber");
     }
 
@@ -254,7 +254,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      * @throws JsonAssertionException if this {@code JsonValue} is not an instance
      *      of {@code JsonNumber} nor can be represented as a {@code double}.
      */
-    default double toDouble() {
+    default double asDouble() {
         throw Utils.composeTypeError(this, "JsonNumber");
     }
 
@@ -273,7 +273,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      *
      * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonString}.
      */
-    default String string() {
+    default String asString() {
         throw Utils.composeTypeError(this, "JsonString");
     }
 
@@ -289,7 +289,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      *
      * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonArray}.
      */
-    default List<JsonValue> elements() {
+    default List<JsonValue> asList() {
         throw Utils.composeTypeError(this, "JsonArray");
     }
 
@@ -305,7 +305,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      *
      * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonObject}.
      */
-    default Map<String, JsonValue> members() {
+    default Map<String, JsonValue> asMap() {
         throw Utils.composeTypeError(this, "JsonObject");
     }
 
@@ -323,7 +323,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      *
      * @implSpec
      * The default implementation obtains a {@code JsonValue} which is the result
-     * of invoking {@link #members()}{@code .get(name)}. If {@code name} is absent,
+     * of invoking {@link #asMap()}{@code .get(name)}. If {@code name} is absent,
      * {@code JsonAssertionException} is thrown.
      *
      * @param name the member name
@@ -333,7 +333,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      */
     default JsonValue get(String name) {
         Objects.requireNonNull(name);
-        return switch (members().get(name)) {
+        return switch (asMap().get(name)) {
             case JsonValue jv -> jv;
             case null -> throw Utils.composeError(this,
                     "JsonObject member \"%s\" does not exist.".formatted(name));
@@ -349,7 +349,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      *
      * @implSpec
      * The default implementation obtains an {@code Optional<JsonValue>} by invoking {@link
-     * #members()}{@code .get(name)}, which is then passed to {@link Optional#ofNullable}.
+     * #asMap()}{@code .get(name)}, which is then passed to {@link Optional#ofNullable}.
      *
      * @param name the member name
      * @throws NullPointerException if the member name is {@code null}
@@ -357,7 +357,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      */
     default Optional<JsonValue> getOrAbsent(String name) {
         Objects.requireNonNull(name);
-        return Optional.ofNullable(members().get(name));
+        return Optional.ofNullable(asMap().get(name));
     }
 
     /**
@@ -367,7 +367,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      *
      * @implSpec
      * The default implementation obtains a {@code JsonValue} which is the result
-     * of invoking {@link #elements()}{@code .get(index)}. If {@code index} is
+     * of invoking {@link #asList()}{@code .get(index)}. If {@code index} is
      * out of bounds, {@code JsonAssertionException} is thrown.
      *
      * @param index the index of the array
@@ -375,7 +375,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      * or the given index is out of bounds
      */
     default JsonValue element(int index) {
-        List<JsonValue> elements = elements();
+        List<JsonValue> elements = asList();
         try {
             return elements.get(index);
         } catch (IndexOutOfBoundsException _) {

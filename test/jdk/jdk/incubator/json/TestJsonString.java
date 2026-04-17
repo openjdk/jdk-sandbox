@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -57,18 +57,18 @@ public class TestJsonString {
         void valueTest() {
             var untypedStr = "\t";
             var jsonStr = "\"\\u0009\"";
-            // Both should compare as equals via string() which is \t
-            assertEquals(JsonString.of(untypedStr).string(), ((JsonString) Json.parse(jsonStr)).string());
+            // Both should compare as equals via asString() which is \t
+            assertEquals(JsonString.of(untypedStr).asString(), ((JsonString) Json.parse(jsonStr)).asString());
             // Factory escapes \t to \\t but parse retains the original U sequence
             // (due to its lazy nature) and that is OK
             assertNotEquals(JsonString.of(untypedStr).toString(), Json.parse(jsonStr).toString());
         }
 
-        // Escape sequence tests on string()
+        // Escape sequence tests on asString()
         @ParameterizedTest
         @MethodSource
         void escapeTest(String src, String expected) {
-            assertEquals(expected, ((JsonString)Json.parse(src)).string());
+            assertEquals(expected, ((JsonString)Json.parse(src)).asString());
         }
         private static Stream<Arguments> escapeTest() {
             return Stream.of(
@@ -118,10 +118,10 @@ public class TestJsonString {
                     arg1 instanceof char[] ca ? Json.parse(ca) : null;
             var jv2 = arg2 instanceof String s ? Json.parse(s) :
                     arg2 instanceof char[] ca ? Json.parse(ca) : null;
-            var val1 = jv1 instanceof JsonString js ? js.string() : null;
-            var val2 = jv2 instanceof JsonString js ? js.string() : null;
+            var val1 = jv1 instanceof JsonString js ? js.asString() : null;
+            var val2 = jv2 instanceof JsonString js ? js.asString() : null;
 
-            // two JsonValue arguments should have the same string()
+            // two JsonValue arguments should have the same asString()
             assertEquals(val1, val2);
 
             // assert their toString() returns the original text
@@ -171,7 +171,7 @@ public class TestJsonString {
             for (int i : reservedChars) {
                 var js = JsonString.of(String.valueOf((char)i));
                 Json.parse(js.toString());
-                JsonString.of(js.string());
+                JsonString.of(js.asString());
             }
         }
     }

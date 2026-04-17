@@ -39,8 +39,8 @@ import jdk.incubator.json.impl.JsonNumberImpl;
  * Alternatively, {@link #of(double)}, {@link #of(long)}, or {@link #of(String)}
  * can be used to obtain a {@code JsonNumber}.
  * The value of the {@code JsonNumber} can be retrieved as an {@code int} with
- * {@link #toInt()}, as a {@code long} with {@link #toLong()}, or as a
- * {@code double} with {@link #toDouble()}. {@link #toString()} can be used to
+ * {@link #asInt()}, as a {@code long} with {@link #asLong()}, or as a
+ * {@code double} with {@link #asDouble()}. {@link #toString()} can be used to
  * return the string representation of the JSON number.
  *
  * @apiNote
@@ -77,7 +77,7 @@ public non-sealed interface JsonNumber extends JsonValue {
      *      be represented as an {@code int}.
      */
     @Override
-    int toInt();
+    int asInt();
 
     /**
      * {@return a {@code long} value from the string representation}
@@ -93,7 +93,7 @@ public non-sealed interface JsonNumber extends JsonValue {
      *      be represented as a {@code long}.
      */
     @Override
-    long toLong();
+    long asLong();
 
     /**
      * {@return a finite {@code double} value from its string representation}
@@ -109,7 +109,7 @@ public non-sealed interface JsonNumber extends JsonValue {
      *      be represented as a finite {@code double}.
      */
     @Override
-    double toDouble();
+    double asDouble();
 
     /**
      * Creates a JSON number from the given {@code double} value.

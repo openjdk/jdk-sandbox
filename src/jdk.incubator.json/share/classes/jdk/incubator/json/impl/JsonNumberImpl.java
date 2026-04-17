@@ -57,19 +57,19 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
     }
 
     @Override
-    public int toInt() {
+    public int asInt() {
         return numInteger.get().orElseThrow(() ->
             Utils.composeError(this, this + " cannot be represented as an int."));
     }
 
     @Override
-    public long toLong() {
+    public long asLong() {
         return numLong.get().orElseThrow(() ->
                 Utils.composeError(this, this + " cannot be represented as a long."));
     }
 
     @Override
-    public double toDouble() {
+    public double asDouble() {
         return numDouble.get().orElseThrow(() ->
                 Utils.composeError(this, this + " cannot be represented as a double."));
     }

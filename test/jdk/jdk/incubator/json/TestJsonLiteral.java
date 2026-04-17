@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -52,8 +52,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class TestJsonLiteral {
 
     void conversionTest() {
-        assertTrue(JsonBoolean.of(true).bool());
-        assertFalse(JsonBoolean.of(false).bool());
+        assertTrue(JsonBoolean.of(true).asBoolean());
+        assertFalse(JsonBoolean.of(false).asBoolean());
     }
 
     @Nested

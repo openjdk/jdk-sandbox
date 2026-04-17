@@ -48,7 +48,7 @@ public final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
     }
 
     @Override
-    public boolean bool() {
+    public boolean asBoolean() {
         return theBoolean;
     }
 
@@ -64,16 +64,16 @@ public final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
 
     @Override
     public String toString() {
-        return String.valueOf(bool());
+        return String.valueOf(asBoolean());
     }
 
     @Override
     public boolean equals(Object o) {
-        return o instanceof JsonBoolean ojb && bool() == ojb.bool();
+        return o instanceof JsonBoolean ojb && asBoolean() == ojb.asBoolean();
     }
 
     @Override
     public int hashCode() {
-        return Boolean.hashCode(bool());
+        return Boolean.hashCode(asBoolean());
     }
 }

@@ -57,13 +57,13 @@ public class TestJsonNumber {
         @MethodSource
         void testUniformRepresentations(String str, double db, long l, int i) {
             var json = Json.parse(str);
-            assertEquals(db, json.toDouble());
-            assertEquals(l, json.toLong());
-            assertEquals(i, json.toInt());
+            assertEquals(db, json.asDouble());
+            assertEquals(l, json.asLong());
+            assertEquals(i, json.asInt());
             json = Json.parse("-" + str);
-            assertEquals(-db, json.toDouble());
-            assertEquals(-l, json.toLong());
-            assertEquals(-i, json.toInt());
+            assertEquals(-db, json.asDouble());
+            assertEquals(-l, json.asLong());
+            assertEquals(-i, json.asInt());
         }
 
         private static Stream<Arguments> testUniformRepresentations() {
@@ -85,11 +85,11 @@ public class TestJsonNumber {
         @MethodSource
         void testDoubleRepresentation(String str, double d) {
             var json = Json.parse(str);
-            assertEquals(d, json.toDouble());
-            assertThrows(JsonAssertionException.class, json::toLong);
+            assertEquals(d, json.asDouble());
+            assertThrows(JsonAssertionException.class, json::asLong);
             json = Json.parse("-" + str);
-            assertEquals(-d, json.toDouble());
-            assertThrows(JsonAssertionException.class, json::toLong);
+            assertEquals(-d, json.asDouble());
+            assertThrows(JsonAssertionException.class, json::asLong);
         }
 
         private static Stream<Arguments> testDoubleRepresentation() {
@@ -116,11 +116,11 @@ public class TestJsonNumber {
         @MethodSource
         void testLongRepresentation(String str, long l) {
             var json = Json.parse(str);
-            assertEquals(l, json.toLong());
-            assertDoesNotThrow(json::toDouble);
+            assertEquals(l, json.asLong());
+            assertDoesNotThrow(json::asDouble);
             json = Json.parse("-" + str);
-            assertEquals(-l, json.toLong());
-            assertDoesNotThrow(json::toDouble);
+            assertEquals(-l, json.asLong());
+            assertDoesNotThrow(json::asDouble);
         }
 
         private static Stream<Arguments> testLongRepresentation() {
@@ -138,13 +138,13 @@ public class TestJsonNumber {
         @MethodSource
         void testIntRepresentation(String str, int i) {
             var json = Json.parse(str);
-            assertEquals(i, json.toInt());
-            assertDoesNotThrow(json::toLong);
-            assertDoesNotThrow(json::toDouble);
+            assertEquals(i, json.asInt());
+            assertDoesNotThrow(json::asLong);
+            assertDoesNotThrow(json::asDouble);
             json = Json.parse("-" + str);
-            assertEquals(-i, json.toInt());
-            assertDoesNotThrow(json::toLong);
-            assertDoesNotThrow(json::toDouble);
+            assertEquals(-i, json.asInt());
+            assertDoesNotThrow(json::asLong);
+            assertDoesNotThrow(json::asDouble);
         }
 
         private static Stream<Arguments> testIntRepresentation() {
@@ -159,7 +159,7 @@ public class TestJsonNumber {
         @MethodSource
         void testDoubleOutOfRange(String str) {
             var json = Json.parse(str);
-            assertThrows(JsonAssertionException.class, json::toDouble);
+            assertThrows(JsonAssertionException.class, json::asDouble);
         }
 
         private static Stream<Arguments> testDoubleOutOfRange() {
@@ -175,7 +175,7 @@ public class TestJsonNumber {
         @MethodSource
         void testLongOutOfRange(String str) {
             var json = Json.parse(str);
-            assertThrows(JsonAssertionException.class, json::toLong);
+            assertThrows(JsonAssertionException.class, json::asLong);
         }
 
         private static Stream<Arguments> testLongOutOfRange() {
@@ -191,7 +191,7 @@ public class TestJsonNumber {
         @MethodSource
         void testIntOutOfRange(String str) {
             var json = Json.parse(str);
-            assertThrows(JsonAssertionException.class, json::toInt);
+            assertThrows(JsonAssertionException.class, json::asInt);
         }
 
         private static Stream<Arguments> testIntOutOfRange() {
@@ -356,27 +356,27 @@ public class TestJsonNumber {
         @Test
         void testRoundTrip() {
             // factories
-            assertEquals(42, JsonNumber.of((byte)42).toInt());
-            assertEquals(42, JsonNumber.of((short)42).toInt());
-            assertEquals(42, JsonNumber.of(42).toInt());
-            assertEquals(42, JsonNumber.of(42L).toInt());
-            assertEquals(42L, JsonNumber.of((byte)42).toLong());
-            assertEquals(42L, JsonNumber.of((short)42).toLong());
-            assertEquals(42L, JsonNumber.of(42).toLong());
-            assertEquals(42L, JsonNumber.of(42L).toLong());
-            assertEquals(Integer.MAX_VALUE, JsonNumber.of(Integer.MAX_VALUE).toInt());
-            assertEquals(Long.MAX_VALUE, JsonNumber.of(Long.MAX_VALUE).toLong());
-            assertEquals((double)0.1f, JsonNumber.of(0.1f).toDouble());
-            assertEquals(0.1d, JsonNumber.of(0.1d).toDouble());
-            assertEquals(1d, JsonNumber.of(1e0).toDouble());
-            assertEquals(Double.MAX_VALUE, JsonNumber.of(Double.MAX_VALUE).toDouble());
-            assertEquals(42, JsonNumber.of("42").toInt());
-            assertEquals(42L, JsonNumber.of("42").toLong());
-            assertEquals(Integer.MAX_VALUE, JsonNumber.of("2147483647").toInt());
-            assertEquals(Long.MAX_VALUE, JsonNumber.of("9223372036854775807").toLong());
-            assertEquals(0.1d, JsonNumber.of("0.1").toDouble());
-            assertEquals(1d, JsonNumber.of("1e0").toDouble());
-            assertEquals(Double.MAX_VALUE, JsonNumber.of("1.7976931348623157E308").toDouble());
+            assertEquals(42, JsonNumber.of((byte)42).asInt());
+            assertEquals(42, JsonNumber.of((short)42).asInt());
+            assertEquals(42, JsonNumber.of(42).asInt());
+            assertEquals(42, JsonNumber.of(42L).asInt());
+            assertEquals(42L, JsonNumber.of((byte)42).asLong());
+            assertEquals(42L, JsonNumber.of((short)42).asLong());
+            assertEquals(42L, JsonNumber.of(42).asLong());
+            assertEquals(42L, JsonNumber.of(42L).asLong());
+            assertEquals(Integer.MAX_VALUE, JsonNumber.of(Integer.MAX_VALUE).asInt());
+            assertEquals(Long.MAX_VALUE, JsonNumber.of(Long.MAX_VALUE).asLong());
+            assertEquals((double)0.1f, JsonNumber.of(0.1f).asDouble());
+            assertEquals(0.1d, JsonNumber.of(0.1d).asDouble());
+            assertEquals(1d, JsonNumber.of(1e0).asDouble());
+            assertEquals(Double.MAX_VALUE, JsonNumber.of(Double.MAX_VALUE).asDouble());
+            assertEquals(42, JsonNumber.of("42").asInt());
+            assertEquals(42L, JsonNumber.of("42").asLong());
+            assertEquals(Integer.MAX_VALUE, JsonNumber.of("2147483647").asInt());
+            assertEquals(Long.MAX_VALUE, JsonNumber.of("9223372036854775807").asLong());
+            assertEquals(0.1d, JsonNumber.of("0.1").asDouble());
+            assertEquals(1d, JsonNumber.of("1e0").asDouble());
+            assertEquals(Double.MAX_VALUE, JsonNumber.of("1.7976931348623157E308").asDouble());
         }
 
         @ParameterizedTest

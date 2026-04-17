@@ -45,7 +45,7 @@ public final class JsonStringImpl implements JsonString, JsonValueImpl {
     // non-conformant characters are properly escaped.
     private final LazyConstant<String> jsonStr = LazyConstant.of(this::initJsonStr);
 
-    // The String instance returned by `string()`. Escaped characters are unescaped.
+    // The String instance returned by `asString()`. Escaped characters are unescaped.
     private final LazyConstant<String> value = LazyConstant.of(this::unescape);
 
     // LazyConstants initializers
@@ -61,7 +61,7 @@ public final class JsonStringImpl implements JsonString, JsonValueImpl {
     }
 
     @Override
-    public String string() {
+    public String asString() {
         return value.get();
     }
 
@@ -124,11 +124,11 @@ public final class JsonStringImpl implements JsonString, JsonValueImpl {
     @Override
     public boolean equals(Object o) {
         return o instanceof JsonString ojs &&
-                string().equals(ojs.string());
+                asString().equals(ojs.asString());
     }
 
     @Override
     public int hashCode() {
-        return string().hashCode();
+        return asString().hashCode();
     }
 }

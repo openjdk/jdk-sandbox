@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -71,7 +71,7 @@ public class TestOtherImpl {
         }
 
         @Override
-        public String string() {
+        public String asString() {
             // For testing purposes, just return the String.
             // Real implementations must adhere to un-escaping as specified.
             return theString;
@@ -85,12 +85,12 @@ public class TestOtherImpl {
         @Override
         public boolean equals(Object o) {
             return this == o ||
-                    o instanceof JsonString ojs && string().equals(ojs.string());
+                    o instanceof JsonString ojs && asString().equals(ojs.asString());
         }
 
         @Override
         public int hashCode() {
-            return string().hashCode();
+            return asString().hashCode();
         }
     }
 }

@@ -74,7 +74,7 @@ public non-sealed interface JsonString extends JsonValue {
      * {@link #of(String)} is used to generate the JSON string, with special
      * characters properly escaped.
      *
-     * @see #string()
+     * @see #asString()
      */
     @Override
     String toString();
@@ -88,14 +88,14 @@ public non-sealed interface JsonString extends JsonValue {
      * @see #toString()
      */
     @Override
-    String string();
+    String asString();
 
     /**
      * {@return true if the given {@code obj} is equal to this {@code JsonString}}
      * Two {@code JsonString}s {@code js1} and {@code js2} represent the same value
-     * if {@code js1.string().equals(js2.string())}.
+     * if {@code js1.asString().equals(js2.asString())}.
      *
-     * @see #string()
+     * @see #asString()
      */
     @Override
     boolean equals(Object obj);
@@ -103,9 +103,9 @@ public non-sealed interface JsonString extends JsonValue {
     /**
      * {@return the hash code value of this {@code JsonString}} The hash code of a
      * {@code JsonString} is derived from the hash code of {@code JsonString}'s
-     * {@link #string()}.
+     * {@link #asString()}.
      *
-     * @see #string()
+     * @see #asString()
      */
     @Override
     int hashCode();

@@ -72,7 +72,7 @@ public class TestAccess {
 
     private static final JsonValue JSON_NESTED_ARRAY =
             // Don't use the API we are testing (get(String))
-            JSON_ROOT_OBJECT.members().get("values");
+            JSON_ROOT_OBJECT.asMap().get("values");
 
     @Test
     void basicAccessTest() {
@@ -94,8 +94,8 @@ public class TestAccess {
     void basicAccessAbsenceTest() {
         var json = Json.parse("{ \"foo\" : null, \"bar\" : \"words\" }");
         assertEquals(Optional.empty(), json.getOrAbsent("baz"));
-        assertNull(json.getOrAbsent("baz").map(JsonValue::string).orElse(null));
-        assertEquals("words", json.getOrAbsent("bar").map(JsonValue::string).orElse(null));
+        assertNull(json.getOrAbsent("baz").map(JsonValue::asString).orElse(null));
+        assertEquals("words", json.getOrAbsent("bar").map(JsonValue::asString).orElse(null));
         assertThrows(JsonAssertionException.class, () -> json.get("foo").getOrAbsent("baz"));
     }
 
@@ -103,8 +103,8 @@ public class TestAccess {
     void basicAccessNullTest() {
         var json = Json.parse("{ \"foo\" : null, \"bar\" : \"words\" }");
         assertEquals(Optional.empty(), json.get("foo").valueOrNull());
-        assertNull(json.get("foo").valueOrNull().map(JsonValue::string).orElse(null));
-        assertEquals("words", json.get("bar").valueOrNull().map(JsonValue::string).orElse(null));
+        assertNull(json.get("foo").valueOrNull().map(JsonValue::asString).orElse(null));
+        assertEquals("words", json.get("bar").valueOrNull().map(JsonValue::asString).orElse(null));
     }
 
     // Ensure that syntactical chars w/in JsonString do not affect path building
@@ -112,24 +112,24 @@ public class TestAccess {
     void stringTest() {
         assertEquals("JsonNumber is not a JsonString. Path: \"{valuesWithCommas[3\". Location: line 2, position 96.",
                 assertThrows(JsonAssertionException.class,
-                        () -> JSON_ROOT_OBJECT.get("valuesWithCommas").element(3).string()).getMessage());
+                        () -> JSON_ROOT_OBJECT.get("valuesWithCommas").element(3).asString()).getMessage());
         assertEquals("JsonNumber is not a JsonBoolean. Path: \"{obj{z\". Location: line 6, position 31.",
                 assertThrows(JsonAssertionException.class,
-                        () -> JSON_ROOT_OBJECT.get("obj").get("z").bool()).getMessage());
+                        () -> JSON_ROOT_OBJECT.get("obj").get("z").asBoolean()).getMessage());
     }
 
     @Test
     void leafExceptionTest() {
         assertEquals("JsonNumber is not a JsonString. Path: \"[1{age\". Location: line 6, position 11.",
                 assertThrows(JsonAssertionException.class,
-                        () -> JSON_ROOT_ARRAY.element(1).get("age").string()).getMessage());
+                        () -> JSON_ROOT_ARRAY.element(1).get("age").asString()).getMessage());
     }
 
     @Test
     void rootArrayTest() {
         assertEquals("JsonObject member \"asge\" does not exist. Path: \"[1\". Location: line 4, position 2.",
                 assertThrows(JsonAssertionException.class,
-                        () -> JSON_ROOT_ARRAY.element(1).get("asge").toLong()).getMessage());
+                        () -> JSON_ROOT_ARRAY.element(1).get("asge").asLong()).getMessage());
     }
 
     // Ensure member name with escapes works

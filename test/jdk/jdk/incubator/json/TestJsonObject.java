@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -80,12 +80,12 @@ public class TestJsonObject {
         void retrievalTest() {
             // parse
             var jo = (JsonObject) Json.parse("{ \"foo\\t\" : false}");
-            assertEquals(JsonBoolean.of(false), jo.members().get("foo\t"));
+            assertEquals(JsonBoolean.of(false), jo.asMap().get("foo\t"));
             jo = (JsonObject) Json.parse("{ \"foo\\u0009\" : false}");
-            assertEquals(JsonBoolean.of(false), jo.members().get("foo\t"));
+            assertEquals(JsonBoolean.of(false), jo.asMap().get("foo\t"));
             // jo factory
             jo = JsonObject.of(Map.of("foo\t", JsonBoolean.of(false)));
-            assertEquals(JsonBoolean.of(false), jo.members().get("foo\t"));
+            assertEquals(JsonBoolean.of(false), jo.asMap().get("foo\t"));
         }
 
         @Test
@@ -268,30 +268,30 @@ public class TestJsonObject {
             var builtJson = new HashMap<String, JsonValue>();
             builtJson.put("name", JsonString.of("Brian"));
             builtJson.put("shoeSize", JsonNumber.of(10));
-            compareValueTypes(((JsonObject)expectedJson).members(), JsonObject.of(builtJson).members());
+            compareValueTypes(((JsonObject)expectedJson).asMap(), JsonObject.of(builtJson).asMap());
         }
 
         @Test
         void existingBuildTest() {
             var sourceJson = Json.parse(JSON_OBJ);
-            var builtJson = JsonObject.of(((JsonObject)sourceJson).members());
-            compareValueTypes(((JsonObject)sourceJson).members(), builtJson.members());
+            var builtJson = JsonObject.of(((JsonObject)sourceJson).asMap());
+            compareValueTypes(((JsonObject)sourceJson).asMap(), builtJson.asMap());
         }
 
         @Test
         void removalTest() {
             var expectedJson = Json.parse(SMALL_JSON_OBJ);
             var sourceJson = Json.parse(JSON_OBJ);
-            var builtJson = new HashMap<>(((JsonObject) sourceJson).members());
+            var builtJson = new HashMap<>(((JsonObject) sourceJson).asMap());
             builtJson.remove("name");
-            compareValueTypes(((JsonObject)expectedJson).members(), builtJson);
+            compareValueTypes(((JsonObject)expectedJson).asMap(), builtJson);
         }
 
         @Test
         void clearTest() {
             var expectedJson = Json.parse(EMPTY_JSON_OBJ);
             var builtJson = JsonObject.of(Map.of());
-            compareValueTypes(((JsonObject)expectedJson).members(), builtJson.members());
+            compareValueTypes(((JsonObject)expectedJson).asMap(), builtJson.asMap());
         }
 
         // Basic test to check of factory for JsonObject
@@ -301,8 +301,8 @@ public class TestJsonObject {
             map.put("foo", JsonNumber.of(5));
             map.put("bar", JsonString.of("value"));
             map.put("baz", JsonNull.of());
-            compareValueTypes(JsonObject.of(map).members(),
-                    ((JsonObject)Json.parse("{ \"foo\" : 5, \"bar\" : \"value\", \"baz\" : null}")).members());
+            compareValueTypes(JsonObject.of(map).asMap(),
+                    ((JsonObject)Json.parse("{ \"foo\" : 5, \"bar\" : \"value\", \"baz\" : null}")).asMap());
         }
 
         private static void compareValueTypes(Map<String, JsonValue> expected, Map<String, JsonValue> actual) {
@@ -317,19 +317,19 @@ public class TestJsonObject {
             var map = new HashMap<String, JsonValue>();
             map.put("foo", JsonString.of("foo"));
             var jo = JsonObject.of(map);
-            assertEquals(1, jo.members().size());
+            assertEquals(1, jo.asMap().size());
             // Modifications to original backed map should not change JsonObject
             map.put("bar", JsonString.of("foo"));
-            assertEquals(1, jo.members().size());
-            // Modifications to JsonObject members() should not be possible
+            assertEquals(1, jo.asMap().size());
+            // Modifications to JsonObject asMap() should not be possible
             assertThrows(UnsupportedOperationException.class,
-                    () -> jo.members().put("bar", JsonNull.of()),
+                    () -> jo.asMap().put("bar", JsonNull.of()),
                     "Object members able to be modified");
         }
 
         @Test
         void orderingOfTest() {
-            var jsonFromOf = ((JsonArray)Json.parse(JSON_WITH_SPACES)).elements();
+            var jsonFromOf = ((JsonArray)Json.parse(JSON_WITH_SPACES)).asList();
             assertEquals(JSON_NO_NEWLINE, JsonArray.of(jsonFromOf).toString());
         }
 
@@ -354,7 +354,7 @@ public class TestJsonObject {
         void controlCodeRoundTripTest() {
             for (int i = 0; i < 32; i++) {
                 var sequence = Map.of("\\u" + String.format("%04x", i), JsonNull.of());
-                var jo = JsonObject.of(sequence).members();
+                var jo = JsonObject.of(sequence).asMap();
                 JsonObject.of(jo);
             }
         }

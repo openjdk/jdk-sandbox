@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -94,10 +94,10 @@ public class TestJsonArray {
                             JsonObject.of(Map.of("name", JsonNumber.of(42))),
                             JsonArray.of(List.of(JsonNumber.of(1)))
                     )
-            ).elements();
+            ).asList();
             if (doc instanceof JsonArray ja) {
                 //only compare types
-                compareTypes(expected, ja.elements());
+                compareTypes(expected, ja.asList());
             } else {
                 throw new RuntimeException("JsonArray expected");
             }
@@ -115,13 +115,13 @@ public class TestJsonArray {
             var list = new ArrayList<JsonValue>();
             list.add(JsonString.of("foo"));
             var ja = JsonArray.of(list);
-            assertEquals(1, ja.elements().size());
+            assertEquals(1, ja.asList().size());
             // Modifications to backed list should not change JsonArray
             list.add(JsonString.of("foo"));
-            assertEquals(1, ja.elements().size());
-            // Modifications to JsonArray elements() should throw
+            assertEquals(1, ja.asList().size());
+            // Modifications to JsonArray asList() should throw
             assertThrows(UnsupportedOperationException.class,
-                    () -> ja.elements().add(JsonNull.of()),
+                    () -> ja.asList().add(JsonNull.of()),
                     "Array values able to be modified");
         }
 
@@ -154,8 +154,8 @@ public class TestJsonArray {
         @Test
         public void testArrayEquality() {
             JsonArray jsonArray = (JsonArray) Json.parse(json);
-            for (int i = 0; i < jsonArray.elements().size(); i += 2) {
-                assertEquals(jsonArray.elements().get(i), jsonArray.elements().get(i + 1));
+            for (int i = 0; i < jsonArray.asList().size(); i += 2) {
+                assertEquals(jsonArray.asList().get(i), jsonArray.asList().get(i + 1));
             }
         }
     }

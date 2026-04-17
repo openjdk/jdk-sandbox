@@ -56,7 +56,7 @@ public final class JsonObjectImpl implements JsonObject, JsonValueImpl {
 
     // Conversion override
     @Override
-    public Map<String, JsonValue> members() {
+    public Map<String, JsonValue> asMap() {
         return Collections.unmodifiableMap(theMembers);
     }
 
@@ -90,13 +90,13 @@ public final class JsonObjectImpl implements JsonObject, JsonValueImpl {
     @Override
     public String toString() {
         var s = new StringBuilder("{");
-        for (Map.Entry<String, JsonValue> kv: members().entrySet()) {
+        for (Map.Entry<String, JsonValue> kv: asMap().entrySet()) {
             // Escape the key (which is stored as unescaped) to conform to JSON syntax
             s.append("\"").append(Utils.escape(kv.getKey())).append("\":")
              .append(kv.getValue().toString())
              .append(",");
         }
-        if (!members().isEmpty()) {
+        if (!asMap().isEmpty()) {
             s.setLength(s.length() - 1); // trim final comma
         }
         return s.append("}").toString();
@@ -105,11 +105,11 @@ public final class JsonObjectImpl implements JsonObject, JsonValueImpl {
     @Override
     public boolean equals(Object o) {
         return o instanceof JsonObject ojo &&
-                members().equals(ojo.members());
+                asMap().equals(ojo.asMap());
     }
 
     @Override
     public int hashCode() {
-        return members().hashCode();
+        return asMap().hashCode();
     }
 }

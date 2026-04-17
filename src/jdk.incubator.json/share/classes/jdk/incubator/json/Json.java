@@ -133,11 +133,11 @@ public final class Json {
         } else {
             s.append(prefix);
         }
-        if (jo.members().isEmpty()) {
+        if (jo.asMap().isEmpty()) {
             s.append("{}");
         } else {
             s.append("{\n");
-            jo.members().forEach((name, val) -> {
+            jo.asMap().forEach((name, val) -> {
                 s.append(prefix)
                         .append(" ".repeat(indent))
                         .append("\"")
@@ -159,11 +159,11 @@ public final class Json {
         } else {
             s.append(prefix);
         }
-        if (ja.elements().isEmpty()) {
+        if (ja.asList().isEmpty()) {
             s.append("[]");
         } else {
             s.append("[\n");
-            for (JsonValue v : ja.elements()) {
+            for (JsonValue v : ja.asList()) {
                 Json.toDisplayString(v, s, col + indent, indent, false);
                 s.append(",\n");
             }

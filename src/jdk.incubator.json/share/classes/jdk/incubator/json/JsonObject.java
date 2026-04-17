@@ -58,7 +58,7 @@ public non-sealed interface JsonObject extends JsonValue {
      * follows the encounter order of the provided map.
      */
     @Override
-    Map<String, JsonValue> members();
+    Map<String, JsonValue> asMap();
 
     /**
      * {@return the {@code JsonValue} associated with the given member name}
@@ -108,9 +108,9 @@ public non-sealed interface JsonObject extends JsonValue {
      * {@return {@code true} if the given object is also a {@code JsonObject}
      * and the two {@code JsonObject}s represent the same mappings} Two
      * {@code JsonObject}s {@code jo1} and {@code jo2} represent the same
-     * mappings if {@code jo1.members().equals(jo2.members())}.
+     * mappings if {@code jo1.asMap().equals(jo2.asMap())}.
      *
-     * @see #members()
+     * @see #asMap()
      */
     @Override
     boolean equals(Object obj);
@@ -118,11 +118,11 @@ public non-sealed interface JsonObject extends JsonValue {
     /**
      * {@return the hash code value for this {@code JsonObject}} The hash code value
      * of a {@code JsonObject} is derived from the hash code of {@code JsonObject}'s
-     * {@link #members()}. Thus, for two {@code JsonObject}s {@code jo1} and {@code jo2},
+     * {@link #asMap()}. Thus, for two {@code JsonObject}s {@code jo1} and {@code jo2},
      * {@code jo1.equals(jo2)} implies that {@code jo1.hashCode() == jo2.hashCode()}
      * as required by the general contract of {@link Object#hashCode}.
      *
-     * @see #members()
+     * @see #asMap()
      */
     @Override
     int hashCode();

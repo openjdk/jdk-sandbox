@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2025, 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -62,11 +62,11 @@ public class TestParse {
     @Test
     void testBasicParseAndMatch() {
         var doc = Json.parse(JSON);
-        if (doc instanceof JsonObject o && o.members() instanceof Map<String, JsonValue> members
+        if (doc instanceof JsonObject o && o.asMap() instanceof Map<String, JsonValue> members
                 && members.get("name") instanceof JsonString js
                 && members.get("shoeSize") instanceof JsonNumber jn) {
-            assertEquals("Brian", js.string());
-            assertEquals(10, jn.toLong());
+            assertEquals("Brian", js.asString());
+            assertEquals(10, jn.asLong());
         } else {
             throw new RuntimeException("Test data incorrect");
         }
@@ -82,10 +82,10 @@ public class TestParse {
         Arrays.fill(in, 'A');
 
         if (doc instanceof JsonObject o
-                && o.members().get("name") instanceof JsonString js
-                && o.members().get("shoeSize") instanceof JsonNumber jn) {
-            assertEquals("Brian", js.string());
-            assertEquals(10, jn.toLong());
+                && o.asMap().get("name") instanceof JsonString js
+                && o.asMap().get("shoeSize") instanceof JsonNumber jn) {
+            assertEquals("Brian", js.asString());
+            assertEquals(10, jn.asLong());
         } else {
             throw new RuntimeException("JsonValue corrupted by input array");
         }
