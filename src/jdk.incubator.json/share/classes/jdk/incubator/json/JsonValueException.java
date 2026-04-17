@@ -35,7 +35,7 @@ import java.io.Serial;
  *     An {@link JsonValue##access access} or a
  *     {@link JsonValue##conversion conversion} method is invoked on a
  *     {@code JsonValue} of an incompatible type. For example, calling
- *     {@code bool()} on a {@code JsonValue} representing a JSON string.
+ *     {@code asBoolean()} on a {@code JsonValue} representing a JSON string.
  *   </li>
  *   <li>
  *     An access method is invoked for a non-existent value, such as
@@ -43,7 +43,7 @@ import java.io.Serial;
  *     {@code element()} for an out-of-bounds index in a {@code JsonArray}.
  *   </li>
  *   <li>
- *     {@code toInt()}, {@code toLong()}, or {@code toDouble()} is invoked on
+ *     {@code asInt()}, {@code asLong()}, or {@code asDouble()} is invoked on
  *     a {@code JsonNumber} that cannot be represented without loss of
  *     information by the target type.
  *   </li>
