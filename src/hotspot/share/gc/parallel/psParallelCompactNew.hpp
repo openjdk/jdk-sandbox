@@ -283,6 +283,7 @@ private:
 
   static void summary_phase();
   static void setup_regions_parallel();
+  static size_t calculate_region_size();
   static void setup_regions_serial();
 
   static void adjust_pointers();
