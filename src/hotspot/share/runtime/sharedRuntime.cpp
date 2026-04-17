@@ -276,6 +276,11 @@ void SharedRuntime::generate_stubs() {
                                  /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ true);
   }
 #endif
+
+#if INCLUDE_CDS
+  // disallow any further generation of runtime stubs
+  AOTCodeCache::set_shared_stubs_complete();
+#endif // INCLUDE_CDS
 }
 
 void SharedRuntime::init_adapter_library() {
