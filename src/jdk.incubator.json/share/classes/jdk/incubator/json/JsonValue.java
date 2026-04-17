@@ -95,9 +95,9 @@ import java.util.Optional;
  * <p>
  * These conversion methods always return a value when the {@code JsonValue} is
  * of the correct JSON type. The exceptions are {@code asInt()}, {@code asLong()},
- * and {@code asDouble()}; the {@code to} prefix implies that they may throw a
- * {@code JsonAssertionException} even when the {@code JsonValue} is a JSON
- * number, for example if it is outside their supported ranges.
+ * and {@code asDouble()}; they may throw a {@code JsonAssertionException} even
+ * when the {@code JsonValue} is a JSON number, for example if it is outside
+ * their supported ranges.
  * <h2>Subtypes of JsonValue</h2>
  * The {@code JsonValue} subtypes correspond to the JSON types. For example,
  * {@code JsonString} to JSON string. If the type of JSON value is unknown, it can
