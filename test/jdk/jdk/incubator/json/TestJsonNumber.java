@@ -32,7 +32,7 @@
 
 import java.util.List;
 import jdk.incubator.json.Json;
-import jdk.incubator.json.JsonAssertionException;
+import jdk.incubator.json.JsonValueException;
 import jdk.incubator.json.JsonNumber;
 import jdk.incubator.json.JsonParseException;
 import java.util.stream.Stream;
@@ -86,10 +86,10 @@ public class TestJsonNumber {
         void testDoubleRepresentation(String str, double d) {
             var json = Json.parse(str);
             assertEquals(d, json.asDouble());
-            assertThrows(JsonAssertionException.class, json::asLong);
+            assertThrows(JsonValueException.class, json::asLong);
             json = Json.parse("-" + str);
             assertEquals(-d, json.asDouble());
-            assertThrows(JsonAssertionException.class, json::asLong);
+            assertThrows(JsonValueException.class, json::asLong);
         }
 
         private static Stream<Arguments> testDoubleRepresentation() {
@@ -159,7 +159,7 @@ public class TestJsonNumber {
         @MethodSource
         void testDoubleOutOfRange(String str) {
             var json = Json.parse(str);
-            assertThrows(JsonAssertionException.class, json::asDouble);
+            assertThrows(JsonValueException.class, json::asDouble);
         }
 
         private static Stream<Arguments> testDoubleOutOfRange() {
@@ -175,7 +175,7 @@ public class TestJsonNumber {
         @MethodSource
         void testLongOutOfRange(String str) {
             var json = Json.parse(str);
-            assertThrows(JsonAssertionException.class, json::asLong);
+            assertThrows(JsonValueException.class, json::asLong);
         }
 
         private static Stream<Arguments> testLongOutOfRange() {
@@ -191,7 +191,7 @@ public class TestJsonNumber {
         @MethodSource
         void testIntOutOfRange(String str) {
             var json = Json.parse(str);
-            assertThrows(JsonAssertionException.class, json::asInt);
+            assertThrows(JsonValueException.class, json::asInt);
         }
 
         private static Stream<Arguments> testIntOutOfRange() {

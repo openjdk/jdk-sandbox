@@ -69,11 +69,11 @@ public non-sealed interface JsonNumber extends JsonValue {
      * {@link Integer#MIN_VALUE} and {@link Integer#MAX_VALUE}. This occurs,
      * even if the string contains an exponent or a fractional part consisting of
      * only zero digits. For example, both the JSON number "123.0" and "1.23e2"
-     * produce an {@code int} value of "123". A {@code JsonAssertionException}
+     * produce an {@code int} value of "123". A {@code JsonValueException}
      * is thrown when the numeric value cannot be represented as an {@code int};
      * for example, the value "5.5".
      *
-     * @throws JsonAssertionException if this {@code JsonNumber} cannot
+     * @throws JsonValueException if this {@code JsonNumber} cannot
      *      be represented as an {@code int}.
      */
     @Override
@@ -86,10 +86,10 @@ public non-sealed interface JsonNumber extends JsonValue {
      * {@link Long#MAX_VALUE}. This occurs, even if the string contains an
      * exponent or a fractional part consisting of only zero digits. For example,
      * both the JSON number "123.0" and "1.23e2" produce a {@code long} value of
-     * "123". A {@code JsonAssertionException} is thrown when the numeric value
+     * "123". A {@code JsonValueException} is thrown when the numeric value
      * cannot be represented as a {@code long}; for example, the value "5.5".
      *
-     * @throws JsonAssertionException if this {@code JsonNumber} cannot
+     * @throws JsonValueException if this {@code JsonNumber} cannot
      *      be represented as a {@code long}.
      */
     @Override
@@ -98,14 +98,14 @@ public non-sealed interface JsonNumber extends JsonValue {
     /**
      * {@return a finite {@code double} value from its string representation}
      * If the string representation is outside the range of {@link Double#MAX_VALUE
-     * -Double.MAX_VALUE} and {@link Double#MAX_VALUE}, a {@code JsonAssertionException} is thrown.
+     * -Double.MAX_VALUE} and {@link Double#MAX_VALUE}, a {@code JsonValueException} is thrown.
      *
      * @apiNote {@inheritDoc}
      * @implNote The JDK reference implementation uses {@link
      * Double#parseDouble(String)} to perform the conversion from string to
      * finite double.
      *
-     * @throws JsonAssertionException if this {@code JsonNumber} cannot
+     * @throws JsonValueException if this {@code JsonNumber} cannot
      *      be represented as a finite {@code double}.
      */
     @Override

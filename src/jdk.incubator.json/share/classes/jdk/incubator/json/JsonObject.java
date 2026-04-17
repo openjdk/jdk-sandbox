@@ -64,7 +64,7 @@ public non-sealed interface JsonObject extends JsonValue {
      * {@return the {@code JsonValue} associated with the given member name}
      *
      * @param name {@inheritDoc}
-     * @throws JsonAssertionException if there is no association with the member name
+     * @throws JsonValueException if there is no association with the member name
      * @throws NullPointerException {@inheritDoc}
      */
     @Override

@@ -26,7 +26,7 @@
 package jdk.incubator.json.impl;
 
 /**
- * Used for JsonAssertionException error message building.
+ * Used for JsonValueException error message building.
  */
 public sealed interface JsonValueImpl
         permits JsonArrayImpl, JsonBooleanImpl, JsonNullImpl, JsonNumberImpl, JsonObjectImpl, JsonStringImpl {

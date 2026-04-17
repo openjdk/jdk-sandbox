@@ -26,7 +26,7 @@
 package jdk.incubator.json.impl;
 
 import jdk.incubator.json.JsonArray;
-import jdk.incubator.json.JsonAssertionException;
+import jdk.incubator.json.JsonValueException;
 import jdk.incubator.json.JsonBoolean;
 import jdk.incubator.json.JsonNull;
 import jdk.incubator.json.JsonNumber;
@@ -87,13 +87,13 @@ public class Utils {
         return sb == null ? str : sb.toString();
     }
 
-    public static JsonAssertionException composeError(JsonValue jv, String message) {
-        return new JsonAssertionException(message +
+    public static JsonValueException composeError(JsonValue jv, String message) {
+        return new JsonValueException(message +
                 (jv instanceof JsonValueImpl jvi && jvi.doc() != null ? JsonPath.getPath(jvi) : ""));
     }
 
     // Use to compose an exception when casting to an incorrect type
-    public static JsonAssertionException composeTypeError(JsonValue jv, String expected) {
+    public static JsonValueException composeTypeError(JsonValue jv, String expected) {
         var actual = switch (jv) {
             case JsonObject _ -> "JsonObject";
             case JsonArray _ -> "JsonArray";

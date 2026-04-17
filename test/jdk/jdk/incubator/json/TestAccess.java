@@ -31,7 +31,7 @@
  */
 
 import jdk.incubator.json.Json;
-import jdk.incubator.json.JsonAssertionException;
+import jdk.incubator.json.JsonValueException;
 import jdk.incubator.json.JsonBoolean;
 import jdk.incubator.json.JsonNull;
 import jdk.incubator.json.JsonString;
@@ -85,9 +85,9 @@ public class TestAccess {
     @Test
     void boolAndNullFailureTest() {
         var json = Json.parse("{ \"foo\" : null, \"bar\" : false, \"baz\" : true }");
-        assertThrows(JsonAssertionException.class, () -> json.get("foo").getOrAbsent("_"));
-        assertThrows(JsonAssertionException.class, () -> json.get("bar").getOrAbsent("_"));
-        assertThrows(JsonAssertionException.class, () -> json.get("baz").getOrAbsent("_"));
+        assertThrows(JsonValueException.class, () -> json.get("foo").getOrAbsent("_"));
+        assertThrows(JsonValueException.class, () -> json.get("bar").getOrAbsent("_"));
+        assertThrows(JsonValueException.class, () -> json.get("baz").getOrAbsent("_"));
     }
 
     @Test
@@ -96,7 +96,7 @@ public class TestAccess {
         assertEquals(Optional.empty(), json.getOrAbsent("baz"));
         assertNull(json.getOrAbsent("baz").map(JsonValue::asString).orElse(null));
         assertEquals("words", json.getOrAbsent("bar").map(JsonValue::asString).orElse(null));
-        assertThrows(JsonAssertionException.class, () -> json.get("foo").getOrAbsent("baz"));
+        assertThrows(JsonValueException.class, () -> json.get("foo").getOrAbsent("baz"));
     }
 
     @Test
@@ -111,24 +111,24 @@ public class TestAccess {
     @Test
     void stringTest() {
         assertEquals("JsonNumber is not a JsonString. Path: \"{valuesWithCommas[3\". Location: line 2, position 96.",
-                assertThrows(JsonAssertionException.class,
+                assertThrows(JsonValueException.class,
                         () -> JSON_ROOT_OBJECT.get("valuesWithCommas").element(3).asString()).getMessage());
         assertEquals("JsonNumber is not a JsonBoolean. Path: \"{obj{z\". Location: line 6, position 31.",
-                assertThrows(JsonAssertionException.class,
+                assertThrows(JsonValueException.class,
                         () -> JSON_ROOT_OBJECT.get("obj").get("z").asBoolean()).getMessage());
     }
 
     @Test
     void leafExceptionTest() {
         assertEquals("JsonNumber is not a JsonString. Path: \"[1{age\". Location: line 6, position 11.",
-                assertThrows(JsonAssertionException.class,
+                assertThrows(JsonValueException.class,
                         () -> JSON_ROOT_ARRAY.element(1).get("age").asString()).getMessage());
     }
 
     @Test
     void rootArrayTest() {
         assertEquals("JsonObject member \"asge\" does not exist. Path: \"[1\". Location: line 4, position 2.",
-                assertThrows(JsonAssertionException.class,
+                assertThrows(JsonValueException.class,
                         () -> JSON_ROOT_ARRAY.element(1).get("asge").asLong()).getMessage());
     }
 
@@ -136,14 +136,14 @@ public class TestAccess {
     @Test
     void escapedKeyTest() {
         assertEquals("JsonArray index 1 out of bounds for length 1. Path: \"{ba\\\"zz\". Location: line 5, position 15.",
-                assertThrows(JsonAssertionException.class,
+                assertThrows(JsonValueException.class,
                         () -> JSON_ROOT_OBJECT.get("ba\"zz").element(1)).getMessage());
     }
 
     @Test
     void multiNestedTest() {
         assertEquals("JsonObject member \"zap\" does not exist. Path: \"{qux[1{in\". Location: line 4, position 31.",
-                assertThrows(JsonAssertionException.class,
+                assertThrows(JsonValueException.class,
                         () -> JSON_ROOT_OBJECT.get("qux").element(1).get("in").get("zap")).getMessage());
     }
 
@@ -151,7 +151,7 @@ public class TestAccess {
     @Test
     void firstArrayElementTest() {
         assertEquals("JsonArray index 5 out of bounds for length 1. Path: \"{qux[0\". Location: line 4, position 14.",
-                assertThrows(JsonAssertionException.class,
+                assertThrows(JsonValueException.class,
                     () -> JSON_ROOT_OBJECT.get("qux").element(0).element(5)).getMessage());
     }
 
@@ -160,9 +160,9 @@ public class TestAccess {
     void failObjectAccessTest() {
         // Points to the start of the root object -> { ...
         assertEquals("JsonObject is not a JsonArray. Path: \"\". Location: line 0, position 3.",
-                assertThrows(JsonAssertionException.class, () -> JSON_ROOT_OBJECT.element(0)).getMessage());
+                assertThrows(JsonValueException.class, () -> JSON_ROOT_OBJECT.element(0)).getMessage());
         assertEquals("JsonObject member \"car\" does not exist. Path: \"\". Location: line 0, position 3.",
-                assertThrows(JsonAssertionException.class, () -> JSON_ROOT_OBJECT.get("car")).getMessage());
+                assertThrows(JsonValueException.class, () -> JSON_ROOT_OBJECT.get("car")).getMessage());
     }
 
     // Operations on JsonArray
@@ -170,9 +170,9 @@ public class TestAccess {
     void failArrayAccessTest() {
         // Points to the JsonArray value of "values"; starts at -> [ "value", null ] ...
         assertEquals("JsonArray is not a JsonObject. Path: \"{values\". Location: line 2, position 15.",
-                assertThrows(JsonAssertionException.class, () -> JSON_NESTED_ARRAY.get("foo")).getMessage());
+                assertThrows(JsonValueException.class, () -> JSON_NESTED_ARRAY.get("foo")).getMessage());
         assertEquals("JsonArray index 3 out of bounds for length 2. Path: \"{values\". Location: line 2, position 15.",
-                assertThrows(JsonAssertionException.class, () -> JSON_NESTED_ARRAY.element(3)).getMessage());
+                assertThrows(JsonValueException.class, () -> JSON_NESTED_ARRAY.element(3)).getMessage());
     }
 
     @Test

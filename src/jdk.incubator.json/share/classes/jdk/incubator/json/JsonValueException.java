@@ -50,16 +50,16 @@ import java.io.Serial;
  * </ul>
  * @since 99
  */
-public class JsonAssertionException extends RuntimeException {
+public class JsonValueException extends RuntimeException {
 
     @Serial
     private static final long serialVersionUID = 2040280066622450939L;
 
     /**
-     * Constructs a JsonAssertionException with the specified detail message.
+     * Constructs a JsonValueException with the specified detail message.
      * @param message the detail message
      */
-    public JsonAssertionException(String message) {
+    public JsonValueException(String message) {
         super(message);
     }
 }

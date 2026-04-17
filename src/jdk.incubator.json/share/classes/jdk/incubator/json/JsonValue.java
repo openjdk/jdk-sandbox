@@ -52,7 +52,7 @@ import java.util.Optional;
  * JsonValue foo0 = json.get("foo").element(0);
  * }
  * If an access method is invoked on an incompatible JSON type (for example,
- * calling {@code get(String)} on a JSON array), a {@code JsonAssertionException}
+ * calling {@code get(String)} on a JSON array), a {@code JsonValueException}
  * is thrown.
  * <p>
  * Once the desired JSON value is reached, call the corresponding conversion
@@ -91,11 +91,11 @@ import java.util.Optional;
  * }
  * The code above retrieves the Java String "bar" from the JSON value {@code foo0}.
  * If an incorrect conversion method is used, which does not correspond to the matching
- * JSON type, for example {@code foo0.asBoolean()}, a {@code JsonAssertionException} is thrown.
+ * JSON type, for example {@code foo0.asBoolean()}, a {@code JsonValueException} is thrown.
  * <p>
  * These conversion methods always return a value when the {@code JsonValue} is
  * of the correct JSON type. The exceptions are {@code asInt()}, {@code asLong()},
- * and {@code asDouble()}; they may throw a {@code JsonAssertionException} even
+ * and {@code asDouble()}; they may throw a {@code JsonValueException} even
  * when the {@code JsonValue} is a JSON number, for example if it is outside
  * their supported ranges.
  * <h2>Subtypes of JsonValue</h2>
@@ -106,7 +106,7 @@ import java.util.Optional;
  * switch (json.get("foo")) {
  *     case JsonString js -> js.asString(); // handle the value as JSON string
  *     case JsonArray ja -> ja.element(0).asString(); // handle the value as JSON array
- *     default -> throw new JsonAssertionException("unexpected type");
+ *     default -> throw new JsonValueException("unexpected type");
  * }
  *}
  * <h2>Missing Object Members</h2>
@@ -179,14 +179,14 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
     /**
      * {@return the {@code boolean} value represented by this {@code JsonValue} if
      * it is an instance of {@link JsonBoolean}} Otherwise, throws an
-     * {@code JsonAssertionException}.
+     * {@code JsonValueException}.
      *
      * @implSpec
      * The default implementation provided by {@code JsonValue} throws {@code
-     * JsonAssertionException}. As such, implementors of {@code JsonBoolean} are expected to
+     * JsonValueException}. As such, implementors of {@code JsonBoolean} are expected to
      * provide an implementation of this method.
      *
-     * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonBoolean}.
+     * @throws JsonValueException if this {@code JsonValue} is not an instance of {@code JsonBoolean}.
      */
     default boolean asBoolean() {
         throw Utils.composeTypeError(this, "JsonBoolean");
@@ -199,16 +199,16 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      * {@link Integer#MIN_VALUE} and {@link Integer#MAX_VALUE}. This occurs,
      * even if the string contains an exponent or a fractional part consisting of
      * only zero digits. For example, both the JSON number "123.0" and "1.23e2"
-     * produce an {@code int} value of "123". A {@code JsonAssertionException}
+     * produce an {@code int} value of "123". A {@code JsonValueException}
      * is thrown when the numeric value cannot be represented as an {@code int};
      * for example, the value "5.5".
      *
      * @implSpec
      * The default implementation provided by {@code JsonValue} throws {@code
-     * JsonAssertionException}. As such, implementors of {@code JsonNumber} are expected to
+     * JsonValueException}. As such, implementors of {@code JsonNumber} are expected to
      * provide an implementation of this method.
      *
-     * @throws JsonAssertionException if this {@code JsonValue} is not an instance
+     * @throws JsonValueException if this {@code JsonValue} is not an instance
      *      of {@code JsonNumber} nor can be represented as an {@code int}.
      */
     default int asInt() {
@@ -222,15 +222,15 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      * {@link Long#MAX_VALUE}. This occurs, even if the string contains an
      * exponent or a fractional part consisting of only zero digits. For example,
      * both the JSON number "123.0" and "1.23e2" produce a {@code long} value of
-     * "123". A {@code JsonAssertionException} is thrown when the numeric value
+     * "123". A {@code JsonValueException} is thrown when the numeric value
      * cannot be represented as a {@code long}; for example, the value "5.5".
      *
      * @implSpec
      * The default implementation provided by {@code JsonValue} throws {@code
-     * JsonAssertionException}. As such, implementors of {@code JsonNumber} are expected to
+     * JsonValueException}. As such, implementors of {@code JsonNumber} are expected to
      * provide an implementation of this method.
      *
-     * @throws JsonAssertionException if this {@code JsonValue} is not an instance
+     * @throws JsonValueException if this {@code JsonValue} is not an instance
      *      of {@code JsonNumber} nor can be represented as a {@code long}.
      */
     default long asLong() {
@@ -241,17 +241,17 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      * {@return a finite {@code double} if this {@code JsonValue} is an instance of
      * {@link JsonNumber} and it can be translated from its string representation}
      * If the string representation is outside the range of {@link Double#MAX_VALUE
-     * -Double.MAX_VALUE} and {@link Double#MAX_VALUE}, a {@code JsonAssertionException} is thrown.
+     * -Double.MAX_VALUE} and {@link Double#MAX_VALUE}, a {@code JsonValueException} is thrown.
      *
      * @apiNote Callers of this method should be aware of the potential loss in
      * precision when the string representation of the JSON number is translated
      * to a {@code double}.
      * @implSpec
      * The default implementation provided by {@code JsonValue} throws {@code
-     * JsonAssertionException}. As such, implementors of {@code JsonNumber} are expected to
+     * JsonValueException}. As such, implementors of {@code JsonNumber} are expected to
      * provide an implementation of this method.
      *
-     * @throws JsonAssertionException if this {@code JsonValue} is not an instance
+     * @throws JsonValueException if this {@code JsonValue} is not an instance
      *      of {@code JsonNumber} nor can be represented as a {@code double}.
      */
     default double asDouble() {
@@ -261,17 +261,17 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
     /**
      * {@return the {@code String} value represented by this {@code JsonValue} if
      * it is an instance of {@link JsonString}} Otherwise, throws an
-     * {@code JsonAssertionException}.
+     * {@code JsonValueException}.
      * If this {@code JsonString} was created by parsing a JSON document, any
      * escaped characters in the original JSON document are converted to their
      * unescaped form.
      *
      * @implSpec
      * The default implementation provided by {@code JsonValue} throws {@code
-     * JsonAssertionException}. As such, implementors of {@code JsonString} are expected to
+     * JsonValueException}. As such, implementors of {@code JsonString} are expected to
      * provide an implementation of this method.
      *
-     * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonString}.
+     * @throws JsonValueException if this {@code JsonValue} is not an instance of {@code JsonString}.
      */
     default String asString() {
         throw Utils.composeTypeError(this, "JsonString");
@@ -280,14 +280,14 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
     /**
      * {@return an unmodifiable list of the {@code JsonValue}s if this
      * {@code JsonValue} is an instance of {@link JsonArray}} Otherwise, throws an
-     * {@code JsonAssertionException}.
+     * {@code JsonValueException}.
      *
      * @implSpec
      * The default implementation provided by {@code JsonValue} throws {@code
-     * JsonAssertionException}. As such, implementors of {@code JsonArray} are expected to
+     * JsonValueException}. As such, implementors of {@code JsonArray} are expected to
      * provide an implementation of this method.
      *
-     * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonArray}.
+     * @throws JsonValueException if this {@code JsonValue} is not an instance of {@code JsonArray}.
      */
     default List<JsonValue> asList() {
         throw Utils.composeTypeError(this, "JsonArray");
@@ -296,14 +296,14 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
     /**
      * {@return an unmodifiable map of {@code String} to {@code JsonValue} if this
      * {@code JsonValue} is an instance of {@link JsonObject}} Otherwise, throws an
-     * {@code JsonAssertionException}.
+     * {@code JsonValueException}.
      *
      * @implSpec
      * The default implementation provided by {@code JsonValue} throws {@code
-     * JsonAssertionException}. As such, implementors of {@code JsonObject} are expected to
+     * JsonValueException}. As such, implementors of {@code JsonObject} are expected to
      * provide an implementation of this method.
      *
-     * @throws JsonAssertionException if this {@code JsonValue} is not an instance of {@code JsonObject}.
+     * @throws JsonValueException if this {@code JsonValue} is not an instance of {@code JsonObject}.
      */
     default Map<String, JsonValue> asMap() {
         throw Utils.composeTypeError(this, "JsonObject");
@@ -319,16 +319,16 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
     /**
      * {@return the {@code JsonValue} associated with the given member name if this
      * {@code JsonValue} is an instance of {@link JsonObject}} Otherwise, throws an
-     * {@code JsonAssertionException}.
+     * {@code JsonValueException}.
      *
      * @implSpec
      * The default implementation obtains a {@code JsonValue} which is the result
      * of invoking {@link #asMap()}{@code .get(name)}. If {@code name} is absent,
-     * {@code JsonAssertionException} is thrown.
+     * {@code JsonValueException} is thrown.
      *
      * @param name the member name
      * @throws NullPointerException if the member name is {@code null}
-     * @throws JsonAssertionException if this {@code JsonValue} is not an instance of a {@code JsonObject} or
+     * @throws JsonValueException if this {@code JsonValue} is not an instance of a {@code JsonObject} or
      * there is no association with the member name
      */
     default JsonValue get(String name) {
@@ -343,7 +343,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
     /**
      * {@return an {@code Optional} containing the {@code JsonValue} associated
      * with the given member name if this {@code JsonValue} is an instance of
-     * {@link JsonObject}} Otherwise, throws a {@code JsonAssertionException}.
+     * {@link JsonObject}} Otherwise, throws a {@code JsonValueException}.
      * If there is no association with the given member name, an empty
      * {@code Optional}} is returned.
      *
@@ -353,7 +353,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      *
      * @param name the member name
      * @throws NullPointerException if the member name is {@code null}
-     * @throws JsonAssertionException if this {@code JsonValue} is not an instance of a {@code JsonObject}
+     * @throws JsonValueException if this {@code JsonValue} is not an instance of a {@code JsonObject}
      */
     default Optional<JsonValue> getOrAbsent(String name) {
         Objects.requireNonNull(name);
@@ -363,15 +363,15 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
     /**
      * {@return the {@code JsonValue} associated with the given index if this
      * {@code JsonValue} is an instance of {@link JsonArray}} Otherwise, throws an
-     * {@code JsonAssertionException}.
+     * {@code JsonValueException}.
      *
      * @implSpec
      * The default implementation obtains a {@code JsonValue} which is the result
      * of invoking {@link #asList()}{@code .get(index)}. If {@code index} is
-     * out of bounds, {@code JsonAssertionException} is thrown.
+     * out of bounds, {@code JsonValueException} is thrown.
      *
      * @param index the index of the array
-     * @throws JsonAssertionException if this {@code JsonValue} is not an instance of a {@code JsonArray}
+     * @throws JsonValueException if this {@code JsonValue} is not an instance of a {@code JsonArray}
      * or the given index is out of bounds
      */
     default JsonValue element(int index) {
