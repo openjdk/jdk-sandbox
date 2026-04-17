@@ -2964,6 +2964,13 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
   } else {
     __ leave();
   }
+
+  // Runtime call could have clobbered PTRUE register. Vector saving code
+  // restored it already. We need to take care of non-vector path.
+  if (!save_vectors) {
+    __ reinitialize_ptrue();
+  }
+
   __ ret(lr);
 
   return RuntimeStub::new_runtime_stub(name,
