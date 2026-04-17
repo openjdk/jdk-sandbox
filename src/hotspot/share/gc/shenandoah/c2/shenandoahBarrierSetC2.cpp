@@ -219,6 +219,12 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* root) {
           break;
         }
 
+        case Op_LoadKlass: {
+          // Loads of stable metadata values from the object.
+          // These are the same in all copies.
+          break;
+        }
+
         case Op_CmpN: {
           if (out->in(1) == n &&
               out->in(2)->Opcode() == Op_ConN &&
