@@ -435,6 +435,8 @@ void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
         // Therefore, subsequent barriers are no longer required.
         case Op_CompareAndExchangeN:
         case Op_CompareAndExchangeP:
+        case Op_WeakCompareAndSwapN:
+        case Op_WeakCompareAndSwapP:
         case Op_CompareAndSwapN:
         case Op_CompareAndSwapP:
         case Op_GetAndSetP:
