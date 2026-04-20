@@ -1195,8 +1195,6 @@ void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
-  assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
-
   __ align(InteriorEntryAlignment);
   __ bind(*entry());
 
@@ -1219,18 +1217,15 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   // Go for barriers. Barriers can return straight to continuation, as long
   // as another barrier is not needed.
-  if (_needs_keep_alive_barrier) {
-    keepalive(masm, (_needs_load_ref_barrier ? nullptr : continuation()));
-  }
-  if (_needs_load_ref_barrier) {
-    lrb(masm, continuation());
-  }
   if (_needs_keep_alive_barrier && _needs_load_ref_barrier) {
-    __ jmp(*continuation());
+    keepalive(masm, nullptr);
+    lrb(masm, continuation());
+  } else if (_needs_keep_alive_barrier) {
+    keepalive(masm, continuation());
+  } else if (_needs_load_ref_barrier) {
+    lrb(masm, continuation());
   } else {
-#ifdef ASSERT
-    __ hlt(); // Should not reach here
-#endif
+    ShouldNotReachHere();
   }
 }
 
