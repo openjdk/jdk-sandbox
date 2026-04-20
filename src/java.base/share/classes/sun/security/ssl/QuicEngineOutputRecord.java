@@ -25,7 +25,6 @@
 
 package sun.security.ssl;
 
-import jdk.internal.net.quic.QuicTLSEngine;
 import sun.security.ssl.SSLCipher.SSLWriteCipher;
 
 import javax.crypto.SecretKey;
@@ -173,21 +172,6 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
     @Override
     void changeWriteCiphers(SSLWriteCipher writeCipher, byte keyUpdateRequest) throws IOException {
         throw new UnsupportedOperationException("Should not call this");
-    }
-
-    @Override
-    QuicTLSEngine.KeySpace getHandshakeMessageKeySpace() {
-        recordLock.lock();
-        try {
-            return switch (fragmenter.currentPacketSpace) {
-                case 0-> QuicTLSEngine.KeySpace.INITIAL;
-                case 1-> QuicTLSEngine.KeySpace.HANDSHAKE;
-                case 2-> QuicTLSEngine.KeySpace.ONE_RTT;
-                default -> throw new IllegalStateException("Unexpected state");
-            };
-        } finally {
-            recordLock.unlock();
-        }
     }
 
     @Override
