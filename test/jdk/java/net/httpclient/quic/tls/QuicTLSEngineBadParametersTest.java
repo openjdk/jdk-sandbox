@@ -29,7 +29,6 @@ import jdk.internal.net.quic.QuicVersion;
 import jdk.test.lib.net.SimpleSSLContext;
 import org.junit.jupiter.api.Test;
 
-import javax.net.ssl.QuicTransport;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 import java.io.IOException;
@@ -58,9 +57,9 @@ public class QuicTLSEngineBadParametersTest {
         QuicTransportException ex =
                 new QuicTransportException("", null, 0, QuicTransportErrors.TRANSPORT_PARAMETER_ERROR);
         serverEngine.setRemoteQuicTransportParametersConsumer(p -> { throw ex; });
-        ByteBuffer cTOs = clientEngine.getHandshakeBytes(QuicTransport.KeySpace.INITIAL);
+        ByteBuffer cTOs = clientEngine.getHandshakeBytes(QuicTLSEngine.KeySpace.INITIAL);
         try {
-            serverEngine.consumeHandshakeBytes(QuicTransport.KeySpace.INITIAL, cTOs);
+            serverEngine.consumeHandshakeBytes(QuicTLSEngine.KeySpace.INITIAL, cTOs);
             fail("Expected exception not thrown");
         } catch (QuicTransportException e) {
             assertSame(ex, e, "Incorrect exception caught");
@@ -78,17 +77,17 @@ public class QuicTLSEngineBadParametersTest {
         clientEngine.setRemoteQuicTransportParametersConsumer(p -> { throw ex; });
 
         // client hello
-        ByteBuffer cTOs = clientEngine.getHandshakeBytes(QuicTransport.KeySpace.INITIAL);
-        serverEngine.consumeHandshakeBytes(QuicTransport.KeySpace.INITIAL, cTOs);
+        ByteBuffer cTOs = clientEngine.getHandshakeBytes(QuicTLSEngine.KeySpace.INITIAL);
+        serverEngine.consumeHandshakeBytes(QuicTLSEngine.KeySpace.INITIAL, cTOs);
         assertFalse(cTOs.hasRemaining());
         // server hello
-        ByteBuffer sTOc = serverEngine.getHandshakeBytes(QuicTransport.KeySpace.INITIAL);
-        clientEngine.consumeHandshakeBytes(QuicTransport.KeySpace.INITIAL, sTOc);
+        ByteBuffer sTOc = serverEngine.getHandshakeBytes(QuicTLSEngine.KeySpace.INITIAL);
+        clientEngine.consumeHandshakeBytes(QuicTLSEngine.KeySpace.INITIAL, sTOc);
         assertFalse(sTOc.hasRemaining());
         // encrypted extensions
-        sTOc = serverEngine.getHandshakeBytes(QuicTransport.KeySpace.HANDSHAKE);
+        sTOc = serverEngine.getHandshakeBytes(QuicTLSEngine.KeySpace.HANDSHAKE);
         try {
-            clientEngine.consumeHandshakeBytes(QuicTransport.KeySpace.HANDSHAKE, sTOc);
+            clientEngine.consumeHandshakeBytes(QuicTLSEngine.KeySpace.HANDSHAKE, sTOc);
             fail("Expected exception not thrown");
         } catch (QuicTransportException e) {
             assertSame(ex, e, "Incorrect exception caught");

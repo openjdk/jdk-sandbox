@@ -26,7 +26,6 @@ package jdk.internal.net.quic;
 
 import javax.crypto.AEADBadTagException;
 import javax.crypto.ShortBufferException;
-import javax.net.ssl.QuicTransport;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLParameters;
@@ -41,6 +40,18 @@ import java.util.function.IntFunction;
  * but would be similar to SSLEngine.
  */
 public interface QuicTLSEngine {
+
+    /**
+     * Represents the encryption level associated with a packet encryption or
+     * decryption. A QUIC connection has a current keyspace for sending and
+     * receiving which can be queried.
+     */
+    enum KeySpace {
+        INITIAL,
+        HANDSHAKE,
+        ZERO_RTT,
+        ONE_RTT
+    }
 
     /**
      * {@return the QUIC versions supported by this engine}
@@ -130,7 +141,7 @@ public interface QuicTLSEngine {
     /**
      * {@return the current sending key space (encryption level)}
      */
-    QuicTransport.KeySpace getCurrentSendKeySpace();
+    KeySpace getCurrentSendKeySpace();
 
     /**
      * Checks whether the keys for the given key space are available.
@@ -140,21 +151,21 @@ public interface QuicTLSEngine {
      * @param keySpace key space to check
      * @return true if the given keys are available
      */
-    boolean keysAvailable(QuicTransport.KeySpace keySpace);
+    boolean keysAvailable(KeySpace keySpace);
 
     /**
      * Discard the keys used by the {@code keySpace}.
      * <p>
      * Once the keys for a particular {@code keySpace} have been discarded, the
      * keySpace will no longer be able to
-     * {@linkplain #encryptPacket(QuicTransport.KeySpace, long, IntFunction,
+     * {@linkplain #encryptPacket(KeySpace, long, IntFunction,
      * ByteBuffer, ByteBuffer) encrypt} or
-     * {@linkplain #decryptPacket(QuicTransport.KeySpace, long, int, ByteBuffer, int, ByteBuffer)
+     * {@linkplain #decryptPacket(KeySpace, long, int, ByteBuffer, int, ByteBuffer)
      * decrypt} packets.
      *
      * @param keySpace The keyspace whose current keys should be discarded
      */
-    void discardKeys(QuicTransport.KeySpace keySpace);
+    void discardKeys(KeySpace keySpace);
 
     /**
      * Provide quic_transport_parameters for inclusion in handshake message.
@@ -201,7 +212,7 @@ public interface QuicTLSEngine {
      * @throws IllegalArgumentException when keySpace does not require
      *         header protection
      */
-    int getHeaderProtectionSampleSize(QuicTransport.KeySpace keySpace);
+    int getHeaderProtectionSampleSize(KeySpace keySpace);
 
     /**
      * Compute the header protection mask for the given sample,
@@ -213,11 +224,11 @@ public interface QuicTLSEngine {
      * @return mask bytes, at least 5.
      * @throws IllegalArgumentException when keySpace does not require
      *         header protection or sample length is different from required
-     * @see #getHeaderProtectionSampleSize(QuicTransport.KeySpace)
+     * @see #getHeaderProtectionSampleSize(KeySpace)
      * @spec https://www.rfc-editor.org/rfc/rfc9001.html#name-header-protection-applicati
      *     RFC 9001, Section 5.4.1 Header Protection Application
      */
-    ByteBuffer computeHeaderProtectionMask(QuicTransport.KeySpace keySpace,
+    ByteBuffer computeHeaderProtectionMask(KeySpace keySpace,
                                            boolean incoming, ByteBuffer sample)
             throws QuicKeyUnavailableException, QuicTransportException;
 
@@ -267,7 +278,7 @@ public interface QuicTLSEngine {
      * @throws QuicTransportException if encrypting the packet would result
      *          in exceeding the AEAD cipher confidentiality limit
      */
-    void encryptPacket(QuicTransport.KeySpace keySpace, long packetNumber,
+    void encryptPacket(KeySpace keySpace, long packetNumber,
                        IntFunction<ByteBuffer> headerGenerator,
                        ByteBuffer packetPayload,
                        ByteBuffer output)
@@ -310,8 +321,8 @@ public interface QuicTLSEngine {
      * @throws QuicTransportException if decrypting the invalid packet resulted
      *          in exceeding the AEAD cipher integrity limit
      */
-    void decryptPacket(QuicTransport.KeySpace keySpace, long packetNumber, int keyPhase,
-                       ByteBuffer packet, int headerLength, ByteBuffer output)
+    void decryptPacket(KeySpace keySpace, long packetNumber, int keyPhase,
+            ByteBuffer packet, int headerLength, ByteBuffer output)
             throws IllegalArgumentException, QuicKeyUnavailableException,
             AEADBadTagException, QuicTransportException, ShortBufferException;
 
@@ -364,7 +375,7 @@ public interface QuicTLSEngine {
      *         frame, or null if there are no more handshake bytes to send in
      *         this key space at this time.
      */
-    ByteBuffer getHandshakeBytes(QuicTransport.KeySpace keySpace) throws IOException;
+    ByteBuffer getHandshakeBytes(KeySpace keySpace) throws IOException;
 
     /**
      * This method consumes crypto stream.
@@ -376,7 +387,7 @@ public interface QuicTLSEngine {
      *         payload is empty
      * @throws QuicTransportException if the handshake failed
      */
-    void consumeHandshakeBytes(QuicTransport.KeySpace keySpace, ByteBuffer payload)
+    void consumeHandshakeBytes(KeySpace keySpace, ByteBuffer payload)
             throws QuicTransportException;
 
     /**

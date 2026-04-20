@@ -62,8 +62,6 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.net.ssl.QuicTransport;
-import javax.net.ssl.QuicTransport.KeySpace;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLParameters;
@@ -124,6 +122,7 @@ import jdk.internal.net.http.quic.packets.QuicPacket.PacketType;
 import jdk.internal.net.quic.QuicKeyUnavailableException;
 import jdk.internal.net.quic.QuicOneRttContext;
 import jdk.internal.net.quic.QuicTLSEngine;
+import jdk.internal.net.quic.QuicTLSEngine.KeySpace;
 import jdk.internal.net.quic.QuicTransportErrors;
 import jdk.internal.net.quic.QuicTransportException;
 import jdk.internal.net.http.quic.QuicTransportParameters.ParameterId;
@@ -1101,7 +1100,7 @@ public class QuicConnectionImpl extends QuicConnection implements QuicPacketRece
                 String reason = "Connection max data exceeded: max data processed=%s, max connection data=%s"
                         .formatted(processed, max);
                 throw new QuicTransportException(reason,
-                        QuicTransport.KeySpace.ONE_RTT, frameType, QuicTransportErrors.FLOW_CONTROL_ERROR);
+                        QuicTLSEngine.KeySpace.ONE_RTT, frameType, QuicTransportErrors.FLOW_CONTROL_ERROR);
             }
         }
 
@@ -2243,14 +2242,14 @@ public class QuicConnectionImpl extends QuicConnection implements QuicPacketRece
             // stream is read-only
             throw new QuicTransportException("Stream %s (type %s) is unidirectional"
                     .formatted(streamId, streamType(streamId)),
-                    QuicTransport.KeySpace.ONE_RTT, frameType, QuicTransportErrors.STREAM_STATE_ERROR);
+                    QuicTLSEngine.KeySpace.ONE_RTT, frameType, QuicTransportErrors.STREAM_STATE_ERROR);
         }
         if (stream == null && isLocalStream) {
             // the stream is either closed or bad stream
             if (!isExistingStreamId(streamId)) {
                 throw new QuicTransportException("No such stream %s (type %s)"
                         .formatted(streamId, streamType(streamId)),
-                        QuicTransport.KeySpace.ONE_RTT, frameType,
+                        QuicTLSEngine.KeySpace.ONE_RTT, frameType,
                         QuicTransportErrors.STREAM_STATE_ERROR);
             }
             return null;

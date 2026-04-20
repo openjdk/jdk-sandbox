@@ -51,6 +51,8 @@ import jdk.internal.net.http.quic.QuicConnectionImpl;
 import jdk.internal.net.http.quic.QuicStreamLimitException;
 import jdk.internal.net.http.quic.TerminationCause;
 import jdk.internal.net.http.quic.frames.StreamsBlockedFrame;
+import jdk.internal.net.quic.QuicTLSEngine;
+import jdk.internal.net.quic.QuicTLSEngine.KeySpace;
 import jdk.internal.net.quic.QuicTransportException;
 import jdk.internal.net.http.quic.frames.MaxStreamDataFrame;
 import jdk.internal.net.http.quic.frames.MaxStreamsFrame;
@@ -66,8 +68,6 @@ import jdk.internal.net.http.quic.streams.QuicStream.StreamState;
 import jdk.internal.net.http.quic.QuicTransportParameters;
 import jdk.internal.net.http.quic.QuicTransportParameters.ParameterId;
 import jdk.internal.net.quic.QuicTransportErrors;
-
-import javax.net.ssl.QuicTransport;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static jdk.internal.net.http.quic.streams.QuicStreams.*;
@@ -448,7 +448,7 @@ public final class QuicConnectionStreams {
                 : this.remoteUniMaxStreamLimit.get();
         if (maxStreamLimit <= (streamId >> 2)) {
             throw new QuicTransportException("stream ID %s exceeds the number of allowed streams(%s)"
-                    .formatted(streamId, maxStreamLimit), QuicTransport.KeySpace.ONE_RTT, frameType,
+                    .formatted(streamId, maxStreamLimit), QuicTLSEngine.KeySpace.ONE_RTT, frameType,
                     QuicTransportErrors.STREAM_LIMIT_ERROR);
         }
 
@@ -1440,7 +1440,7 @@ public final class QuicConnectionStreams {
                 } catch (RuntimeException | AssertionError x) {
                     stillReady = false;
                     throw new QuicTransportException("Failed to compose frames for stream " + streamId,
-                            QuicTransport.KeySpace.ONE_RTT, 0, QuicTransportErrors.INTERNAL_ERROR.code(), x);
+                            KeySpace.ONE_RTT, 0, QuicTransportErrors.INTERNAL_ERROR.code(), x);
                 } finally {
                     if (stillReady) {
                         if (debug.on())
@@ -1461,7 +1461,7 @@ public final class QuicConnectionStreams {
                         + ": Failed to compose frames", x);
             }
             throw new QuicTransportException("Failed to compose frames",
-                    QuicTransport.KeySpace.ONE_RTT, 0, QuicTransportErrors.INTERNAL_ERROR.code(), x);
+                    KeySpace.ONE_RTT, 0, QuicTransportErrors.INTERNAL_ERROR.code(), x);
         }
         return produced;
     }

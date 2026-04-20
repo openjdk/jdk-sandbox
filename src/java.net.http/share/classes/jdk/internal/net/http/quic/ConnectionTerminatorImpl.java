@@ -32,7 +32,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import java.util.function.Supplier;
-import javax.net.ssl.QuicTransport.KeySpace;
 
 import jdk.internal.net.http.common.Log;
 import jdk.internal.net.http.common.Logger;
@@ -46,6 +45,7 @@ import jdk.internal.net.http.quic.frames.ConnectionCloseFrame;
 import jdk.internal.net.http.quic.frames.QuicFrame;
 import jdk.internal.net.http.quic.packets.QuicPacket;
 import jdk.internal.net.quic.QuicKeyUnavailableException;
+import jdk.internal.net.quic.QuicTLSEngine.KeySpace;
 import jdk.internal.net.quic.QuicTransportErrors;
 import jdk.internal.net.quic.QuicTransportException;
 import static jdk.internal.net.http.quic.QuicConnectionImpl.QuicConnectionState.CLOSED;

@@ -34,28 +34,6 @@ import java.nio.ByteBuffer;
  */
 public interface QuicTransport {
     /**
-     * Represents the encryption level associated with a packet.
-     */
-    enum KeySpace {
-        /**
-         * The initial key space
-         */
-        INITIAL,
-        /**
-         * The handshake key space
-         */
-        HANDSHAKE,
-        /**
-         * The 0-RTT key space
-         */
-        ZERO_RTT,
-        /**
-         * The 1-RTT key space
-         */
-        ONE_RTT
-    }
-
-    /**
      * Called when the read secrets associated
      * with the Handshake key space are available.
      * <p>

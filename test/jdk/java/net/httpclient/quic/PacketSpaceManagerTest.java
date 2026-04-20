@@ -75,7 +75,6 @@ import jdk.internal.net.quic.QuicTransportParametersConsumer;
 import jdk.test.lib.RandomFactory;
 
 import javax.crypto.AEADBadTagException;
-import javax.net.ssl.QuicTransport.KeySpace;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;

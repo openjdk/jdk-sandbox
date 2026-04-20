@@ -44,11 +44,9 @@ import jdk.internal.net.http.quic.frames.NewConnectionIDFrame;
 import jdk.internal.net.http.quic.frames.QuicFrame;
 import jdk.internal.net.http.quic.frames.RetireConnectionIDFrame;
 import jdk.internal.net.http.quic.packets.InitialPacket;
+import jdk.internal.net.quic.QuicTLSEngine;
 import jdk.internal.net.quic.QuicTransportErrors;
 import jdk.internal.net.quic.QuicTransportException;
-
-import javax.net.ssl.QuicTransport;
-
 import static jdk.internal.net.http.quic.QuicConnectionId.MAX_CONNECTION_ID_LENGTH;
 import static jdk.internal.net.quic.QuicTransportErrors.PROTOCOL_VIOLATION;
 
@@ -203,7 +201,7 @@ final class PeerConnIdManager {
                 assert handshakePeerConnId != null : "Handshake peer connection id is unavailable";
                 if (!handshakePeerConnId.equals(sourceId)) {
                     throw new QuicTransportException("Invalid source connection id in INITIAL packet",
-                            QuicTransport.KeySpace.INITIAL, 0, PROTOCOL_VIOLATION);
+                            QuicTLSEngine.KeySpace.INITIAL, 0, PROTOCOL_VIOLATION);
                 }
                 return;
             }
@@ -348,7 +346,7 @@ final class PeerConnIdManager {
             // than that in the Sequence Number field MUST be treated as a connection error of
             // type FRAME_ENCODING_ERROR
             throw new QuicTransportException("Invalid retirePriorTo " + retirePriorTo,
-                    QuicTransport.KeySpace.ONE_RTT,
+                    QuicTLSEngine.KeySpace.ONE_RTT,
                     newCid.getTypeField(), QuicTransportErrors.FRAME_ENCODING_ERROR);
         }
         final ByteBuffer connectionId = newCid.connectionId();
@@ -357,7 +355,7 @@ final class PeerConnIdManager {
             // RFC-9000, section 19.15: Values less than 1 and greater than 20 are invalid and
             // MUST be treated as a connection error of type FRAME_ENCODING_ERROR
             throw new QuicTransportException("Invalid connection id length " + connIdLength,
-                    QuicTransport.KeySpace.ONE_RTT,
+                    QuicTLSEngine.KeySpace.ONE_RTT,
                     newCid.getTypeField(), QuicTransportErrors.FRAME_ENCODING_ERROR);
         }
         final ByteBuffer statelessResetToken = newCid.statelessResetToken();
@@ -387,7 +385,7 @@ final class PeerConnIdManager {
                 // mismatch, throw protocol violation error
                 throw new QuicTransportException("Invalid connection id in (duplicated)" +
                         " new connection id frame with sequence number " + sequenceNumber,
-                        QuicTransport.KeySpace.ONE_RTT,
+                        QuicTLSEngine.KeySpace.ONE_RTT,
                         newCid.getTypeField(), PROTOCOL_VIOLATION);
             }
             if ((sequenceNumber <= largestReceivedSequenceNumber && !gaps.contains(sequenceNumber))
@@ -413,7 +411,7 @@ final class PeerConnIdManager {
                 // the value advertised in its active_connection_id_limit transport parameter,
                 // an endpoint MUST close the connection with an error of type CONNECTION_ID_LIMIT_ERROR
                 throw new QuicTransportException("Connection id limit reached",
-                        QuicTransport.KeySpace.ONE_RTT, newCid.getTypeField(),
+                        QuicTLSEngine.KeySpace.ONE_RTT, newCid.getTypeField(),
                         QuicTransportErrors.CONNECTION_ID_LIMIT_ERROR);
             }
             // end pre-checks
@@ -438,7 +436,7 @@ final class PeerConnIdManager {
                 // the value advertised in its active_connection_id_limit transport parameter,
                 // an endpoint MUST close the connection with an error of type CONNECTION_ID_LIMIT_ERROR
                 throw new QuicTransportException("Active connection id limit reached",
-                        QuicTransport.KeySpace.ONE_RTT, newCid.getTypeField(),
+                        QuicTLSEngine.KeySpace.ONE_RTT, newCid.getTypeField(),
                         QuicTransportErrors.CONNECTION_ID_LIMIT_ERROR);
             }
             if (toRetire.size() > 2 * this.connection.getLocalActiveConnIDLimit()) {
@@ -449,7 +447,7 @@ final class PeerConnIdManager {
                 // of RETIRE_CONNECTION_ID frames of at least twice the value
                 // of the active_connection_id_limit transport parameter
                 throw new QuicTransportException("Retired connection id limit reached: " + toRetire,
-                        QuicTransport.KeySpace.ONE_RTT, newCid.getTypeField(),
+                        QuicTLSEngine.KeySpace.ONE_RTT, newCid.getTypeField(),
                         QuicTransportErrors.CONNECTION_ID_LIMIT_ERROR);
             }
             if (this.largestReceivedRetirePriorTo < retirePriorTo) {

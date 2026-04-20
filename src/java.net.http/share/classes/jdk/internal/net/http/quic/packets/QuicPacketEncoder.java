@@ -46,7 +46,7 @@ import jdk.internal.net.http.quic.QuicConnectionId;
 import jdk.internal.net.http.quic.packets.QuicPacket.PacketNumberSpace;
 import jdk.internal.net.http.quic.packets.QuicPacket.PacketType;
 import jdk.internal.net.quic.QuicTLSEngine;
-import javax.net.ssl.QuicTransport.KeySpace;
+import jdk.internal.net.quic.QuicTLSEngine.KeySpace;
 import jdk.internal.net.http.quic.VariableLengthEncoder;
 
 import javax.crypto.ShortBufferException;

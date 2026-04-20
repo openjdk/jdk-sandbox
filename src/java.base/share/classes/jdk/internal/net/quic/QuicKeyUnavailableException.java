@@ -27,7 +27,7 @@ package jdk.internal.net.quic;
 
 import java.util.Objects;
 
-import javax.net.ssl.QuicTransport.KeySpace;
+import jdk.internal.net.quic.QuicTLSEngine.KeySpace;
 
 /**
  * Thrown when an operation on {@link QuicTLSEngine} doesn't have the necessary
