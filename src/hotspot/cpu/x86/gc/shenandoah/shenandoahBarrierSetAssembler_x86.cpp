@@ -1265,7 +1265,6 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   }
 
   // Slow-path: call runtime to handle.
-  preserve(_obj);
   {
     SaveLiveRegisters slr(&masm, this);
 
@@ -1371,6 +1370,8 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
     __ pop(tmp);
   }
   __ bind(L_slow);
+
+  // Obj is the result, need to temporarily stop preserving it.
   dont_preserve(_obj);
   {
     SaveLiveRegisters slr(&masm, this);
@@ -1405,6 +1406,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
       __ movptr(_obj, rax);
     }
   }
+  preserve(_obj);
 
   // If object is narrow, we need to encode it before exiting.
   // For encoding, dst can only turn null if we are dealing with weak loads.
