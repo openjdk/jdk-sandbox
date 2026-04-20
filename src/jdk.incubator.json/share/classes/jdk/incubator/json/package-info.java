@@ -30,10 +30,13 @@
  * <h2><a>Parsing JSON documents</a></h2>
  *
  * Parsing produces a {@code JsonValue} from JSON text and is done using either
- * {@link Json#parse(java.lang.String)} or {@link Json#parse(char[])}. A successful
- * parse indicates that the JSON text adheres to the
+ * {@link Json#parse(java.lang.String)} or {@link Json#parse(char[])}.
+ * {@snippet lang = java:
+ * JsonValue root = Json.parse(jsonText);
+ * }
+ * A successful parse indicates that the JSON text adheres to the
  * <a href="https://datatracker.ietf.org/doc/html/rfc8259">JSON grammar</a>.
- * The parsing APIs provided do not accept JSON text that contain JSON objects
+ * The parsing APIs provided do not accept JSON text that contains JSON objects
  * with duplicate names.
  *
  * <h2><a>Retrieving JSON values</a></h2>
@@ -42,7 +45,7 @@
  * the document structure by chaining "access" methods, then convert the result
  * to the desired type using a "conversion" method. For example:
  * {@snippet lang=java:
- * var name = doc.get("foo").get("bar").element(0).asString();
+ * String name = root.get("foo").get("bar").element(0).asString();
  * }
  * Here, {@code get("foo")} retrieves the {@code "foo"} object from the root,
  * {@code get("bar")} retrieves the {@code "bar"} array from {@code "foo"},
@@ -54,7 +57,7 @@
  *
  * Generating JSON text is performed with either {@link
  * JsonValue#toString()} or {@link Json#toDisplayString(JsonValue, int)}.
- * These methods produce formatted String representations of a {@code JsonValue}.
+ * These methods produce String representations of a {@code JsonValue}.
  * The returned text adheres to the JSON grammar defined in RFC 8259.
  * {@code JsonValue.toString()} produces the most compact representation which does not
  * include extra whitespaces or line-breaks, preferable for network transaction

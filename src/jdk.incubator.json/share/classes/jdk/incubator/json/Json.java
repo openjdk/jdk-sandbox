@@ -34,8 +34,13 @@ import jdk.incubator.json.impl.JsonParser;
  *
  * <p>
  * {@link #parse(String)} and {@link #parse(char[])} produce a {@code JsonValue}
- * by parsing data adhering to the JSON syntax defined in RFC 8259. Unsuccessful
- * parsing throws a {@link JsonParseException}.
+ * by parsing data adhering to the JSON syntax defined in RFC 8259.
+ * {@snippet lang = java:
+ * JsonValue root = Json.parse(jsonText);
+ * }
+ * Successful parsing guarantees there are no syntax errors. Unsuccessful
+ * parsing throws a {@link JsonParseException}. Note that duplicate names in
+ * a {@code JsonObject} also result in this exception.
  * <p>
  * {@link #toDisplayString(JsonValue, int)} produces a
  * JSON text representation of the given {@code JsonValue} suitable for display.
