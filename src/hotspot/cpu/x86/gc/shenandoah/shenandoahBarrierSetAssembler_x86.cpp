@@ -1315,7 +1315,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Labe
 void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address addr, Label* L_done) {
   assert(L_done != nullptr, "Must be set");
 
-  Label L_slow;
+  Label L_pop_and_slow, L_slow;
 
   // If another barrier is enabled as well, do a runtime check for a specific barrier.
   if (_needs_keep_alive_barrier) {
@@ -1361,7 +1361,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
   // Cset-check. Fall-through to slow if in collection set.
   __ cmpb(cset_addr_arg, 0);
   if (tmp_live) {
-    __ jccb(Assembler::notEqual, L_slow);
+    __ jccb(Assembler::notEqual, L_pop_and_slow);
     __ pop(tmp);
     __ jmp(*L_done);
   } else {
@@ -1370,13 +1370,12 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
   }
 
   // Slow path
-  __ bind(L_slow);
-
+  __ bind(L_pop_and_slow);
+  // Need to pop tmp immediately for stack to remain aligned.
   if (tmp_live) {
-    // Need to pop tmp immediately for stack to remain aligned.
     __ pop(tmp);
   }
-
+  __ bind(L_slow);
   dont_preserve(obj);
   {
     SaveLiveRegisters slr(&masm, this);
