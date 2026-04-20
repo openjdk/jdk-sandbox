@@ -546,34 +546,52 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
     }
 
     @Override
-    public void deriveReadSecrets(SecretKey secretKey, KeySpace keySpace) {
-        recvKeySpace = keySpace;
+    public void deriveHandshakeReadSecrets(SecretKey secretKey) {
+        recvKeySpace = HANDSHAKE;
         String cs = populateCipherSuite();
         final QuicVersion quicVersion = getNegotiatedVersion();
         try {
-            switch (keySpace) {
-                case HANDSHAKE -> this.handshakeKeyManager.deriveReadKeys(quicVersion,
-                        secretKey, cs);
-                case ONE_RTT -> this.oneRttKeyManager.deriveReadKeys(quicVersion,
-                        secretKey, cs);
-            }
+            this.handshakeKeyManager.deriveReadKeys(quicVersion,
+                    secretKey, cs);
         } catch (IOException | GeneralSecurityException e) {
             throw new RuntimeException(e);
         }
     }
 
     @Override
-    public void deriveWriteSecrets(SecretKey secretKey, KeySpace keySpace) {
-        sendKeySpace = keySpace;
+    public void deriveHandshakeWriteSecrets(SecretKey secretKey) {
+        sendKeySpace = HANDSHAKE;
         String cs = populateCipherSuite();
         final QuicVersion quicVersion = getNegotiatedVersion();
         try {
-            switch (keySpace) {
-                case HANDSHAKE -> this.handshakeKeyManager.deriveWriteKeys(quicVersion,
-                        secretKey, cs);
-                case ONE_RTT -> this.oneRttKeyManager.deriveWriteKeys(quicVersion,
-                        secretKey, cs);
-            }
+            this.handshakeKeyManager.deriveWriteKeys(quicVersion,
+                    secretKey, cs);
+        } catch (IOException | GeneralSecurityException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void deriveApplicationReadSecrets(SecretKey secretKey) {
+        recvKeySpace = ONE_RTT;
+        String cs = populateCipherSuite();
+        final QuicVersion quicVersion = getNegotiatedVersion();
+        try {
+            this.oneRttKeyManager.deriveReadKeys(quicVersion,
+                    secretKey, cs);
+        } catch (IOException | GeneralSecurityException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public void deriveApplicationWriteSecrets(SecretKey secretKey) {
+        sendKeySpace = ONE_RTT;
+        String cs = populateCipherSuite();
+        final QuicVersion quicVersion = getNegotiatedVersion();
+        try {
+            this.oneRttKeyManager.deriveWriteKeys(quicVersion,
+                    secretKey, cs);
         } catch (IOException | GeneralSecurityException e) {
             throw new RuntimeException(e);
         }

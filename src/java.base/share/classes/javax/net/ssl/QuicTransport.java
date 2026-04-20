@@ -57,30 +57,81 @@ public interface QuicTransport {
 
     /**
      * Called when the read secrets associated
-     * with a new key space are available.
+     * with the Handshake key space are available.
+     * <p>
+     * The provided secret should be used with the key derivation function
+     * defined for the active cipher suite. The cipher suite can be retrieved from the
+     * {@link SSLEngine#getHandshakeSession() handshake session}
+     * using {@link SSLSession#getCipherSuite()} method.
      * <p>
      * After this method is called, subsequent calls to {@link SSLEngine#unwrap(ByteBuffer, ByteBuffer)}
-     * expect to receive CRYPTO data associated with the new KeySpace.
-     * If additional CRYPTO data is received in the previous KeySpace,
-     * the connection must be closed with CRYPTO_ERROR + UNEXPECTED_MESSAGE (0x10A) QUIC error code.
-     * @param secretKey the base secret used for deriving the read keys
-     * @param keySpace the key space
+     * expect to receive CRYPTO data associated with the Handshake space.
+     * If additional CRYPTO data is received in the Initial space,
+     * the connection must be closed with PROTOCOL_VIOLATION error.
+     *
+     * @param secretKey the base secret used for deriving the handshake read keys
      */
-    // TODO this will probably not work for 0-RTT, which uses previous session's
-    //  QUIC version, TLS version, and cipher suite
-    void deriveReadSecrets(SecretKey secretKey, KeySpace keySpace);
+    // TODO merge with deriveHandshakeWriteSecrets, since both are derived at the same time
+    void deriveHandshakeReadSecrets(SecretKey secretKey);
 
     /**
      * Called when the write secrets associated
-     * with a new key space are available.
+     * with the Handshake key space are available.
      * <p>
-     * After this method is called, subsequent calls to {@link SSLEngine#wrap(ByteBuffer, ByteBuffer)}
-     * produce data for the new key space. If this method is called from {@code wrap},
-     * the data produced by that call is associated with the old key space.
-     * @param secretKey the base secret used for deriving the write keys
-     * @param keySpace the key space
+     * The provided secret should be used with the key derivation function
+     * defined for the active cipher suite. The cipher suite can be retrieved from the
+     * {@link SSLEngine#getHandshakeSession() handshake session}
+     * using {@link SSLSession#getCipherSuite()} method.
+     * <p>
+     * If this method is called from {@code wrap},
+     * the data produced by that call is associated with the Initial key space.
+     * Subsequent calls to {@link SSLEngine#wrap(ByteBuffer, ByteBuffer)}
+     * produce data for the Handshake key space.
+     *
+     * @param secretKey the base secret used for deriving the handshake write keys
      */
-    // TODO this will probably not work for 0-RTT, which uses previous session's
-    //  QUIC version, TLS version, and cipher suite
-    void deriveWriteSecrets(SecretKey secretKey, KeySpace keySpace);
+    void deriveHandshakeWriteSecrets(SecretKey secretKey);
+
+    /**
+     * Called when the read secrets associated
+     * with the 1-RTT key space are available.
+     * <p>
+     * The provided secret should be used with the key derivation function
+     * defined for the active cipher suite. This is the same cipher suite
+     * that was used with {@link #deriveHandshakeReadSecrets(SecretKey)} earlier.
+     * Note that {@link SSLEngine#getHandshakeSession()} might no longer be available at this point.
+     * Applications should cache the cipher suite value retrieved earlier, or fall back to
+     * {@link SSLEngine#getSession()} if handshake session is {@code null}.
+     * <p>
+     * After this method is called, subsequent calls to {@link SSLEngine#unwrap(ByteBuffer, ByteBuffer)}
+     * expect to receive CRYPTO data associated with the 1-RTT space.
+     * If additional CRYPTO data is received in the Handshake space,
+     * the connection must be closed with PROTOCOL_VIOLATION error.
+     * <p>
+     * The derived secrets must not be used
+     * before the application write secrets are available.
+     *
+     * @param secretKey the base secret used for deriving the 1-RTT read keys
+     */
+    void deriveApplicationReadSecrets(SecretKey secretKey);
+
+    /**
+     * Called when the write secrets associated
+     * with the 1-RTT key space are available.
+     * <p>
+     * The provided secret should be used with the key derivation function
+     * defined for the active cipher suite. This is the same cipher suite
+     * that was used with {@link #deriveHandshakeReadSecrets(SecretKey)} earlier.
+     * Note that {@link SSLEngine#getHandshakeSession()} might no longer be available at this point.
+     * Applications should cache the cipher suite value retrieved earlier, or fall back to
+     * {@link SSLEngine#getSession()} if handshake session is {@code null}.
+     * <p>
+     * If this method is called from {@code wrap},
+     * the data produced by that call is associated with the Handshake key space.
+     * Subsequent calls to {@link SSLEngine#wrap(ByteBuffer, ByteBuffer)}
+     * produce data for the 1-RTT key space.
+     *
+     * @param secretKey the base secret used for deriving the 1-RTT write keys
+     */
+    void deriveApplicationWriteSecrets(SecretKey secretKey);
 }

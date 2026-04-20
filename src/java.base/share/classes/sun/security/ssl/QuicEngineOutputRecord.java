@@ -239,9 +239,14 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
                 lastMemo.nextKey = baseSecret;
             } else {
                 currentPacketSpace++;
-                quicTransport.deriveWriteSecrets(baseSecret, currentPacketSpace == 1 ?
-                        QuicTransport.KeySpace.HANDSHAKE :
-                        QuicTransport.KeySpace.ONE_RTT);
+                switch(currentPacketSpace) {
+                    case 1->
+                            quicTransport.deriveHandshakeWriteSecrets(baseSecret);
+                    case 2->
+                            quicTransport.deriveApplicationWriteSecrets(baseSecret);
+                    default ->
+                            throw new AssertionError("Unexpected key epoch");
+                }
             }
         }
 
@@ -257,9 +262,14 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
                 handshakeMemos.addFirst(hsMemo);
             } else if (hsMemo.nextKey != null) {
                 currentPacketSpace++;
-                quicTransport.deriveWriteSecrets(hsMemo.nextKey, currentPacketSpace == 1 ?
-                        QuicTransport.KeySpace.HANDSHAKE :
-                        QuicTransport.KeySpace.ONE_RTT);
+                switch(currentPacketSpace) {
+                    case 1->
+                            quicTransport.deriveHandshakeWriteSecrets(hsMemo.nextKey);
+                    case 2->
+                            quicTransport.deriveApplicationWriteSecrets(hsMemo.nextKey);
+                    default ->
+                            throw new AssertionError("Unexpected key epoch");
+                }
             }
             return new Ciphertext(ContentType.HANDSHAKE.id,
                     hsMemo.fragment[0], -1L);

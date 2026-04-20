@@ -95,9 +95,14 @@ final class QuicEngineInputRecord extends InputRecord implements SSLRecord {
     void changeReadCiphers(SSLReadCipher readCipher) {
         super.changeReadCiphers(readCipher);
         epoch++;
-        quicTransport.deriveReadSecrets(readCipher.baseSecret, epoch == 1 ?
-                QuicTransport.KeySpace.HANDSHAKE :
-                QuicTransport.KeySpace.ONE_RTT);
+        switch(epoch) {
+            case 1->
+                    quicTransport.deriveHandshakeReadSecrets(readCipher.baseSecret);
+            case 2->
+                    quicTransport.deriveApplicationReadSecrets(readCipher.baseSecret);
+            default ->
+                throw new AssertionError("Unexpected key epoch");
+        }
     }
 
     private Plaintext[] decodeInputRecord(ByteBuffer fragment)
