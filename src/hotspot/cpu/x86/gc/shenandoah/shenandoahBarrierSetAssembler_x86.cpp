@@ -1233,7 +1233,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
 
-  Label L_through, L_fast, L_pack_and_done;
+  Label L_through, L_pop_and_slow, L_pack_and_done;
 
   // If another barrier is enabled as well, do a runtime check for a specific barrier.
   if (_needs_load_ref_barrier) {
@@ -1254,33 +1254,11 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
     __ push(tmp);
   }
 
-  // Check if buffer is already full. Go slow, if so.
+  // Fast-path: put object into buffer.
+  // If buffer is already full, go slow.
   __ movptr(tmp, index);
   __ testptr(tmp, tmp);
-  __ jcc(Assembler::notZero, L_fast);
-
-  // Need to pop tmp immediately for stack to remain aligned.
-  if (tmp_live) {
-    __ pop(tmp);
-  }
-
-  // Slow-path: call runtime to handle.
-  {
-    SaveLiveRegisters slr(&masm, this);
-
-    // Shuffle in the arguments. The end result should be:
-    //   c_rarg0 <-- obj
-    if (c_rarg0 != _obj) {
-      __ mov(c_rarg0, _obj);
-    }
-
-    // Go to runtime and handle the rest there.
-    __ call(RuntimeAddress(keepalive_runtime_entry_addr()));
-  }
-  __ jmpb(L_pack_and_done);
-
-  // Fast-path: put object into buffer.
-  __ bind(L_fast);
+  __ jccb(Assembler::zero, L_pop_and_slow);
   __ subptr(tmp, wordSize);
   __ movptr(index, tmp);
   __ addptr(tmp, buffer);
@@ -1301,7 +1279,31 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   if (L_done != nullptr) {
     __ jmp(*L_done);
   } else {
-    // Fall-through
+    __ jmp(L_through);
+  }
+
+  // Slow-path: call runtime to handle.
+  // Need to pop tmp immediately for stack to remain aligned.
+  __ bind(L_pop_and_slow);
+  if (tmp_live) {
+    __ pop(tmp);
+  }
+  {
+    SaveLiveRegisters slr(&masm, this);
+
+    // Shuffle in the arguments. The end result should be:
+    //   c_rarg0 <-- obj
+    if (c_rarg0 != _obj) {
+      __ mov(c_rarg0, _obj);
+    }
+
+    // Go to runtime and handle the rest there.
+    __ call(RuntimeAddress(keepalive_runtime_entry_addr()));
+  }
+  __ jmp(L_pack_and_done);
+
+  // Fall-through path goes here.
+  if (L_done == nullptr) {
     __ bind(L_through);
   }
 }
