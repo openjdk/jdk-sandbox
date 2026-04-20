@@ -806,19 +806,6 @@ void ShenandoahBarrierStubC2::pop_save_register(MacroAssembler& masm, Register r
   __ ld(reg, Address(sp, pop_save_slot()));
 }
 
-bool ShenandoahBarrierStubC2::is_live(Register reg) {
-  // TODO: Precompute the generic register map for faster lookups.
-  RegMaskIterator rmi(preserve_set());
-  while (rmi.has_next()) {
-    const OptoReg::Name opto_reg = rmi.next();
-    const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
-    if (vm_reg->is_Register() && reg == vm_reg->as_Register()) {
-      return true;
-    }
-  }
-  return false;
-}
-
 Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Address addr, Register reg1) {
   Register tmp = noreg;
   Register fallback_live = noreg;

@@ -170,7 +170,9 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   static int stubs_start_offset();
   static int save_slots_stack_offset();
 
-  bool is_live(Register reg);
+  int available_gp_registers();
+  bool is_live_register(Register reg);
+  bool is_special_register(Register reg);
   Register select_temp_register(bool& selected_live, Address addr, Register reg1);
 
   void load_and_decode(MacroAssembler& masm, Label& target_if_null);

@@ -635,52 +635,14 @@ void ShenandoahBarrierSetAssembler::cmpxchg_oop(MacroAssembler* masm,
 #undef __
 #define __ masm.
 
-bool ShenandoahBarrierStubC2::is_live(Register reg) {
-  // TODO: Precompute the generic register map for faster lookups.
-  RegMaskIterator rmi(preserve_set());
-  while (rmi.has_next()) {
-    const OptoReg::Name opto_reg = rmi.next();
-    const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
-    if (vm_reg->is_Register() && reg == vm_reg->as_Register()) {
-      return true;
-    }
-  }
-  return false;
+int ShenandoahBarrierStubC2::available_gp_registers() {
+  return Register::number_of_registers;
 }
 
-Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Address addr, Register reg1) {
-  Register tmp = noreg;
-  Register fallback_live = noreg;
-
-  // Try to select non-live first:
-  for (int i = 0; i < Register::number_of_registers; i++) {
-    Register r = as_Register(i);
-    if (r != rfp && r != sp && r != lr &&
-        r != rheapbase && r != rthread &&
-        r != rscratch1 && r != rscratch2 &&
-        r != reg1 && r != addr.base() && r != addr.index()) {
-      if (!is_live(r)) {
-        tmp = r;
-        break;
-      } else if (fallback_live == noreg) {
-        fallback_live = r;
-      }
-    }
-  }
-
-  // If we could not find a non-live register, select the live fallback:
-  if (tmp == noreg) {
-    tmp = fallback_live;
-    selected_live = true;
-  } else {
-    selected_live = false;
-  }
-
-  assert(tmp != noreg, "successfully selected");
-  assert_different_registers(tmp, reg1);
-  assert_different_registers(tmp, addr.base());
-  assert_different_registers(tmp, addr.index());
-  return tmp;
+bool ShenandoahBarrierStubC2::is_special_register(Register r) {
+  return r == rfp || r == sp || r == lr ||
+         r == rheapbase || r == rthread ||
+         r == rscratch1 || r == rscratch2;
 }
 
 void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state) {
