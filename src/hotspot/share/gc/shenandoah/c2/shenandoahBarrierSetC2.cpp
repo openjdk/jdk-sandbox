@@ -836,14 +836,14 @@ bool ShenandoahBarrierStubC2::is_live_register(Register reg) {
   return preserve_set().member(OptoReg::as_OptoReg(reg->as_VMReg()));
 }
 
-Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Address addr, Register reg1) {
+Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live) {
   Register tmp = noreg;
   Register fallback_live = noreg;
 
   // Try to select non-live first:
   for (int i = 0; i < available_gp_registers(); i++) {
     Register r = as_Register(i);
-    if (r != reg1 && r != addr.base() && r != addr.index() && !is_special_register(r)) {
+    if (r != _obj && r != _addr.base() && r != _addr.index() && !is_special_register(r)) {
       if (!is_live_register(r)) {
         tmp = r;
         break;
@@ -862,9 +862,9 @@ Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Addr
   }
 
   assert(tmp != noreg, "successfully selected");
-  assert_different_registers(tmp, reg1);
-  assert_different_registers(tmp, addr.base());
-  assert_different_registers(tmp, addr.index());
+  assert_different_registers(tmp, _obj);
+  assert_different_registers(tmp, _addr.base());
+  assert_different_registers(tmp, _addr.index());
   return tmp;
 }
 

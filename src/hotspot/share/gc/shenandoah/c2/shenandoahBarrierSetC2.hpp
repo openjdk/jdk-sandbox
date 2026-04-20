@@ -173,13 +173,13 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   int available_gp_registers();
   bool is_live_register(Register reg);
   bool is_special_register(Register reg);
-  Register select_temp_register(bool& selected_live, Address addr, Register reg1);
+  Register select_temp_register(bool& selected_live);
 
   void load_and_decode(MacroAssembler& masm, Label& target_if_null);
   void reencode_if_needed(MacroAssembler& masm);
 
-  void keepalive(MacroAssembler& masm, Register obj, Label* L_done = nullptr);
-  void lrb(MacroAssembler& masm, Register obj, Address addr, Label* L_done = nullptr);
+  void keepalive(MacroAssembler& masm, Label* L_done = nullptr);
+  void lrb(MacroAssembler& masm, Label* L_done = nullptr);
 
   address keepalive_runtime_entry_addr();
   address lrb_runtime_entry_addr();

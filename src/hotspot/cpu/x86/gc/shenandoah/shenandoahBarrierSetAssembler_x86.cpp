@@ -1220,10 +1220,10 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   // Go for barriers. Barriers can return straight to continuation, as long
   // as another barrier is not needed.
   if (_needs_keep_alive_barrier) {
-    keepalive(masm, _obj, (_needs_load_ref_barrier ? nullptr : continuation()));
+    keepalive(masm, (_needs_load_ref_barrier ? nullptr : continuation()));
   }
   if (_needs_load_ref_barrier) {
-    lrb(masm, _obj, _addr, continuation());
+    lrb(masm, continuation());
   }
   if (_needs_keep_alive_barrier && _needs_load_ref_barrier) {
     __ jmp(*continuation());
@@ -1234,7 +1234,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
 }
 
-void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Label* L_done) {
+void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
 
@@ -1249,12 +1249,12 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Labe
 
   // If object is narrow, we need to unpack it before inserting into buffer.
   if (_narrow) {
-    __ decode_heap_oop_not_null(obj);
+    __ decode_heap_oop_not_null(_obj);
   }
 
   // Need temp to work, allocate one now.
   bool tmp_live;
-  Register tmp = select_temp_register(tmp_live, _addr, obj);
+  Register tmp = select_temp_register(tmp_live);
   if (tmp_live) {
     __ push(tmp);
   }
@@ -1270,14 +1270,14 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Labe
   }
 
   // Slow-path: call runtime to handle.
-  preserve(obj);
+  preserve(_obj);
   {
     SaveLiveRegisters slr(&masm, this);
 
     // Shuffle in the arguments. The end result should be:
     //   c_rarg0 <-- obj
-    if (c_rarg0 != obj) {
-      __ mov(c_rarg0, obj);
+    if (c_rarg0 != _obj) {
+      __ mov(c_rarg0, _obj);
     }
 
     // Go to runtime and handle the rest there.
@@ -1290,7 +1290,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Labe
   __ subptr(tmp, wordSize);
   __ movptr(index, tmp);
   __ addptr(tmp, buffer);
-  __ movptr(Address(tmp, 0), obj);
+  __ movptr(Address(tmp, 0), _obj);
 
   if (tmp_live) {
     __ pop(tmp);
@@ -1302,7 +1302,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Labe
   // Pack the object back if needed. We can skip this if we performed
   // the load ourselves: the value is not used by the caller.
   if (_narrow && !_do_load) {
-    __ encode_heap_oop_not_null(obj);
+    __ encode_heap_oop_not_null(_obj);
   }
   if (L_done != nullptr) {
     __ jmp(*L_done);
@@ -1312,7 +1312,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Labe
   }
 }
 
-void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address addr, Label* L_done) {
+void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
   assert(L_done != nullptr, "Must be set");
 
   Label L_pop_and_slow, L_slow;
@@ -1334,16 +1334,16 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
 
   // Need temp to work, allocate one now.
   bool tmp_live;
-  Register tmp = select_temp_register(tmp_live, _addr, _obj);
+  Register tmp = select_temp_register(tmp_live);
   if (tmp_live) {
     __ push(tmp);
   }
 
   // Compute the cset bitmap index
   if (_narrow) {
-    __ decode_heap_oop_not_null(tmp, obj);
+    __ decode_heap_oop_not_null(tmp, _obj);
   } else {
-    __ movptr(tmp, obj);
+    __ movptr(tmp, _obj);
   }
   __ shrptr(tmp, ShenandoahHeapRegion::region_size_bytes_shift_jint());
 
@@ -1376,7 +1376,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
     __ pop(tmp);
   }
   __ bind(L_slow);
-  dont_preserve(obj);
+  dont_preserve(_obj);
   {
     SaveLiveRegisters slr(&masm, this);
 
@@ -1385,16 +1385,16 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
     // Shuffle in the arguments. The end result should be:
     //   c_rarg0 <-- obj
     //   c_rarg1 <-- lea(addr)
-    if (obj == c_rarg0) {
-      __ lea(c_rarg1, addr);
-    } else if (obj == c_rarg1) {
+    if (_obj == c_rarg0) {
+      __ lea(c_rarg1, _addr);
+    } else if (_obj == c_rarg1) {
       // Set up arguments in reverse, and then flip them
-      __ lea(c_rarg0, addr);
+      __ lea(c_rarg0, _addr);
       __ xchgptr(c_rarg0, c_rarg1);
     } else {
-      assert_different_registers(obj, c_rarg0, c_rarg1);
-      __ lea(c_rarg1, addr);
-      __ movptr(c_rarg0, obj);
+      assert_different_registers(_obj, c_rarg0, c_rarg1);
+      __ lea(c_rarg1, _addr);
+      __ movptr(c_rarg0, _obj);
     }
 
     // Decode if needed.
@@ -1406,8 +1406,8 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
     __ call(RuntimeAddress(lrb_runtime_entry_addr()));
 
     // Save the result where needed.
-    if (obj != rax) {
-      __ movptr(obj, rax);
+    if (_obj != rax) {
+      __ movptr(_obj, rax);
     }
   }
 
@@ -1417,13 +1417,12 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
   // the load ourselves: the value is not used by the caller.
   if (_narrow && !_do_load) {
     if (_needs_load_ref_weak_barrier) {
-      __ encode_heap_oop(obj);
+      __ encode_heap_oop(_obj);
     } else {
-      __ encode_heap_oop_not_null(obj);
+      __ encode_heap_oop_not_null(_obj);
     }
   }
   __ jmp(*L_done);
-
 }
 
 int ShenandoahBarrierStubC2::available_gp_registers() {

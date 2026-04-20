@@ -865,9 +865,9 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   load_and_decode(masm, *continuation());
 
-  keepalive(masm, _obj);
+  keepalive(masm);
 
-  lrb(masm, _obj, _addr);
+  lrb(masm);
 
   reencode_if_needed(masm);
 
@@ -914,7 +914,7 @@ void ShenandoahBarrierStubC2::reencode_if_needed(MacroAssembler& masm) {
   }
 }
 
-void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Label* L_done_unused) {
+void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done_unused) {
   Address index(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
   Label L_runtime;
@@ -943,7 +943,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Labe
   Register tmp2 = rscratch2;
   bool tmp2_live = false;
   if (_obj == rscratch2) {
-    tmp2 = select_temp_register(tmp2_live, _addr, obj);
+    tmp2 = select_temp_register(tmp2_live);
     if (tmp2_live) {
       __ push(tmp2);
     }
@@ -954,7 +954,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Labe
   __ sub(tmp1, tmp1, wordSize);
   __ str(tmp1, index);
   __ ldr(tmp2, buffer);
-  __ str(obj, Address(tmp2, tmp1));
+  __ str(_obj, Address(tmp2, tmp1));
   if (tmp2_live) {
     __ pop(tmp2);
   }
@@ -968,12 +968,12 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Labe
     __ pop(tmp2);
   }
 
-  preserve(obj);
+  preserve(_obj);
   {
     SaveLiveRegisters slr(&masm, this);
 
-    if (c_rarg0 != obj) {
-      __ mov(c_rarg0, obj);
+    if (c_rarg0 != _obj) {
+      __ mov(c_rarg0, _obj);
     }
 
     // Go to runtime and handle the rest there.
@@ -984,7 +984,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Labe
   __ bind(L_done);
 }
 
-void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address addr, Label* L_done_unused) {
+void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done_unused) {
   Label L_done, L_slow;
 
   // The node doesn't even need LRB barrier, just don't check anything else
@@ -1015,32 +1015,32 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
   // Cset-check. Fall-through to slow if in collection set.
   assert(ShenandoahHeapRegion::region_size_bytes_shift_jint() <= 63, "Maximum shift of the add is 63");
   __ mov(tmp, ShenandoahHeap::in_cset_fast_test_addr());
-  __ add(tmp, tmp, obj, Assembler::LSR, ShenandoahHeapRegion::region_size_bytes_shift_jint());
+  __ add(tmp, tmp, _obj, Assembler::LSR, ShenandoahHeapRegion::region_size_bytes_shift_jint());
   __ ldrb(tmp, Address(tmp, 0));
   __ cbz(tmp, L_done);
 
   // Slow path
   __ bind(L_slow);
-  dont_preserve(obj);
+  dont_preserve(_obj);
   {
     SaveLiveRegisters slr(&masm, this);
 
     // Shuffle in the arguments. The end result should be:
     //   c_rarg0 <-- obj
     //   c_rarg1 <-- lea(addr)
-    if (c_rarg0 == obj) {
-      __ lea(c_rarg1, addr);
-    } else if (c_rarg1 == obj) {
+    if (c_rarg0 == _obj) {
+      __ lea(c_rarg1, _addr);
+    } else if (c_rarg1 == _obj) {
       // Set up arguments in reverse, and then flip them
-      __ lea(c_rarg0, addr);
+      __ lea(c_rarg0, _addr);
       // flip them
       __ mov(rscratch1, c_rarg0);
       __ mov(c_rarg0, c_rarg1);
       __ mov(c_rarg1, rscratch1);
     } else {
-      assert_different_registers(c_rarg1, obj);
-      __ lea(c_rarg1, addr);
-      __ mov(c_rarg0, obj);
+      assert_different_registers(c_rarg1, _obj);
+      __ lea(c_rarg1, _addr);
+      __ mov(c_rarg0, _obj);
     }
 
     // Go to runtime and handle the rest there.
@@ -1048,8 +1048,8 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
     __ blr(lr);
 
     // Save the result where needed.
-    if (obj != r0) {
-      __ mov(obj, r0);
+    if (_obj != r0) {
+      __ mov(_obj, r0);
     }
   }
 
