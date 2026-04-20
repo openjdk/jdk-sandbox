@@ -1098,11 +1098,6 @@ void ShenandoahBarrierSetAssembler::generate_c1_load_reference_barrier_runtime_s
 #undef __
 #define __ masm.
 
-bool ShenandoahBarrierStubC2::has_live_vector_registers() {
-  // TODO: Implement; currently assumes vector registers.
-  return true;
-}
-
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 

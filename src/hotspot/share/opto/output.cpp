@@ -224,16 +224,12 @@ PhaseOutput::PhaseOutput()
     _node_bundling_base(nullptr),
     _orig_pc_slot(0),
     _orig_pc_slot_offset_in_bytes(0),
-    _gc_barrier_save_slots(0),
-    _gc_barrier_save_slots_offset_in_bytes(-1),
     _buf_sizes(),
     _block(nullptr),
     _index(0) {
   C->set_output(this);
   if (C->stub_name() == nullptr) {
-    int reserved_gc_slots = BarrierSet::barrier_set()->barrier_set_c2()->reserved_slots();
-    _gc_barrier_save_slots = C->fixed_slots() - (reserved_gc_slots + 1) * sizeof(address) / VMRegImpl::stack_slot_size;
-    _orig_pc_slot          = C->fixed_slots() -                      1  * sizeof(address) / VMRegImpl::stack_slot_size;
+    _orig_pc_slot = C->fixed_slots() - (sizeof(address) / VMRegImpl::stack_slot_size);
   }
 }
 
@@ -1291,7 +1287,6 @@ void PhaseOutput::estimate_buffer_size(int& const_req) {
   // Compute the byte offset where we can store the deopt pc.
   if (C->fixed_slots() != 0) {
     _orig_pc_slot_offset_in_bytes = C->regalloc()->reg2offset(OptoReg::stack2reg(_orig_pc_slot));
-    _gc_barrier_save_slots_offset_in_bytes = C->regalloc()->reg2offset(OptoReg::stack2reg(_gc_barrier_save_slots));
   }
 
   // Compute prolog code size
