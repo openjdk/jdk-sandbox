@@ -640,7 +640,8 @@ int ShenandoahBarrierStubC2::available_gp_registers() {
 }
 
 bool ShenandoahBarrierStubC2::is_special_register(Register r) {
-  return r == rfp || r == sp || r == lr ||
+  return R18_RESERVED_ONLY(r == r18_tls ||)
+         r == rfp || r == sp || r == lr ||
          r == rheapbase || r == rthread ||
          r == rscratch1 || r == rscratch2;
 }
