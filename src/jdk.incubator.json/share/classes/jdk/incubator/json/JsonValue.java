@@ -40,7 +40,7 @@ import java.util.Optional;
  * produces the JSON compliant text from the {@code JsonValue}.
  * <h2 id="access">Navigating JSON documents</h2>
  * Use the access methods to navigate to the desired JSON value. {@link
- * #get(String)} is provided for JSON object and {@link #element(int)} for JSON array.
+ * #get(String)} is provided for JSON object and {@link #get(int)} for JSON array.
  * Given the JSON document:
  * {@snippet lang=java:
  * JsonValue json = Json.parse("""
@@ -105,7 +105,7 @@ import java.util.Optional;
  * {@snippet lang = java:
  * switch (json.get("foo")) {
  *     case JsonString js -> js.asString(); // handle the value as JSON string
- *     case JsonArray ja -> ja.element(0).asString(); // handle the value as JSON array
+ *     case JsonArray ja -> ja.get(0).asString(); // handle the value as JSON array
  *     default -> throw new JsonValueException("unexpected type");
  * }
  *}
@@ -374,7 +374,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      * @throws JsonValueException if this {@code JsonValue} is not an instance of a {@code JsonArray}
      * or the given index is out of bounds
      */
-    default JsonValue element(int index) {
+    default JsonValue get(int index) {
         List<JsonValue> elements = asList();
         try {
             return elements.get(index);

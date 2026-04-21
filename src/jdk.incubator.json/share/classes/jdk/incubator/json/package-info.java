@@ -45,11 +45,11 @@
  * the document structure by chaining "access" methods, then convert the result
  * to the desired type using a "conversion" method. For example:
  * {@snippet lang=java:
- * String name = root.get("foo").get("bar").element(0).asString();
+ * String name = root.get("foo").get("bar").get(0).asString();
  * }
  * Here, {@code get("foo")} retrieves the {@code "foo"} object from the root,
  * {@code get("bar")} retrieves the {@code "bar"} array from {@code "foo"},
- * and {@code element(0)} selects the value at index {@code 0}. The final call
+ * and {@code get(0)} selects the value at index {@code 0}. The final call
  * to {@code asString()} converts that JSON value to a {@link String}.
  * For details on available access and conversion methods, see {@link JsonValue}.
  *

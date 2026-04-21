@@ -60,7 +60,7 @@ public final class JsonArrayImpl implements JsonArray, JsonValueImpl {
 
     // Navigation overrides (on default) -> bypass the unmodifiable wrap
     @Override
-    public JsonValue element(int index) {
+    public JsonValue get(int index) {
         try {
             return theValues.get(index);
         } catch (IndexOutOfBoundsException _) {
