@@ -1270,9 +1270,11 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   // Exit here.
   __ bind(L_pack_and_done);
 
-  // Pack the object back if needed. We can skip this if we performed
-  // the load ourselves: the value is not used by the caller.
-  if (_narrow && !_do_load) {
+  // Pack the object back if needed. This packing is needed for two
+  // cases: if there is a LRB that is chained after us, which would
+  // decode again; or the caller did the load, which means it is going
+  // to need it.
+  if (_narrow && ((L_done == nullptr) || !_do_load)) {
     __ encode_heap_oop_not_null(_obj);
   }
   if (L_done != nullptr) {
