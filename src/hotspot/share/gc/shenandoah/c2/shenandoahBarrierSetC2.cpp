@@ -164,29 +164,35 @@ void ShenandoahBarrierSetC2::refine_store(const Node* n) {
   }
 
   MemNode* store = n->as_Store();
-  const Node* newval = n->in(MemNode::ValueIn);
-  assert(newval != nullptr, "");
-  const Type* newval_bottom = newval->bottom_type();
-  TypePtr::PTR newval_type = newval_bottom->make_ptr()->ptr();
+
+  // No barrier to refine? Do nothing.
   uint8_t barrier_data = store->barrier_data();
+  if (barrier_data == 0) {
+    return;
+  }
+
+  // Not an oop store? There should be no barriers.
+  const Node* newval = n->in(MemNode::ValueIn);
+  assert(newval != nullptr, "Should be present");
+  const Type* newval_bottom = newval->bottom_type();
+    TypePtr::PTR newval_type = newval_bottom->make_ptr()->ptr();
   if (!newval_bottom->isa_oopptr() &&
       !newval_bottom->isa_narrowoop() &&
       newval_type != TypePtr::Null) {
-    // newval is neither an OOP nor null, so there is no barrier to refine.
-    assert(barrier_data == 0, "non-OOP stores should have no barrier data");
+    assert(barrier_data == 0, "Non-oop stores should have no barrier data");
     return;
   }
-  if (barrier_data == 0) {
-    // No barrier to refine.
-    return;
-  }
+
+  // Type system tells us something about nullity?
   if (newval_type == TypePtr::Null) {
     barrier_data &= ~ShenandoahBitNotNull;
-    // Simply elide post-barrier if writing null.
+    // Card table barrier is not needed if we store null.
     barrier_data &= ~ShenandoahBitCardMark;
   } else if (newval_type == TypePtr::NotNull) {
+    // Definitely not null.
     barrier_data |= ShenandoahBitNotNull;
   }
+
   store->set_barrier_data(barrier_data);
 }
 
