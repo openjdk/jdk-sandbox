@@ -85,26 +85,26 @@ public class TestAccess {
     @Test
     void boolAndNullFailureTest() {
         var json = Json.parse("{ \"foo\" : null, \"bar\" : false, \"baz\" : true }");
-        assertThrows(JsonValueException.class, () -> json.get("foo").getOrAbsent("_"));
-        assertThrows(JsonValueException.class, () -> json.get("bar").getOrAbsent("_"));
-        assertThrows(JsonValueException.class, () -> json.get("baz").getOrAbsent("_"));
+        assertThrows(JsonValueException.class, () -> json.get("foo").tryGet("_"));
+        assertThrows(JsonValueException.class, () -> json.get("bar").tryGet("_"));
+        assertThrows(JsonValueException.class, () -> json.get("baz").tryGet("_"));
     }
 
     @Test
     void basicAccessAbsenceTest() {
         var json = Json.parse("{ \"foo\" : null, \"bar\" : \"words\" }");
-        assertEquals(Optional.empty(), json.getOrAbsent("baz"));
-        assertNull(json.getOrAbsent("baz").map(JsonValue::asString).orElse(null));
-        assertEquals("words", json.getOrAbsent("bar").map(JsonValue::asString).orElse(null));
-        assertThrows(JsonValueException.class, () -> json.get("foo").getOrAbsent("baz"));
+        assertEquals(Optional.empty(), json.tryGet("baz"));
+        assertNull(json.tryGet("baz").map(JsonValue::asString).orElse(null));
+        assertEquals("words", json.tryGet("bar").map(JsonValue::asString).orElse(null));
+        assertThrows(JsonValueException.class, () -> json.get("foo").tryGet("baz"));
     }
 
     @Test
     void basicAccessNullTest() {
         var json = Json.parse("{ \"foo\" : null, \"bar\" : \"words\" }");
-        assertEquals(Optional.empty(), json.get("foo").valueOrNull());
-        assertNull(json.get("foo").valueOrNull().map(JsonValue::asString).orElse(null));
-        assertEquals("words", json.get("bar").valueOrNull().map(JsonValue::asString).orElse(null));
+        assertEquals(Optional.empty(), json.get("foo").tryValue());
+        assertNull(json.get("foo").tryValue().map(JsonValue::asString).orElse(null));
+        assertEquals("words", json.get("bar").tryValue().map(JsonValue::asString).orElse(null));
     }
 
     // Ensure that syntactical chars w/in JsonString do not affect path building

@@ -111,20 +111,20 @@ import java.util.Optional;
  *}
  * <h2>Missing Object Members</h2>
  * There are times when the member in a JSON object is optional. For those
- * cases, use the access method {@link #getOrAbsent(String)} which returns an
+ * cases, use the access method {@link #tryGet(String)} which returns an
  * Optional of JsonValue. For example:
  * {@snippet lang=java:
- * json.getOrAbsent("foo")
+ * json.tryGet("foo")
  *     .ifPresent(IO::println)
  * }
  * This example only prints the value if the member named "foo" exists.
  * <h2>Handling of null</h2>
  * In some JSON documents, JSON null is used to signify absence.
- * For those cases, use the access method {@link #valueOrNull()} which returns an
+ * For those cases, use the access method {@link #tryValue()} which returns an
  * Optional of JsonValue. For example:
  * {@snippet lang=java:
  * json.get("baz")
- *     .valueOrNull()
+ *     .tryValue()
  *     .ifPresent(IO::println)
  * }
  * This example only prints the value if the member named "baz" is not a JSON
@@ -135,7 +135,7 @@ import java.util.Optional;
  * {@snippet lang = java:
  * Optional.of(json)
  *     .filter(j -> j instanceof JsonObject)
- *     .flatMap(j -> j.getOrAbsent("foo"))
+ *     .flatMap(j -> j.tryGet("foo"))
  *     .filter(j -> j instanceof JsonString)
  *     .map(JsonValue::asString)
  *     .orElse("bar");
@@ -313,7 +313,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
     // in JsonValue, and as such are not specified to be implemented by sub-interfaces.
     // However, relevant sub-interfaces will override them to explicitly have them
     // declared in their Javadoc as well as make any specification changes.
-    // valueOrNull specification would be unchanged by all sub-interfaces, and as
+    // tryValue specification would be unchanged by all sub-interfaces, and as
     // a result is left un-overridden.
 
     /**
@@ -355,7 +355,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      * @throws NullPointerException if the member name is {@code null}
      * @throws JsonValueException if this {@code JsonValue} is not an instance of a {@code JsonObject}
      */
-    default Optional<JsonValue> getOrAbsent(String name) {
+    default Optional<JsonValue> tryGet(String name) {
         Objects.requireNonNull(name);
         return Optional.ofNullable(asMap().get(name));
     }
@@ -394,7 +394,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      * {@code JsonValue} is an instance of {@code JsonNull}; otherwise
      * {@link Optional#of} given this {@code JsonValue}.
      */
-    default Optional<JsonValue> valueOrNull() {
+    default Optional<JsonValue> tryValue() {
         return switch (this) {
             case JsonNull _ -> Optional.empty();
             case JsonValue _ -> Optional.of(this);

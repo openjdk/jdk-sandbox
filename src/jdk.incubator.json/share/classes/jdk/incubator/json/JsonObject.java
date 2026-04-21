@@ -83,9 +83,9 @@ public non-sealed interface JsonObject extends JsonValue {
      * @throws NullPointerException {@inheritDoc}
      */
     @Override
-    default Optional<JsonValue> getOrAbsent(String name) {
+    default Optional<JsonValue> tryGet(String name) {
         // Overridden to specify
-        return JsonValue.super.getOrAbsent(name);
+        return JsonValue.super.tryGet(name);
     }
 
     /**

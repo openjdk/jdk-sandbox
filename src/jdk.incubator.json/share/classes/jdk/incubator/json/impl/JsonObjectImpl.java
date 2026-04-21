@@ -72,7 +72,7 @@ public final class JsonObjectImpl implements JsonObject, JsonValueImpl {
     }
 
     @Override
-    public Optional<JsonValue> getOrAbsent(String name) {
+    public Optional<JsonValue> tryGet(String name) {
         Objects.requireNonNull(name);
         return Optional.ofNullable(theMembers.get(name));
     }
