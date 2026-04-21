@@ -649,18 +649,12 @@ bool ShenandoahBarrierStubC2::is_special_register(Register r) {
 void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
+  Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(test_state)));
   if (_use_double_jumps) {
-    int bit_to_check = ShenandoahThreadLocalData::gc_state_to_fast_bit(test_state);
-    Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
-
     __ ldrb(rscratch1, gc_state_fast);
-    __ tbz(rscratch1, bit_to_check, *continuation());
+    __ cbz(rscratch1, *continuation());
     __ b(*entry());
   } else {
-    int byte_index_to_check = ShenandoahThreadLocalData::gc_state_to_gc_state_array_index(test_state);
-    int gc_state_byte_addr = in_bytes(ShenandoahThreadLocalData::gc_state_array_byte_offset()) + byte_index_to_check;
-    Address gc_state_fast(rthread, gc_state_byte_addr);
-
     __ ldrb(rscratch1, gc_state_fast);
     __ cbnz(rscratch1, *entry());
   }
@@ -931,9 +925,9 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done_unus
 
   // If another barrier is enabled as well, do a runtime check for a specific barrier.
   if (_needs_load_ref_barrier) {
-    Address gcs_addr(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb(tmp1, gcs_addr);
-    __ tbz(tmp1, ShenandoahHeap::MARKING_BITPOS, L_done);
+    Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(ShenandoahHeap::MARKING)));
+    __ ldrb(tmp1, gc_state_fast);
+    __ cbz(tmp1, L_done);
   }
 
   // If buffer is full, call into runtime.
@@ -999,18 +993,17 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done_unused) {
   // If another barrier is enabled as well, do a runtime check for a specific barrier.
   if (_needs_keep_alive_barrier) {
     char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
-    int bit_to_check = ShenandoahThreadLocalData::gc_state_to_fast_bit(state_to_check);
-    Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
+    Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(state_to_check)));
     __ ldrb(tmp, gc_state_fast);
-    __ tbz(tmp, bit_to_check, L_done);
+    __ cbz(tmp, L_done);
   }
 
   // If weak references are being processed, weak/phantom loads need to go slow,
   // regadless of their cset status.
   if (_needs_load_ref_weak_barrier) {
-    Address gc_state(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ ldrb(tmp, gc_state);
-    __ tbnz(tmp, ShenandoahHeap::WEAK_ROOTS_BITPOS, L_slow);
+    Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(ShenandoahHeap::WEAK_ROOTS)));
+    __ ldrb(tmp, gc_state_fast);
+    __ cbnz(tmp, L_slow);
   }
 
   // Cset-check. Fall-through to slow if in collection set.

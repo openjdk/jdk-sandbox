@@ -1186,9 +1186,9 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(MacroAssembler* masm, Addres
 void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
-  Address gc_state_fast(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_offset()));
-  __ testb(gc_state_fast, ShenandoahThreadLocalData::gc_state_to_fast(test_state));
-  __ jcc(Assembler::notZero, *entry());
+  Address gc_state_fast(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(test_state)));
+  __ cmpb(gc_state_fast, 0);
+  __ jcc(Assembler::notEqual, *entry());
   __ bind(*continuation());
 }
 
