@@ -43,7 +43,6 @@
 #include "opto/runtime.hpp"
 #include "opto/c2_globals.hpp"
 #endif
-#include "gc/shenandoah/shenandoahRuntime.hpp"
 #if INCLUDE_JVMCI
 #include "jvmci/jvmci_globals.hpp"
 #endif
