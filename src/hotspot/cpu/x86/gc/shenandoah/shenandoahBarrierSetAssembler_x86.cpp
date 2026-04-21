@@ -1257,9 +1257,8 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   // Fast-path: put object into buffer.
   // If buffer is already full, go slow.
   __ movptr(tmp, index);
-  __ testptr(tmp, tmp);
-  __ jccb(Assembler::zero, L_pop_and_slow);
   __ subptr(tmp, wordSize);
+  __ jccb(Assembler::below, L_pop_and_slow);
   __ movptr(index, tmp);
   __ addptr(tmp, buffer);
   __ movptr(Address(tmp, 0), _obj);
