@@ -49,7 +49,7 @@ import java.util.Optional;
  * }
  * the JSON String "bar" can be accessed as follows:
  * {@snippet lang=java:
- * JsonValue foo0 = json.get("foo").element(0);
+ * JsonValue foo0 = json.get("foo").get(0);
  * }
  * If an access method is invoked on an incompatible JSON type (for example,
  * calling {@code get(String)} on a JSON array), a {@code JsonValueException}
