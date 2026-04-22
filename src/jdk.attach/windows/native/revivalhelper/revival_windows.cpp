@@ -51,7 +51,7 @@
 DWORD stdProt = PAGE_EXECUTE_READWRITE;
 uint64_t vaddr_align;
 uint64_t heap_test;
-char *editbin = nullptr;
+char* editbin = nullptr;
 HANDLE hProc;
 
 typedef PVOID (*VirtualAlloc2Fn)(HANDLE, PVOID, SIZE_T, ULONG, ULONG, MEM_EXTENDED_PARAMETER*, ULONG);
@@ -104,22 +104,22 @@ char* basename_pd(char* s) {
     return s;
 }
 
-void normalize_path_pd(char *s) {
-    for (char *p = s; *p != '\0'; p++) {
+void normalize_path_pd(char* s) {
+    for (char* p = s; *p != '\0'; p++) {
         if (*p == '/') *p = '\\';
     }
 }
 
-bool dir_exists_pd(const char *dirname) {
+bool dir_exists_pd(const char* dirname) {
     DWORD attr = GetFileAttributes(dirname);
     return attr != INVALID_FILE_ATTRIBUTES && (attr & FILE_ATTRIBUTE_DIRECTORY);
 }
 
-bool dir_isempty_pd(const char *dirname) {
+bool dir_isempty_pd(const char* dirname) {
     return PathIsDirectoryEmptyA(dirname);
 }
 
-bool file_exists_pd(const char *filename) {
+bool file_exists_pd(const char* filename) {
     return GetFileAttributes(filename) != INVALID_FILE_ATTRIBUTES;
 }
 
@@ -170,7 +170,7 @@ void printMemBasicInfo(void* addr) {
     }
 }
 
-void tls_fixup_pd(void *teb) {
+void tls_fixup_pd(void* teb) {
     uint64_t* cur_teb = (uint64_t*) NtCurrentTeb(); // Get TEB pointer, on x64 is stored in GS.
     // Get pointer to TLS pointer in current process:
     uint64_t* cur_tls = (uint64_t*) ((char*) cur_teb + 0x58); // Read TLS ptr at known offset, effectively __readgsqword(0x58);
@@ -279,17 +279,17 @@ void install_handler_pd() {
     previousUnhandledExceptionFilter = SetUnhandledExceptionFilter(topLevelUnhandledExceptionFilter);
 }
 
-void *symbol_dynamiclookup_pd(void *h, const char*str) {
+void* symbol_dynamiclookup_pd(void* h, const char* str) {
     FARPROC s = GetProcAddress((HMODULE) h, str);
     logv("symbol_dynamiclookup: %s = %p", str, s);
     if (s == 0) {
         logv("GetProcAddress failed: 0x%x", GetLastError());
-        return (void *) -1;
+        return (void*) -1;
     }
     return (void*) s;
 }
 
-void *load_sharedobject_pd(const char *name, void *vaddr) {
+void* load_sharedobject_pd(const char* name, void* vaddr) {
     int max_tries = 1; // Retrying, even when allocating to force a new address, is not usually succesfull.
 
     for (int i = 0; i < max_tries; i++) {
@@ -303,10 +303,10 @@ void *load_sharedobject_pd(const char *name, void *vaddr) {
             exitForRetry();
         }
     }
-    return (void *) -1;
+    return (void*) -1;
 }
 
-bool mem_canwrite_pd(void *vaddr, size_t length) {
+bool mem_canwrite_pd(void* vaddr, size_t length) {
     MEMORY_BASIC_INFORMATION meminfo;
     size_t q = VirtualQueryEx(hProc, vaddr, &meminfo, sizeof(meminfo));
     if (q == sizeof(meminfo)) {
@@ -345,61 +345,38 @@ bool can_lazycopy_pd(void* addr) {
     }
 }
 
-void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offset) {
+void* do_mmap_pd(void* addr, size_t length, char* filename, int fd, size_t offset) {
     // Fail quickly if unaligned (MiniDump contents not usually aligned):
     uint64_t offsetAligned = align_down(offset, vaddr_alignment_pd());
     if (offsetAligned != offset) {
         logv("do_mmap_pd: address 0x%llx file offset 0x%llx not aligned, do not try mapping directly, return", addr, offset);
-        return (void *) -1;
+        return (void*) -1;
     }
     LPVOID p = nullptr;
     HANDLE h2;
     HANDLE h = CreateFile(filename, GENERIC_READ | GENERIC_EXECUTE, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, nullptr);
     if (h == nullptr) {
         logv("do_mmap_pd: CreateFile failed: %s: 0x%lx", filename, GetLastError());
-        return (void *) -1;
+        return (void*) -1;
     } else {
         h2 = CreateFileMapping(h, nullptr, stdProt, 0, 0, nullptr);
         if (h2 == nullptr) {
             logv("do_mmap_pd: CreateFileMapping failed: %s: 0x%lx", filename, GetLastError());
-            return (void *) -1;
+            return (void*) -1;
         }
     }
     p = pMapViewOfFile3(h2, hProc, (PVOID) addr, offset, length, MEM_REPLACE_PLACEHOLDER, stdProt, nullptr, 0);
     if ((uint64_t) p != (uint64_t) addr) {
         logv("do_mmap_pd: MapViewOfFile3 0x%p failed, ret=0x%p error=0x%lx", addr, p, GetLastError());
-        p = (void *) -1;
+        p = (void*) -1;
         waitHitRet();
     }
     CloseHandle(h2);
     CloseHandle(h);
-    return (void *) p;
+    return (void*) p;
 }
 
-int do_munmap_pd(void *addr, size_t length) {
-    int e = UnmapViewOfFile(addr); // Returns non-zero on success.  Zero on failure.
-    if (e == 0) {
-        warn("UnmapViewOfFile 0x%p: failed: returns 0x%d: 0x%lx", addr, e, GetLastError());
-    }
-    return e;
-}
-
-/* void *do_map_allocate_pd_MapViewOfFile(void *vaddr, size_t length) {
-    DWORD mapViewAccess = FILE_MAP_READ | FILE_MAP_WRITE | FILE_MAP_EXECUTE;
-    HANDLE h = CreateFileMapping(INVALID_HANDLE_VALUE, nullptr, stdProt, 0, (DWORD) length, nullptr);
-    if (h == nullptr) {
-        warn("do_map_allocate_pd_MapViewOfFile: CreateFileMapping returns = 0x%p : error = 0x%lx", h, GetLastError());
-        return (void *) -1;
-    }
-    LPVOID p = MapViewOfFileEx(h, mapViewAccess, 0, 0, length, (void *) vaddr);
-    logv("do_map_allocate_pd: MapViewOfFile 0x%llx 0x%llx gets 0x%llx", (unsigned long long) vaddr, length, (unsigned long long) p);
-    if ((void*) p == vaddr) {
-        return vaddr;
-    }
-    return (void*) -1;
-} */
-
-void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length, int protRequested /* 0 to use PAGE_GUARD */) {
+void* do_map_allocate_pd_VirtualAlloc2(void* addr, size_t length, int protRequested /* 0 to use PAGE_GUARD */) {
     DWORD prot = stdProt;
     if (protRequested == 0) {
         prot |= PAGE_GUARD;
@@ -412,7 +389,7 @@ void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length, int protReques
     }
     void* p = pVirtualAlloc2(hProc, (PVOID) addr, length, MEM_RESERVE | MEM_COMMIT, prot, nullptr, 0);
     logd("do_map_allocate_pd_VirtualAlloc2: first alloc attempt 0x%p len 0x%zx prot 0x%x: returns = 0x%p, error = 0x%lx",
-        (void *) addr, length, prot, p, GetLastError());
+        (void*) addr, length, prot, p, GetLastError());
 
     if ((void*) p != (void*) addr) {
         // Did not get requested address.
@@ -436,17 +413,8 @@ void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length, int protReques
                 return addr;
             } else {
                 logv("do_map_allocate_VirtualAlloc2: requested 0x%llx got 0x%lx existing does not contain required mapping", addr, p);
-                return (void*) -1;
                 // Could consider expanding allocation, but not observed in practice.
-                /*
-                logv("do_map_allocate_pd_VirtualAlloc2: clash, retry new base 0x%llx len 0x%llx", existing_end, remaining);
-                void * r = do_map_allocate_pd_VirtualAlloc2((void*) existing_end, remaining, protRequested);
-                // Return original requested address on success:
-                if ((uint64_t) r == (uint64_t) existing_end) {
-                    return addr;
-                } else {
-                    return r;
-                } */
+                return (void*) -1;
             }
         } else if (e  == ERROR_INVALID_ADDRESS /* 0x1e7 */) {
             // Already mapped, conflict? e.g. jvm data.  Is more allocation needed?  This is seen in practice.
@@ -474,7 +442,7 @@ void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length, int protReques
     return p;
 }
 
-void *do_map_allocate_pd(void *vaddr, size_t length, int prot /* 0 for guarded, or 1 for standard RWX permission */) {
+void* do_map_allocate_pd(void* vaddr, size_t length, int prot /* 0 for guarded, or 1 for standard RWX permission */) {
     // Alignment: mappings file is created with minidump addresses, not necessarily 64k aligned.
     uint64_t vaddr_aligned = align_down((uint64_t) vaddr, vaddr_alignment_pd());
     uint64_t diff = (uint64_t) vaddr - (uint64_t) vaddr_aligned;
@@ -535,18 +503,15 @@ uint64_t read_pointer_at_offset_pd(const char* filename, uint64_t offset) {
     return p;
 }
 
-void copy_file_pd(const char *srcfile, const char *destfile) {
-    // Normalise paths
-    char* s = (char *) malloc(strlen(srcfile) + 1); // or strdup
-    char* d = (char *) malloc(strlen(destfile) + 1);
+void copy_file_pd(const char* srcfile, const char* destfile) {
+    // Copy paths to normalise:
+    char* s = strdup(srcfile);
+    char* d = strdup(destfile);
     if (s == nullptr || d == nullptr) {
         error("allocation failed normalizing paths to copy");
     }
-    strcpy(s, srcfile);
-    strcpy(d, destfile);
     normalize_path_pd(s);
     normalize_path_pd(d);
-
     logv("copy_file_pd: src: %s dest: %s", s, d);
     if (!CopyFile(s, d, false)) {
         warn("Copy file failed: %s %s: error %d", s, d, GetLastError());
@@ -556,7 +521,7 @@ void copy_file_pd(const char *srcfile, const char *destfile) {
 }
 
 char* check_editbin() {
-    char *editbin_env = getenv("EDITBIN");
+    char* editbin_env = getenv("EDITBIN");
     if (editbin_env != nullptr) {
         if (!file_exists_pd(editbin_env)) {
             error("EDITBIN from environment does not exist: '%s'", editbin_env);
@@ -568,7 +533,7 @@ char* check_editbin() {
     }
 }
 
-int relocate_sharedlib_pd(const char *filename, const void *addr) {
+int relocate_sharedlib_pd(const char* filename, const void* addr) {
     if (editbin == nullptr) {
         // Normal usage, editbin not specified.
         // Two calls.  ReBaseImage64 may not report correct rebased address,
@@ -602,9 +567,9 @@ int relocate_sharedlib_pd(const char *filename, const void *addr) {
     }
 }
 
-void write_mem_mappings(MiniDump* dump, int fd, const char *corename, uint64_t dump_ReadOnlySharedMemBase) {
+void write_mem_mappings(MiniDump* dump, int fd, const char* corename, uint64_t dump_ReadOnlySharedMemBase) {
     // Read minidump memory list, create the memory mappings list.
-    // Ideally map data directly from core, but if alignment simply does not work (segments too close),
+    // Ideally map data directly from core, but if alignment does not work (segments too close),
     // create mapping and copy bytes later.
     std::list<Segment> segsToCopy; // Segments that need bytes copied
     char buf[BUFLEN];
@@ -648,19 +613,19 @@ void write_mem_mappings(MiniDump* dump, int fd, const char *corename, uint64_t d
             } while ((uint64_t) seg->vaddr <= resume_address);
             continue;
         }
-        // Consider the next region also:
+        // We have something in seg, but consider the next region also:
         segNext = dump->readSegment(&d, &currentRVA, true);
 
-        // Is next region too close for vaddralignment to work?
+        // Is next region too close for vaddr alignment to work?
         // Grow a bigger segment to map, that will have these neighbouring segments' data copied in.
-        Segment *biggerSeg = nullptr;
+        Segment* biggerSeg = nullptr;
         while (segNext != nullptr && align_up(seg->end(), vaddr_alignment_pd()) >= segNext->start()) {
             if (logLevel >= LOG_DEBUG) {
-                warn("create_mappings: segs too close for alignment, seg: %p - %p next seg: %p", seg->vaddr, seg->end(), segNext->vaddr);
+                logv("create_mappings: segs too close for alignment, seg: %p - %p next seg: %p", seg->vaddr, seg->end(), segNext->vaddr);
                 seg->toString(buf, BUFLEN);
-                warn("later seg    : %s", buf);
+                logv("later seg    : %s", buf);
                 segNext->toString(buf, BUFLEN);
-                warn("later segNext: %s", buf);
+                logv("later segNext: %s", buf);
             }
             // Save segs, will write "C" copy lines later.
             if (biggerSeg == nullptr) {
@@ -672,20 +637,20 @@ void write_mem_mappings(MiniDump* dump, int fd, const char *corename, uint64_t d
             biggerSeg->set_end(segNext->end());  // Expand to cover both.
             if (logLevel >= LOG_DEBUG) {
                 biggerSeg->toString(buf, BUFLEN);
-                warn("BIGGER seg expanded: %s", buf);
+                logv("BIGGER seg expanded: %s", buf);
             }
-            // Next...
+            // Next.  Again, get two segments to consider:
             seg = segNext;
             segNext = dump->readSegment(&d, &currentRVA, true);
         }
 
         // Write line to mappings file.
-        // Use the biggerSeg if we were in the above loop.
         int e = 0;
         if (biggerSeg != nullptr) {
+            // We created a biggerSeg in the loop above.
             if (logLevel >= LOG_DEBUG) {
                 biggerSeg->toString(buf, BUFLEN);
-                warn("write BIGGER seg    : %s", buf);
+                logv("Write BIGGER seg    : %s", buf);
             }
             e = biggerSeg->write_mapping(fd, "m"); // map only, copy later
             biggerSeg = nullptr;
@@ -702,12 +667,12 @@ void write_mem_mappings(MiniDump* dump, int fd, const char *corename, uint64_t d
 }
 
 const int N_JVM_SYMS = 2;
-const char *JVM_SYMS[N_JVM_SYMS] = {
+const char* JVM_SYMS[N_JVM_SYMS] = {
     SYM_REVIVE_VM,
     SYM_VM_RELEASE
 };
 
-void write_symbols(int symbols_fd, const char* symbols[], int count, const char *revival_dirname) {
+void write_symbols(int symbols_fd, const char* symbols[], int count, const char* revival_dirname) {
     // Using SymFromName() on jvm.dll after relocation will give final absolute addresses.
     PLOADED_IMAGE image = ImageLoad(JVM_FILENAME, revival_dirname);
     if (image == nullptr) {
@@ -768,7 +733,7 @@ void delete_file_pd(char* filename) {
 
 void write_sharedlib_mapping(int mappings_fd, char* filename, void* address) {
         char buf[BUFLEN];
-        const char *checksum = "0";
+        const char* checksum = "0";
         snprintf(buf, BUFLEN, "L %s %llx %s\n", basename_pd(filename), (unsigned long long) address, checksum);
         write0(mappings_fd, buf);
 }
@@ -793,7 +758,7 @@ void copy_and_relocate(const char* srcfile, const char* destdir, uint64_t addres
     memset(copy_path, 0, BUFLEN);
     strncpy(copy_path, destdir, BUFLEN - 1);
     strncat(copy_path, FILE_SEPARATOR, BUFLEN - 1);
-    char *basefilename = basename_pd((char*) srcfile); // basefilename is e.g. "file.dll"
+    char* basefilename = basename_pd((char*) srcfile); // basefilename is e.g. "file.dll"
     strncat(copy_path, basefilename, BUFLEN - 1);
     logv("Copying %s to %s", srcfile, copy_path);
     copy_file_pd(srcfile, copy_path);
@@ -802,7 +767,7 @@ void copy_and_relocate(const char* srcfile, const char* destdir, uint64_t addres
     char debuginfo_path[BUFLEN];
     char debuginfo_copy_path[BUFLEN];
     snprintf(debuginfo_path, BUFLEN, "%s", srcfile);
-    char *p = strstr(debuginfo_path, ".dll");
+    char* p = strstr(debuginfo_path, ".dll");
     if (p != nullptr) {
         // It is a dll, check for .pdb and .map files.
         // JDK builds now create e.g. file.dll.pdb  but also check for just file.pdb
@@ -888,11 +853,12 @@ int create_revival_cache_pd(const char* corename, const char* revival_dirname, c
 
         // Create mappings file:
         // Normalize corename so basename works (if we were given forward slashes, basename fails).
-        char *corename_n = strdup(corename);
+        char* corename_n = strdup(corename);
         normalize_path_pd(corename_n);
 
         int mappings_fd = mappings_file_create(revival_dirname, corename_n);
         if (mappings_fd < 0) {
+            free(corename_n);
             error("Failed to create mappings file.");
         }
         // Write mappings file:
