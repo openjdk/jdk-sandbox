@@ -1465,22 +1465,25 @@ void ShenandoahHeap::trash_cset_regions() {
   ShenandoahHeapLocker locker(lock());
 
   free_set()->account_fwt_tails();
-
-  ShenandoahCollectionSet* set = collection_set();
+  ShenandoahCollectionSet* cset = collection_set();
   ShenandoahHeapRegion* r;
-  set->clear_current_index();
-  while ((r = set->next()) != nullptr) {
+  cset->clear_current_index();
+  while ((r = cset->next()) != nullptr) {
     //log_info(gc)("Make region trash: %lu", r->index());
-    if (set->use_forward_table(r)) {
+    if (cset->use_forward_table(r)) {
       r->reset_forwarding_table();
-      set->remove_region(r);
       // r stays regular
+      cset->remove_region(r);
+      if (r->top() == r->bottom()) {
+	// If there are no allocations from this possibly early-recycled region, treat it the same as other trash.
+	r->make_trash();
+      }
     } else {
       r->make_trash();
     }
   }
   //log_info(gc)("Clearing cset");
-  collection_set()->clear();
+  cset->clear();
 }
 
 void ShenandoahHeap::print_heap_regions_on(outputStream* st) const {

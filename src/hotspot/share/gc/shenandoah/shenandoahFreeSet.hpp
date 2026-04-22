@@ -645,7 +645,7 @@ private:
   // Returns true if the region was admitted, false if it is too small to be useful.
   bool recycle_fwt_region(ShenandoahHeapRegion* r,
                           idx_t& mutator_low_idx, idx_t& mutator_high_idx,
-                          size_t& recycled_bytes, size_t& recycled_regions);
+                          size_t& recycled_bytes, size_t& recycled_regions, size_t& young_recycled_regions);
 
 public:
   ShenandoahFreeSet(ShenandoahHeap* heap, size_t max_regions);
