@@ -52,6 +52,7 @@ DWORD stdProt = PAGE_EXECUTE_READWRITE;
 uint64_t vaddr_align;
 uint64_t heap_test;
 char *editbin = nullptr;
+HANDLE hProc;
 
 typedef PVOID (*VirtualAlloc2Fn)(HANDLE, PVOID, SIZE_T, ULONG, ULONG, MEM_EXTENDED_PARAMETER*, ULONG);
 typedef PVOID (*MapViewOfFile3Fn)(HANDLE, HANDLE, PVOID, ULONG64, SIZE_T, ULONG, ULONG, MEM_EXTENDED_PARAMETER*, ULONG);
@@ -160,7 +161,6 @@ void printMemBasicInfo(MEMORY_BASIC_INFORMATION meminfo) {
 }
 
 void printMemBasicInfo(void* addr) {
-    HANDLE hProc = GetCurrentProcess();
     MEMORY_BASIC_INFORMATION meminfo;
     size_t s = VirtualQueryEx(hProc, (PVOID) addr, &meminfo, sizeof(meminfo));
     if (s == sizeof(meminfo)) {
@@ -188,19 +188,15 @@ void tls_fixup_pd(void *teb) {
 }
 
 void init_pd() {
-    int x;
     logv("init_pd: PID %ld thread: 0x%lx", _getpid(), GetCurrentThreadId());
+    hProc = GetCurrentProcess();
     _SYSTEM_INFO systemInfo;
     GetSystemInfo(&systemInfo);
     vaddr_align = systemInfo.dwAllocationGranularity - 1;
-
-    // Report pagesize in verbose log for reference, but not used.
-    uint64_t pagesize = systemInfo.dwPageSize;
-    logv("revival: init_pd: dwAllocationGranularity = %d  vaddr_alignment_pd() = 0x%lx  approx sp = 0x%llx dwPageSize = %d",
-          systemInfo.dwAllocationGranularity, vaddr_alignment_pd(), &x, pagesize);
+    logv("revival: init_pd: dwAllocationGranularity = %d  vaddr_alignment_pd() = 0x%lx",
+          systemInfo.dwAllocationGranularity, vaddr_alignment_pd());
 
     if (vaddr_align != 0xffff) {
-        // Expected: dwAllocationGranularity = 65536
         warn("Note: dwAllocationGranularity not 64k, vaddr_align = %lld", vaddr_align);
     }
     install_kernelbase_1803_symbol_or_exit(pVirtualAlloc2, "VirtualAlloc2");
@@ -218,7 +214,7 @@ void dump() {
         warn("%s: CreateFile failed for MiniDump: 0x%x", filename, GetLastError());
     } else {
         warn("revival: Writing MiniDump to %s...", filename);
-        if (!MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), hFile, dumpType, nullptr, nullptr, nullptr)) {
+        if (!MiniDumpWriteDump(hProc, GetCurrentProcessId(), hFile, dumpType, nullptr, nullptr, nullptr)) {
             warn("%s: MiniDumpWriteDump failed: 0x%x", filename, GetLastError());
         }
         CloseHandle(hFile);
@@ -238,29 +234,12 @@ const char* conflict_check_pd(void* vaddr, unsigned long long length) {
 }
 
 void set_prot(void* addr, uint64_t length, DWORD prot) {
-    // Likely we can't set protection of some sub-range we are given, but can find the containing MEMORY_BASIC_INFORMATION
-    // and set protection of that.
     DWORD lpfOldProtect;
     if (!VirtualProtect((PVOID) addr, length, prot, &lpfOldProtect)) {
         logv("set_prot: failed (1) setting prot (0x%lx) for: 0x%p, len 0x%lx: error 0x%x.",  prot, addr, length, GetLastError());
         if (logLevel >= LOG_VERBOSE) {
             printMemBasicInfo(addr);
-        }
-        waitHitRet();
-        HANDLE hProc = GetCurrentProcess();
-        MEMORY_BASIC_INFORMATION meminfo;
-        size_t q = VirtualQueryEx(hProc, (PVOID) addr, &meminfo, sizeof(meminfo));
-        if (q != sizeof(meminfo)) {
-            warn("set_prot: VirtualQueryEx failed: returned 0x%x, error 0x%x", q, GetLastError());
-        } else {
-            if (!VirtualProtect((PVOID) meminfo.AllocationBase, meminfo.RegionSize, prot, &lpfOldProtect)) {
-                warn(" (2) set_prot: failed setting prot (0x%lx) for: 0x%p, len 0x%lx: error 0x%x.",
-                    prot, meminfo.AllocationBase, meminfo.RegionSize, GetLastError());
-                waitHitRet();
-            } else {
-                logd("set_prot: OK setting prot (0x%lx) for: 0x%p, len 0x%lx",
-                    prot, meminfo.AllocationBase, meminfo.RegionSize);
-            }
+            waitHitRet();
         }
     }
 }
@@ -329,8 +308,6 @@ void *load_sharedobject_pd(const char *name, void *vaddr) {
 
 bool mem_canwrite_pd(void *vaddr, size_t length) {
     MEMORY_BASIC_INFORMATION meminfo;
-    HANDLE hProc = GetCurrentProcess();
-
     size_t q = VirtualQueryEx(hProc, vaddr, &meminfo, sizeof(meminfo));
     if (q == sizeof(meminfo)) {
         if (logLevel >= LOG_DEBUG) {
@@ -355,7 +332,6 @@ bool mem_canwrite_pd(void *vaddr, size_t length) {
 }
 
 bool can_lazycopy_pd(void* addr) {
-    HANDLE hProc = GetCurrentProcess();
     MEMORY_BASIC_INFORMATION meminfo;
     size_t q = VirtualQueryEx(hProc, addr, &meminfo, sizeof(meminfo));
     if (q != sizeof(meminfo)) {
@@ -389,7 +365,6 @@ void *do_mmap_pd(void *addr, size_t length, char *filename, int fd, size_t offse
             return (void *) -1;
         }
     }
-    HANDLE hProc = GetCurrentProcess();
     p = pMapViewOfFile3(h2, hProc, (PVOID) addr, offset, length, MEM_REPLACE_PLACEHOLDER, stdProt, nullptr, 0);
     if ((uint64_t) p != (uint64_t) addr) {
         logv("do_mmap_pd: MapViewOfFile3 0x%p failed, ret=0x%p error=0x%lx", addr, p, GetLastError());
@@ -409,11 +384,9 @@ int do_munmap_pd(void *addr, size_t length) {
     return e;
 }
 
-void *do_map_allocate_pd_MapViewOfFile(void *vaddr, size_t length) {
-    DWORD mappingProt = stdProt;
+/* void *do_map_allocate_pd_MapViewOfFile(void *vaddr, size_t length) {
     DWORD mapViewAccess = FILE_MAP_READ | FILE_MAP_WRITE | FILE_MAP_EXECUTE;
-
-    HANDLE h = CreateFileMapping(INVALID_HANDLE_VALUE, nullptr, mappingProt, 0, (DWORD) length, nullptr);
+    HANDLE h = CreateFileMapping(INVALID_HANDLE_VALUE, nullptr, stdProt, 0, (DWORD) length, nullptr);
     if (h == nullptr) {
         warn("do_map_allocate_pd_MapViewOfFile: CreateFileMapping returns = 0x%p : error = 0x%lx", h, GetLastError());
         return (void *) -1;
@@ -424,10 +397,9 @@ void *do_map_allocate_pd_MapViewOfFile(void *vaddr, size_t length) {
         return vaddr;
     }
     return (void*) -1;
-}
+} */
 
 void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length, int protRequested /* 0 to use PAGE_GUARD */) {
-    HANDLE hProc = GetCurrentProcess();
     DWORD prot = stdProt;
     if (protRequested == 0) {
         prot |= PAGE_GUARD;
@@ -442,43 +414,43 @@ void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length, int protReques
     logd("do_map_allocate_pd_VirtualAlloc2: first alloc attempt 0x%p len 0x%zx prot 0x%x: returns = 0x%p, error = 0x%lx",
         (void *) addr, length, prot, p, GetLastError());
 
-    q = VirtualQueryEx(hProc, addr, &meminfo, sizeof(meminfo));
-    if (q != sizeof(meminfo)) {
-        warn("VirtualQueryEx failed");
-        return (void*) -1;
-    }
-
-    uint64_t existing_end = (uint64_t) meminfo.BaseAddress + (uint64_t) meminfo.RegionSize;
-    uint64_t requested_end = (uint64_t) addr + (uint64_t) length;
-    uint64_t remaining = requested_end - existing_end;
-
     if ((void*) p != (void*) addr) {
-        // Did not get requested address
-        if (GetLastError() == 0) {
-            // No error, but requested address was re-aligned.
-            logv("do_map_allocate_VirtualAlloc2: requested 0x%llx got 0x%llx", addr, p);
-            //printMemBasicInfo(meminfo);
+        // Did not get requested address.
+        q = VirtualQueryEx(hProc, addr, &meminfo, sizeof(meminfo));
+        if (q != sizeof(meminfo)) {
+            warn("do_map_allocate_pd_VirtualAlloc2: 0x%llx: VirtualQueryEx failed", addr);
+            return (void*) -1;
+        }
+        uint64_t existing_end = (uint64_t) meminfo.BaseAddress + (uint64_t) meminfo.RegionSize;
+        uint64_t requested_end = (uint64_t) addr + (uint64_t) length;
+        uint64_t remaining = requested_end - existing_end;
 
+        int e = GetLastError();
+        if (e == 0) {
+            // No error, but requested address was changed, or re-aligned.
+            // Not likely as caller function do_map_allocate_pd aligns first.
+            logv("do_map_allocate_VirtualAlloc2: requested 0x%llx got 0x%llx (no error)", addr, p);
             // If all already mapped, just return as if alloc worked.
             if (p <= addr && requested_end <= existing_end) {
                 logv("do_map_allocate_VirtualAlloc2: requested 0x%llx got 0x%lx contains all needed", addr, p);
                 return addr;
-            }
-
-            // Expand allocation?
-            logv("do_map_allocate_pd_VirtualAlloc2: clash, retry new base 0x%llx len 0x%llx", existing_end, remaining);
-            void * r = do_map_allocate_pd_VirtualAlloc2((void*) existing_end, remaining, protRequested);
-            // Return original requested address on success:
-            if ((uint64_t) r == (uint64_t) existing_end) {
-                return addr;
             } else {
-                return r;
+                logv("do_map_allocate_VirtualAlloc2: requested 0x%llx got 0x%lx existing does not contain required mapping", addr, p);
+                return (void*) -1;
+                // Could consider expanding allocation, but not observed in practice.
+                /*
+                logv("do_map_allocate_pd_VirtualAlloc2: clash, retry new base 0x%llx len 0x%llx", existing_end, remaining);
+                void * r = do_map_allocate_pd_VirtualAlloc2((void*) existing_end, remaining, protRequested);
+                // Return original requested address on success:
+                if ((uint64_t) r == (uint64_t) existing_end) {
+                    return addr;
+                } else {
+                    return r;
+                } */
             }
-
-        } else if (GetLastError() == ERROR_INVALID_ADDRESS) { // 0x1e7
-            // Already mapped, conflict?
+        } else if (e  == ERROR_INVALID_ADDRESS /* 0x1e7 */) {
+            // Already mapped, conflict? e.g. jvm data.  Is more allocation needed?  This is seen in practice.
             logv("do_map_allocate_pd__VirtualAlloc2: requested 0x%llx got 0x%lx not valid, already mapped?", addr, p);
-            // e.g. jvm data.  Is more allocation needed?
             uint64_t wanted_end = (uint64_t) addr + (uint64_t) length;
             if (wanted_end <= existing_end) {
                 logv("do_map_allocate_pd_VirtualAlloc2: mapping covered by existing_end at 0x%llx", existing_end);
@@ -496,7 +468,7 @@ void *do_map_allocate_pd_VirtualAlloc2(void *addr, size_t length, int protReques
                 }
             }
         } else {
-            logv("do_map_allocate: failed");
+            logv("do_map_allocate_VirtualAlloc2: requested 0x%llx got 0x%llx error: 0x%x", addr, p, e);
         }
     }
     return p;
@@ -741,7 +713,6 @@ void write_symbols(int symbols_fd, const char* symbols[], int count, const char 
     if (image == nullptr) {
         error("write_symbols: ImageLoad error '%s': %d", GetLastError());
     }
-    HANDLE hCurrentProcess = GetCurrentProcess();
     HANDLE h2 = (HANDLE) 1;
     bool e = SymInitialize(h2, nullptr, false);
     if (e != TRUE) {
