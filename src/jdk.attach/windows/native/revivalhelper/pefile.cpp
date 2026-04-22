@@ -28,13 +28,6 @@
 PEFile::PEFile(const char* filename) {
     this->filename = filename;
     image = nullptr;
-    fd = -1;
-}
-
-void PEFile::close() {
-    if (fd >= 0) {
-        ::close(fd);
-    }
 }
 
 PEFile::~PEFile() {
@@ -46,32 +39,19 @@ PEFile::~PEFile() {
             logd("PEFile: ImageUnload %s: done", filename);
         }
     }
-    logd("PEFile: ImageUnload done");
 }
 
 void PEFile::imageLoad() {
     if (image == nullptr) {
         image = ImageLoad(filename, nullptr);
-
-        for (unsigned int i = 0; i < image->NumberOfSections; i++) {
-            IMAGE_SECTION_HEADER section = image->Sections[i];
-            logd("imageLoad: image: %s vaddr 0x%llx size 0x%llx Misc.PhysicalAddress 0x%llx PointerToRawData 0x%llx",
-                image->Sections[i].Name, image->Sections[i].VirtualAddress, image->Sections[i].SizeOfRawData,
-                section.Misc.PhysicalAddress, section.PointerToRawData);
-        }
-
         if (image == nullptr) {
-            error("PEFile: ImageLoad error: %d", GetLastError());
+            error("PEFile: %s: ImageLoad error: %d", filename, GetLastError());
         }
     }
 }
 
-/**
- * Given a relative virtual address, which is expected to be in the .rdata Section,
- * return the file offset.
- */
 uint64_t PEFile::file_offset_for_reladdr(uint64_t reladdr) {
-    Segment *seg = get_rdata_section();
+    Segment* seg = get_rdata_section();
     uint64_t rdata_vaddr = reladdr - (uint64_t) seg->vaddr;
     if (rdata_vaddr > seg->file_length) {
         warn("PEFile::file_offset_for reladdr: 0x%llx > .rdata size", reladdr);
@@ -87,7 +67,6 @@ bool PEFile::rebase(const char* filename, uint64_t address) {
     ULONG64 OldImageBase;
     ULONG NewImageSize = (ULONG) address;
     ULONG64 NewImageBase = address;
-
     BOOL e = ReBaseImage64(filename, nullptr /* SymbolPath */, TRUE /* fReBase */, TRUE /* permit system file */, FALSE /* rebase downwards */,
                            0 /* MaxSize */, &OldImageSize, &OldImageBase, &NewImageSize, &NewImageBase, 0 /* TimeStamp */);
     logv("rebase: OldImageSize 0x%lx  OldImageBase 0x%llx  NewImageSize 0x%lx  NewImageBase 0x%llx",
@@ -131,10 +110,7 @@ bool PEFile::remove_dynamicbase(const char* filename) {
     uint64_t peAddr = (uint64_t) base + peOffset;
     logd("remove_dynamicbase: peAddr    0x%llx", peAddr);
 
-    // At peOffset, is IMAGE_NT_HEADERS32 containing:
-    //   DWORD                   Signature;
-    //   IMAGE_FILE_HEADER       FileHeader;
-    //   IMAGE_OPTIONAL_HEADER32 OptionalHeader;
+    // At peOffset, is IMAGE_NT_HEADERS32:
     ULONG32 peMagic = *(ULONG32*) peAddr;
     if (peMagic != 0x4550 /* PE */) {
         error("remove_dynamicbase: %s: PE magic not recognized: 0x%x", filename, peMagic);
@@ -145,7 +121,7 @@ bool PEFile::remove_dynamicbase(const char* filename) {
     logd("DllCharacteristics = 0x%llx", optional->DllCharacteristics);
 
     WORD dllCharacteristics = optional->DllCharacteristics;
-    dllCharacteristics = dllCharacteristics & ~IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE; // Remove bit value of flag (64)
+    dllCharacteristics = dllCharacteristics & ~IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE; // Remove bit value of flag.
     logd("DllCharacteristics = 0x%llx", dllCharacteristics);
 
     logv("&optional.DllCharacteristics =  0x%llx", &(optional->DllCharacteristics));
@@ -177,7 +153,7 @@ bool PEFile::find_data_segs(void* address, Segment** _data, Segment** _rdata) {
             section.Misc.PhysicalAddress, section.PointerToRawData);
 
         if (rdata == nullptr && strncmp((char*) image->Sections[i].Name, ".rdata", 8) == 0) {
-            rdata = new Segment((void *) (DWORD_PTR) image->Sections[i].VirtualAddress, (size_t) image->Sections[i].SizeOfRawData, 0, 0);
+            rdata = new Segment((void*) (DWORD_PTR) image->Sections[i].VirtualAddress, (size_t) image->Sections[i].SizeOfRawData, 0, 0);
             continue;
         }
 
@@ -186,7 +162,7 @@ bool PEFile::find_data_segs(void* address, Segment** _data, Segment** _rdata) {
             if (rdata != nullptr) {
                 rdata->set_length(image->Sections[i].VirtualAddress - rdata->start());
             }
-            data = new Segment((void *) (DWORD_PTR) image->Sections[i].VirtualAddress, (size_t) image->Sections[i].SizeOfRawData, 0, 0);
+            data = new Segment((void*) (DWORD_PTR) image->Sections[i].VirtualAddress, (size_t) image->Sections[i].SizeOfRawData, 0, 0);
             continue;
         }
         if (data != nullptr) {
@@ -216,15 +192,14 @@ bool PEFile::find_data_segs(void* address, Segment** _data, Segment** _rdata) {
  */
 Segment* PEFile::get_rdata_section() {
     imageLoad();
-
     // Create a Segment from .data, and use the next Section to set its end address.
-    Segment *seg = nullptr;
+    Segment* seg = nullptr;
     for (unsigned int i = 0; i < image->NumberOfSections; i++) {
         logv("get_rdata_section: Name: %s vaddr 0x%llx size 0x%llx PointerToRawData 0x%llx",
               image->Sections[i].Name, image->Sections[i].VirtualAddress, image->Sections[i].SizeOfRawData, image->Sections[i].PointerToRawData);
 
         if (strncmp((char*) image->Sections[i].Name, ".rdata", 8) == 0) {
-            seg = new Segment((void *) (DWORD_PTR) image->Sections[i].VirtualAddress, (size_t) image->Sections[i].SizeOfRawData,
+            seg = new Segment((void*) (DWORD_PTR) image->Sections[i].VirtualAddress, (size_t) image->Sections[i].SizeOfRawData,
                               image->Sections[i].PointerToRawData, 0);
             continue;
         }

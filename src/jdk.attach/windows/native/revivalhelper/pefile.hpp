@@ -53,9 +53,9 @@
 class PEFile {
   public:
     PEFile(const char* filename);
-    void close();
     ~PEFile();
 
+    // Return the file offset of a relative virtual address in the .rdata Section.
     uint64_t file_offset_for_reladdr(uint64_t reladdr);
 
     // Locate data segments, populate output parameters.
@@ -71,9 +71,7 @@ class PEFile {
 
   private:
     const char* filename;
-    int fd;
     PLOADED_IMAGE image;
-
     void imageLoad();
     Segment* get_rdata_section();
 };
