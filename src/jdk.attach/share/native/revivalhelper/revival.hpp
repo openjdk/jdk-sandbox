@@ -268,8 +268,6 @@ void* do_mmap_pd(void* addr, size_t length, char* filename, int fd, size_t offse
  */
 void* do_map_allocate_pd(void* addr, size_t length, int prot);
 
-int do_munmap_pd(void* addr, size_t length);
-
 /**
  * Return the VMThread created.
  */

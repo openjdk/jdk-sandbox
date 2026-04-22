@@ -206,7 +206,10 @@ ELFFile::~ELFFile() {
         ::close(fd);
     }
     if (m != nullptr) {
-        do_munmap_pd(m, length);
+        int e = munmap(m, length);
+        if (e != 0) {
+           warn("ELFFile: munmap failed: 0x%lx: %s", (uint64_t) m, strerror(errno));
+        }
         m = nullptr;
     }
     hdr = nullptr;

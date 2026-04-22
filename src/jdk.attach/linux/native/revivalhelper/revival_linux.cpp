@@ -307,14 +307,6 @@ void* do_mmap_pd(void* addr, size_t length, char* filename, int fd, size_t offse
     return e;
 }
 
-int do_munmap_pd(void* addr, size_t length) {
-    int e = munmap(addr, length);
-    if (e) {
-        warn("munmap_pd: %p failed: returns: %d: errno = %d: %s",  addr, e, errno, strerror(errno));
-    }
-    return e;
-}
-
 void* do_map_allocate_pd(void* vaddr, size_t length, int prot) {
     if (prot == 1) {
         prot = PROT_READ | PROT_WRITE | PROT_EXEC;
