@@ -3017,6 +3017,7 @@ public class QuicConnectionImpl extends QuicConnection implements QuicPacketRece
             final ByteBuffer quicInitialParameters = buildInitialParameters();
             quicTLSEngine.setLocalQuicTransportParameters(quicInitialParameters);
             handshakeFlow.localInitial.keepReplayData();
+            quicTLSEngine.beginHandshake();
             continueHandshake();
             packetSpaces.initial.runTransmitter();
         } catch (Throwable t) {

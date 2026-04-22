@@ -28,8 +28,10 @@ import javax.crypto.AEADBadTagException;
 import javax.crypto.ShortBufferException;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
+import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
+import javax.net.ssl.SSLSocket;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Set;
@@ -116,6 +118,35 @@ public interface QuicTLSEngine {
      * @see SSLEngine#getHandshakeSession()
      */
     SSLSession getHandshakeSession();
+
+    /**
+     * Begins handshaking on this {@code QuicTLSEngine}.
+     * <P>
+     * The behavior of this method is protocol (and possibly implementation)
+     * dependent. For example, in TLSv1.3 calling this method after the
+     * connection has been established will force a key update.
+     * <P>
+     * This method is not needed for the initial handshake, as the
+     * {@code wrap()} and {@code unwrap()} methods will
+     * implicitly call this method if handshaking has not already begun.
+     * <P>
+     * Unlike the {@link SSLSocket#startHandshake()
+     * SSLSocket#startHandshake()} method, this method does not block
+     * until handshaking is completed.
+     * <P>
+     * Some protocols may not support multiple handshakes on an existing
+     * engine and may throw an {@code SSLException}.
+     *
+     * @throws SSLException
+     *          if a problem was encountered while signaling the
+     *          {@code QuicTLSEngine} to begin a new handshake.
+     *          See the class description for more information on
+     *          engine closure.
+     * @throws  IllegalStateException if the client/server mode
+     *          has not yet been set.
+     * @see     SSLSession#invalidate()
+     */
+    void beginHandshake() throws SSLException;
 
     /**
      * Returns the current handshake state of the connection. Sometimes packets

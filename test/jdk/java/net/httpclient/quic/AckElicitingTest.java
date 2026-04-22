@@ -74,6 +74,7 @@ import jdk.test.lib.RandomFactory;
 
 import javax.crypto.AEADBadTagException;
 import javax.net.ssl.SSLEngineResult;
+import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
 
@@ -236,6 +237,11 @@ public class AckElicitingTest {
 
         @Override
         public SSLSession getHandshakeSession() { throw new AssertionError("should not come here!"); }
+
+        @Override
+        public void beginHandshake() {
+            throw new AssertionError("should not come here!");
+        }
 
         @Override
         public void versionNegotiated(QuicVersion quicVersion) {

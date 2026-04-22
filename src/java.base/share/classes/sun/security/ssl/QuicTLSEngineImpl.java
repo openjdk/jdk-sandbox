@@ -40,11 +40,10 @@ import javax.crypto.SecretKey;
 import javax.crypto.ShortBufferException;
 import javax.net.ssl.QuicTransport;
 import javax.net.ssl.SSLEngineResult;
+import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
 import java.io.IOException;
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.VarHandle;
 import java.nio.ByteBuffer;
 import java.security.AlgorithmConstraints;
 import java.security.GeneralSecurityException;
@@ -75,7 +74,6 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
     private final TransportContext conContext;
     private final String peerHost;
     private final int peerPort;
-    private volatile SSLEngineResult.HandshakeStatus handshakeStatus;
     private volatile KeySpace recvKeySpace;
     private volatile KeySpace sendKeySpace;
     // next message to send or receive
@@ -117,9 +115,6 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
     @Override
     public void setUseClientMode(boolean mode) {
         conContext.setUseClientMode(mode);
-        this.handshakeStatus = mode
-                ? SSLEngineResult.HandshakeStatus.NEED_WRAP
-                : SSLEngineResult.HandshakeStatus.NEED_UNWRAP;
     }
 
     @Override
@@ -167,6 +162,24 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
         return handshakeContext == null
                 ? null
                 : handshakeContext.handshakeSession;
+    }
+
+    @Override
+    public void beginHandshake() throws SSLException {
+        if (conContext.isUnsureMode) {
+            throw new IllegalStateException(
+                    "Client/Server mode has not yet been set.");
+        }
+
+        try {
+            conContext.kickstart();
+        } catch (IOException ioe) {
+            throw conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                    "Couldn't kickstart handshaking", ioe);
+        } catch (Exception ex) {     // including RuntimeException
+            throw conContext.fatal(Alert.INTERNAL_ERROR,
+                    "Fail to begin handshake", ex);
+        }
     }
 
     /**
@@ -230,7 +243,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
      */
     @Override
     public SSLEngineResult.HandshakeStatus getHandshakeStatus() {
-        return handshakeStatus;
+        return conContext.getHandshakeStatus();
     }
 
     /**
@@ -404,8 +417,12 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
             throw new IllegalStateException("Unexpected key space: "
                     + keySpace + " (expected " + sendKeySpace + ")");
         }
-        if (handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_WRAP ||
-                !conContext.outputRecord.isEmpty()) { // session ticket
+        if (!conContext.isNegotiated && !conContext.isBroken &&
+                !conContext.isInboundClosed() &&
+                !conContext.isOutboundClosed()) {
+            conContext.kickstart();
+        }
+        if (getHandshakeStatus() == SSLEngineResult.HandshakeStatus.NEED_WRAP) {
             var buf = ByteBuffer.allocate(4096);
             produceNextHandshakeMessage(buf);
             return buf;
@@ -415,26 +432,9 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
     }
 
     private void produceNextHandshakeMessage(ByteBuffer buf) throws IOException {
-        if (!conContext.isNegotiated && !conContext.isBroken &&
-                !conContext.isInboundClosed() &&
-                !conContext.isOutboundClosed()) {
-            conContext.kickstart();
-        }
         var ct = conContext.outputRecord.encode(null, 0, 0,
                 new ByteBuffer[]{buf}, 0, 1);
         buf.flip();
-        if (handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_WRAP) {
-            if (conContext.outputRecord.isEmpty()) {
-                if (conContext.isNegotiated) {
-                    // client, done
-                    handshakeStatus = SSLEngineResult.HandshakeStatus.FINISHED;
-                } else {
-                    handshakeStatus = SSLEngineResult.HandshakeStatus.NEED_UNWRAP;
-                }
-            }
-        } else {
-            assert conContext.isNegotiated;
-        }
     }
 
     @Override
@@ -472,25 +472,6 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
             throw new QuicTransportException(e.getMessage(), keySpace, 0,
                     BASE_CRYPTO_ERROR + (alert != null ? alert.id : Alert.INTERNAL_ERROR.id), e);
 
-        }
-        if (handshakeStatus == SSLEngineResult.HandshakeStatus.NEED_UNWRAP) {
-            if (conContext.outputRecord.isEmpty()) {
-                if (conContext.isNegotiated) {
-                    // dead code? done, server side, no session ticket
-                    handshakeStatus = SSLEngineResult.HandshakeStatus.FINISHED;
-                }
-            } else {
-                // our turn to send
-                if (conContext.isNegotiated && !getUseClientMode()) {
-                    // done, server side, wants to send session ticket
-                    handshakeStatus = SSLEngineResult.HandshakeStatus.FINISHED;
-                } else {
-                    // more messages needed to finish handshake
-                    handshakeStatus = SSLEngineResult.HandshakeStatus.NEED_WRAP;
-                }
-            }
-        } else {
-            assert conContext.isNegotiated;
         }
     }
 
@@ -625,7 +606,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
         if (negotiatedVersion != null) {
             throw new IllegalStateException("Version already negotiated");
         }
-        if (sendKeySpace != INITIAL || handshakeStatus != SSLEngineResult.HandshakeStatus.NEED_UNWRAP) {
+        if (sendKeySpace != INITIAL || getHandshakeStatus() != SSLEngineResult.HandshakeStatus.NEED_UNWRAP) {
             throw new IllegalStateException("Unexpected handshake state");
         }
         HandshakeContext context = conContext.handshakeContext;
@@ -643,7 +624,6 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
 
         // produce handshake message
         chc.initialClientHelloMsg.write(chc.handshakeOutput);
-        handshakeStatus = SSLEngineResult.HandshakeStatus.NEED_WRAP;
     }
 
     @Override
