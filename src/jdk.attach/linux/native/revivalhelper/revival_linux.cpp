@@ -180,7 +180,7 @@ void init_pd() {
 
 const char* conflict_check_pd(void* vaddr, size_t length) {
     int x;
-    if (clash_addr((uint64_t) vaddr, length, (uint64_t) &x)) {
+    if (clash_range((uint64_t) vaddr, length, (uint64_t) &x - 0x4000, (uint64_t) &x + 0x4000)) {
         return "conflict with local/stack";
     }
     uint64_t vaddr_end = (uint64_t) vaddr + (uint64_t) length;
