@@ -52,6 +52,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.IntFunction;
 
 import static jdk.internal.net.quic.QuicTLSEngine.KeySpace.*;
@@ -70,21 +71,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
     private static final Set<QuicVersion> SUPPORTED_QUIC_VERSIONS =
             Set.of(QuicVersion.QUIC_V1, QuicVersion.QUIC_V2);
 
-    // VarHandles are used to access compareAndSet semantics.
-    private static final VarHandle HANDSHAKE_STATE_HANDLE;
-    static {
-        final MethodHandles.Lookup lookup = MethodHandles.lookup();
-        try {
-            final Class<?> quicTlsEngineImpl = QuicTLSEngineImpl.class;
-            HANDSHAKE_STATE_HANDLE = lookup.findVarHandle(
-                    quicTlsEngineImpl,
-                    "handshakeStatus",
-                    SSLEngineResult.HandshakeStatus.class);
-        } catch (Exception e) {
-            throw new ExceptionInInitializerError(e);
-        }
-    }
-
+    private final AtomicBoolean handshakeDone = new AtomicBoolean();
     private final TransportContext conContext;
     private final String peerHost;
     private final int peerPort;
@@ -677,12 +664,10 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
             throw new IllegalStateException(
                     "Not expected to be called in client mode");
         }
-        final boolean confirmed = HANDSHAKE_STATE_HANDLE.compareAndSet(this,
-                SSLEngineResult.HandshakeStatus.FINISHED, SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING);
+        boolean confirmed = !handshakeDone.getAndSet(true);
         if (confirmed) {
             if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
-                SSLLogger.fine("QuicTLSEngine (server) marked handshake " +
-                        "state as NOT_HANDSHAKING");
+                SSLLogger.fine("QuicTLSEngine (server) marked HANDSHAKE_DONE");
             }
         }
         return confirmed;
@@ -695,13 +680,11 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
             throw new IllegalStateException(
                     "Not expected to receive HANDSHAKE_DONE in server mode");
         }
-        final boolean confirmed = HANDSHAKE_STATE_HANDLE.compareAndSet(this,
-                SSLEngineResult.HandshakeStatus.FINISHED, SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING);
+        boolean confirmed = !handshakeDone.getAndSet(true);
         if (confirmed) {
             if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
                 SSLLogger.fine(
-                        "QuicTLSEngine (client) received HANDSHAKE_DONE," +
-                        " marking state as NOT_HANDSHAKING");
+                        "QuicTLSEngine (client) received HANDSHAKE_DONE");
             }
         }
         return confirmed;

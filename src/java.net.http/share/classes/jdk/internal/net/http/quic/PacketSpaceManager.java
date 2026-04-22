@@ -155,7 +155,7 @@ public sealed class PacketSpaceManager implements PacketSpace
     private final TimeLine instantSource;
     private final QuicRttEstimator rttEstimator;
     // first packet number sent after handshake confirmed
-    private long handshakeConfirmedPN;
+    private long handshakeConfirmedPN = -1;
 
     // A priority queue containing a record for each unacknowledged PingRequest.
     // PingRequest are removed from this queue when they are acknowledged, that
@@ -1657,7 +1657,7 @@ public sealed class PacketSpaceManager implements PacketSpace
     @Override
     public void confirmHandshake() {
         assert isApplicationSpace();
-        if (handshakeConfirmedPN == 0) {
+        if (handshakeConfirmedPN == -1) {
             handshakeConfirmedPN = nextPN.get();
         }
     }
@@ -1847,7 +1847,7 @@ public sealed class PacketSpaceManager implements PacketSpace
             return null;
         }
         // Application space deadline can only be set when handshake is confirmed
-        if (isApplicationSpace() && quicTLSEngine.getHandshakeStatus() != SSLEngineResult.HandshakeStatus.NOT_HANDSHAKING) {
+        if (isApplicationSpace() && handshakeConfirmedPN == -1) {
             return null;
         }
         return lastAckElicitingTime.plus(getPtoDuration());
