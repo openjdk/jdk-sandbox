@@ -535,7 +535,7 @@ public final class QuicServerConnection extends QuicConnectionImpl {
     }
 
     @Override
-    protected QuicEndpoint onHandshakeCompletion(SSLEngineResult.HandshakeStatus result) {
+    protected QuicEndpoint onHandshakeCompletion(Void result) {
         super.onHandshakeCompletion(result);
         // send a new token frame to the client, for use in new connection attempts.
         sendNewToken();

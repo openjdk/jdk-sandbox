@@ -110,7 +110,7 @@ final class IdleTimeoutManager {
     }
 
     private void requireSuccessfulHandshake() {
-        final CompletableFuture<SSLEngineResult.HandshakeStatus> handshakeCF =
+        final CompletableFuture<Void> handshakeCF =
                 this.connection.handshakeFlow().handshakeCF();
         if (!handshakeCF.isDone()) {
             throw new IllegalStateException("handshake isn't yet complete," +

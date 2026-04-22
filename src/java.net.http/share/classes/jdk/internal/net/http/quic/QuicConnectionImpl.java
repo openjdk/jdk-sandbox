@@ -572,7 +572,7 @@ public class QuicConnectionImpl extends QuicConnection implements QuicPacketRece
      */
     protected final class HandshakeFlow {
 
-        private final CompletableFuture<SSLEngineResult.HandshakeStatus> handshakeCF;
+        private final CompletableFuture<Void> handshakeCF;
         // a CompletableFuture which will get completed when the handshake initiated locally,
         // has "reached" the peer i.e. when the peer acknowledges or replies to the first
         // INITIAL packet sent by an endpoint
@@ -604,7 +604,7 @@ public class QuicConnectionImpl extends QuicConnection implements QuicPacketRece
         /**
          * {@return the CompletableFuture representing a handshake}
          */
-        public CompletableFuture<SSLEngineResult.HandshakeStatus> handshakeCF() {
+        public CompletableFuture<Void> handshakeCF() {
             return this.handshakeCF;
         }
 
@@ -1024,11 +1024,10 @@ public class QuicConnectionImpl extends QuicConnection implements QuicPacketRece
         if (handshakeCF.isDone()) {
             return;
         }
-        var handshakeState = quicTLSEngine.getHandshakeStatus();
         if (executor != null) {
-            handshakeCF.completeAsync(() -> handshakeState, executor);
+            handshakeCF.completeAsync(() -> null, executor);
         } else {
-            handshakeCF.complete(handshakeState);
+            handshakeCF.complete(null);
         }
     }
 
@@ -2934,7 +2933,7 @@ public class QuicConnectionImpl extends QuicConnection implements QuicPacketRece
      * This method is called when the handshake is successfully completed.
      * @param result the result of the handshake
      */
-    protected QuicEndpoint onHandshakeCompletion(final SSLEngineResult.HandshakeStatus result) {
+    protected QuicEndpoint onHandshakeCompletion(final Void result) {
         if (debug.on()) {
             debug.log("Quic handshake successfully completed with %s(%s)",
                     quicTLSEngine.getApplicationProtocol(), peerAddress());
