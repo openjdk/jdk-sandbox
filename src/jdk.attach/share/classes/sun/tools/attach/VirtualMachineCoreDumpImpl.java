@@ -81,16 +81,17 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
         attached = true;
     }
 
+    private static final int HEADER_READ_SIZE = 24; // Enough bytes for magic (and file type on ELF)
+
     private static void checkCoreFile(String filename) throws IOException {
         if (!new File(filename).exists()) {
             throw new IOException("No such file '" + filename + "'");
         }
         // Verify header of an ELF core file (Linux) or MiniDump (Windows).
         try (InputStream is = new FileInputStream(filename)) {
-            int length = 24;
-            byte[] bytes = new byte[length];
+            byte[] bytes = new byte[HEADER_READ_SIZE];
             int e = is.read(bytes);
-            if (e < length) {
+            if (e < HEADER_READ_SIZE) {
                 throw new IOException("Truncated file '" + filename + "'");
             }
             if (System.getProperty("os.name").startsWith("Windows")) {
@@ -216,7 +217,7 @@ public class VirtualMachineCoreDumpImpl extends HotSpotVirtualMachine {
                     // Other non-zero values possible for other failures.
                     System.out.println(out);
                     if (i > 1 || verbose) {
-                        System.err.println("jcmd via revival: failed. tries=" + i);
+                        System.err.println("jcmd via revival: failed, exit with: " + e + ". tries=" + i);
                     }
                     throw new IOException("jcmd returned an error");  // JCmd caller will call System.exit(1)
                 } else {
