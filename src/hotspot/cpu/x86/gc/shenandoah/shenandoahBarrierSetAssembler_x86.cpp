@@ -1216,30 +1216,18 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ jcc(Assembler::zero, *continuation());
 
   // Go for barriers. If both KA and LRB are needed (rare), do additional gc-state checks
-  // to check which one is currently needed. Since at any given moment KA xor LRB
-  // is enabled, both barriers can return straight to continuation.
+  // to check which one is currently needed.
+  // TODO: How is it possible to have both KA and LRB set?
   if (_needs_keep_alive_barrier && _needs_load_ref_barrier) {
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
 
-    char check_ka_state = ShenandoahHeap::MARKING;
-    char check_lrb_state = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
-
     Label L_skip_keepalive;
-    __ testb(gc_state, check_ka_state);
+    __ testb(gc_state, ShenandoahHeap::MARKING);
     __ jcc(Assembler::zero, L_skip_keepalive);
-
-#ifdef ASSERT
-    Label L_good;
-    __ testb(gc_state, check_lrb_state);
-    __ jcc(Assembler::zero, L_good);
-    __ stop("KA and LRB states are expected to be exclusive");
-    __ bind(L_good);
-#endif
-
-    keepalive(masm, continuation());
+    keepalive(masm, nullptr);
     __ bind(L_skip_keepalive);
 
-    __ testb(gc_state, check_lrb_state);
+    __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0));
     __ jcc(Assembler::zero, *continuation());
     lrb(masm, continuation());
   } else if (_needs_keep_alive_barrier) {
@@ -1252,8 +1240,6 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
 }
 
 void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
-  assert(L_done != nullptr, "Must be set");
-
   Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
 
@@ -1289,7 +1275,13 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   if (tmp_live) {
     __ pop(tmp);
   }
-  __ jmp(*L_done);
+
+  Label L_fallthrough;
+  if (L_done != nullptr) {
+    __ jmp(*L_done);
+  } else {
+    __ jmp(L_fallthrough);
+  }
 
   // Slow-path: call runtime to handle.
   // Need to pop tmp immediately for stack to remain aligned.
@@ -1309,7 +1301,11 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
     // Go to runtime and handle the rest there.
     __ call(RuntimeAddress(keepalive_runtime_entry_addr()));
   }
-  __ jmp(*L_done);
+  if (L_done != nullptr) {
+    __ jmp(*L_done);
+  } else {
+    __ bind(L_fallthrough);
+  }
 }
 
 void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
