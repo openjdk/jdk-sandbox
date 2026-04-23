@@ -100,7 +100,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
         this.sendKeySpace = INITIAL;
         this.recvKeySpace = INITIAL;
         HandshakeHash handshakeHash = new HandshakeHash();
-        this.conContext = new TransportContext(sslContextImpl, this,
+        this.conContext = new TransportContext(sslContextImpl, this, this,
                 new QuicEngineInputRecord(handshakeHash, this),
                 new QuicEngineOutputRecord(handshakeHash, this));
         conContext.sslConfig.enabledProtocols = List.of(ProtocolVersion.TLS13);

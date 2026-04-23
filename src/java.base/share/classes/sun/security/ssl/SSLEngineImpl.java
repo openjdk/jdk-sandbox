@@ -54,7 +54,6 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
     private final SSLContextImpl        sslContext;
     final TransportContext              conContext;
     private final ReentrantLock         engineLock = new ReentrantLock();
-    final QuicTransport quicTransport;
 
     /**
      * Constructor for an SSLEngine from SSLContext, without
@@ -92,7 +91,6 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
             String host, int port, QuicTransport quicTransport) {
         super(host, port);
         this.sslContext = sslContext;
-        this.quicTransport = quicTransport;
         HandshakeHash handshakeHash = new HandshakeHash();
         if (sslContext.isDTLS()) {
             if (quicTransport != null) {
@@ -100,16 +98,19 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
                         "DTLS context does not support QUIC");
             }
             this.conContext = new TransportContext(sslContext, this,
+                    (QuicTransport)null,
                     new DTLSInputRecord(handshakeHash),
                     new DTLSOutputRecord(handshakeHash));
         } else {
             if (quicTransport != null) {
                 this.conContext = new TransportContext(sslContext, this,
+                        quicTransport,
                         new QuicEngineInputRecord(handshakeHash, quicTransport),
                         new QuicEngineOutputRecord(handshakeHash, quicTransport));
                 this.conContext.setQuic(true);
             } else {
                 this.conContext = new TransportContext(sslContext, this,
+                        (QuicTransport)null,
                         new SSLEngineInputRecord(handshakeHash),
                         new SSLEngineOutputRecord(handshakeHash));
             }

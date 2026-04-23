@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Set;
 import javax.net.ssl.HandshakeCompletedEvent;
 import javax.net.ssl.HandshakeCompletedListener;
+import javax.net.ssl.QuicTransport;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLSocket;
@@ -43,6 +44,7 @@ import javax.net.ssl.SSLSocket;
  */
 final class TransportContext implements ConnectionContext {
     final SSLTransport              transport;
+    final QuicTransport             quicTransport;
 
     // registered plaintext consumers
     final Map<Byte, SSLConsumer>    consumers;
@@ -101,8 +103,10 @@ final class TransportContext implements ConnectionContext {
     //
     // Called by SSLEngineImpl
     TransportContext(SSLContextImpl sslContext, SSLTransport transport,
+            QuicTransport quicTransport,
             InputRecord inputRecord, OutputRecord outputRecord) {
-        this(sslContext, transport, new SSLConfiguration(sslContext, false),
+        this(sslContext, transport, quicTransport,
+                new SSLConfiguration(sslContext, false),
                 inputRecord, outputRecord, true);
     }
 
@@ -114,7 +118,7 @@ final class TransportContext implements ConnectionContext {
             InputRecord inputRecord, OutputRecord outputRecord,
             boolean isClientMode) {
         this(sslContext, transport,
-                new SSLConfiguration(sslContext, isClientMode),
+                null, new SSLConfiguration(sslContext, isClientMode),
                 inputRecord, outputRecord, false);
     }
 
@@ -125,14 +129,16 @@ final class TransportContext implements ConnectionContext {
     TransportContext(SSLContextImpl sslContext, SSLTransport transport,
             SSLConfiguration sslConfig,
             InputRecord inputRecord, OutputRecord outputRecord) {
-        this(sslContext, transport, (SSLConfiguration)sslConfig.clone(),
+        this(sslContext, transport, null, (SSLConfiguration)sslConfig.clone(),
                 inputRecord, outputRecord, false);
     }
 
     private TransportContext(SSLContextImpl sslContext, SSLTransport transport,
+            QuicTransport quicTransport,
             SSLConfiguration sslConfig, InputRecord inputRecord,
             OutputRecord outputRecord, boolean isUnsureMode) {
         this.transport = transport;
+        this.quicTransport = quicTransport;
         this.sslContext = sslContext;
         this.inputRecord = inputRecord;
         this.outputRecord = outputRecord;
