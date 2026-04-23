@@ -1211,7 +1211,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   if (_narrow) {
     __ testl(_obj, _obj);
   } else {
-    __ testptr(_obj, _obj);
+    __ testq(_obj, _obj);
   }
   __ jcc(Assembler::zero, *continuation());
 
@@ -1233,18 +1233,13 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
 
-  Label L_through, L_pop_and_slow, L_pack_and_done;
+  Label L_through, L_pop_and_slow;
 
   // If another barrier is enabled as well, do a runtime check for a specific barrier.
   if (_needs_load_ref_barrier) {
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ testb(gc_state, ShenandoahHeap::MARKING);
     __ jcc(Assembler::zero, (L_done != nullptr) ? *L_done : L_through);
-  }
-
-  // If object is narrow, we need to unpack it before inserting into buffer.
-  if (_narrow) {
-    __ decode_heap_oop_not_null(_obj);
   }
 
   // Need temp to work, allocate one now.
@@ -1261,21 +1256,22 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   __ jccb(Assembler::below, L_pop_and_slow);
   __ movptr(index, tmp);
   __ addptr(tmp, buffer);
-  __ movptr(Address(tmp, 0), _obj);
 
-  if (tmp_live) {
-    __ pop(tmp);
+  // If object is narrow, we need to unpack it before inserting into buffer,
+  // and pack it back. The packing is needed for two cases: if there is
+  // a LRB that is chained after us, which would decode again; or the caller
+  // did the load, which means it is going to need it.
+  if (_narrow) {
+    __ decode_heap_oop_not_null(_obj);
   }
-
-  // Exit here.
-  __ bind(L_pack_and_done);
-
-  // Pack the object back if needed. This packing is needed for two
-  // cases: if there is a LRB that is chained after us, which would
-  // decode again; or the caller did the load, which means it is going
-  // to need it.
+  __ movptr(Address(tmp, 0), _obj);
   if (_narrow && ((L_done == nullptr) || !_do_load)) {
     __ encode_heap_oop_not_null(_obj);
+  }
+
+  // Fast-path exits here.
+  if (tmp_live) {
+    __ pop(tmp);
   }
   if (L_done != nullptr) {
     __ jmp(*L_done);
@@ -1301,10 +1297,10 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
     // Go to runtime and handle the rest there.
     __ call(RuntimeAddress(keepalive_runtime_entry_addr()));
   }
-  __ jmp(L_pack_and_done);
 
-  // Fall-through path goes here.
-  if (L_done == nullptr) {
+  if (L_done != nullptr) {
+    __ jmp(*L_done);
+  } else {
     __ bind(L_through);
   }
 }
@@ -1396,11 +1392,6 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
       __ movptr(c_rarg0, _obj);
     }
 
-    // Decode if needed.
-    if (_narrow) {
-      __ decode_heap_oop_not_null(c_rarg0);
-    }
-
     // Go to runtime and handle the rest there.
     __ call(RuntimeAddress(lrb_runtime_entry_addr()));
 
@@ -1411,17 +1402,6 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
   }
   preserve(_obj);
 
-  // If object is narrow, we need to encode it before exiting.
-  // For encoding, dst can only turn null if we are dealing with weak loads.
-  // Otherwise, we have already null-checked. We can skip this if we performed
-  // the load ourselves: the value is not used by the caller.
-  if (_narrow && !_do_load) {
-    if (_needs_load_ref_weak_barrier) {
-      __ encode_heap_oop(_obj);
-    } else {
-      __ encode_heap_oop_not_null(_obj);
-    }
-  }
   __ jmp(*L_done);
 }
 

@@ -875,7 +875,11 @@ Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live) {
 }
 
 address ShenandoahBarrierStubC2::keepalive_runtime_entry_addr() {
-  return CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre);
+  if (_narrow) {
+    return CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre_narrow);
+  } else {
+    return CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre);
+  }
 }
 
 address ShenandoahBarrierStubC2::lrb_runtime_entry_addr() {
@@ -885,11 +889,11 @@ address ShenandoahBarrierStubC2::lrb_runtime_entry_addr() {
 
   if (_narrow) {
     if (is_strong) {
-      return CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow);
+      return CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow_narrow);
     } else if (is_weak) {
-      return CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow);
+      return CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow_narrow);
     } else if (is_phantom) {
-      return CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow);
+      return CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow_narrow);
     }
   } else {
     if (is_strong) {
