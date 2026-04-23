@@ -1262,12 +1262,13 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
 
   // If object is narrow, we need to unpack it before inserting into buffer,
   // and pack it back. The packing is needed if the caller did the load,
-  // which means it is going to need it.
+  // which means it is going to need it. It is also needed when subsequent LRB
+  // would unpack again.
   if (_narrow) {
     __ decode_heap_oop_not_null(_obj);
   }
   __ movptr(Address(tmp, 0), _obj);
-  if (_narrow && !_do_load) {
+  if (_narrow && ((L_done == nullptr) || !_do_load)) {
     __ encode_heap_oop_not_null(_obj);
   }
 
