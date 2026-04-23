@@ -116,6 +116,16 @@ public interface QuicTransport {
     void deriveApplicationWriteSecrets(SecretKey secretKey);
 
     /**
+     * Called to retrieve the names of the cipher suites supported by this transport.
+     * <p>
+     * Only the cipher suites supported by the QuicTransport
+     * and enabled by the {@link SSLEngine#getEnabledCipherSuites() SSLEngine}
+     * will be offered.
+     * @return the names of the cipher suites supported by this transport
+     */
+    String[] getSupportedCipherSuites();
+
+    /**
      * Called to retrieve the contents of the QUIC transport parameters extension
      * @return the QUIC transport parameters offered by this QuicTransport.
      */
