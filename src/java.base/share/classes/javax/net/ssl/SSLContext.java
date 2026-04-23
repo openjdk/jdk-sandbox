@@ -439,15 +439,8 @@ public class SSLContext {
      */
     public final SSLEngine createQUICEngine(String peerHost, int peerPort,
                                             QuicTransport quicTransport) {
-        // TODO evaluate if engineCreateQUICEngine should be abstract
-        try {
-            return contextSpi.engineCreateQUICEngine(peerHost, peerPort,
-                    quicTransport);
-        } catch (AbstractMethodError e) {
-            throw new UnsupportedOperationException(
-                    "Provider: " + getProvider() +
-                            " does not support this operation", e);
-        }
+        return contextSpi.engineCreateQUICEngine(peerHost, peerPort,
+                quicTransport);
     }
     /**
      * Returns the server session context, which represents the set of
