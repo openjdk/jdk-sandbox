@@ -88,15 +88,10 @@ bool should_relocate_dynamic_tag(Elf64_Dyn* dyn) {
 }
 
 bool verify_header(Elf64_Ehdr* hdr) {
-    if (hdr->e_ident[0] == 0x7f
+    return (hdr->e_ident[0] == 0x7f
         && hdr->e_ident[1] == 'E'
         && hdr->e_ident[2] == 'L'
-        && hdr->e_ident[3] == 'F'
-    ) {
-        return true;
-    }
-    warn("ELF signature not recognised.");
-    return false;
+        && hdr->e_ident[3] == 'F');
 }
 
 bool verify_file(int fd) {
@@ -110,7 +105,10 @@ bool verify_file(int fd) {
 }
 
 bool ELFFile::verify() {
-    verify_header(hdr);
+    if (!verify_header(hdr)) {
+        warn("%s: ELF signature not recognised.", filename);
+        return false;
+    }
 #if defined(__aarch64__)
     if (hdr->e_machine != EM_AARCH64) {
         warn("%s: not an AARCH64 ELF file.", filename);

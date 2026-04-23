@@ -205,7 +205,7 @@ void waitHitRet() {
 unsigned long long file_size(const char* filename) {
     struct stat sb;
     if (stat(filename, &sb) == -1) {
-       warn("cannot stat '%s': %d: %s", filename, errno, strerror(errno));
+       warn("cannot stat '%s': %s", filename, strerror(errno));
        return 0;
    }
    return (long long) sb.st_size;
@@ -217,7 +217,7 @@ unsigned long long file_size(const char* filename) {
 unsigned long long file_time(const char* filename) {
     struct stat sb;
     if (stat(filename, &sb) == -1) {
-       warn("cannot stat '%s': %d: %s", filename, errno, strerror(errno));
+       warn("cannot stat '%s': %s", filename, strerror(errno));
        return 0;
    }
    return (long long) sb.st_mtime;
@@ -301,12 +301,12 @@ int revival_mapping_docopy(void* vaddr, size_t length, size_t offset) {
     }
     FILE* f = fopen(core_filename, "rb");
     if (!f) {
-        warn("revival_mapping_docopy: cannot open: '%s': %d: %s", core_filename, errno, strerror(errno));
+        warn("revival_mapping_docopy: cannot open: '%s': %s", core_filename, strerror(errno));
         return -1;
     }
     int e = fseek(f, (long) offset, SEEK_SET);
     if (e != 0) {
-        warn("revival_mapping_docopy: cannot seek '%s' to offset %lx: returns %d: %d: %s", core_filename, (long) offset, e, errno, strerror(errno));
+        warn("revival_mapping_docopy: cannot seek '%s' to offset %lx: returns %d: %s", core_filename, (long) offset, e, strerror(errno));
         fclose(f);
         return -1;
     }
@@ -316,7 +316,7 @@ int revival_mapping_docopy(void* vaddr, size_t length, size_t offset) {
     for (size_t i = 0; i < length/8; i++) {
         e = (int) fread(p++, 8, 1, f);
         if (e != 1) {
-            warn("revival_mapping_docopy: fread failed: returns %d at %p pos=%zu : %d %s", e, p, i, errno, strerror(errno));
+            warn("revival_mapping_docopy: fread failed: returns %d at %p pos=%zu : %s", e, p, i, strerror(errno));
             fclose(f);
             return -1;
         }
@@ -417,12 +417,12 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
         return -1;
     }
     lines++;
-    // Do not compare names: core_filename does not have to match, cores can be renamed.
-    // Compare size: this should match.
+    // Do not compare core names, cores can be renamed.
+    // Compare size: this must match.
     unsigned long long parsedSize = strtoull(s2, nullptr, 10);
     unsigned long long coresize = file_size(corename);
     if ((unsigned long long) coresize != parsedSize) {
-        error("%s: error: size mismatch.  revival data recorded core size %lld, actual file size %lld", core_filename, parsedSize, coresize);
+        error("%s: error: size mismatch.  revival cache recorded core size %lld, actual file size %lld", core_filename, parsedSize, coresize);
     }
 
     // timestamp from core file is used for time of crash if nothing better is available from VM.  millis since epoch.
@@ -431,8 +431,6 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
     if (e == 1) {
         core_timestamp = (long long) strtoll(s1, nullptr, 10);
         logv("core file timestamp: %lld", core_timestamp);
-    } else {
-        warn("time record not found in file");
     }
     lines++;
 
@@ -572,8 +570,9 @@ void* symbol_resolve_from_symbol_file(const char* dirname, const char* sym) {
     snprintf(buf, BUFLEN, "%s/%s", dirname, SYMBOLS_FILENAME);
     int e = 0;
     void* addr = (void*) -1;
-    FILE* f = fopen((char*)&buf, "r");
+    FILE* f = fopen((char*) &buf, "r");
     if (!f) {
+        warn("Cannot open symbol file: %s: %s", buf, strerror(errno));
         return (void*) -1;
     }
 
@@ -584,7 +583,7 @@ void* symbol_resolve_from_symbol_file(const char* dirname, const char* sym) {
     while (fgets(line_buffer, BUFLEN, f) != nullptr) {
         memset(s1, 0, BUFLEN);
         memset(s2, 0, BUFLEN);
-        e = sscanf(line_buffer, "%128s %32s\n", s1, s2);  // symbol address
+        e = sscanf(line_buffer, "%128s %32s\n", s1, s2);  // symbol, address
         if (e == 2) {
             if (strncmp(s1, sym, BUFLEN) == 0) {
                 char* endptr;
@@ -593,66 +592,49 @@ void* symbol_resolve_from_symbol_file(const char* dirname, const char* sym) {
             }
         }
     }
-
-    logv("symbol: %s = %p", sym, addr);
     fclose(f);
-    if (addr == 0) {
-        return (void*) -1;
-    } else {
-        return addr;
-    }
+    logv("symbol: %s = %p", sym, addr);
+    return addr;
 }
 
 void* symbol_deref(const char* sym) {
-    void* s = symbol(sym);
-    if (s != (void*) -1) {
-        s = (void*) (*(intptr_t*) s);
+    void* p = symbol(sym);
+    if (p != (void*) -1) {
+        p = (void*) (*(intptr_t*) p);
     }
-    return s;
+    return p;
 }
 
 /**
- * Lookup a symbol, return as a void* or (void*) -1 on failure.
+ * Lookup a symbol, return as a void* or -1 on failure.
  *
  * Try symbol.mappings first, then a live, platform-specific lookup.
- *
- * Using platform-specific lookups such as dlsym() are not expected
- * to work for private symbols.
+ * Platform-specific lookups such as dlsym() not expected to work for private symbols.
  */
 void* symbol(const char* sym) {
     if (!revivaldir) {
         warn("symbol: call revive_image first.");
         return (void*) -1;
     }
-    void* s = symbol_resolve_from_symbol_file(revivaldir, sym);
-    if (s == (void*) -1) {
+    void* p = symbol_resolve_from_symbol_file(revivaldir, sym);
+    if (p == (void*) -1) {
         // Lookup e.g. with dlsym:
-        s = symbol_dynamiclookup_pd(h, sym);
+        p = symbol_dynamiclookup_pd(h, sym);
     }
-    if (s == (void*) -1) {
-        // Lookup e.g. with dlsym:
-        s = symbol_dynamiclookup_pd(h, sym);
-    }
-    return s;
-}
-
-void verbose_call(void* p) {
-    logv("symbol call: %p", p);
+    return p;
 }
 
 /**
  * Resolve a symbol from jvm.symbols, and call it.
- * Use the symbol() function which will try using jvm.symbols first,
- * then a live lookup.
- * Return any value as a void*, and caller will ignore an unwanted return value.
+ * Use the symbol() function which will try using jvm.symbols first, then a live lookup.
  */
 void* symbol_call(const char* sym) {
-    void* s = symbol(sym);
-    if (s == (void*) -1) {
+    void* p = symbol(sym);
+    if (p == (void*) -1) {
         return (void*) -1;
     }
-    verbose_call(s);
-    void* (*func)() = (void*(*)()) s;
+    logv("symbol call: %p", p);
+    void* (*func)() = (void*(*)()) p;
     return (func)();
 }
 
@@ -660,57 +642,59 @@ void* symbol_call(const char* sym) {
  * Functions to make a function call, or resolve and call:
  */
 void* symbol_call1(const char* sym, void* arg) {
-    void* s = symbol(sym);
-    if (s == (void*) -1) {
+    void* p = symbol(sym);
+    if (p == (void*) -1) {
         return (void*) -1;
     }
-    verbose_call(s);
-    void* (*func)(void*) = (void*(*)(void*)) s;
+    logv("symbol call: %p", p);
+    void* (*func)(void*) = (void*(*)(void*)) p;
     return (func)(arg);
 }
 
 void* symbol_call2(const char* sym, void* arg1, void* arg2) {
-    void* s = symbol(sym);
-    if (s == (void*) -1) {
+    void* p = symbol(sym);
+    if (p == (void*) -1) {
         return (void*) -1;
     }
-    verbose_call(s);
-    void* (*func)(void*,void*) = (void*(*)(void*,void*)) s;
+    logv("symbol call: %p", p);
+    void* (*func)(void*,void*) = (void*(*)(void*,void*)) p;
     return (func)(arg1, arg2);
 }
 
 void* symbol_call3(const char* sym, void* arg1, void* arg2, void* arg3) {
-    void* s = symbol(sym);
-    if (s == (void*) -1) {
+    void* p = symbol(sym);
+    if (p == (void*) -1) {
         return (void*) -1;
     }
-    verbose_call(s);
-    void* (*func)(void*,void*,void*) = (void*(*)(void*,void*,void*)) s;
+    logv("symbol call: %p", p);
+    void* (*func)(void*,void*,void*) = (void*(*)(void*,void*,void*)) p;
     return (func)(arg1, arg2, arg3);
 }
 
 void* symbol_call4(const char* sym, void* arg1, void* arg2, void* arg3, void* arg4) {
-    void* s = symbol(sym);
-    if (s == (void*) -1) {
+    void* p = symbol(sym);
+    if (p == (void*) -1) {
         return (void*) -1;
     }
-    verbose_call(s);
-    void* (*func)(void*,void*,void*,void*) = (void*(*)(void*,void*,void*,void*)) s;
+    logv("symbol call: %p", p);
+    void* (*func)(void*,void*,void*,void*) = (void*(*)(void*,void*,void*,void*)) p;
     return (func)(arg1, arg2, arg3, arg4);
 }
 
-void* call5(void* s, void* arg1, void* arg2, void* arg3, void* arg4, void* arg5) {
-    verbose_call(s);
-    void* (*func)(void*,void*,void*,void*,void*) = (void*(*)(void*,void*,void*,void*,void*)) s;
+// Call pointer directly, no symbol lookup.
+void* call5(void* p, void* arg1, void* arg2, void* arg3, void* arg4, void* arg5) {
+    logv("call: %p", p);
+    void* (*func)(void*,void*,void*,void*,void*) = (void*(*)(void*,void*,void*,void*,void*)) p;
     return (func)(arg1, arg2, arg3, arg4, arg5);
 }
 
 void* symbol_call5(const char* sym, void* arg1, void* arg2, void* arg3, void* arg4, void* arg5) {
-    void* s = symbol(sym);
-    if (s == (void*) -1) {
+    void* p = symbol(sym);
+    if (p == (void*) -1) {
         return (void*) -1;
     }
-    return call5(s, arg1, arg2, arg3, arg4, arg5);
+    logv("symbol call: %p", p);
+    return call5(p, arg1, arg2, arg3, arg4, arg5);
 }
 
 /**
@@ -893,17 +877,23 @@ int revive_image_cooperative() {
 #define NANOS_PER_SECOND 1000000000
     void (*func)(unsigned long long) = (void(*)(unsigned long long)) dlsym(RTLD_NEXT, "set_revival_time_ns");
     if (func != nullptr) {
-        double lifetime_s;
+        double lifetime_s = 0;
         if (rdata->error_time > 0) {
             logv("revive_image: using JVM first error time"); // ...which is better than relying on core file timestamp.
             lifetime_s = rdata->error_time;
         } else {
             logv("revive_image: using core timestamp");
-            lifetime_s = core_timestamp - rdata->initial_time_date;
+            if (core_timestamp == 0) {
+                warn("core timestamp not found in revival cache data");
+            } else {
+                lifetime_s = core_timestamp - rdata->initial_time_date;
+            }
         }
-        func((lifetime_s * NANOS_PER_SECOND) + (rdata->initial_time_count));
+        if (lifetime_s != 0) {
+            func((lifetime_s * NANOS_PER_SECOND) + (rdata->initial_time_count));
+        }
     } else {
-        // Lookup failed, e.g. revivalhelper invoked directly without preload.
+        // Function lookup failed, e.g. revivalhelper invoked directly without preload.
         logv("set_revival_time_ns: symbol lookup failed.");
     }
 #endif
@@ -947,7 +937,7 @@ char* mappings_filename_create(const char* revival_data_path) {
  * Read version string pointed to by some symbol, from both core and binary, and compare.
  * filename parameter names a file (.so or .dll) in the given directory (the revival cache directory).
  */
-void doVersionCheck(const char* corename, const char* directory, const char* filename, void* base_address,
+void version_check(const char* corename, const char* directory, const char* filename, void* base_address,
                     const char* version_symbol) {
 
     // Called when memory mappings are in place, jvm_filename and jvm_address are set.
@@ -979,7 +969,7 @@ void doVersionCheck(const char* corename, const char* directory, const char* fil
     PEFile pefile(jvm_name);
     uint64_t vm_release_offset = pefile.file_offset_for_reladdr(vm_release_relative_vaddr);
 #else
-    // In ELF, the relative vaddr is just the file offset.
+    // In ELF, file offset is just the relative vaddr.
     uint64_t vm_release_offset = vm_release_relative_vaddr;
 #endif
 
@@ -1101,19 +1091,18 @@ int revive_image(const char* corename, const char* libdir, const char* revival_d
     logv("Installing signal handler.");
     install_handler_pd();
 
-    // Version check?
     if (!versionCheckEnabled) {
         warn("JVM version check skipped.");
     } else {
-        doVersionCheck(corename, dirname, JVM_FILENAME, jvm_address, SYM_VM_RELEASE);
+        version_check(corename, dirname, JVM_FILENAME, jvm_address, SYM_VM_RELEASE);
     }
 
-    // Preparation all OK:
+    // Preparation done:
     revivaldir = dirname;
 
     e = revive_image_cooperative();
     if (e < 0) {
-        warn("revival: revive_image failed: %d", e);
+        warn("revival: revive_image failed.");
     } else {
         logv("revive_image: OK");
     }
@@ -1121,7 +1110,7 @@ int revive_image(const char* corename, const char* libdir, const char* revival_d
 }
 
 void* revived_vm_thread() {
-    if (!revivaldir || !rdata || !rdata->vm_thread) {
+    if (!rdata || !rdata->vm_thread) {
         error("revived_vm_thread: call revive_image first.");
     }
     return rdata->vm_thread;

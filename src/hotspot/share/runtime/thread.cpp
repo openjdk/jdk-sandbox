@@ -615,7 +615,7 @@ void* Thread::process_revival() {
 #ifdef _WINDOWS
   os::win32::revive_init();
 #endif
-  // A Thread object is needed to call the dcmd parser.
+  // A Thread object is needed for our caller to call the dcmd parser.
   // Use the VMThread so threads invoking a VMOperation will run it themselves.
   VMThread* t = VMThread::vm_thread();
   if (t == nullptr) {
