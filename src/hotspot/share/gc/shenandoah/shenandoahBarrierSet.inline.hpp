@@ -121,7 +121,8 @@ inline oop ShenandoahBarrierSet::load_reference_barrier(oop obj) {
     // Subsumes null-check
     assert(obj != nullptr, "cset check must have subsumed null-check");
     oop fwd = resolve_forwarded_not_null(obj);
-    if (obj == fwd && _heap->is_evacuation_in_progress()) {
+    if (obj == fwd && _heap->is_evacuation_in_progress()
+        && !_cset_map.use_forward_table(obj)) { // don't evacuate new objects from FWT regions
       Thread* t = Thread::current();
       ShenandoahEvacOOMScope oom_evac_scope(t);
       return _heap->evacuate_object(obj, t);
@@ -417,13 +418,16 @@ private:
     if (!CompressedOops::is_null(o)) {
       oop obj = CompressedOops::decode_not_null(o);
       if (_cset->is_in(obj)) {
-        oop fwd = ShenandoahForwarding::get_forwardee(obj);
-        if (EVAC && obj == fwd) {
+        oop fwd = ShenandoahBarrierSet::resolve_forwarded_not_null(obj);
+        if (EVAC && obj == fwd
+            && !_cset->use_forward_table(obj)) { // don't evacuate new objects from FWT regions
           fwd = _heap->evacuate_object(obj, _thread);
+          shenandoah_assert_forwarded_except(p, obj, _heap->cancelled_gc());
         }
-        shenandoah_assert_forwarded_except(p, obj, _heap->cancelled_gc());
-        ShenandoahHeap::atomic_update_oop(fwd, p, o);
-        obj = fwd;
+        if (fwd != obj) {
+          ShenandoahHeap::atomic_update_oop(fwd, p, o);
+          obj = fwd;
+        }
       }
     }
   }
@@ -514,11 +518,14 @@ void ShenandoahBarrierSet::arraycopy_work(T* src, size_t count) {
       oop obj = CompressedOops::decode_not_null(o);
       if (HAS_FWD && cset->is_in(obj)) {
         oop fwd = resolve_forwarded_not_null(obj);
-        if (EVAC && obj == fwd) {
-          fwd = _heap->evacuate_object(obj, thread);
+        if (EVAC && obj == fwd
+            && !cset->use_forward_table(obj)) { // don't evacuate new objects from FWT regions
+            fwd = _heap->evacuate_object(obj, thread);
+            shenandoah_assert_forwarded_except(elem_ptr, obj, _heap->cancelled_gc());
         }
-        shenandoah_assert_forwarded_except(elem_ptr, obj, _heap->cancelled_gc());
-        ShenandoahHeap::atomic_update_oop(fwd, elem_ptr, o);
+        if (fwd != obj) {
+          ShenandoahHeap::atomic_update_oop(fwd, elem_ptr, o);
+        }
       }
       if (ENQUEUE && !ctx->is_marked_strong(obj)) {
         _satb_mark_queue_set.enqueue_known_active(queue, obj);
