@@ -454,8 +454,11 @@ char* ELFFile::find_note_data(Elf64_Phdr* notes_ph, Elf64_Word type) {
 bool use_lib(char* libname) {
     // Filter on name from the NT_FILE list.
     // Keep all files in NT_FILE list, not just ELF sharedlibs.
-    // But not classes.jsa as we really want the core file data for that.
-    if (strstr(libname, "classes.jsa") != nullptr) {
+    // But not classes.jsa or other ".jsa" file, we need the core file data for that.
+    //
+    // May be a transported core with files not available, so cannot check actual file type.
+    char* p = strrchr(libname, '.');
+    if (p != nullptr && strcmp(p, ".jsa") == 0) {
         return false;
     } else {
         return true;
@@ -531,17 +534,6 @@ void ELFFile::read_sharedlibs() {
 
     logd("sharedlibs size = %ld", libs.size());
     free(sharedlibs);
-}
-
-void ELFFile::print() {
-    for (int i = 0; i < hdr->e_phnum; i++) {
-        Elf64_Phdr* p = program_header(i);
-        fprintf(stderr, "PH %3d %p  Type: %d offset: 0x%lx vaddr: 0x%lx\n", i, p, p->p_type, p->p_offset, p->p_vaddr);
-    }
-    for (int i = 0; i < hdr->e_shnum; i++) {
-        Elf64_Shdr* p = section_header(i);
-        fprintf(stderr, "SH %3d %p  Type: %d addr: 0x%lx\n", i, p, p->sh_type, p->sh_addr);
-    }
 }
 
 uint64_t ELFFile::file_offset_for_vaddr(uint64_t addr) {

@@ -496,10 +496,7 @@ int mappings_file_read(const char* corename, const char* dirname, const char* ma
             void* vaddr = (void*) strtoull(s2, &endptr, 16);
             size_t length = strtoul(s6, &endptr, 16);
             size_t offset = strtoul(s4, &endptr, 16);
-            size_t length_file = strtoul(s5, &endptr, 16);
-            if (length != length_file) {
-                logv("revival: differing length in memory and length in file not implemented (file size ignored)");
-            }
+            // Different length in memory and length in file not needed, not implemented.  Field s4 ignored.
             if (strncmp(s1, "M", 1) == 0) {
                 // Map memory from core:
                 conflict_check(vaddr, length);

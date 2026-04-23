@@ -63,8 +63,6 @@ class ELFFile {
     // Write symbol list for revived process.
     void write_symbols(int symbols_fd, const char* symbols[], int count);
 
-    void print(); // Diagnostic, show PHs and Sections
-
   private:
     const char* filename;
     const char* libdir;
@@ -72,8 +70,8 @@ class ELFFile {
     long long length;
     void* m;            // Address of mapped ELF file
     Elf64_Ehdr* hdr;    // Main ELF Header
-    Elf64_Phdr* ph;     // First Program Header absolute address
-    Elf64_Shdr* sh;     // First Section Header absolute address or nullptr
+    Elf64_Phdr* ph;     // First Program Header
+    Elf64_Shdr* sh;     // First Section Header or nullptr
     char* shdr_strings;
     std::list<Segment> libs;
 
@@ -81,34 +79,6 @@ class ELFFile {
 
     char* find_note_data(Elf64_Phdr* notes_ph, Elf64_Word type);
     void read_sharedlibs();
-
-/*    template <typename T>
-    T read_type() {
-        T ret;
-        if (read(fd, &ret, sizeof(T)) != sizeof(T)) {
-            error("read_type: %s", strerror(errno));
-        }
-        return ret;
-    }
-
-    template <typename T>
-    T read_type_at(unsigned long at) {
-        if (lseek(file, at, SEEK_SET) == -1) {
-            error("read_type_at: %s", strerror(errno));
-        };
-        return read_type<T>();
-    }
-
-    template <typename T>
-    void write_type_at(T content, unsigned long at) {
-        if (lseek(file, at, SEEK_SET) == -1) {
-            error("write_type_at: %s", strerror(errno));
-        };
-
-        if (write(file, &content, sizeof(T)) != sizeof(T)) {
-            error("write_type_at: %s", strerror(errno));
-        }
-    } */
 
     // Section header actual address in mmapped file.
     Elf64_Shdr* section_header(unsigned long i);
