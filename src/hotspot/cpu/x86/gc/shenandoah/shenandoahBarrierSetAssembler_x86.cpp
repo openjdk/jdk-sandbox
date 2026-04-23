@@ -1215,10 +1215,32 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
   __ jcc(Assembler::zero, *continuation());
 
-  // Go for barriers. Barriers can return straight to continuation, as long
-  // as another barrier is not needed.
+  // Go for barriers. If both KA and LRB are needed (rare), do additional gc-state checks
+  // to check which one is currently needed. Since at any given moment KA xor LRB
+  // is enabled, both barriers can return straight to continuation.
   if (_needs_keep_alive_barrier && _needs_load_ref_barrier) {
-    keepalive(masm, nullptr);
+    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
+
+    char check_ka_state = ShenandoahHeap::MARKING;
+    char check_lrb_state = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
+
+    Label L_skip_keepalive;
+    __ testb(gc_state, check_ka_state);
+    __ jcc(Assembler::zero, L_skip_keepalive);
+
+#ifdef ASSERT
+    Label L_good;
+    __ testb(gc_state, check_lrb_state);
+    __ jcc(Assembler::zero, L_good);
+    __ stop("KA and LRB states are expected to be exclusive");
+    __ bind(L_good);
+#endif
+
+    keepalive(masm, continuation());
+    __ bind(L_skip_keepalive);
+
+    __ testb(gc_state, check_lrb_state);
+    __ jcc(Assembler::zero, *continuation());
     lrb(masm, continuation());
   } else if (_needs_keep_alive_barrier) {
     keepalive(masm, continuation());
@@ -1230,17 +1252,12 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
 }
 
 void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
+  assert(L_done != nullptr, "Must be set");
+
   Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
 
-  Label L_through, L_pop_and_slow;
-
-  // If another barrier is enabled as well, do a runtime check for a specific barrier.
-  if (_needs_load_ref_barrier) {
-    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ testb(gc_state, ShenandoahHeap::MARKING);
-    __ jcc(Assembler::zero, (L_done != nullptr) ? *L_done : L_through);
-  }
+  Label L_pop_and_slow;
 
   // Need temp to work, allocate one now.
   bool tmp_live;
@@ -1258,14 +1275,13 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   __ addptr(tmp, buffer);
 
   // If object is narrow, we need to unpack it before inserting into buffer,
-  // and pack it back. The packing is needed for two cases: if there is
-  // a LRB that is chained after us, which would decode again; or the caller
-  // did the load, which means it is going to need it.
+  // and pack it back. The packing is needed if the caller did the load,
+  // which means it is going to need it.
   if (_narrow) {
     __ decode_heap_oop_not_null(_obj);
   }
   __ movptr(Address(tmp, 0), _obj);
-  if (_narrow && ((L_done == nullptr) || !_do_load)) {
+  if (_narrow && !_do_load) {
     __ encode_heap_oop_not_null(_obj);
   }
 
@@ -1273,11 +1289,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   if (tmp_live) {
     __ pop(tmp);
   }
-  if (L_done != nullptr) {
-    __ jmp(*L_done);
-  } else {
-    __ jmp(L_through);
-  }
+  __ jmp(*L_done);
 
   // Slow-path: call runtime to handle.
   // Need to pop tmp immediately for stack to remain aligned.
@@ -1297,25 +1309,13 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
     // Go to runtime and handle the rest there.
     __ call(RuntimeAddress(keepalive_runtime_entry_addr()));
   }
-
-  if (L_done != nullptr) {
-    __ jmp(*L_done);
-  } else {
-    __ bind(L_through);
-  }
+  __ jmp(*L_done);
 }
 
 void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
   assert(L_done != nullptr, "Must be set");
 
   Label L_pop_and_slow, L_slow;
-
-  // If another barrier is enabled as well, do a runtime check for a specific barrier.
-  if (_needs_keep_alive_barrier) {
-    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0));
-    __ jcc(Assembler::zero, *L_done);
-  }
 
   // If weak references are being processed, weak/phantom loads need to go slow,
   // regardless of their cset status.
