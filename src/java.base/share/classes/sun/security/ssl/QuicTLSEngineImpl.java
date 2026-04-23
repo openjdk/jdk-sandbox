@@ -27,6 +27,7 @@ package sun.security.ssl;
 import jdk.internal.net.quic.QuicKeyUnavailableException;
 import jdk.internal.net.quic.QuicOneRttContext;
 import jdk.internal.net.quic.QuicTLSEngine;
+import jdk.internal.net.quic.QuicTransportErrors;
 import jdk.internal.net.quic.QuicTransportException;
 import jdk.internal.net.quic.QuicTransportParametersConsumer;
 import jdk.internal.net.quic.QuicVersion;
@@ -39,6 +40,7 @@ import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.ShortBufferException;
 import javax.net.ssl.QuicTransport;
+import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
@@ -48,8 +50,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.AlgorithmConstraints;
 import java.security.GeneralSecurityException;
-import java.util.HashSet;
-import java.util.List;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -72,7 +72,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
             Set.of(QuicVersion.QUIC_V1, QuicVersion.QUIC_V2);
 
     private final AtomicBoolean handshakeDone = new AtomicBoolean();
-    private final TransportContext conContext;
+    private final SSLEngine sslEngine;
     private final String peerHost;
     private final int peerPort;
     private volatile KeySpace recvKeySpace;
@@ -90,7 +90,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
     private String cipherSuite;
 
     private volatile QuicVersion negotiatedVersion;
-    private int alert = 80; // TLS 1.3 internal_error
+    private QuicTransportException cryptoError;
 
     public QuicTLSEngineImpl(SSLContextImpl sslContextImpl) {
         this(sslContextImpl, null, -1);
@@ -101,87 +101,37 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
         this.peerPort = peerPort;
         this.sendKeySpace = INITIAL;
         this.recvKeySpace = INITIAL;
-        HandshakeHash handshakeHash = new HandshakeHash();
-        this.conContext = new TransportContext(sslContextImpl, this, this,
-                new QuicEngineInputRecord(handshakeHash, this),
-                new QuicEngineOutputRecord(handshakeHash, this));
-        conContext.sslConfig.enabledProtocols = List.of(ProtocolVersion.TLS13);
-        if (peerHost != null) {
-            conContext.sslConfig.serverNames =
-                    Utilities.addToSNIServerNameList(
-                            conContext.sslConfig.serverNames, peerHost);
-        }
-        conContext.setQuic(true);
+        sslEngine = sslContextImpl.engineCreateQUICEngine(peerHost, peerPort, this);
     }
 
     @Override
     public void setUseClientMode(boolean mode) {
-        conContext.setUseClientMode(mode);
+        sslEngine.setUseClientMode(mode);
     }
 
     @Override
     public boolean getUseClientMode() {
-        return conContext.sslConfig.isClientMode;
+        return sslEngine.getUseClientMode();
     }
 
     @Override
     public void setSSLParameters(final SSLParameters params) {
-        Objects.requireNonNull(params);
-        // section, 4.2 of RFC-9001
-        // Clients MUST NOT offer TLS versions older than 1.3
-        final String[] protos = params.getProtocols();
-        if (protos == null || protos.length == 0) {
-            throw new IllegalArgumentException("No TLS protocols set");
-        }
-        boolean tlsv13Present = false;
-        Set<String> unsupported = new HashSet<>();
-        for (String p : protos) {
-            if ("TLSv1.3".equals(p)) {
-                tlsv13Present = true;
-            } else {
-                unsupported.add(p);
-            }
-        }
-        if (!tlsv13Present) {
-            throw new IllegalArgumentException(
-                    "required TLSv1.3 protocol version hasn't been set");
-        }
-        if (!unsupported.isEmpty()) {
-            throw new IllegalArgumentException(
-                    "Unsupported TLS protocol versions " + unsupported);
-        }
-        conContext.sslConfig.setSSLParameters(params);
+        sslEngine.setSSLParameters(params);
     }
 
     @Override
     public SSLSession getSession() {
-        return conContext.conSession;
+        return sslEngine.getSession();
     }
 
     @Override
     public SSLSession getHandshakeSession() {
-        final HandshakeContext handshakeContext = conContext.handshakeContext;
-        return handshakeContext == null
-                ? null
-                : handshakeContext.handshakeSession;
+        return sslEngine.getHandshakeSession();
     }
 
     @Override
     public void beginHandshake() throws SSLException {
-        if (conContext.isUnsureMode) {
-            throw new IllegalStateException(
-                    "Client/Server mode has not yet been set.");
-        }
-
-        try {
-            conContext.kickstart();
-        } catch (IOException ioe) {
-            throw conContext.fatal(Alert.HANDSHAKE_FAILURE,
-                    "Couldn't kickstart handshaking", ioe);
-        } catch (Exception ex) {     // including RuntimeException
-            throw conContext.fatal(Alert.INTERNAL_ERROR,
-                    "Fail to begin handshake", ex);
-        }
+        sslEngine.beginHandshake();
     }
 
     /**
@@ -189,24 +139,24 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
      * or null if none are applicable}
      */
     AlgorithmConstraints getAlgorithmConstraints() {
-        final HandshakeContext handshakeContext = conContext.handshakeContext;
-        // if we are handshaking then use the handshake context
-        // to determine the constraints, else use the configured
-        // SSLParameters
-        return handshakeContext == null
-                ? getSSLParameters().getAlgorithmConstraints()
-                : handshakeContext.sslConfig.userSpecifiedAlgorithmConstraints;
+//        final HandshakeContext handshakeContext = conContext.handshakeContext;
+//        // if we are handshaking then use the handshake context
+//        // to determine the constraints, else use the configured
+//        // SSLParameters
+//        return handshakeContext == null
+//                ? getSSLParameters().getAlgorithmConstraints()
+//                : handshakeContext.sslConfig.userSpecifiedAlgorithmConstraints;
+        throw new UnsupportedOperationException();
     }
 
     @Override
     public SSLParameters getSSLParameters() {
-        return conContext.sslConfig.getSSLParameters();
+        return sslEngine.getSSLParameters();
     }
 
     @Override
     public String getApplicationProtocol() {
-        // TODO: review thread safety when dealing with conContext
-        return conContext.applicationProtocol;
+        return sslEngine.getApplicationProtocol();
     }
 
     @Override
@@ -245,7 +195,10 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
      */
     @Override
     public SSLEngineResult.HandshakeStatus getHandshakeStatus() {
-        return conContext.getHandshakeStatus();
+//        if (cryptoError != null) {
+//            return SSLEngineResult.HandshakeStatus.NEED_WRAP;
+//        }
+        return sslEngine.getHandshakeStatus();
     }
 
     /**
@@ -419,24 +372,13 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
             throw new IllegalStateException("Unexpected key space: "
                     + keySpace + " (expected " + sendKeySpace + ")");
         }
-        if (!conContext.isNegotiated && !conContext.isBroken &&
-                !conContext.isInboundClosed() &&
-                !conContext.isOutboundClosed()) {
-            conContext.kickstart();
-        }
-        if (getHandshakeStatus() == SSLEngineResult.HandshakeStatus.NEED_WRAP) {
-            var buf = ByteBuffer.allocate(4096);
-            produceNextHandshakeMessage(buf);
-            return buf;
-        } else {
+        if (keySpace != INITIAL && getHandshakeStatus() != SSLEngineResult.HandshakeStatus.NEED_WRAP)
             return null;
-        }
-    }
-
-    private void produceNextHandshakeMessage(ByteBuffer buf) throws IOException {
-        var ct = conContext.outputRecord.encode(null, 0, 0,
-                new ByteBuffer[]{buf}, 0, 1);
+        var buf = ByteBuffer.allocate(4096);
+        var result = sslEngine.wrap(ByteBuffer.allocate(0), buf);
+        System.err.println("wrap: "+result);
         buf.flip();
+        return buf;
     }
 
     @Override
@@ -448,31 +390,33 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
         if (keySpace == KeySpace.ZERO_RTT) {
             throw new IllegalArgumentException("Crypto in zero-rtt");
         }
-        if (keySpace != recvKeySpace) {
-            throw new IllegalStateException("Unexpected key space: "
-                    + keySpace + " (expected " + recvKeySpace + ")");
-        }
-        try {
-            if (!conContext.isNegotiated && !conContext.isBroken &&
-                    !conContext.isInboundClosed() &&
-                    !conContext.isOutboundClosed()) {
-                conContext.kickstart();
+        while (payload.hasRemaining()) {
+            if (keySpace != recvKeySpace) {
+                throw new QuicTransportException("Received crypto in unexpected key space: "
+                        + keySpace + " (expected " + recvKeySpace + ")", keySpace,
+                        0, QuicTransportErrors.PROTOCOL_VIOLATION);
             }
-        } catch (IOException e) {
-            throw new QuicTransportException(e.toString(), null, 0,
-                    BASE_CRYPTO_ERROR + Alert.INTERNAL_ERROR.id, e);
-        }
-        try {
-            SSLTransport.decode(conContext, new ByteBuffer[]{payload}, 0, 1, null, 0, 0);
-        } catch (IOException e) {
-            if (e.getCause() instanceof QuicTransportException qte) {
-                // rethrow quic transport parameters validation exception
-                throw qte;
+            try {
+                var result = sslEngine.unwrap(payload, ByteBuffer.allocate(0));
+                System.err.println("unwrap remaining " + payload.remaining() + ": " + result);
+                while (getHandshakeStatus() == SSLEngineResult.HandshakeStatus.NEED_TASK) {
+                    sslEngine.getDelegatedTask().run();
+                }
+                if (cryptoError != null) {
+                    throw cryptoError;
+                }
+            } catch (IOException e) {
+                throw getError(e, keySpace);
             }
-            throw new QuicTransportException(e.getMessage(), keySpace, 0,
-                    BASE_CRYPTO_ERROR + alert, e);
+        }
+    }
 
+    private QuicTransportException getError(IOException e, KeySpace keySpace) throws QuicTransportException {
+        if (cryptoError == null) {
+            cryptoError = new QuicTransportException(e.getMessage(), keySpace, 0,
+                    BASE_CRYPTO_ERROR + 80 /*internal_error*/, e);
         }
+        throw cryptoError;
     }
 
     @Override
@@ -508,7 +452,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
     private String populateCipherSuite() {
         if (cipherSuite != null)
             return cipherSuite;
-        cipherSuite = conContext.handshakeContext.handshakeSession.getCipherSuite();
+        cipherSuite = sslEngine.getHandshakeSession().getCipherSuite();
         assert cipherSuite != null;
         return cipherSuite;
     }
@@ -576,8 +520,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
 
     @Override
     public Runnable getDelegatedTask() {
-        // TODO: actually delegate tasks
-        return null;
+        return sslEngine.getDelegatedTask();
     }
 
     @Override
@@ -611,27 +554,8 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
 
     @Override
     public void restartHandshake() throws IOException {
-        if (negotiatedVersion != null) {
-            throw new IllegalStateException("Version already negotiated");
-        }
-        if (sendKeySpace != INITIAL || getHandshakeStatus() != SSLEngineResult.HandshakeStatus.NEED_UNWRAP) {
-            throw new IllegalStateException("Unexpected handshake state");
-        }
-        HandshakeContext context = conContext.handshakeContext;
-        ClientHandshakeContext chc = (ClientHandshakeContext)context;
-
-        // Refresh handshake hash
-        chc.handshakeHash.finish();     // reset the handshake hash
-
-        // Update the initial ClientHello handshake message.
-        chc.initialClientHelloMsg.extensions.reproduce(chc,
-                new SSLExtension[] {
-                        SSLExtension.CH_QUIC_TRANSPORT_PARAMETERS,
-                        SSLExtension.CH_PRE_SHARED_KEY
-                });
-
-        // produce handshake message
-        chc.initialClientHelloMsg.write(chc.handshakeOutput);
+        // TODO create a new SSLEngine; this was a performance optimization
+        throw new UnsupportedOperationException();
     }
 
     @Override
@@ -646,13 +570,18 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
             remoteQuicTransportParametersConsumer.accept(parameters);
         } catch (QuicTransportException e) {
             // TODO rework error handling; terminate the connection within the callback
+            cryptoError = e;
             throw new SSLHandshakeException("Unacceptable transport parameters", e);
         }
     }
 
     @Override
-    public void cryptoError(byte code) {
-        this.alert = code & 0xff;
+    public void cryptoError(byte code, Exception closeReason) {
+        if (cryptoError == null) {
+            cryptoError = new QuicTransportException(closeReason.getMessage(),
+                    recvKeySpace, 0,
+                    BASE_CRYPTO_ERROR + (code & 0xff), closeReason);
+        }
     }
 
     @Override

@@ -143,10 +143,9 @@ public interface QuicTransport {
 
     /**
      * Called when the handshake fails with a fatal alert.
-     * <p>
-     * The alert is followed by an exception thrown by the active SSLEngine method.
-     * @param code the TLS alert code
+     *
+     * @param code        the TLS alert code
+     * @param closeReason the exception related to the alert
      */
-    // TODO include the exception here
-    void cryptoError(byte code);
+    void cryptoError(byte code, Exception closeReason);
 }

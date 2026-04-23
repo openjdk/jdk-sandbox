@@ -43,8 +43,6 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
 
     private volatile boolean isCloseWaiting;
 
-    private Alert alert;
-
     QuicEngineOutputRecord(HandshakeHash handshakeHash, QuicTransport quicTransport) {
         super(handshakeHash, SSLWriteCipher.nullTlsWriteCipher());
         this.quicTransport = quicTransport;
@@ -75,36 +73,7 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
 
     @Override
     void encodeAlert(byte level, byte description) throws IOException {
-        recordLock.lock();
-        try {
-            if (isClosed()) {
-                if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
-                    SSLLogger.warning("outbound has closed, ignore outbound " +
-                            "alert message: " + Alert.nameOf(description));
-                }
-                return;
-            }
-            if (level == Alert.Level.WARNING.level) {
-                if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
-                    SSLLogger.warning("Suppressing warning-level " +
-                            "alert message: " + Alert.nameOf(description));
-                }
-                return;
-            }
-
-            if (alert != null) {
-                if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
-                    SSLLogger.warning("Suppressing subsequent alert: " +
-                            description + ", original: " + alert.id);
-                }
-                return;
-            }
-
-            alert = Alert.valueOf(description);
-            quicTransport.cryptoError(description);
-        } finally {
-            recordLock.unlock();
-        }
+        // do nothing; the alert is delivered directly by the TransportContext
     }
 
     @Override
@@ -146,7 +115,7 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
             assert srcs == null;
 
             ByteBuffer dst = dsts[0];
-            if (alert != null) {
+            if (isClosed()) {
                 if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
                     SSLLogger.warning("outbound has closed, ignore outbound " +
                             "cached messages");

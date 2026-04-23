@@ -254,7 +254,7 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
         //
         // We can be smarter about using smaller buffer sizes later.  For
         // now, force it to be large enough to handle any valid record.
-        if (dstsRemains < conContext.conSession.getPacketBufferSize()) {
+        if (!conContext.sslConfig.isQuic && dstsRemains < conContext.conSession.getPacketBufferSize()) {
             return new SSLEngineResult(
                 Status.BUFFER_OVERFLOW, conContext.getHandshakeStatus(), 0, 0);
         }
@@ -700,7 +700,7 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
             dstsRemains += dsts[i].remaining();
         }
 
-        if (conContext.isNegotiated) {
+        if (!conContext.sslConfig.isQuic && conContext.isNegotiated) {
             int FragLen =
                     conContext.inputRecord.estimateFragmentSize(packetLen);
             if (FragLen > dstsRemains) {

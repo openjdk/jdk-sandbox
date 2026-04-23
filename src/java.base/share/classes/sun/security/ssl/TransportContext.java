@@ -454,6 +454,11 @@ final class TransportContext implements ConnectionContext {
             isBroken = true;
         }
 
+        // QUIC: send fatal alert along with the exception
+        if (quicTransport != null) {
+            quicTransport.cryptoError(alert.id, closeReason);
+        }
+
         if (closeReason instanceof SSLException) {
             throw (SSLException)closeReason;
         } else {

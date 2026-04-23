@@ -59,7 +59,7 @@ final class QuicEngineInputRecord extends InputRecord implements SSLRecord {
     int bytesInCompletePacket(
         ByteBuffer[] srcs, int srcsOffset, int srcsLength) {
         // QUIC does not use record layer
-        return -1;
+        return 0;
     }
 
     @Override
