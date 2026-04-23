@@ -178,8 +178,8 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
 
     /**
      * {@return the {@code boolean} value represented by this {@code JsonValue} if
-     * it is an instance of {@link JsonBoolean}} Otherwise, throws an
-     * {@code JsonValueException}.
+     * it is an instance of {@link JsonBoolean}; otherwise, throws an
+     * {@code JsonValueException}}.
      *
      * @implSpec
      * The default implementation provided by {@code JsonValue} throws {@code
@@ -194,7 +194,8 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
 
     /**
      * {@return an {@code int} if this {@code JsonValue} is an instance of {@link JsonNumber}
-     * and it can be translated from its string representation} That is, it can be
+     * and it can be translated from its string representation; otherwise, throws an
+     * {@code JsonValueException}}} That is, it can be
      * expressed as a whole number and is within the range of
      * {@link Integer#MIN_VALUE} and {@link Integer#MAX_VALUE}. This occurs,
      * even if the string contains an exponent or a fractional part consisting of
@@ -217,7 +218,8 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
 
     /**
      * {@return a {@code long} if this {@code JsonValue} is an instance of {@link JsonNumber} and
-     * it can be translated from its string representation} That is, it can be expressed
+     * it can be translated from its string representation; otherwise, throws an
+     * {@code JsonValueException}} That is, it can be expressed
      * as a whole number and is within the range of {@link Long#MIN_VALUE} and
      * {@link Long#MAX_VALUE}. This occurs, even if the string contains an
      * exponent or a fractional part consisting of only zero digits. For example,
@@ -239,7 +241,8 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
 
     /**
      * {@return a finite {@code double} if this {@code JsonValue} is an instance of
-     * {@link JsonNumber} and it can be translated from its string representation}
+     * {@link JsonNumber} and it can be translated from its string representation;
+     * otherwise, throws an {@code JsonValueException}}
      * If the string representation is outside the range of {@link Double#MAX_VALUE
      * -Double.MAX_VALUE} and {@link Double#MAX_VALUE}, a {@code JsonValueException} is thrown.
      *
@@ -260,8 +263,8 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
 
     /**
      * {@return the {@code String} value represented by this {@code JsonValue} if
-     * it is an instance of {@link JsonString}} Otherwise, throws an
-     * {@code JsonValueException}.
+     * it is an instance of {@link JsonString}; otherwise, throws an
+     * {@code JsonValueException}}.
      * If this {@code JsonString} was created by parsing a JSON document, any
      * escaped characters in the original JSON document are converted to their
      * unescaped form.
@@ -279,8 +282,8 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
 
     /**
      * {@return an unmodifiable list of the {@code JsonValue}s if this
-     * {@code JsonValue} is an instance of {@link JsonArray}} Otherwise, throws an
-     * {@code JsonValueException}.
+     * {@code JsonValue} is an instance of {@link JsonArray}; otherwise, throws an
+     * {@code JsonValueException}}.
      *
      * @implSpec
      * The default implementation provided by {@code JsonValue} throws {@code
@@ -295,8 +298,8 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
 
     /**
      * {@return an unmodifiable map of {@code String} to {@code JsonValue} if this
-     * {@code JsonValue} is an instance of {@link JsonObject}} Otherwise, throws an
-     * {@code JsonValueException}.
+     * {@code JsonValue} is an instance of {@link JsonObject}; otherwise, throws an
+     * {@code JsonValueException}}.
      *
      * @implSpec
      * The default implementation provided by {@code JsonValue} throws {@code
