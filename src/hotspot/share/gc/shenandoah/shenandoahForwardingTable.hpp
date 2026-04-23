@@ -120,6 +120,9 @@ class ShenandoahForwardingTable {
   template<class Entry>
   void verify_forwardings() PRODUCT_RETURN;
 
+  template<class Entry>
+  void write_sentinels();
+
 public:
   ShenandoahForwardingTable(ShenandoahHeapRegion* region) :
     _region(region), _table(nullptr), _num_entries(0),
@@ -140,6 +143,8 @@ public:
   HeapWord* start() const {
     return reinterpret_cast<HeapWord*>(_table);
   }
+
+  void write_sentinels();
 
   template<class Entry>
   HeapWord* forwardee(HeapWord* orginal) const;

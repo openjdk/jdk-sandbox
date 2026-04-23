@@ -246,3 +246,24 @@ bool ShenandoahForwardingTable::build(size_t num_entries) {
   }
 }
 
+template<class Entry>
+void ShenandoahForwardingTable::write_sentinels() {
+  assert(_table != nullptr, "FWT must be built before writing sentinels");
+  Entry* table = reinterpret_cast<Entry*>(_table);
+  HeapWord* region_base = _region->bottom();
+  for (size_t i = 0; i < _num_entries; i++) {
+    if (table[i].is_used()) {
+      HeapWord* original = table[i].original(region_base);
+      *reinterpret_cast<uintptr_t*>(original) = CollectedHeap::in_fwt_addr_filler_word;
+    }
+  }
+}
+
+void ShenandoahForwardingTable::write_sentinels() {
+  if (_compact) {
+    write_sentinels<CompactFwdTableEntry>();
+  } else {
+    write_sentinels<FwdTableEntry>();
+  }
+}
+

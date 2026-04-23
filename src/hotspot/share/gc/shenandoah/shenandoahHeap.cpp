@@ -1447,16 +1447,7 @@ bool ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t nu
       rendezvous_threads("Switch to Forward Table");
     }
 
-    {
-      class SetupFillerWords {
-      public:
-        static void do_object(oop obj) {
-          *reinterpret_cast<uintptr_t*>(cast_from_oop<HeapWord*>(obj)) = CollectedHeap::in_fwt_addr_filler_word;
-        }
-      } cl;
-      HeapWord* limit = MIN2(r->forwarding_table_start(), r->top());
-      marked_object_iterate(r, &cl, limit);
-    }
+    r->write_fwt_sentinels();
   }
   return use_fwd_table;
 }

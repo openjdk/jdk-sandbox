@@ -543,6 +543,10 @@ public:
     _fwd_table.reset();
   }
 
+  void write_fwt_sentinels() {
+    _fwd_table.write_sentinels();
+  }
+
   HeapWord* forwarding_table_start() const {
     return _fwd_table.start();
   }
