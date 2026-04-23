@@ -88,8 +88,8 @@ class ShenandoahBarrierSetC2 : public BarrierSetC2 {
 
   static bool can_remove_load_barrier(Node* node);
 
-  static void refine_load(Node* node);
-  static void refine_store(const Node* node);
+  static uint8_t refine_load(Node* node, uint8_t bd);
+  static uint8_t refine_store(Node* node, uint8_t bd);
 
   static const TypeFunc* _write_barrier_pre_Type;
   static const TypeFunc* _clone_barrier_Type;

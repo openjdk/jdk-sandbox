@@ -158,45 +158,6 @@ Node* ShenandoahBarrierSetC2::atomic_xchg_at_resolved(C2AtomicParseAccess& acces
   return BarrierSetC2::atomic_xchg_at_resolved(access, val, value_type);
 }
 
-void ShenandoahBarrierSetC2::refine_store(const Node* n) {
-  if (!ShenandoahElideBarriers) {
-    return;
-  }
-
-  MemNode* store = n->as_Store();
-
-  // No barrier to refine? Do nothing.
-  uint8_t barrier_data = store->barrier_data();
-  if (barrier_data == 0) {
-    return;
-  }
-
-  // Not an oop store? There should be no barriers.
-  const Node* newval = n->in(MemNode::ValueIn);
-  assert(newval != nullptr, "Should be present");
-  const Type* newval_bottom = newval->bottom_type();
-    TypePtr::PTR newval_type = newval_bottom->make_ptr()->ptr();
-  if (!newval_bottom->isa_oopptr() &&
-      !newval_bottom->isa_narrowoop() &&
-      newval_type != TypePtr::Null) {
-    assert(barrier_data == 0, "Non-oop stores should have no barrier data");
-    return;
-  }
-
-  // Type system tells us something about nullity?
-  if (newval_type == TypePtr::Null) {
-    barrier_data &= ~ShenandoahBitNotNull;
-    // Card table barrier is not needed if we store null.
-    barrier_data &= ~ShenandoahBitCardMark;
-  } else if (newval_type == TypePtr::NotNull) {
-    // Definitely not null.
-    barrier_data |= ShenandoahBitNotNull;
-  }
-
-  store->set_barrier_data(barrier_data);
-}
-
-
 bool ShenandoahBarrierSetC2::is_Load(int opcode) {
   switch (opcode) {
     case Op_LoadN:
@@ -312,30 +273,59 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* root) {
   return true;
 }
 
-void ShenandoahBarrierSetC2::refine_load(Node* n) {
-  if (!ShenandoahElideBarriers) {
-    return;
-  }
+uint8_t ShenandoahBarrierSetC2::refine_load(Node* n, uint8_t bd) {
+  assert(ShenandoahElideBarriers, "Checked by caller");
+  assert(bd != 0, "Checked by caller");
 
-  MemNode* load = n->as_Load();
-
-  uint8_t barrier_data = load->barrier_data();
-
-  // Do not touch weak LRBs at all: they are responsible for shielding from
+  // Do not touch weak loads at all: they are responsible for shielding from
   // Reference.referent resurrection.
-  if ((barrier_data & (ShenandoahBitWeak | ShenandoahBitPhantom)) != 0) {
-    return;
+  if ((bd & (ShenandoahBitWeak | ShenandoahBitPhantom)) != 0) {
+    return bd;
   }
 
   if (can_remove_load_barrier(n)) {
-    barrier_data &= ~ShenandoahBitStrong;
-    barrier_data |= ShenandoahBitElided;
+    bd &= ~ShenandoahBitStrong;
+    bd |= ShenandoahBitElided;
   }
 
-  load->set_barrier_data(barrier_data);
+  return bd;
+}
+
+uint8_t ShenandoahBarrierSetC2::refine_store(Node* n, uint8_t bd) {
+  assert(ShenandoahElideBarriers, "Checked by caller");
+  assert(bd != 0, "Checked by caller");
+  assert(n->is_Mem() || n->is_LoadStore(), "Sanity");
+
+  // Not an oop store? There should be no barriers.
+  const Node* newval = n->in(MemNode::ValueIn);
+  assert(newval != nullptr, "Should be present");
+  const Type* newval_bottom = newval->bottom_type();
+  TypePtr::PTR newval_type = newval_bottom->make_ptr()->ptr();
+  if (!newval_bottom->isa_oopptr() &&
+      !newval_bottom->isa_narrowoop() &&
+      newval_type != TypePtr::Null) {
+    assert(bd == 0, "Non-oop stores should have no barrier data");
+    return bd;
+  }
+
+  // Type system tells us something about nullity?
+  if (newval_type == TypePtr::Null) {
+    bd &= ~ShenandoahBitNotNull;
+    // Card table barrier is not needed if we store null.
+    bd &= ~ShenandoahBitCardMark;
+  } else if (newval_type == TypePtr::NotNull) {
+    // Definitely not null.
+    bd |= ShenandoahBitNotNull;
+  }
+
+  return bd;
 }
 
 bool ShenandoahBarrierSetC2::expand_barriers(Compile* C, PhaseIterGVN& igvn) const {
+  if (!ShenandoahElideBarriers) {
+    return false;
+  }
+
   ResourceMark rm;
   VectorSet visited;
   Node_List worklist;
@@ -345,10 +335,31 @@ bool ShenandoahBarrierSetC2::expand_barriers(Compile* C, PhaseIterGVN& igvn) con
     if (visited.test_set(n->_idx)) {
       continue;
     }
-    if (is_Load(n->Opcode())) {
-      refine_load(n);
-    } else if (is_Store(n->Opcode())) {
-      refine_store(n);
+
+    int opc = n->Opcode();
+    bool is_load = is_Load(opc);
+    bool is_store = is_Store(opc);
+    bool is_load_store = is_LoadStore(opc);
+
+    uint8_t bd = 0;
+    if (is_load_store) {
+      bd = n->as_LoadStore()->barrier_data();
+    } else if (is_load || is_store) {
+      bd = n->as_Mem()->barrier_data();
+    }
+
+    if (bd != 0) {
+      if (is_load || is_load_store) {
+        bd = refine_load(n, bd);
+      }
+      if (is_store || is_load_store) {
+        bd = refine_store(n, bd);
+      }
+      if (is_load_store) {
+        n->as_LoadStore()->set_barrier_data(bd);
+      } else {
+        n->as_Mem()->set_barrier_data(bd);
+      }
     }
 
     for (uint j = 0; j < n->req(); j++) {
