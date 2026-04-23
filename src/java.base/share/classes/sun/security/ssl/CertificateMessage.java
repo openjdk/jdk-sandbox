@@ -1246,14 +1246,6 @@ final class CertificateMessage {
                             certs.clone(),
                             authType,
                             socket);
-                    } else if (shc.conContext.transport
-                            instanceof QuicTLSEngineImpl qtlse) {
-                        if (tm instanceof X509TrustManagerImpl tmImpl) {
-                            tmImpl.checkClientTrusted(certs.clone(), authType, qtlse);
-                        } else {
-                            throw new CertificateException(
-                                    "QUIC only supports SunJSSE trust managers");
-                        }
                     }
                 } else {
                     // Unlikely to happen, because we have wrapped the old
@@ -1308,13 +1300,6 @@ final class CertificateMessage {
                             certs.clone(),
                             authType,
                             socket);
-                    } else if (chc.conContext.transport instanceof QuicTLSEngineImpl qtlse) {
-                        if (x509ExtTm instanceof X509TrustManagerImpl tmImpl) {
-                            tmImpl.checkServerTrusted(certs.clone(), authType, qtlse);
-                        } else {
-                            throw new CertificateException(
-                                    "QUIC only supports SunJSSE trust managers");
-                        }
                     } else {
                         throw new AssertionError("Unexpected transport type");
                     }

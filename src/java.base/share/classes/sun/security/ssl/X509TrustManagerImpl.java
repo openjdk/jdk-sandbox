@@ -140,16 +140,6 @@ final class X509TrustManagerImpl extends X509ExtendedTrustManager {
         checkTrusted(chain, authType, engine, false);
     }
 
-    public void checkClientTrusted(X509Certificate[] chain, String authType,
-            QuicTLSEngineImpl quicTLSEngine) throws CertificateException {
-        checkTrusted(chain, authType, quicTLSEngine, true);
-    }
-
-    void checkServerTrusted(X509Certificate[] chain, String authType,
-            QuicTLSEngineImpl quicTLSEngine) throws CertificateException {
-        checkTrusted(chain, authType, quicTLSEngine, false);
-    }
-
     private Validator checkTrustedInit(X509Certificate[] chain,
             String authType, boolean checkClientTrusted) {
         if (chain == null || chain.length == 0) {
@@ -231,26 +221,6 @@ final class X509TrustManagerImpl extends X509ExtendedTrustManager {
             constraints = SSLAlgorithmConstraints.forEngine(
                     engine, SIGNATURE_CONSTRAINTS_MODE.LOCAL, false);
             identityAlg = engine.getSSLParameters().
-                    getEndpointIdentificationAlgorithm();
-        }
-
-        findTrustedCertificate(chain, authType,
-                session, constraints, identityAlg, checkClientTrusted);
-    }
-
-    private void checkTrusted(X509Certificate[] chain,
-            String authType, QuicTLSEngineImpl quicTLSEngine,
-            boolean checkClientTrusted) throws CertificateException {
-
-        SSLSession session = null;
-        AlgorithmConstraints constraints = null;
-        String identityAlg = null;
-
-        if (quicTLSEngine != null) {
-            session = quicTLSEngine.getHandshakeSession();
-            constraints = SSLAlgorithmConstraints.forQUIC(
-                    quicTLSEngine, SIGNATURE_CONSTRAINTS_MODE.LOCAL, false);
-            identityAlg = quicTLSEngine.getSSLParameters().
                     getEndpointIdentificationAlgorithm();
         }
 
@@ -363,13 +333,6 @@ final class X509TrustManagerImpl extends X509ExtendedTrustManager {
             return getRequestedServerNames(engine.getHandshakeSession());
         }
 
-        return Collections.emptyList();
-    }
-
-    static List<SNIServerName> getRequestedServerNames(QuicTLSEngineImpl engine) {
-        if (engine != null) {
-            return getRequestedServerNames(engine.getHandshakeSession());
-        }
         return Collections.emptyList();
     }
 

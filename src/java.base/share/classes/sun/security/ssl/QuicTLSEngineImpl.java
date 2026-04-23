@@ -64,7 +64,7 @@ import static jdk.internal.net.quic.QuicTLSEngine.KeySpace.*;
  * The implementation of this class uses the {@link QuicKeyManager} to maintain
  * all state relating to keys for each encryption levels.
  */
-public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, QuicTransport {
+public final class QuicTLSEngineImpl implements QuicTLSEngine, QuicTransport {
 
     static final long BASE_CRYPTO_ERROR = 256;
 
@@ -134,21 +134,6 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
         sslEngine.beginHandshake();
     }
 
-    /**
-     * {@return the {@link AlgorithmConstraints} that are applicable for this engine,
-     * or null if none are applicable}
-     */
-    AlgorithmConstraints getAlgorithmConstraints() {
-//        final HandshakeContext handshakeContext = conContext.handshakeContext;
-//        // if we are handshaking then use the handshake context
-//        // to determine the constraints, else use the configured
-//        // SSLParameters
-//        return handshakeContext == null
-//                ? getSSLParameters().getAlgorithmConstraints()
-//                : handshakeContext.sslConfig.userSpecifiedAlgorithmConstraints;
-        throw new UnsupportedOperationException();
-    }
-
     @Override
     public SSLParameters getSSLParameters() {
         return sslEngine.getSSLParameters();
@@ -195,9 +180,6 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
      */
     @Override
     public SSLEngineResult.HandshakeStatus getHandshakeStatus() {
-//        if (cryptoError != null) {
-//            return SSLEngineResult.HandshakeStatus.NEED_WRAP;
-//        }
         return sslEngine.getHandshakeStatus();
     }
 
@@ -521,21 +503,6 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
     @Override
     public Runnable getDelegatedTask() {
         return sslEngine.getDelegatedTask();
-    }
-
-    @Override
-    public String getPeerHost() {
-        return peerHost;
-    }
-
-    @Override
-    public int getPeerPort() {
-        return peerPort;
-    }
-
-    @Override
-    public boolean useDelegatedTask() {
-        return false;
     }
 
     @Override

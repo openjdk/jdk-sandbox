@@ -40,8 +40,6 @@ import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.TimeLine;
 import jdk.internal.net.http.quic.packets.QuicPacket.PacketNumberSpace;
 
-import javax.net.ssl.SSLEngineResult;
-
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static jdk.internal.net.http.quic.TerminationCause.forSilentTermination;
