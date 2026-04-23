@@ -1058,67 +1058,39 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
 
   __ bind(*entry());
 
-  load_and_decode(masm, *continuation());
-
-  keepalive(masm);
-
-  lrb(masm);
-
-  reencode_if_needed(masm);
-
-  __ b(*continuation());
-}
-
-void ShenandoahBarrierStubC2::load_and_decode(MacroAssembler& masm, Label& target_if_null) {
+  // If we need to load ourselves, do it here.
   if (_do_load) {
-    // Fastpath sets _obj==noreg if it tells the slowpath to do the load
+    assert(_obj == noreg, "Fastpath sets it");
     _obj = rscratch2;
-
-    // This does the load and the decode if necessary
-    __ load_heap_oop(_obj, _addr, noreg, noreg, AS_RAW);
-
-    __ cbz(_obj, target_if_null);
-  } else {
-    // If object is narrow, we need to decode it because everything else later
-    // will need full oops.
     if (_narrow) {
-      if (_maybe_null) {
-        __ decode_heap_oop(_obj);
-      } else {
-        __ decode_heap_oop_not_null(_obj);
-      }
-    }
-
-    if (_maybe_null) {
-      __ cbz(_obj, target_if_null);
-    }
-  }
-}
-
-void ShenandoahBarrierStubC2::reencode_if_needed(MacroAssembler& masm) {
-  // If object is narrow, we need to encode it before exiting.
-  // For encoding, dst can only turn null if we are dealing with weak loads.
-  // Otherwise, we have already null-checked. We can skip all this if we performed
-  // the load ourselves, which means the value is not used by caller.
-  if (!_do_load && _narrow) {
-    if (_needs_load_ref_weak_barrier) {
-      __ encode_heap_oop(_obj);
+      __ ldrw(_obj, _addr);
     } else {
-      __ encode_heap_oop_not_null(_obj);
+      __ ldr(_obj, _addr);
     }
+  }
+
+  // If the object is null, there is no point in applying barriers.
+  __ cbz(_obj, *continuation());
+
+  // Go for barriers. Barriers can return straight to continuation, as long
+  // as another barrier is not needed.
+  if (_needs_keep_alive_barrier && _needs_load_ref_barrier) {
+    keepalive(masm, nullptr);
+    lrb(masm, continuation());
+  } else if (_needs_keep_alive_barrier) {
+    keepalive(masm, continuation());
+  } else if (_needs_load_ref_barrier) {
+    lrb(masm, continuation());
+  } else {
+    ShouldNotReachHere();
   }
 }
 
-void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done_unused) {
+void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   Address index(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
-  Label L_runtime;
-  Label L_done;
 
-  // The node doesn't even need keepalive barrier, just don't check anything else
-  if (!_needs_keep_alive_barrier) {
-    return ;
-  }
+  Label L_through, L_pop_and_slow, L_pack_and_done;
 
   Register tmp1 = rscratch1;
   assert_different_registers(tmp1, _obj, _addr.base(), _addr.index());
@@ -1127,12 +1099,13 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done_unus
   if (_needs_load_ref_barrier) {
     Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(ShenandoahHeap::MARKING)));
     __ ldrb(tmp1, gc_state_fast);
-    __ cbz(tmp1, L_done);
+    __ cbz(tmp1, (L_done != nullptr) ? *L_done : L_through);
   }
 
-  // If buffer is full, call into runtime.
-  __ ldr(tmp1, index);
-  __ cbz(tmp1, L_runtime);
+  // If object is narrow, we need to unpack it before inserting into buffer.
+  if (_narrow) {
+    __ decode_heap_oop_not_null(_obj);
+  }
 
   // Messy: _obj can already be in rscratch2. If so, we need additional temp.
   Register tmp2 = rscratch2;
@@ -1145,24 +1118,41 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done_unus
   }
   assert_different_registers(tmp1, tmp2, _obj, _addr.base(), _addr.index());
 
-  // The buffer is not full, store value into it.
+  // Fast-path: put object into buffer.
+  // If buffer is already full, go slow.
+  __ ldr(tmp1, index);
+  __ cbz(tmp1, L_pop_and_slow);
   __ sub(tmp1, tmp1, wordSize);
   __ str(tmp1, index);
   __ ldr(tmp2, buffer);
   __ str(_obj, Address(tmp2, tmp1));
+
   if (tmp2_live) {
     __ pop(tmp2);
   }
-  __ b(L_done);
+
+  // Exit here.
+  __ bind(L_pack_and_done);
+
+  // Pack the object back if needed. This packing is needed for two
+  // cases: if there is a LRB that is chained after us, which would
+  // decode again; or the caller did the load, which means it is going
+  // to need it.
+  if (_narrow && ((L_done == nullptr) || !_do_load)) {
+    __ encode_heap_oop_not_null(_obj);
+  }
+  if (L_done != nullptr) {
+    __ b(*L_done);
+  } else {
+    __ b(L_through);
+  }
 
   // Slow-path: call runtime to handle.
-  __ bind(L_runtime);
-
   // Need to pop tmps immediately for stack to remain aligned.
+  __ bind(L_pop_and_slow);
   if (tmp2_live) {
     __ pop(tmp2);
   }
-
   preserve(_obj);
   {
     SaveLiveRegisters slr(&masm, this);
@@ -1175,17 +1165,19 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done_unus
     __ mov(lr, keepalive_runtime_entry_addr());
     __ blr(lr);
   }
+  dont_preserve(_obj);
+  __ b(L_pack_and_done);
 
-  __ bind(L_done);
+  // Fall-through path goes here.
+  if (L_done == nullptr) {
+    __ bind(L_through);
+  }
 }
 
-void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done_unused) {
-  Label L_done, L_slow;
+void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
+  assert(L_done != nullptr, "Must be set");
 
-  // The node doesn't even need LRB barrier, just don't check anything else
-  if (!_needs_load_ref_barrier) {
-    return ;
-  }
+  Label L_slow;
 
   Register tmp = rscratch1;
   assert_different_registers(tmp, _obj, _addr.base(), _addr.index());
@@ -1195,11 +1187,11 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done_unused) {
     char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
     Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(state_to_check)));
     __ ldrb(tmp, gc_state_fast);
-    __ cbz(tmp, L_done);
+    __ cbz(tmp, *L_done);
   }
 
   // If weak references are being processed, weak/phantom loads need to go slow,
-  // regadless of their cset status.
+  // regardless of their cset status.
   if (_needs_load_ref_weak_barrier) {
     Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(ShenandoahHeap::WEAK_ROOTS)));
     __ ldrb(tmp, gc_state_fast);
@@ -1207,14 +1199,20 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done_unused) {
   }
 
   // Cset-check. Fall-through to slow if in collection set.
-  assert(ShenandoahHeapRegion::region_size_bytes_shift_jint() <= 63, "Maximum shift of the add is 63");
+  Register tmp2 = rscratch2;
+  if (_narrow) {
+    __ decode_heap_oop_not_null(tmp2, _obj);
+  } else if (tmp2 != _obj) {
+    __ mov(tmp2, _obj);
+  }
   __ mov(tmp, ShenandoahHeap::in_cset_fast_test_addr());
-  __ add(tmp, tmp, _obj, Assembler::LSR, ShenandoahHeapRegion::region_size_bytes_shift_jint());
+  __ add(tmp, tmp, tmp2, Assembler::LSR, ShenandoahHeapRegion::region_size_bytes_shift_jint());
   __ ldrb(tmp, Address(tmp, 0));
-  __ cbz(tmp, L_done);
+  __ cbz(tmp, *L_done);
 
   // Slow path
   __ bind(L_slow);
+  // Obj is the result, need to temporarily stop preserving it.
   dont_preserve(_obj);
   {
     SaveLiveRegisters slr(&masm, this);
@@ -1237,6 +1235,11 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done_unused) {
       __ mov(c_rarg0, _obj);
     }
 
+    // Decode if needed.
+    if (_narrow) {
+      __ decode_heap_oop_not_null(c_rarg0);
+    }
+
     // Go to runtime and handle the rest there.
     __ mov(lr, lrb_runtime_entry_addr());
     __ blr(lr);
@@ -1246,8 +1249,20 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done_unused) {
       __ mov(_obj, r0);
     }
   }
+  preserve(_obj);
 
-  __ bind(L_done);
+  // If object is narrow, we need to encode it before exiting.
+  // For encoding, dst can only turn null if we are dealing with weak loads.
+  // Otherwise, we have already null-checked. We can skip this if we performed
+  // the load ourselves: the value is not used by the caller.
+  if (_narrow && !_do_load) {
+    if (_needs_load_ref_weak_barrier) {
+      __ encode_heap_oop(_obj);
+    } else {
+      __ encode_heap_oop_not_null(_obj);
+    }
+  }
+  __ b(*L_done);
 }
 
 #undef __

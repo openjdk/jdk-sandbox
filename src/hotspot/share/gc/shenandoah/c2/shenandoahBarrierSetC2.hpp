@@ -175,9 +175,6 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   bool is_special_register(Register reg);
   Register select_temp_register(bool& selected_live);
 
-  void load_and_decode(MacroAssembler& masm, Label& target_if_null);
-  void reencode_if_needed(MacroAssembler& masm);
-
   void keepalive(MacroAssembler& masm, Label* L_done = nullptr);
   void lrb(MacroAssembler& masm, Label* L_done = nullptr);
 
