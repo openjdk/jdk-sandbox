@@ -101,6 +101,7 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
             }
 
             alert = Alert.valueOf(description);
+            quicTransport.cryptoError(description);
         } finally {
             recordLock.unlock();
         }
@@ -179,15 +180,6 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
         recordLock.lock();
         try {
             return fragmenter.isEmpty();
-        } finally {
-            recordLock.unlock();
-        }
-    }
-
-    Alert getAlert() {
-        recordLock.lock();
-        try {
-            return alert;
         } finally {
             recordLock.unlock();
         }

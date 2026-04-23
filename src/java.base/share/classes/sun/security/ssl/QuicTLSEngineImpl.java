@@ -90,6 +90,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
     private String cipherSuite;
 
     private volatile QuicVersion negotiatedVersion;
+    private int alert = 80; // TLS 1.3 internal_error
 
     public QuicTLSEngineImpl(SSLContextImpl sslContextImpl) {
         this(sslContextImpl, null, -1);
@@ -468,10 +469,8 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
                 // rethrow quic transport parameters validation exception
                 throw qte;
             }
-            Alert alert = ((QuicEngineOutputRecord)
-                    conContext.outputRecord).getAlert();
             throw new QuicTransportException(e.getMessage(), keySpace, 0,
-                    BASE_CRYPTO_ERROR + (alert != null ? alert.id : Alert.INTERNAL_ERROR.id), e);
+                    BASE_CRYPTO_ERROR + alert, e);
 
         }
     }
@@ -640,6 +639,11 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
             // TODO rework error handling; terminate the connection within the callback
             throw new SSLHandshakeException("Unacceptable transport parameters", e);
         }
+    }
+
+    @Override
+    public void cryptoError(byte code) {
+        this.alert = code & 0xff;
     }
 
     @Override
