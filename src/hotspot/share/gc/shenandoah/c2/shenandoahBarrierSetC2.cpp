@@ -450,12 +450,9 @@ void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
   }
 
   ResourceMark rm;
-  Compile* const C = Compile::current();
-  PhaseCFG* const cfg = C->cfg();
+  Node_List accesses, dominators;
 
-  Node_List all_loads, loads, stores, atomics;
-  Node_List load_dominators, store_dominators, atomic_dominators;
-
+  PhaseCFG* const cfg = Compile::current()->cfg();
   for (uint i = 0; i < cfg->number_of_blocks(); ++i) {
     const Block* const block = cfg->get_block(i);
     for (uint j = 0; j < block->number_of_nodes(); ++j) {
@@ -463,9 +460,7 @@ void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
 
       // Everything that happens in allocations does not need barriers.
       if (node->is_Phi() && is_allocation(node)) {
-        load_dominators.push(node);
-        store_dominators.push(node);
-        atomic_dominators.push(node);
+        dominators.push(node);
         continue;
       }
 
@@ -475,41 +470,20 @@ void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
 
       MachNode* const mach = node->as_Mach();
       int opcode = mach->ideal_Opcode();
-      if (is_Load(opcode)) {
+      if (is_Load(opcode) || is_Store(opcode) || is_LoadStore(opcode)) {
         if ((mach->barrier_data() & ShenandoahBitsReal) != 0) {
-          all_loads.push(mach);
-        }
-        if ((mach->barrier_data() & ShenandoahBitStrong) != 0) {
-          loads.push(mach);
-          load_dominators.push(mach);
-        }
-      } else if (is_Store(opcode)) {
-        if ((mach->barrier_data() & ShenandoahBitsReal) != 0) {
-          stores.push(mach);
-          load_dominators.push(mach);
-          store_dominators.push(mach);
-          atomic_dominators.push(mach);
-        }
-      } else if (is_LoadStore(opcode)) {
-        if ((mach->barrier_data() & ShenandoahBitsReal) != 0) {
-          atomics.push(mach);
-          load_dominators.push(mach);
-          store_dominators.push(mach);
-          atomic_dominators.push(mach);
+          accesses.push(mach);
+          dominators.push(mach);
         }
       }
     }
   }
 
-  elide_dominated_barriers(loads, load_dominators);
-  elide_dominated_barriers(stores, store_dominators);
-  elide_dominated_barriers(atomics, atomic_dominators);
+  elide_dominated_barriers(accesses, dominators);
 
-  // Also clean up extra metadata on these nodes. Dominance analysis likely left
+  // Also clean up extra metadata. Dominance analysis likely left
   // many non-elided barriers with extra metadata, which can be stripped away.
-  strip_extra_data(all_loads);
-  strip_extra_data(stores);
-  strip_extra_data(atomics);
+  strip_extra_data(accesses);
 }
 
 uint ShenandoahBarrierSetC2::estimated_barrier_size(const Node* node) const {
