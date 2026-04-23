@@ -1215,9 +1215,9 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
   __ jcc(Assembler::zero, *continuation());
 
-  // Go for barriers. If both KA and LRB are needed (rare), do additional gc-state checks
-  // to check which one is currently needed.
-  // TODO: How is it possible to have both KA and LRB set?
+  // Go for barriers. If both KA and LRB are needed (rare), do additional gc-state
+  // checks to verify which one is currently needed. Note that KA and LRB are *not*
+  // exclusive, because we can have an overlapping marking/evac in generational mode.
   if (_needs_keep_alive_barrier && _needs_load_ref_barrier) {
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
 
