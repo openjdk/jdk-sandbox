@@ -294,8 +294,15 @@ void ShenandoahHeapRegion::make_cset() {
 // The region remains active for new allocations.
 void ShenandoahHeapRegion::make_regular_from_cset() {
   shenandoah_assert_heaplocked();
-  assert(state() == _cset, "only valid from _cset state");
-  set_state(_regular);
+  switch (state()) {
+    case _cset:
+      make_trash();
+      recycle_internal();
+      set_state(_regular);
+      return;
+    default:
+      report_illegal_transition("regular from cset");
+  }
 }
 
 void ShenandoahHeapRegion::make_trash() {
@@ -572,7 +579,8 @@ ShenandoahHeapRegion* ShenandoahHeapRegion::humongous_start_region() const {
 
 
 void ShenandoahHeapRegion::recycle_internal() {
-  assert(_recycling.is_set() && is_trash(), "Wrong state");
+  bool has_fwt = forwarding_table_start() != nullptr;
+  assert((_recycling.is_set() && is_trash()) || has_fwt, "Wrong state");
   ShenandoahHeap* heap = ShenandoahHeap::heap();
 
   _mixed_candidate_garbage_words = 0;
@@ -582,11 +590,11 @@ void ShenandoahHeapRegion::recycle_internal() {
   heap->marking_context()->reset_top_at_mark_start(this);
   set_update_watermark(bottom());
   if (ZapUnusedHeapArea) {
-    SpaceMangler::mangle_region(MemRegion(bottom(), end()));
+    SpaceMangler::mangle_region(MemRegion(bottom(), alloc_end()));
   }
 
   make_empty();
-  set_affiliation(FREE);
+  if (!has_fwt) set_affiliation(FREE);
 }
 
 // Upon return, this region has been recycled.  We try to recycle it.

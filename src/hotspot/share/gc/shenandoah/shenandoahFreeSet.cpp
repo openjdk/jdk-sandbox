@@ -2733,11 +2733,6 @@ bool ShenandoahFreeSet::recycle_fwt_region(ShenandoahHeapRegion* r,
 
   r->make_regular_from_cset();
 
-  // Reset top/TAMS: new allocs start from bottom, FWT handles old object lookup.
-  r->set_top(r->bottom());
-  r->set_update_watermark(r->top());
-  _heap->marking_context()->reset_top_at_mark_start(r);
-
   size_t available = r->capacity() - r->fwt_tail_bytes();
   if (available < PLAB::min_size() * HeapWordSize) {
 #ifdef KELVIN_FWT
