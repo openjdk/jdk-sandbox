@@ -1198,8 +1198,8 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
   Register tmp2 = rscratch2;
   if (_narrow) {
     __ decode_heap_oop_not_null(tmp2, _obj);
-  } else if (tmp2 != _obj) {
-    __ mov(tmp2, _obj);
+  } else {
+    tmp2 = _obj;
   }
   __ mov(tmp, ShenandoahHeap::in_cset_fast_test_addr());
   __ add(tmp, tmp, tmp2, Assembler::LSR, ShenandoahHeapRegion::region_size_bytes_shift_jint());
