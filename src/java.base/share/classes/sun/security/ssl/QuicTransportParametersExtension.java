@@ -28,9 +28,10 @@ package sun.security.ssl;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
-import jdk.internal.net.quic.QuicTransportException;
 import sun.security.ssl.SSLExtension.ExtensionConsumer;
 import sun.security.ssl.SSLHandshake.HandshakeMessage;
+
+import javax.net.ssl.QuicTransport;
 
 /**
  * Pack of the "quic_transport_parameters" extensions [RFC 9001].
@@ -58,16 +59,22 @@ final class QuicTransportParametersExtension {
 
         @Override
         public byte[] produce(ConnectionContext context,
-                              HandshakeMessage message) throws IOException {
+                              HandshakeMessage message) {
 
             ClientHandshakeContext chc = (ClientHandshakeContext) context;
             if (!chc.sslConfig.isQuic) {
                 return null;
             }
-            QuicTLSEngineImpl quicTLSEngine =
-                    (QuicTLSEngineImpl) chc.conContext.transport;
-
-            return quicTLSEngine.getLocalQuicTransportParameters();
+            QuicTransport quicTransport =
+                    chc.conContext.quicTransport;
+            ByteBuffer buf = quicTransport.localQuicTransportParameters();
+            if (buf == null) {
+                // the peer will likely fail the connection
+                return null;
+            }
+            byte[] params = new byte[buf.remaining()];
+            buf.get(params);
+            return params;
         }
 
     }
@@ -88,14 +95,13 @@ final class QuicTransportParametersExtension {
                         "Client sent the quic_transport_parameters " +
                                 "extension in a non-QUIC context");
             }
-            QuicTLSEngineImpl quicTLSEngine =
-                    (QuicTLSEngineImpl) shc.conContext.transport;
+            QuicTransport quicTransport =
+                    shc.conContext.quicTransport;
             try {
-                quicTLSEngine.processRemoteQuicTransportParameters(buffer);
-            } catch (QuicTransportException e) {
-                throw shc.conContext.fatal(Alert.DECODE_ERROR, e);
+                quicTransport.remoteQuicTransportParameters(buffer);
+            } catch (Exception e) {
+                throw shc.conContext.fatal(Alert.INTERNAL_ERROR, e);
             }
-
         }
     }
 
@@ -134,10 +140,16 @@ final class QuicTransportParametersExtension {
             if (!shc.sslConfig.isQuic) {
                 return null;
             }
-            QuicTLSEngineImpl quicTLSEngine =
-                    (QuicTLSEngineImpl) shc.conContext.transport;
-
-            return quicTLSEngine.getLocalQuicTransportParameters();
+            QuicTransport quicTransport =
+                    shc.conContext.quicTransport;
+            ByteBuffer buf = quicTransport.localQuicTransportParameters();
+            if (buf == null) {
+                // the peer will likely fail the connection
+                return null;
+            }
+            byte[] params = new byte[buf.remaining()];
+            buf.get(params);
+            return params;
         }
     }
 
@@ -157,12 +169,12 @@ final class QuicTransportParametersExtension {
                         "Server sent the quic_transport_parameters " +
                                 "extension in a non-QUIC context");
             }
-            QuicTLSEngineImpl quicTLSEngine =
-                    (QuicTLSEngineImpl) chc.conContext.transport;
+            QuicTransport quicTransport =
+                    chc.conContext.quicTransport;
             try {
-                quicTLSEngine.processRemoteQuicTransportParameters(buffer);
-            } catch (QuicTransportException e) {
-                throw chc.conContext.fatal(Alert.DECODE_ERROR, e);
+                quicTransport.remoteQuicTransportParameters(buffer);
+            } catch (Exception e) {
+                throw chc.conContext.fatal(Alert.INTERNAL_ERROR, e);
             }
         }
     }

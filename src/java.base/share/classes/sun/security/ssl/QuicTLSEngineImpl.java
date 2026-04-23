@@ -41,6 +41,7 @@ import javax.crypto.ShortBufferException;
 import javax.net.ssl.QuicTransport;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLException;
+import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLParameters;
 import javax.net.ssl.SSLSession;
 import java.io.IOException;
@@ -586,14 +587,13 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
         return false;
     }
 
-    public byte[] getLocalQuicTransportParameters() {
+    @Override
+    public ByteBuffer localQuicTransportParameters() {
         ByteBuffer ltp = localQuicTransportParameters;
         if (ltp == null) {
             return null;
         }
-        byte[] result = new byte[ltp.remaining()];
-        ltp.get(0, result);
-        return result;
+        return ltp.asReadOnlyBuffer();
     }
 
     @Override
@@ -632,9 +632,14 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, SSLTransport, Qui
         this.remoteQuicTransportParametersConsumer = consumer;
     }
 
-    void processRemoteQuicTransportParameters(ByteBuffer buffer)
-            throws QuicTransportException{
-        remoteQuicTransportParametersConsumer.accept(buffer);
+    @Override
+    public void remoteQuicTransportParameters(ByteBuffer parameters) throws IOException {
+        try {
+            remoteQuicTransportParametersConsumer.accept(parameters);
+        } catch (QuicTransportException e) {
+            // TODO rework error handling; terminate the connection within the callback
+            throw new SSLHandshakeException("Unacceptable transport parameters", e);
+        }
     }
 
     @Override

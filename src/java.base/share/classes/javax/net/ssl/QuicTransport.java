@@ -25,10 +25,12 @@
 package javax.net.ssl;
 
 import javax.crypto.SecretKey;
+import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
  * TODO add description
+ * This interface is used by the SSLEngine to communicate with the QUIC transport.
  *
  * @since 27
  */
@@ -112,4 +114,20 @@ public interface QuicTransport {
      * @param secretKey the base secret used for deriving the 1-RTT write keys
      */
     void deriveApplicationWriteSecrets(SecretKey secretKey);
+
+    /**
+     * Called to retrieve the contents of the QUIC transport parameters extension
+     * @return the QUIC transport parameters offered by this QuicTransport.
+     */
+    ByteBuffer localQuicTransportParameters();
+
+    /**
+     * Called when the remote QUIC transport parameters extension is received.
+     * <p>
+     * It is recommended to throw an exception from this method if the parameters
+     * contain invalid values
+     * @param parameters the remote QUIC transport parameters
+     * @throws IOException when parameters are invalid
+     */
+    void remoteQuicTransportParameters(ByteBuffer parameters) throws IOException;
 }
