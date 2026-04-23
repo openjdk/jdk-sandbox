@@ -1322,7 +1322,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
   }
 
   // If weak references are being processed, weak/phantom loads need to go slow,
-  // regadless of their cset status.
+  // regardless of their cset status.
   if (_needs_load_ref_weak_barrier) {
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ testb(gc_state, ShenandoahHeap::WEAK_ROOTS);
@@ -1346,12 +1346,12 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
 
   // If cset address is in good spot to just use it as offset. It almost always is.
   Address cset_addr_arg;
-  intptr_t cset_addr = (intptr_t) ShenandoahHeap::in_cset_fast_test_addr();
+  intptr_t cset_addr = reinterpret_cast<intptr_t>(ShenandoahHeap::in_cset_fast_test_addr());
   if ((cset_addr >> 3) < INT32_MAX) {
     assert(is_aligned(cset_addr, 8), "Sanity");
     cset_addr_arg = Address(tmp, checked_cast<int>(cset_addr >> 3), Address::times_8);
   } else {
-    __ addptr(tmp, cset_addr);
+    __ addptr(tmp, checked_cast<int32_t>(cset_addr));
     cset_addr_arg = Address(tmp, 0);
   }
 
