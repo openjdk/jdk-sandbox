@@ -98,6 +98,10 @@ class ShenandoahBarrierSetC2 : public BarrierSetC2 {
   static void make_clone_barrier_Type();
   static void make_load_reference_barrier_Type();
 
+  static bool is_Load(int opcode);
+  static bool is_Store(int opcode);
+  static bool is_LoadStore(int opcode);
+
 protected:
   virtual Node* load_at_resolved(C2Access& access, const Type* val_type) const;
   virtual Node* store_at_resolved(C2Access& access, C2AccessValue& val) const;
@@ -143,7 +147,7 @@ public:
     analyze_dominating_barriers();
   }
 
-  void elide_dominated_barrier(MachNode* mach) const;
+  void elide_dominated_barrier(MachNode* mach, MachNode* dominator) const;
   void analyze_dominating_barriers() const;
   void strip_extra_data(const Node* node) const;
   void strip_extra_data(Node_List& accesses) const;

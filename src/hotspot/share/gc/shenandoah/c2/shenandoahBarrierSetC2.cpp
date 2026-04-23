@@ -196,6 +196,43 @@ void ShenandoahBarrierSetC2::refine_store(const Node* n) {
   store->set_barrier_data(barrier_data);
 }
 
+
+bool ShenandoahBarrierSetC2::is_Load(int opcode) {
+  switch (opcode) {
+    case Op_LoadN:
+    case Op_LoadP:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool ShenandoahBarrierSetC2::is_Store(int opcode) {
+  switch (opcode) {
+    case Op_StoreN:
+    case Op_StoreP:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool ShenandoahBarrierSetC2::is_LoadStore(int opcode) {
+  switch (opcode) {
+    case Op_CompareAndExchangeN:
+    case Op_CompareAndExchangeP:
+    case Op_WeakCompareAndSwapN:
+    case Op_WeakCompareAndSwapP:
+    case Op_CompareAndSwapN:
+    case Op_CompareAndSwapP:
+    case Op_GetAndSetP:
+    case Op_GetAndSetN:
+      return true;
+    default:
+      return false;
+  }
+}
+
 bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* root) {
   // Check if all outs feed into nodes that do not expose the oops to the rest
   // of the runtime system. In this case, we can elide the LRB barrier. We bail
@@ -308,17 +345,10 @@ bool ShenandoahBarrierSetC2::expand_barriers(Compile* C, PhaseIterGVN& igvn) con
     if (visited.test_set(n->_idx)) {
       continue;
     }
-    switch(n->Opcode()) {
-      case Op_StoreP:
-      case Op_StoreN: {
-        refine_store(n);
-        break;
-      }
-      case Op_LoadN:
-      case Op_LoadP: {
-        refine_load(n);
-        break;
-      }
+    if (is_Load(n->Opcode())) {
+      refine_load(n);
+    } else if (is_Store(n->Opcode())) {
+      refine_store(n);
     }
 
     for (uint j = 0; j < n->req(); j++) {
@@ -371,8 +401,47 @@ void ShenandoahBarrierSetC2::eliminate_gc_barrier(PhaseMacroExpand* macro, Node*
   eliminate_gc_barrier_data(node);
 }
 
-void ShenandoahBarrierSetC2::elide_dominated_barrier(MachNode* mach) const {
-  mach->set_barrier_data(0);
+void ShenandoahBarrierSetC2::elide_dominated_barrier(MachNode* node, MachNode* dominator) const {
+  uint8_t orig_bd = node->barrier_data();
+  if (orig_bd == 0) {
+    // Nothing to do.
+    return;
+  }
+
+  uint8_t bd = orig_bd;
+  int node_opcode = node->ideal_Opcode();
+
+  if (dominator == nullptr) {
+    // Must be allocation node.
+    if (is_Load(node_opcode) || is_LoadStore(node_opcode)) {
+      // Loads from recent allocations do not need LRBs.
+      bd &= ~ShenandoahBitStrong;
+    }
+    if (is_Store(node_opcode) || is_LoadStore(node_opcode)) {
+      // Stores to recent allocations do not need KA or CM.
+      bd &= ~ShenandoahBitKeepAlive;
+      bd &= ~ShenandoahBitCardMark;
+    }
+  } else {
+    assert(is_Load(node_opcode) || is_Store(node_opcode) || is_LoadStore(node_opcode), "Sanity");
+    int dom_opcode = dominator->ideal_Opcode();
+    uint8_t dom_bd = dominator->barrier_data();
+
+    if (is_Load(dom_opcode) || is_LoadStore(dom_opcode)) {
+      // If dominating load is set up to perform LRB fixups, no further LRB is needed.
+      if ((dom_bd & ShenandoahBitStrong) != 0) {
+        bd &= ~ShenandoahBitStrong;
+      }
+    }
+    if (is_Store(dom_opcode)) {
+      // Dominating store have stored the good ref, no LRB is needed.
+      bd &= ~ShenandoahBitStrong;
+    }
+  }
+
+  if (orig_bd != bd) {
+    node->set_barrier_data(bd);
+  }
 }
 
 void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
@@ -405,59 +474,29 @@ void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
       }
 
       MachNode* const mach = node->as_Mach();
-      switch (mach->ideal_Opcode()) {
-
-        // Dominating loads have already passed through LRB and their load
-        // locations got fixed. Subsequent barriers are no longer required.
-        // The only exception are weak loads that have to go through LRB
-        // to deal with dying referents.
-        case Op_LoadP:
-        case Op_LoadN: {
-          if (mach->barrier_data() != 0) {
-            all_loads.push(mach);
-          }
-          if ((mach->barrier_data() & ShenandoahBitStrong) != 0) {
-            loads.push(mach);
-            load_dominators.push(mach);
-          }
-          break;
+      int opcode = mach->ideal_Opcode();
+      if (is_Load(opcode)) {
+        if ((mach->barrier_data() & ShenandoahBitsReal) != 0) {
+          all_loads.push(mach);
         }
-
-        // Dominating stores have recorded the old value in SATB, and made the
-        // card table update for a location. Subsequent barriers are no longer
-        // required.
-        case Op_StoreP:
-        case Op_StoreN: {
-          if (mach->barrier_data() != 0) {
-            stores.push(mach);
-            load_dominators.push(mach);
-            store_dominators.push(mach);
-            atomic_dominators.push(mach);
-          }
-          break;
+        if ((mach->barrier_data() & ShenandoahBitStrong) != 0) {
+          loads.push(mach);
+          load_dominators.push(mach);
         }
-
-        // Dominating atomics have dealt with everything as both loads and stores.
-        // Therefore, subsequent barriers are no longer required.
-        case Op_CompareAndExchangeN:
-        case Op_CompareAndExchangeP:
-        case Op_WeakCompareAndSwapN:
-        case Op_WeakCompareAndSwapP:
-        case Op_CompareAndSwapN:
-        case Op_CompareAndSwapP:
-        case Op_GetAndSetP:
-        case Op_GetAndSetN: {
-          if (mach->barrier_data() != 0) {
-            atomics.push(mach);
-            load_dominators.push(mach);
-            store_dominators.push(mach);
-            atomic_dominators.push(mach);
-          }
-          break;
+      } else if (is_Store(opcode)) {
+        if ((mach->barrier_data() & ShenandoahBitsReal) != 0) {
+          stores.push(mach);
+          load_dominators.push(mach);
+          store_dominators.push(mach);
+          atomic_dominators.push(mach);
         }
-
-      default:
-        break;
+      } else if (is_LoadStore(opcode)) {
+        if ((mach->barrier_data() & ShenandoahBitsReal) != 0) {
+          atomics.push(mach);
+          load_dominators.push(mach);
+          store_dominators.push(mach);
+          atomic_dominators.push(mach);
+        }
       }
     }
   }
@@ -707,7 +746,7 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
     Node *n = wq.at(next);
     int opc = n->Opcode();
 
-    if (opc == Op_LoadP || opc == Op_LoadN) {
+    if (is_Load(opc)) {
       uint8_t bd = n->as_Load()->barrier_data();
 
       const TypePtr* adr_type = n->as_Load()->adr_type();
@@ -727,7 +766,7 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
       } else {
         verify_gc_barrier_assert(false, "Unclassified access type", bd, n);
       }
-    } else if (opc == Op_StoreP || opc == Op_StoreN) {
+    } else if (is_Store(opc)) {
       uint8_t bd = n->as_Store()->barrier_data();
       const TypePtr* adr_type = n->as_Store()->adr_type();
       if (adr_type->isa_oopptr() || adr_type->isa_narrowoop()) {
@@ -746,10 +785,7 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
       } else {
         verify_gc_barrier_assert(false, "Unclassified access type", bd, n);
       }
-    } else if (opc == Op_WeakCompareAndSwapP || opc == Op_WeakCompareAndSwapN ||
-               opc == Op_CompareAndExchangeP || opc == Op_CompareAndExchangeN ||
-               opc == Op_CompareAndSwapP     || opc == Op_CompareAndSwapN ||
-               opc == Op_GetAndSetP          || opc == Op_GetAndSetN) {
+    } else if (is_LoadStore(opc)) {
       uint8_t bd = n->as_LoadStore()->barrier_data();
       verify_gc_barrier_assert(!expect_load_store_barriers || (bd != 0), "Oop load-store should have barrier data", bd, n);
     } else if (n->is_Mem()) {

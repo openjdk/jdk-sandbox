@@ -370,7 +370,7 @@ public:
   // Whether the given phi node joins OOPs from fast and slow allocation paths.
   static bool is_allocation(const Node* node);
   // Elide GC barriers from a Mach node according to elide_dominated_barriers().
-  virtual void elide_dominated_barrier(MachNode* mach) const { }
+  virtual void elide_dominated_barrier(MachNode* mach, MachNode* dominator) const { }
   // Elide GC barriers from instructions in 'accesses' if they are dominated by
   // instructions in 'access_dominators' (according to elide_mach_barrier()) and
   // there is no safepoint poll in between.
