@@ -566,6 +566,9 @@
   product(bool, ShenandoahElideBarriers, true, DIAGNOSTIC,                  \
           "Elide redundant Shenandoah barriers.")                           \
                                                                             \
+  product(bool, ShenandoahElideDominatedBarriers, true, DIAGNOSTIC,         \
+          "Elide redundant dominated Shenandoah barriers.")                 \
+                                                                            \
   product(bool, ShenandoahWeakRootsEarly, false, EXPERIMENTAL,              \
           "Turn off weak roots earlier than usual. TODO: Upstream!")        \
                                                                             \

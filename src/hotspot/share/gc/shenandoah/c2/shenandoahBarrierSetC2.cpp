@@ -434,7 +434,7 @@ void ShenandoahBarrierSetC2::elide_dominated_barrier(MachNode* node, MachNode* d
       }
     }
     if (is_Store(dom_opcode)) {
-      // Dominating store have stored the good ref, no LRB is needed.
+      // Dominating store has stored the good ref, no LRB is needed.
       bd &= ~ShenandoahBitStrong;
     }
   }
@@ -445,7 +445,7 @@ void ShenandoahBarrierSetC2::elide_dominated_barrier(MachNode* node, MachNode* d
 }
 
 void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
-  if (!ShenandoahElideBarriers) {
+  if (!ShenandoahElideDominatedBarriers) {
     return;
   }
 
@@ -459,6 +459,7 @@ void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
       Node* const node = block->get_node(j);
 
       // Everything that happens in allocations does not need barriers.
+      // Record them for dominance analysis.
       if (node->is_Phi() && is_allocation(node)) {
         dominators.push(node);
         continue;
