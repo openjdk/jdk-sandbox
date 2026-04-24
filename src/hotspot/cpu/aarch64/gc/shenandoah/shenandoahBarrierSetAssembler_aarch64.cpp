@@ -1195,14 +1195,26 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
   }
 
   // Cset-check. Fall-through to slow if in collection set.
+  // Messy: _obj can already be in tmp2. If so, we need additional temp.
   Register tmp2 = rscratch2;
+  bool tmp2_live = false;
   if (_narrow) {
+    if (tmp2 == _obj) {
+      tmp2 = select_temp_register(tmp2_live);
+      if (tmp2_live) {
+        __ push(tmp2);
+      }
+    }
+    assert_different_registers(tmp, tmp2, _obj, _addr.base(), _addr.index());
     __ decode_heap_oop_not_null(tmp2, _obj);
   } else {
     tmp2 = _obj;
   }
   __ mov(tmp, ShenandoahHeap::in_cset_fast_test_addr());
   __ add(tmp, tmp, tmp2, Assembler::LSR, ShenandoahHeapRegion::region_size_bytes_shift_jint());
+  if (tmp2_live) {
+    __ pop(tmp2);
+  }
   __ ldrb(tmp, Address(tmp, 0));
   __ cbz(tmp, *L_done);
 
