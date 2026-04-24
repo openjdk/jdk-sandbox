@@ -1427,10 +1427,7 @@ oop ShenandoahHeap::try_evacuate_object(oop p, Thread* thread, ShenandoahHeapReg
 }
 
 bool ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t num_forwardings, bool concurrent) {
-  // top_at_mark_start(r) may be less than r->top() if concurrent allocations
-  // occurred above TAMS during this marking cycle.
-  // assert(ShenandoahHeap::heap()->marking_context()->top_at_mark_start(r) == r->top(), "TAMS must be set to top");
-
+  assert(ShenandoahHeap::heap()->marking_context()->top_at_mark_start(r) == r->top(), "TAMS must be set to top");
   bool use_fwd_table = r->build_forwarding_table(num_forwardings);
   if (use_fwd_table) {
     // Got to make sure that everybody sees the table before
@@ -1446,8 +1443,6 @@ bool ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t nu
       assert(!Thread::current()->is_suspendible_thread(), "must not hold STS join across rendezvous");
       rendezvous_threads("Switch to Forward Table");
     }
-
-    r->write_fwt_sentinels();
   }
   return use_fwd_table;
 }

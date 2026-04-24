@@ -298,6 +298,7 @@ void ShenandoahHeapRegion::make_regular_from_cset() {
     case _cset:
       make_trash();
       recycle_internal();
+      write_fwt_sentinels();
       set_state(_regular);
       return;
     default:
