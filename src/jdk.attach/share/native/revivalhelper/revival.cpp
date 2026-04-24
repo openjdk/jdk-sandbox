@@ -951,17 +951,22 @@ void version_check(const char* corename, const char* directory, const char* file
     // reading from core and binary, to compare.
     // Read from core:
     logv("Version check: ptr = 0x%llx", (unsigned long long) ptr);
+    if (ptr == nullptr) {
+        error("JVM version check failed: pointer invalid.");
+    }
     char* vm_release_core = readstring_from_core_at_vaddr_pd(corename, (uint64_t) *(char**) ver);
-    logv("Version check: vm release from core: 0x%llx 0x%llx '%s'",
+    logv("Version check: version from core: 0x%llx -> 0x%llx '%s'",
          (unsigned long long) ver, (unsigned long long) *(uint64_t*) ver, vm_release_core);
-
+    if (vm_release_core == nullptr) {
+        error("JVM version check failed: pointer invalid.");
+    }
     // Read from binary:
     char jvm_name[BUFLEN];
     snprintf(jvm_name, BUFLEN - 1, "%s" FILE_SEPARATOR "%s", directory, filename);
 
     // Location as relative virtual address:
-    // Convert address to offset in binary.
     uint64_t vm_release_relative_vaddr = (uint64_t) ptr - (uint64_t) base_address;
+    // Convert address to file offset in binary:
 #ifdef WINDOWS
     PEFile pefile(jvm_name);
     uint64_t vm_release_offset = pefile.file_offset_for_reladdr(vm_release_relative_vaddr);
@@ -969,13 +974,15 @@ void version_check(const char* corename, const char* directory, const char* file
     // In ELF, file offset is just the relative vaddr.
     uint64_t vm_release_offset = vm_release_relative_vaddr;
 #endif
-
-    logv("Version check: vm binary offset: 0x%lx in %s", vm_release_offset, jvm_filename);
+    logv("Version check: version binary offset: 0x%lx in %s (size %llud)", vm_release_offset, jvm_filename, file_size(jvm_filename));
+    if (vm_release_offset > file_size(jvm_filename)) {
+        error("JVM version check failed: pointer invalid.");
+    }
     char* vm_release_binary = readstring_at_offset_pd(jvm_name, vm_release_offset);
-    logv("Version check: vm release from binary:  %s", vm_release_binary);
+    logv("Version check: version from binary:  %s", vm_release_binary);
 
     if (strncmp(vm_release_core, vm_release_binary, BUFLEN) != 0) {
-        error("Failed: JVM version mismatch, core '%s', jvm binary '%s'", vm_release_core, vm_release_binary);
+        error("JVM version check failed: mismatch, core '%s', jvm binary '%s'", vm_release_core, vm_release_binary);
     }
 }
 

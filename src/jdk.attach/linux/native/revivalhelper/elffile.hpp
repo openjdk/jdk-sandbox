@@ -38,7 +38,7 @@
  */
 class ELFFile {
   public:
-    ELFFile(const char* filename, const char* libdir);
+    ELFFile(const char* filename, const char* libdir, bool write = false);
     ~ELFFile();
 
     bool is_valid();

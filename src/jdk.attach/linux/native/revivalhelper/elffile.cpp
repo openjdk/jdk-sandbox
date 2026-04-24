@@ -131,8 +131,8 @@ bool ELFFile::verify() {
     return true;
 }
 
-ELFFile::ELFFile(const char* filename, const char* libdir) {
-    logv("ELFFile: %s", filename);
+ELFFile::ELFFile(const char* filename, const char* libdir, bool write) {
+    logv("ELFFile: %s (write = %d)", filename, write);
     this->filename = filename;
     this->libdir = libdir;
     fd = -1;
@@ -140,14 +140,17 @@ ELFFile::ELFFile(const char* filename, const char* libdir) {
     m = nullptr;
     hdr = nullptr;
 
-    fd = open(filename, O_RDWR);
+    // Open for writing if requested, we may be relocating:
+    int oflags = write ? O_RDWR : O_RDONLY;
+    fd = open(filename, oflags);
     if (fd < 0) {
         error("Cannot open '%s': %s", filename, strerror(errno));
     }
     length = file_size(filename);
 
-    // Open for writing as we may be relocating:
-    m = mmap(0, length, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    int prot = write ? (PROT_READ | PROT_WRITE) : PROT_READ;
+    int flags = MAP_SHARED;
+    m = mmap(0, length, prot, flags, fd, 0);
     if (m == (void*) -1) {
         warn("ELFFile: mmap of ELF file '%s' failed: %s", filename, strerror(errno));
         m = nullptr;
@@ -174,7 +177,7 @@ ELFFile::ELFFile(const char* filename, const char* libdir) {
         sh = nullptr; // cores don't usually have Sections
     }
 
-    logd("ELFFile: %s hdr = %p phoff = 0x%lx shoff = 0x%lx   ph = %p sh = %p",
+    logd("ELFFile: %s hdr = %p phoff = 0x%lx sh_off = 0x%lx   ph = %p sh = %p",
          filename, hdr, hdr->e_phoff, hdr->e_shoff, ph, sh);
 }
 
@@ -451,18 +454,43 @@ char* ELFFile::find_note_data(Elf64_Phdr* notes_ph, Elf64_Word type) {
     return nullptr;
 }
 
-bool use_lib(char* libname) {
+// Return the filename to use in our sharedlib list, for a name from NT_FILE info.
+// Handle any name filtering, and return nullptr if file should not be included in library list.
+// Handle libdir substitution.
+char* file_name_for_nt_file(char* name, const char* libdir) {
     // Filter on name from the NT_FILE list.
     // Keep all files in NT_FILE list, not just ELF sharedlibs.
     // But not classes.jsa or other ".jsa" file, we need the core file data for that.
     //
-    // May be a transported core with files not available, so cannot check actual file type.
-    char* p = strrchr(libname, '.');
+    // In a transported core actual files are not available, so cannot check file type.
+    char* p = strrchr(name, '.');
     if (p != nullptr && strcmp(p, ".jsa") == 0) {
-        return false;
-    } else {
-        return true;
+        return nullptr;
     }
+    // Ignore " (deleted)" which can be at the end of a path.
+    char* name2 = nullptr;
+    if (strlen(name) > 10) {
+        p = strrchr(name, ' ');
+        if (p != nullptr && strcmp(p, " (deleted)") == 0) {
+            int len = strlen(name) - 10;
+            name2 = (char*) malloc(len + 1);
+            strncpy(name2, name, len);
+            name2[len] = 0;
+            name = name2;
+        }
+    }
+
+    if (libdir != nullptr) {
+        char* alt_name = find_filename_in_libdir(libdir, name);
+        if (alt_name != nullptr) {
+            logv("Using from libdir: '%s'", alt_name);
+            name = alt_name; // heap allocated
+            if (name2 != nullptr) {
+                free(name2);
+            }
+        }
+    }
+    return name;
 }
 
 /**
@@ -477,7 +505,7 @@ void ELFFile::read_sharedlibs() {
     // Look for Program Header PT_NOTE:
     Elf64_Phdr* notes_ph = program_header_by_type(PT_NOTE);
     if (notes_ph == nullptr) {
-        error("read_sharedlibs: Cannot locate NOTES in %s", filename);
+        error("read_sharedlibs: Cannot locate PT_NOTE in %s", filename);
     }
     // Look for NT_FILE note:
     char* note_nt_file = find_note_data(notes_ph, 0x46494c45 /* NT_FILE */);
@@ -487,45 +515,40 @@ void ELFFile::read_sharedlibs() {
     logv("NT_FILE note data at %p", note_nt_file);
 
     // Read NT_FILE content:
-    int sharedlibs_count;
-    sharedlibs_count = *(long*) note_nt_file;
+    int nt_file_count;
+    nt_file_count = *(long*) note_nt_file;
     note_nt_file += 8;
     long pagesize = *(long*) note_nt_file;
     note_nt_file += 8;
-    logd("NT_FILE count %d pagesize 0x%lx", sharedlibs_count, pagesize);
-
-    Segment* sharedlibs = (Segment*) malloc(sizeof(Segment) * sharedlibs_count); // new Segment[sharedlibs_count];
+    logd("NT_FILE count %d pagesize 0x%lx", nt_file_count, pagesize);
 
     // Read numerical data, then library names.
     // NT_FILE lists can contain multiple entries for the same filename.
-    for (int i = 0; i < sharedlibs_count; i++) {
-        sharedlibs[i].vaddr= (void*) *(long*) note_nt_file;
+    Segment* files = (Segment*) malloc(sizeof(Segment) * nt_file_count); // new Segment[nt_file_count];
+    for (int i = 0; i < nt_file_count; i++) {
+        files[i].vaddr= (void*) *(long*) note_nt_file;
         note_nt_file += 8;
         uint64_t end = *(long*) note_nt_file;
-        sharedlibs[i].length = end - (uint64_t) sharedlibs[i].vaddr;
+        files[i].length = end - (uint64_t) files[i].vaddr;
         note_nt_file += 8;
         note_nt_file += 8; // skip offset
     }
-    for (int i = 0; i < sharedlibs_count; i++) {
-        sharedlibs[i].name = note_nt_file;
-        note_nt_file += strlen(sharedlibs[i].name);
+    for (int i = 0; i < nt_file_count; i++) {
+        files[i].name = note_nt_file;
+        note_nt_file += strlen(files[i].name);
         note_nt_file++; // terminator
     }
 
     // Reread that info to build final library list. Use libdir if set, to rewrite paths.
     // Do not skip duplicate names, as would need to coalesce entries/ranges for same filename.
-    // Lookups later will get first match, and want to find base address, so all good.
-    for (int i = 0; i < sharedlibs_count; i++) {
-        logd("NT_FILE: 0x%lx - 0x%lx %s", (uint64_t) sharedlibs[i].vaddr, (uint64_t) sharedlibs[i].end(), sharedlibs[i].name);
-        if (use_lib(sharedlibs[i].name)) {
-            Segment lib = sharedlibs[i];
-            char* name = lib.name;
-            if (libdir != nullptr) {
-                char* alt_name = find_filename_in_libdir(libdir, name);
-                if (alt_name != nullptr) {
-                    logv("Using from libdir: '%s'", alt_name);
-                    name = alt_name;
-                }
+    // Lookups will get first match, and want to find base address, so all good.
+    for (int i = 0; i < nt_file_count; i++) {
+        logd("NT_FILE: 0x%lx - 0x%lx %s", (uint64_t) files[i].vaddr, (uint64_t) files[i].end(), files[i].name);
+        Segment lib = files[i];
+        char* name = file_name_for_nt_file(lib.name, libdir);
+        if (name != nullptr) {
+            if (name != lib.name) {
+                // name changed, is now heap allocated
             }
             Segment seg(name, lib.vaddr, lib.length);
             libs.push_back(seg);
@@ -533,7 +556,7 @@ void ELFFile::read_sharedlibs() {
     }
 
     logd("sharedlibs size = %ld", libs.size());
-    free(sharedlibs);
+    free(files);
 }
 
 uint64_t ELFFile::file_offset_for_vaddr(uint64_t addr) {
@@ -541,7 +564,7 @@ uint64_t ELFFile::file_offset_for_vaddr(uint64_t addr) {
     Elf64_Phdr* phdr = ph;
     for (int i = 0; i < hdr->e_phnum; i++) {
         if (phdr->p_type == PT_LOAD) {
-            if (phdr->p_vaddr >= addr) {
+            if (addr >= phdr->p_vaddr && addr < (phdr->p_vaddr + phdr->p_memsz)) {
                 return phdr->p_offset + (addr - phdr->p_vaddr);
             }
         }

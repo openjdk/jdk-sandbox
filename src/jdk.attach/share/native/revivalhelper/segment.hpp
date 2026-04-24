@@ -69,7 +69,6 @@ class Segment {
         bool contains(Segment* seg);
         bool contains(uint64_t addr);
         bool is_relevant(); // Is Segment trivially ignorable, e.g. zero-length.
-        bool conflict(Segment* seg); // Any overlap at all.
 
         int write_mapping(int fd, const char* type);
         int toString(char* buf, int len);

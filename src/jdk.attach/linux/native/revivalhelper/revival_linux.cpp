@@ -267,7 +267,7 @@ char* readstring_at_offset_pd(const char* filename, uint64_t offset) {
     }
     off_t pos = lseek(fd, offset, SEEK_SET);
     if (pos < 0) {
-        warn("readstring_at_pd: %s: lseek(%ld) fails %d : %s", filename, offset, errno, strerror(errno));
+        warn("readstring_at_offset_pd: %s: lseek(%ld) fails %d : %s", filename, offset, errno, strerror(errno));
         close(fd);
         return (char*) -1;
     }
@@ -485,7 +485,7 @@ void copy_file_pd(const char* srcfile, const char* destfile) {
 }
 
 void relocate_sharedlib_pd(const char* filename, const uint64_t address) {
-    ELFFile lib(filename, nullptr);
+    ELFFile lib(filename, nullptr, true);
     if (lib.is_valid()) {
         logv("Relocate %s to 0x%lx", filename, address);
         lib.relocate(address /* assume library currently has zero base address */);
