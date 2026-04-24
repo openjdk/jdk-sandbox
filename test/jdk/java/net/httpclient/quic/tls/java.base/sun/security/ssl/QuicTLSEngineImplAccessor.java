@@ -36,9 +36,10 @@ public final class QuicTLSEngineImplAccessor {
     public static void setCipherSuite(final QuicTLSEngineImpl engine,
                                       String negotiatedCipherSuite) {
         try {
+            QuicCipherSuite cs = QuicCipherSuite.valueOf(negotiatedCipherSuite);
             final Field f = QuicTLSEngineImpl.class.getDeclaredField("cipherSuite");
             f.setAccessible(true);
-            f.set(engine, negotiatedCipherSuite);
+            f.set(engine, cs);
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

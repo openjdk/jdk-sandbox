@@ -68,25 +68,23 @@ sealed abstract class QuicKeyManager
         permits QuicKeyManager.HandshakeKeyManager,
         QuicKeyManager.InitialKeyManager, QuicKeyManager.OneRttKeyManager {
 
-    protected QuicWriteCipher deriveWriteCipher(QuicVersion quicVersion, SecretKey secret, String cipherSuite) throws IOException, GeneralSecurityException {
-        CipherSuite cs = CipherSuite.valueOf(cipherSuite);
+    protected QuicWriteCipher deriveWriteCipher(QuicVersion quicVersion, SecretKey secret, QuicCipherSuite cipherSuite) throws IOException, GeneralSecurityException {
         final QuicKeys keys = deriveQuicKeys(quicVersion,
-                cs,
+                cipherSuite,
                 secret);
 
-        return QuicCipher.createWriteCipher(cs,
+        return QuicCipher.createWriteCipher(cipherSuite,
                 secret,
                 keys.key, keys.iv,
                 keys.hp, 0);
     }
 
-    protected QuicReadCipher deriveReadCipher(QuicVersion quicVersion, SecretKey secret, String cipherSuite) throws IOException, GeneralSecurityException {
-        CipherSuite cs = CipherSuite.valueOf(cipherSuite);
+    protected QuicReadCipher deriveReadCipher(QuicVersion quicVersion, SecretKey secret, QuicCipherSuite cipherSuite) throws IOException, GeneralSecurityException {
         final QuicKeys keys = deriveQuicKeys(quicVersion,
-                cs,
+                cipherSuite,
                 secret);
 
-        return QuicCipher.createReadCipher(cs,
+        return QuicCipher.createReadCipher(cipherSuite,
                 secret,
                 keys.key, keys.iv,
                 keys.hp, 0);
@@ -175,7 +173,7 @@ sealed abstract class QuicKeyManager
     }
 
     private static QuicKeys deriveQuicKeys(final QuicVersion quicVersion,
-            final CipherSuite cs, final SecretKey traffic_secret)
+                                           final QuicCipherSuite cs, final SecretKey traffic_secret)
             throws IOException {
         final QuicTLSKeyDerivation kd = new QuicTLSKeyDerivation(cs,
                 traffic_secret);
@@ -188,7 +186,7 @@ sealed abstract class QuicKeyManager
 
     // Used in 1RTT when advancing the keyphase.  quic_hp is not advanced.
     private static QuicKeys deriveQuicKeys(final QuicVersion quicVersion,
-            final CipherSuite cs, final SecretKey traffic_secret,
+            final QuicCipherSuite cs, final SecretKey traffic_secret,
             final SecretKey quic_hp) throws IOException {
         final QuicTLSKeyDerivation kd = new QuicTLSKeyDerivation(cs,
                 traffic_secret);
@@ -283,12 +281,11 @@ sealed abstract class QuicKeyManager
                 final byte[] connectionId,
                 final boolean clientMode) throws IOException{
             Objects.requireNonNull(quicVersion);
-            final CipherSuite cs = CipherSuite.TLS_AES_128_GCM_SHA256;
-            final CipherSuite.HashAlg hashAlg = cs.hashAlg;
+            final QuicCipherSuite cs = QuicCipherSuite.TLS_AES_128_GCM_SHA256;
 
             KDF hkdf;
             try {
-                hkdf = KDF.getInstance(hashAlg.hkdfAlgorithm);
+                hkdf = KDF.getInstance(cs.hkdfAlgorithm);
             } catch (NoSuchAlgorithmException e) {
                 throw new SSLHandshakeException("Could not generate secret", e);
             }
@@ -303,39 +300,39 @@ sealed abstract class QuicKeyManager
                                 .addIKM(connectionId).extractOnly());
 
                 byte[] clientInfo = createHkdfInfo("client in",
-                        hashAlg.hashLength);
+                        cs.hashLength);
                 client_initial_secret =
                         hkdf.deriveKey("TlsClientInitialTrafficSecret",
                                 HKDFParameterSpec.expandOnly(
                                         initial_secret,
                                         clientInfo,
-                                        hashAlg.hashLength));
+                                        cs.hashLength));
 
                 byte[] serverInfo = createHkdfInfo("server in",
-                        hashAlg.hashLength);
+                        cs.hashLength);
                 server_initial_secret =
                         hkdf.deriveKey("TlsServerInitialTrafficSecret",
                                 HKDFParameterSpec.expandOnly(
                                         initial_secret,
                                         serverInfo,
-                                        hashAlg.hashLength));
+                                        cs.hashLength));
 
                 final QuicReadCipher readCipher;
                 final QuicWriteCipher writeCipher;
                 if (clientMode) {
                     readCipher = deriveReadCipher(quicVersion,
                             server_initial_secret,
-                            cs.toString());
+                            cs);
                     writeCipher = deriveWriteCipher(quicVersion,
                             client_initial_secret,
-                            cs.toString());
+                            cs);
                 } else {
                     readCipher = deriveReadCipher(quicVersion,
                             client_initial_secret,
-                            cs.toString());
+                            cs);
                     writeCipher = deriveWriteCipher(quicVersion,
                             server_initial_secret,
-                            cs.toString());
+                            cs);
                 }
                 final CipherPair old = this.cipherPair;
                 // we don't check if keys are already available, since it's a
@@ -415,7 +412,7 @@ sealed abstract class QuicKeyManager
             toDiscard.discard(true);
         }
 
-        public void deriveWriteKeys(QuicVersion quicVersion, SecretKey secret, String cipherSuite)
+        public void deriveWriteKeys(QuicVersion quicVersion, SecretKey secret, QuicCipherSuite cipherSuite)
                 throws IOException, GeneralSecurityException {
             final QuicWriteCipher writeCipher = deriveWriteCipher(quicVersion, secret, cipherSuite);
             CipherPair cp = cipherPair;
@@ -428,7 +425,7 @@ sealed abstract class QuicKeyManager
             }
         }
 
-        public void deriveReadKeys(QuicVersion quicVersion, SecretKey secret, String cipherSuite)
+        public void deriveReadKeys(QuicVersion quicVersion, SecretKey secret, QuicCipherSuite cipherSuite)
                 throws IOException, GeneralSecurityException {
             final QuicReadCipher readCipher = deriveReadCipher(quicVersion, secret, cipherSuite);
             CipherPair cp = cipherPair;
@@ -812,14 +809,13 @@ sealed abstract class QuicKeyManager
         }
 
         void deriveReadKeys(final QuicVersion version,
-                final SecretKey secret,
-                String cipherSuite) throws IOException,
+                            final SecretKey secret,
+                            QuicCipherSuite cipherSuite) throws IOException,
                 GeneralSecurityException {
             this.negotiatedVersion = version;
-            CipherSuite negotiatedCipherSuite = CipherSuite.valueOf(cipherSuite);
             final QuicReadCipher readCipher = deriveReadCipher(version,
                     secret,
-                    negotiatedCipherSuite.toString());
+                    cipherSuite);
             this.keySeriesLock.lock();
             try {
                 if (this.keySeries != null && keySeries.current.readCipher != null) {
@@ -852,13 +848,12 @@ sealed abstract class QuicKeyManager
 
         void deriveWriteKeys(final QuicVersion version,
                              final SecretKey secret,
-                             String cipherSuite) throws IOException,
+                             QuicCipherSuite cipherSuite) throws IOException,
                 GeneralSecurityException {
             this.negotiatedVersion = version;
-            CipherSuite negotiatedCipherSuite = CipherSuite.valueOf(cipherSuite);
             final QuicWriteCipher writeCipher = deriveWriteCipher(version,
                     secret,
-                    negotiatedCipherSuite.toString());
+                    cipherSuite);
             this.keySeriesLock.lock();
             try {
                 if (this.keySeries != null &&  keySeries.current.writeCipher != null) {
@@ -1048,10 +1043,10 @@ sealed abstract class QuicKeyManager
             }
         }
 
-        private final CipherSuite cs;
+        private final QuicCipherSuite cs;
         private final SecretKey secret;
 
-        private QuicTLSKeyDerivation(final CipherSuite cs,
+        private QuicTLSKeyDerivation(final QuicCipherSuite cs,
                 final SecretKey secret) {
             this.cs = Objects.requireNonNull(cs);
             this.secret = Objects.requireNonNull(secret);
@@ -1060,7 +1055,7 @@ sealed abstract class QuicKeyManager
         public SecretKey deriveKey(final String algorithm) throws IOException {
             final HkdfLabel hkdfLabel = HkdfLabel.fromLabel(algorithm);
             try {
-                final KDF hkdf = KDF.getInstance(this.cs.hashAlg.hkdfAlgorithm);
+                final KDF hkdf = KDF.getInstance(this.cs.hkdfAlgorithm);
                 final int keyLength = getKeyLength(hkdfLabel);
                 final byte[] hkdfInfo =
                         createHkdfInfo(hkdfLabel.tls13LabelBytes, keyLength);
@@ -1076,7 +1071,7 @@ sealed abstract class QuicKeyManager
         public byte[] deriveData(final String algorithm) throws IOException {
             final HkdfLabel hkdfLabel = HkdfLabel.fromLabel(algorithm);
             try {
-                final KDF hkdf = KDF.getInstance(this.cs.hashAlg.hkdfAlgorithm);
+                final KDF hkdf = KDF.getInstance(this.cs.hkdfAlgorithm);
                 final int keyLength = getKeyLength(hkdfLabel);
                 final byte[] hkdfInfo =
                         createHkdfInfo(hkdfLabel.tls13LabelBytes, keyLength);
@@ -1093,10 +1088,10 @@ sealed abstract class QuicKeyManager
                     // RFC-9001, section 6.1:
                     // secret_<n+1> = HKDF-Expand-Label(secret_<n>, "quic
                     // ku", "", Hash.length)
-                    yield this.cs.hashAlg.hashLength;
+                    yield this.cs.hashLength;
                 }
-                case quiciv, quicv2iv -> this.cs.bulkCipher.ivSize;
-                default -> this.cs.bulkCipher.keySize;
+                case quiciv, quicv2iv -> this.cs.ivSize;
+                default -> this.cs.keySize;
             };
         }
 
@@ -1105,7 +1100,7 @@ sealed abstract class QuicKeyManager
                 case quicku, quicv2ku -> "TlsUpdateNplus1";
                 case quiciv, quicv2iv ->
                         throw new IllegalArgumentException("IV not expected");
-                default -> this.cs.bulkCipher.algorithm;
+                default -> this.cs.keyAlgorithm;
             };
         }
     }

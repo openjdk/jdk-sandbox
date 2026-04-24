@@ -104,12 +104,12 @@ abstract class QuicCipher {
         }
     }
 
-    private final CipherSuite cipherSuite;
+    private final QuicCipherSuite cipherSuite;
     private final QuicHeaderProtectionCipher hpCipher;
     private final SecretKey baseSecret;
     private final int keyPhase;
 
-    protected QuicCipher(final CipherSuite cipherSuite, final SecretKey baseSecret,
+    protected QuicCipher(final QuicCipherSuite cipherSuite, final SecretKey baseSecret,
             final QuicHeaderProtectionCipher hpCipher, final int keyPhase) {
         assert keyPhase == 0 || keyPhase == 1 :
                 "invalid key phase: " + keyPhase;
@@ -123,7 +123,7 @@ abstract class QuicCipher {
         return this.baseSecret;
     }
 
-    final CipherSuite getCipherSuite() {
+    final QuicCipherSuite getCipherSuite() {
         return this.cipherSuite;
     }
 
@@ -150,7 +150,7 @@ abstract class QuicCipher {
 
     protected abstract void doDiscard();
 
-    static QuicReadCipher createReadCipher(final CipherSuite cipherSuite,
+    static QuicReadCipher createReadCipher(final QuicCipherSuite cipherSuite,
             final SecretKey baseSecret, final SecretKey key,
             final byte[] iv, final SecretKey hp,
             final int keyPhase) throws GeneralSecurityException {
@@ -166,7 +166,7 @@ abstract class QuicCipher {
         };
     }
 
-    static QuicWriteCipher createWriteCipher(final CipherSuite cipherSuite,
+    static QuicWriteCipher createWriteCipher(final QuicCipherSuite cipherSuite,
             final SecretKey baseSecret, final SecretKey key,
             final byte[] iv, final SecretKey hp,
             final int keyPhase) throws GeneralSecurityException {
@@ -189,7 +189,7 @@ abstract class QuicCipher {
     abstract static class QuicReadCipher extends QuicCipher {
         private final AtomicLong lowestDecryptedPktNum = new AtomicLong(-1);
 
-        QuicReadCipher(CipherSuite cipherSuite, SecretKey baseSecret,
+        QuicReadCipher(QuicCipherSuite cipherSuite, SecretKey baseSecret,
                        QuicHeaderProtectionCipher hpCipher, int keyPhase) {
             super(cipherSuite, baseSecret, hpCipher, keyPhase);
         }
@@ -247,7 +247,7 @@ abstract class QuicCipher {
         private final AtomicLong numPacketsEncrypted = new AtomicLong();
         private final AtomicLong lowestEncryptedPktNum = new AtomicLong(-1);
 
-        QuicWriteCipher(CipherSuite cipherSuite, SecretKey baseSecret,
+        QuicWriteCipher(QuicCipherSuite cipherSuite, SecretKey baseSecret,
                 QuicHeaderProtectionCipher hpCipher, int keyPhase) {
             super(cipherSuite, baseSecret, hpCipher, keyPhase);
         }
@@ -368,7 +368,7 @@ abstract class QuicCipher {
         private final SecretKey key;
         private final byte[] iv;
 
-        T13GCMReadCipher(final CipherSuite cipherSuite, final SecretKey baseSecret,
+        T13GCMReadCipher(final QuicCipherSuite cipherSuite, final SecretKey baseSecret,
                 final SecretKey key, final byte[] iv, final SecretKey hp,
                 final int keyPhase)
                 throws GeneralSecurityException {
@@ -440,7 +440,7 @@ abstract class QuicCipher {
         private final Cipher cipher;
         private final byte[] iv;
 
-        T13GCMWriteCipher(final CipherSuite cipherSuite, final SecretKey baseSecret,
+        T13GCMWriteCipher(final QuicCipherSuite cipherSuite, final SecretKey baseSecret,
                 final SecretKey key, final byte[] iv, final SecretKey hp,
                 final int keyPhase) throws GeneralSecurityException {
             super(cipherSuite, baseSecret, new T13AESHPCipher(hp), keyPhase);
@@ -529,7 +529,7 @@ abstract class QuicCipher {
         private final Cipher cipher;
         private final byte[] iv;
 
-        T13CC20P1305ReadCipher(final CipherSuite cipherSuite,
+        T13CC20P1305ReadCipher(final QuicCipherSuite cipherSuite,
                 final SecretKey baseSecret, final SecretKey key,
                 final byte[] iv, final SecretKey hp, final int keyPhase)
                 throws GeneralSecurityException {
@@ -600,7 +600,7 @@ abstract class QuicCipher {
         private final Cipher cipher;
         private final byte[] iv;
 
-        T13CC20P1305WriteCipher(final CipherSuite cipherSuite,
+        T13CC20P1305WriteCipher(final QuicCipherSuite cipherSuite,
                                 final SecretKey baseSecret, final SecretKey key,
                                 final byte[] iv, final SecretKey hp,
                                 final int keyPhase)
