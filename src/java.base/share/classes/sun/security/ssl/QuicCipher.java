@@ -404,7 +404,7 @@ abstract class QuicCipher {
                     throw e;
                 } catch (Exception e) {
                     throw new QuicTransportException("Decryption failed",
-                            null, 0, BASE_CRYPTO_ERROR + Alert.INTERNAL_ERROR.id, e);
+                            null, 0, QuicTransportErrors.INTERNAL_ERROR.code(), e);
                 }
             }
         }
@@ -472,7 +472,7 @@ abstract class QuicCipher {
                     throw e;
                 } catch (Exception e) {
                     throw new QuicTransportException("Encryption failed",
-                            null, 0, BASE_CRYPTO_ERROR + Alert.INTERNAL_ERROR.id, e);
+                            null, 0, QuicTransportErrors.INTERNAL_ERROR.code(), e);
                 }
             }
         }
@@ -515,7 +515,7 @@ abstract class QuicCipher {
                 return output;
             } catch (Exception e) {
                 throw new QuicTransportException("Encryption failed",
-                        null, 0, BASE_CRYPTO_ERROR + Alert.INTERNAL_ERROR.id, e);
+                        null, 0, QuicTransportErrors.INTERNAL_ERROR.code(), e);
             }
         }
     }
@@ -565,7 +565,7 @@ abstract class QuicCipher {
                     throw e;
                 } catch (Exception e) {
                     throw new QuicTransportException("Decryption failed",
-                            null, 0, BASE_CRYPTO_ERROR + Alert.INTERNAL_ERROR.id, e);
+                            null, 0, QuicTransportErrors.INTERNAL_ERROR.code(), e);
                 }
             }
         }
@@ -635,7 +635,7 @@ abstract class QuicCipher {
                     throw e;
                 } catch (Exception e) {
                     throw new QuicTransportException("Encryption failed",
-                            null, 0, BASE_CRYPTO_ERROR + Alert.INTERNAL_ERROR.id, e);
+                            null, 0, QuicTransportErrors.INTERNAL_ERROR.code(), e);
                 }
             }
         }
@@ -692,7 +692,7 @@ abstract class QuicCipher {
                 return ByteBuffer.wrap(output);
             } catch (Exception e) {
                 throw new QuicTransportException("Encryption failed",
-                        null, 0, BASE_CRYPTO_ERROR + Alert.INTERNAL_ERROR.id, e);
+                        null, 0, QuicTransportErrors.INTERNAL_ERROR.code(), e);
             }
         }
     }
