@@ -77,7 +77,3 @@ uint ShenandoahWorkerPolicy::calc_workers_for_conc_reset() {
 uint ShenandoahWorkerPolicy::calc_workers_for_conc_cleanup() {
   return ConcGCThreads;
 }
-
-uint ShenandoahWorkerPolicy::calc_workers_for_final_verify() {
-  return ParallelGCThreads;
-}

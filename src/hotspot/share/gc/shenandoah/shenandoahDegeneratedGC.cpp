@@ -346,6 +346,9 @@ void ShenandoahDegenGC::op_finish_mark() {
 
 void ShenandoahDegenGC::op_prepare_evacuation() {
   ShenandoahHeap* const heap = ShenandoahHeap::heap();
+  if (ShenandoahVerify) {
+    heap->verifier()->verify_roots_no_forwarded(_generation);
+  }
 
   // STW cleanup weak roots and unload classes
   heap->parallel_cleaning(_generation, false /*full gc*/);
@@ -364,8 +367,24 @@ void ShenandoahDegenGC::op_prepare_evacuation() {
   }
 
   if (!heap->collection_set()->is_empty()) {
+    if (ShenandoahVerify) {
+      heap->verifier()->verify_before_evacuation(_generation);
+    }
+
     heap->set_evacuation_in_progress(true);
     heap->set_has_forwarded_objects(true);
+  } else {
+    if (ShenandoahVerify) {
+      if (has_in_place_promotions(heap)) {
+        heap->verifier()->verify_after_concmark_with_promotions(_generation);
+      } else {
+        heap->verifier()->verify_after_concmark(_generation);
+      }
+    }
+
+    if (VerifyAfterGC) {
+      Universe::verify();
+    }
   }
 }
 
@@ -405,6 +424,15 @@ void ShenandoahDegenGC::op_update_roots() {
   update_roots(false /*full_gc*/);
 
   heap->update_heap_region_states(false /*concurrent*/);
+
+  if (ShenandoahVerify) {
+    heap->verifier()->verify_after_update_refs(_generation);
+  }
+
+  if (VerifyAfterGC) {
+    Universe::verify();
+  }
+
   heap->rebuild_free_set(false /*concurrent*/);
 }
 

@@ -403,15 +403,9 @@ void ShenandoahConcurrentGC::entry_final_update_refs() {
 }
 
 void ShenandoahConcurrentGC::entry_final_verify() {
-  ShenandoahHeap* const heap = ShenandoahHeap::heap();
-
   const char* msg = verify_final_event_message();
   ShenandoahPausePhase gc_phase(msg, ShenandoahPhaseTimings::final_verify);
   EventMark em("%s", msg);
-
-  ShenandoahWorkerScope scope(heap->workers(),
-                              ShenandoahWorkerPolicy::calc_workers_for_final_verify(),
-                              msg);
 
   op_verify_final();
 }
