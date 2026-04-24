@@ -46,7 +46,6 @@ import jdk.internal.net.quic.QuicTransportException;
 import sun.security.util.KeyUtil;
 
 import static jdk.internal.net.quic.QuicTLSEngine.KeySpace.ONE_RTT;
-import static sun.security.ssl.QuicTLSEngineImpl.BASE_CRYPTO_ERROR;
 
 abstract class QuicCipher {
     private static final String

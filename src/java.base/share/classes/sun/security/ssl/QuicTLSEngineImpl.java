@@ -333,7 +333,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, QuicTransport {
             throw e;
         } catch (Exception e) {
             throw new QuicTransportException("Failed to verify packet",
-                    null, 0, BASE_CRYPTO_ERROR + Alert.INTERNAL_ERROR.id, e);
+                    null, 0, QuicTransportErrors.INTERNAL_ERROR.code(), e);
         }
     }
 
