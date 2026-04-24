@@ -37,13 +37,6 @@ bool Segment::is_relevant() {
     return length > 0 && file_length > 0;
 }
 
-bool Segment::conflict(Segment* seg) {
-    return this->contains(seg->start())
-        || this->contains(seg->end())
-        || seg->contains(this->start())
-        || seg->contains(this->end());
-}
-
 /**
  * Adjust by moving (adding to) the start vaddr, shortening the segment.
  */
