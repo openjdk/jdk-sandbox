@@ -67,6 +67,9 @@ public:
 
   // Calculate workers for concurrent cleanup
   static uint calc_workers_for_conc_cleanup();
+
+  // Calculate workers for final verify
+  static uint calc_workers_for_final_verify();
 };
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHWORKERPOLICY_HPP
