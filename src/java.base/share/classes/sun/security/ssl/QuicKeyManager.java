@@ -25,7 +25,6 @@
 package sun.security.ssl;
 
 import java.io.IOException;
-import java.io.UncheckedIOException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
@@ -208,7 +207,7 @@ sealed abstract class QuicKeyManager
 
     private static byte[] createHkdfInfo(final String label, final int length) {
         final byte[] tls13Label =
-                ("tls13 " + label).getBytes(StandardCharsets.UTF_8);
+                ("tls13 " + label).getBytes(StandardCharsets.ISO_8859_1);
         return createHkdfInfo(tls13Label, length);
     }
 
@@ -216,14 +215,12 @@ sealed abstract class QuicKeyManager
             final int length) {
         final byte[] info = new byte[4 + tls13Label.length];
         final ByteBuffer m = ByteBuffer.wrap(info);
-        try {
-            Record.putInt16(m, length);
-            Record.putBytes8(m, tls13Label);
-            Record.putInt8(m, 0x00); // zero-length context
-        } catch (IOException ioe) {
-            // unlikely
-            throw new UncheckedIOException("Unexpected exception", ioe);
-        }
+        m.putShort((short) length);
+        assert tls13Label.length < 256;
+        m.put((byte)tls13Label.length);
+        m.put(tls13Label);
+        m.put((byte)0); // zero-length context
+        assert !m.hasRemaining();
         return info;
     }
 
