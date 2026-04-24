@@ -1033,7 +1033,7 @@ sealed abstract class QuicKeyManager
                 Objects.requireNonNull(label);
                 this.label = label;
                 this.tls13LabelBytes =
-                        ("tls13 " + label).getBytes(StandardCharsets.UTF_8);
+                        ("tls13 " + label).getBytes(StandardCharsets.ISO_8859_1);
             }
 
             private static HkdfLabel fromLabel(final String label) {
