@@ -2727,9 +2727,18 @@ bool ShenandoahFreeSet::recycle_fwt_region(ShenandoahHeapRegion* r,
   assert(_partitions.membership(i) == ShenandoahFreeSetPartitionId::NotFree,
          "Cset region must not already be in a free partition");
 
-#ifdef KELVIN_FWT
-  log_info(gc)("recycle_fwt_region(%zu)", i);
+  {
+    HeapWord* top = r->top();
+#ifdef ASSERT
+    HeapWord* bottom = r->bottom();
+    ShenandoahMarkingContext* ctx = _heap->marking_context();
+    HeapWord* tams = ctx->top_at_mark_start(r);
+    size_t above_tams = pointer_delta(top, MAX2(tams, bottom));
+    assert(above_tams == 0, "FWT region %zu has above_tams_words=%zu", i, above_tams);
 #endif
+    log_info(gc)("FWT recycle region %zu: top=" PTR_FORMAT " fwt_start=" PTR_FORMAT,
+                 i, p2i(top), p2i(r->forwarding_table_start()));
+  }
 
   r->make_regular_from_cset();
 
