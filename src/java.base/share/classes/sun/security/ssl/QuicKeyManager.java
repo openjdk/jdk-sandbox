@@ -177,7 +177,7 @@ sealed abstract class QuicKeyManager
     private static QuicKeys deriveQuicKeys(final QuicVersion quicVersion,
             final CipherSuite cs, final SecretKey traffic_secret)
             throws IOException {
-        final SSLKeyDerivation kd = new QuicTLSKeyDerivation(cs,
+        final QuicTLSKeyDerivation kd = new QuicTLSKeyDerivation(cs,
                 traffic_secret);
         final QuicTLSData tlsData = getQuicData(quicVersion);
         final SecretKey quic_key = kd.deriveKey(tlsData.getTlsKeyLabel());
@@ -190,7 +190,7 @@ sealed abstract class QuicKeyManager
     private static QuicKeys deriveQuicKeys(final QuicVersion quicVersion,
             final CipherSuite cs, final SecretKey traffic_secret,
             final SecretKey quic_hp) throws IOException {
-        final SSLKeyDerivation kd = new QuicTLSKeyDerivation(cs,
+        final QuicTLSKeyDerivation kd = new QuicTLSKeyDerivation(cs,
                 traffic_secret);
         final QuicTLSData tlsData = getQuicData(quicVersion);
         final SecretKey quic_key = kd.deriveKey(tlsData.getTlsKeyLabel());
@@ -892,7 +892,7 @@ sealed abstract class QuicKeyManager
         private static QuicWriteCipher generateNextWriteCipher(
                 final QuicVersion quicVersion, final QuicWriteCipher current)
                 throws IOException, GeneralSecurityException {
-            final SSLKeyDerivation kd =
+            final QuicTLSKeyDerivation kd =
                     new QuicTLSKeyDerivation(current.getCipherSuite(),
                             current.getBaseSecret());
             final QuicTLSData tlsData = QuicKeyManager.getQuicData(quicVersion);
@@ -914,7 +914,7 @@ sealed abstract class QuicKeyManager
         private static QuicReadCipher generateNextReadCipher(
                 final QuicVersion quicVersion, final QuicReadCipher current)
                 throws IOException, GeneralSecurityException {
-            final SSLKeyDerivation kd =
+            final QuicTLSKeyDerivation kd =
                     new QuicTLSKeyDerivation(current.getCipherSuite(),
                             current.getBaseSecret());
             final QuicTLSData tlsData = QuicKeyManager.getQuicData(quicVersion);
@@ -1011,8 +1011,7 @@ sealed abstract class QuicKeyManager
         }
     }
 
-    private static final class QuicTLSKeyDerivation
-            implements SSLKeyDerivation {
+    private static final class QuicTLSKeyDerivation {
 
         private enum HkdfLabel {
             // RFC 9001: quic version 1
@@ -1058,7 +1057,6 @@ sealed abstract class QuicKeyManager
             this.secret = Objects.requireNonNull(secret);
         }
 
-        @Override
         public SecretKey deriveKey(final String algorithm) throws IOException {
             final HkdfLabel hkdfLabel = HkdfLabel.fromLabel(algorithm);
             try {
@@ -1075,7 +1073,6 @@ sealed abstract class QuicKeyManager
             }
         }
 
-        @Override
         public byte[] deriveData(final String algorithm) throws IOException {
             final HkdfLabel hkdfLabel = HkdfLabel.fromLabel(algorithm);
             try {
