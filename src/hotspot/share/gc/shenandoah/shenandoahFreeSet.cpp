@@ -1731,6 +1731,9 @@ HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, Shenandoah
     }
   }
 
+  // Account FWT sentinels in req.waste().
+  HeapWord* const old_top = r->top();
+
   // req.size() is in words, r->free() is in bytes.
   if (req.is_lab_alloc()) {
     size_t adjusted_size = req.size();
@@ -1753,6 +1756,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, Shenandoah
         result = allocate_aligned_plab(adjusted_size, req, r);
         assert(result != nullptr, "allocate must succeed");
         req.set_actual_size(adjusted_size);
+        // No sentinel skip waste in OldCollector regions.
       } else {
         // Otherwise, leave result == nullptr because the adjusted size is smaller than min size.
         log_trace(gc, free)("Failed to shrink PLAB request (%zu) in region %zu to %zu"
@@ -1769,6 +1773,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, Shenandoah
         result = r->allocate(adjusted_size, req);
         assert (result != nullptr, "Allocation must succeed: free %zu, actual %zu", free, adjusted_size);
         req.set_actual_size(adjusted_size);
+        req.set_waste(req.waste() + pointer_delta(r->top(), old_top) - adjusted_size);
       } else {
         log_trace(gc, free)("Failed to shrink TLAB or GCLAB request (%zu) in region %zu to %zu"
                             " because min_size() is %zu", req.size(), r->index(), adjusted_size, req.min_size());
@@ -1778,8 +1783,8 @@ HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, Shenandoah
     size_t size = req.size();
     result = r->allocate(size, req);
     if (result != nullptr) {
-      // Record actual allocation size
       req.set_actual_size(size);
+      req.set_waste(req.waste() + pointer_delta(r->top(), old_top) - size);
     }
   }
 
@@ -1787,7 +1792,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, Shenandoah
     // Allocation successful, bump stats:
     if (req.is_mutator_alloc()) {
       assert(req.is_young(), "Mutator allocations always come from young generation.");
-      _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, req.actual_size() * HeapWordSize);
+      _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, (req.actual_size() + req.waste()) * HeapWordSize);
       increase_bytes_allocated(req.actual_size() * HeapWordSize);
     } else {
       assert(req.is_gc_alloc(), "Should be gc_alloc since req wasn't mutator alloc");
