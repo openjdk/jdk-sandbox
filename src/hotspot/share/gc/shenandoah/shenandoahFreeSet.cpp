@@ -1771,9 +1771,13 @@ HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, Shenandoah
       }
       if (adjusted_size >= req.min_size()) {
         result = r->allocate(adjusted_size, req);
-        assert (result != nullptr, "Allocation must succeed: free %zu, actual %zu", free, adjusted_size);
-        req.set_actual_size(adjusted_size);
-        req.set_waste(req.waste() + pointer_delta(r->top(), old_top) - adjusted_size);
+        // In FWT regions we skip sentinenls.
+        assert(result != nullptr || r->forwarding_table_start() != nullptr,
+               "Allocation must succeed: free %zu, actual %zu", free, adjusted_size);
+        if (result != nullptr) {
+          req.set_actual_size(adjusted_size);
+          req.set_waste(req.waste() + pointer_delta(r->top(), old_top) - adjusted_size);
+        }
       } else {
         log_trace(gc, free)("Failed to shrink TLAB or GCLAB request (%zu) in region %zu to %zu"
                             " because min_size() is %zu", req.size(), r->index(), adjusted_size, req.min_size());
@@ -2891,26 +2895,17 @@ void ShenandoahFreeSet::account_fwt_tails() {
   for (size_t i = 0; i < _heap->num_regions(); i++) {
     ShenandoahHeapRegion* r = _heap->get_region(i);
     if (cset->use_forward_table(r)) {
-      assert(_partitions.membership(i) == ShenandoahFreeSetPartitionId::Mutator,
-             "When FWT is released, the region must already be in Mutator partition");
       size_t tail = r->fwt_tail_bytes();
-      size_t originally_available = region_size_bytes = tail;
+      size_t originally_available = region_size_bytes - tail;
       if (originally_available >= PLAB::min_size() * HeapWordSize) {
-	// This region was recycled early.  We'll recycle the rest of it now.
-	_partitions.decrease_used(ShenandoahFreeSetPartitionId::Mutator, tail);
-	released_bytes += tail;
+        // Adjust only if the region is still in Mutator (not yet retired, not a small tail).
+        if (_partitions.membership(i) == ShenandoahFreeSetPartitionId::Mutator) {
+	  _partitions.decrease_used(ShenandoahFreeSetPartitionId::Mutator, tail);
+	  released_bytes += tail;
 #ifdef KELVIN_END_OF_GC
-	log_info(gc)("acount_fwt_tails() for recycled region %zu is decreasing mutator used by %zu", r->index(), tail);
+	  log_info(gc)("account_fwt_tails() for recycled region %zu is decreasing mutator used by %zu", r->index(), tail);
 #endif
-      } else {
-	// This region was not recycled early because the remnant memory after forward table was smaller than PLAB::min_size()
-	// We had previously counted the entire region as used.  Now, none of it is used.
-	_partitions.decrease_used(ShenandoahFreeSetPartitionId::Mutator, region_size_bytes);
-	released_bytes += region_size_bytes;
-#ifdef KELVIN_END_OF_GC
-	log_info(gc)("acount_fwt_tails() for unrecycled region %zu is decreasing mutator used by %zu",
-		     r->index(), region_size_bytes);
-#endif
+        }
       }
       released_regions++;
     }
