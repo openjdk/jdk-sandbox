@@ -1108,7 +1108,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   if (_obj == rscratch2) {
     tmp2 = select_temp_register(tmp2_live);
     if (tmp2_live) {
-      __ push(tmp2);
+      __ push(RegSet::of(tmp2), sp);
     }
   }
   assert_different_registers(tmp1, tmp2, _obj, _addr.base(), _addr.index());
@@ -1135,7 +1135,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
 
   // Fast-path exits here.
   if (tmp2_live) {
-    __ pop(tmp2);
+    __ pop(RegSet::of(tmp2), sp);
   }
   if (L_done != nullptr) {
     __ b(*L_done);
@@ -1202,7 +1202,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
     if (tmp2 == _obj) {
       tmp2 = select_temp_register(tmp2_live);
       if (tmp2_live) {
-        __ push(tmp2);
+        __ push(RegSet::of(tmp2), sp);
       }
     }
     assert_different_registers(tmp, tmp2, _obj, _addr.base(), _addr.index());
@@ -1213,7 +1213,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
   __ mov(tmp, ShenandoahHeap::in_cset_fast_test_addr());
   __ add(tmp, tmp, tmp2, Assembler::LSR, ShenandoahHeapRegion::region_size_bytes_shift_jint());
   if (tmp2_live) {
-    __ pop(tmp2);
+    __ pop(RegSet::of(tmp2), sp);
   }
   __ ldrb(tmp, Address(tmp, 0));
   __ cbz(tmp, *L_done);
