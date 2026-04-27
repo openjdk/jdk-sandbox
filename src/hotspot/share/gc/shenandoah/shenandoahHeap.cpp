@@ -794,6 +794,8 @@ bool ShenandoahHeap::is_in(const void* p) const {
     if (!_collection_set->use_forward_table(r)) {
       return false;
     }
+    // Partially recycled FWT region.
+    return true;
   }
 
   if (r->is_active()) {
