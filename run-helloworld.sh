@@ -63,5 +63,9 @@ echo "LBE: All barriers"
 run_with $J_LBE $OPTS_ALL
 
 echo
-echo "LBE: All barriers, no barrier elision"
-run_with $J_LBE $OPTS_ALL -XX:-ShenandoahElideBarriers
+echo "LBE: All barriers, no dominated barrier elision"
+run_with $J_LBE $OPTS_ALL -XX:-ShenandoahElideDominatedBarriers
+
+echo
+echo "LBE: All barriers, no barrier elision at all"
+run_with $J_LBE $OPTS_ALL -XX:-ShenandoahElideDominatedBarriers -XX:-ShenandoahElideBarriers

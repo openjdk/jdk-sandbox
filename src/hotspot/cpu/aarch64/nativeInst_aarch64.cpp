@@ -211,7 +211,6 @@ void NativeMovRegMem::verify() {
 
 void NativeJump::verify() { ; }
 
-
 void NativeJump::insert(address code_pos, address entry) {
   // Dispacement is relative to the jump instruction PC
   intptr_t disp = (intptr_t)entry - ((intptr_t)code_pos);

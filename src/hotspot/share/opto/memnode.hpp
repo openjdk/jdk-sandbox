@@ -103,15 +103,15 @@ public:
   // Helpers for the optimizer.  Documented in memnode.cpp.
   static bool detect_ptr_independence(Node* p1, AllocateNode* a1,
                                       Node* p2, AllocateNode* a2,
-                                      PhaseTransform* phase);
+                                      PhaseGVN* phase);
   static bool adr_phi_is_loop_invariant(Node* adr_phi, Node* cast);
 
   static Node *optimize_simple_memory_chain(Node *mchain, const TypeOopPtr *t_oop, Node *load, PhaseGVN *phase);
   static Node *optimize_memory_chain(Node *mchain, const TypePtr *t_adr, Node *load, PhaseGVN *phase);
   // The following two should probably be phase-specific functions:
-  static DomResult maybe_all_controls_dominate(Node* dom, Node* sub);
-  static bool all_controls_dominate(Node* dom, Node* sub) {
-    DomResult dom_result = maybe_all_controls_dominate(dom, sub);
+  static DomResult maybe_all_controls_dominate(Node* dom, Node* sub, PhaseGVN* phase);
+  static bool all_controls_dominate(Node* dom, Node* sub, PhaseGVN* phase) {
+    DomResult dom_result = maybe_all_controls_dominate(dom, sub, phase);
     return dom_result == DomResult::Dominate;
   }
 
@@ -131,8 +131,6 @@ public:
 
   // Return the barrier data of n, if available, or 0 otherwise.
   static uint8_t barrier_data(const Node* n);
-
-  static MemOrd memory_order(const Node* n);
 
   // Map a load or store opcode to its corresponding store opcode.
   // (Return -1 if unknown.)
@@ -158,7 +156,7 @@ public:
   // Search through memory states which precede this node (load or store).
   // Look for an exact match for the address, with no intervening
   // aliased stores.
-  Node* find_previous_store(PhaseValues* phase);
+  Node* find_previous_store(PhaseGVN* phase);
 
   // Can this node (load or store) accurately see a stored value in
   // the given memory state?  (The state may or may not be in(Memory).)
@@ -188,7 +186,7 @@ public:
 // Analyze a MemNode to try to prove that it is independent from other memory accesses
 class AccessAnalyzer : StackObj {
 private:
-  PhaseValues* const _phase;
+  PhaseGVN* const _phase;
   MemNode* const _n;
   Node* _base;
   intptr_t _offset;
@@ -199,7 +197,7 @@ private:
   int _alias_idx;
 
 public:
-  AccessAnalyzer(PhaseValues* phase, MemNode* n);
+  AccessAnalyzer(PhaseGVN* phase, MemNode* n);
 
   // The result of deciding whether a memory node 'other' writes into the memory which '_n'
   // observes.
@@ -283,9 +281,6 @@ public:
   inline bool is_unsigned() const {
     int lop = Opcode();
     return (lop == Op_LoadUB) || (lop == Op_LoadUS);
-  }
-  inline MemOrd memory_order() const {
-    return _mo;
   }
 
   // Polymorphic factory method:
@@ -658,9 +653,7 @@ public:
     assert((_mo == unordered || _mo == release), "unexpected");
     return _mo == release;
   }
-  inline MemOrd memory_order() const {
-    return _mo;
-  }
+
   // Conservatively release stores of object references in order to
   // ensure visibility of object initialization.
   static inline MemOrd release_if_reference(const BasicType t) {

@@ -37,38 +37,55 @@ JRT_LEAF(void, ShenandoahRuntime::arraycopy_barrier_narrow_oop(narrowOop* src, n
   ShenandoahBarrierSet::barrier_set()->arraycopy_barrier(src, dst, length);
 JRT_END
 
-JRT_LEAF(void, ShenandoahRuntime::write_barrier_pre(oopDesc* orig))
-  assert(orig != nullptr, "should be optimized out");
-  shenandoah_assert_correct(nullptr, orig);
-  // Capture the original value that was in the field reference.
-  JavaThread* thread = JavaThread::current();
-  assert(ShenandoahThreadLocalData::satb_mark_queue(thread).is_active(), "Shouldn't be here otherwise");
-  SATBMarkQueue& queue = ShenandoahThreadLocalData::satb_mark_queue(thread);
-  ShenandoahBarrierSet::satb_mark_queue_set().enqueue_known_active(queue, orig);
+JRT_LEAF(void, ShenandoahRuntime::write_barrier_pre(oopDesc* obj))
+  ShenandoahBarrierSet::barrier_set()->enqueue(obj, /* filter = */ false);
+JRT_END
+
+JRT_LEAF(void, ShenandoahRuntime::write_barrier_pre_narrow(narrowOop nobj))
+  oop obj = CompressedOops::decode(nobj);
+  ShenandoahBarrierSet::barrier_set()->enqueue(obj, /* filter = */ false);
 JRT_END
 
 JRT_LEAF(oopDesc*, ShenandoahRuntime::load_reference_barrier_strong(oopDesc* src, oop* load_addr))
-  return ShenandoahBarrierSet::barrier_set()->load_reference_barrier_mutator(src, load_addr);
+  return ShenandoahBarrierSet::barrier_set()->load_reference_barrier_mutator<ON_STRONG_OOP_REF, oop>(src, load_addr);
 JRT_END
 
 JRT_LEAF(oopDesc*, ShenandoahRuntime::load_reference_barrier_strong_narrow(oopDesc* src, narrowOop* load_addr))
-  return ShenandoahBarrierSet::barrier_set()->load_reference_barrier_mutator(src, load_addr);
+  return ShenandoahBarrierSet::barrier_set()->load_reference_barrier_mutator<ON_STRONG_OOP_REF, narrowOop>(src, load_addr);
+JRT_END
+
+JRT_LEAF(narrowOop, ShenandoahRuntime::load_reference_barrier_strong_narrow_narrow(narrowOop src, narrowOop* load_addr))
+  oop s = CompressedOops::decode(src);
+  oop r = ShenandoahBarrierSet::barrier_set()->load_reference_barrier_mutator<ON_STRONG_OOP_REF, narrowOop>(s, load_addr);
+  return CompressedOops::encode(r);
 JRT_END
 
 JRT_LEAF(oopDesc*, ShenandoahRuntime::load_reference_barrier_weak(oopDesc* src, oop* load_addr))
-  return (oopDesc*) ShenandoahBarrierSet::barrier_set()->load_reference_barrier<oop>(ON_WEAK_OOP_REF, oop(src), load_addr);
+  return ShenandoahBarrierSet::barrier_set()->load_reference_barrier_mutator<ON_WEAK_OOP_REF, oop>(src, load_addr);
 JRT_END
 
 JRT_LEAF(oopDesc*, ShenandoahRuntime::load_reference_barrier_weak_narrow(oopDesc* src, narrowOop* load_addr))
-  return (oopDesc*) ShenandoahBarrierSet::barrier_set()->load_reference_barrier<narrowOop>(ON_WEAK_OOP_REF, oop(src), load_addr);
+  return ShenandoahBarrierSet::barrier_set()->load_reference_barrier_mutator<ON_WEAK_OOP_REF, narrowOop>(src, load_addr);
+JRT_END
+
+JRT_LEAF(narrowOop, ShenandoahRuntime::load_reference_barrier_weak_narrow_narrow(narrowOop src, narrowOop* load_addr))
+  oop s = CompressedOops::decode(src);
+  oop r = ShenandoahBarrierSet::barrier_set()->load_reference_barrier_mutator<ON_WEAK_OOP_REF, narrowOop>(s, load_addr);
+  return CompressedOops::encode(r);
 JRT_END
 
 JRT_LEAF(oopDesc*, ShenandoahRuntime::load_reference_barrier_phantom(oopDesc* src, oop* load_addr))
-  return (oopDesc*) ShenandoahBarrierSet::barrier_set()->load_reference_barrier<oop>(ON_PHANTOM_OOP_REF, oop(src), load_addr);
+  return ShenandoahBarrierSet::barrier_set()->load_reference_barrier_mutator<ON_PHANTOM_OOP_REF, oop>(src, load_addr);
 JRT_END
 
 JRT_LEAF(oopDesc*, ShenandoahRuntime::load_reference_barrier_phantom_narrow(oopDesc* src, narrowOop* load_addr))
-  return (oopDesc*) ShenandoahBarrierSet::barrier_set()->load_reference_barrier<narrowOop>(ON_PHANTOM_OOP_REF, oop(src), load_addr);
+  return ShenandoahBarrierSet::barrier_set()->load_reference_barrier_mutator<ON_PHANTOM_OOP_REF, narrowOop>(src, load_addr);
+JRT_END
+
+JRT_LEAF(narrowOop, ShenandoahRuntime::load_reference_barrier_phantom_narrow_narrow(narrowOop src, narrowOop* load_addr))
+  oop s = CompressedOops::decode(src);
+  oop r = ShenandoahBarrierSet::barrier_set()->load_reference_barrier_mutator<ON_PHANTOM_OOP_REF, narrowOop>(s, load_addr);
+  return CompressedOops::encode(r);
 JRT_END
 
 JRT_LEAF(void, ShenandoahRuntime::clone(oopDesc* src, oopDesc* dst, size_t size))

@@ -786,16 +786,6 @@ void ShenandoahBarrierSetAssembler::generate_c1_load_reference_barrier_runtime_s
 
 #ifdef COMPILER2
 
-static bool needs_acquiring_load_reserved(const MachNode* n) {
-  assert(n->is_CAS(true), "expecting a compare and swap");
-  if (n->is_CAS(false)) {
-    assert(n->has_trailing_membar(), "expected trailing membar");
-  } else {
-    return n->has_trailing_membar();
-  }
-  return true;
-}
-
 #undef __
 #define __ masm.
 
@@ -816,34 +806,16 @@ void ShenandoahBarrierStubC2::pop_save_register(MacroAssembler& masm, Register r
   __ ld(reg, Address(sp, pop_save_slot()));
 }
 
-bool ShenandoahBarrierStubC2::has_live_vector_registers() {
-  // TODO: Implement; currently assumes vector registers.
-  return true;
-}
-
-bool ShenandoahBarrierStubC2::is_live(Register reg) {
-  // TODO: Precompute the generic register map for faster lookups.
-  RegMaskIterator rmi(preserve_set());
-  while (rmi.has_next()) {
-    const OptoReg::Name opto_reg = rmi.next();
-    const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
-    if (vm_reg->is_Register() && reg == vm_reg->as_Register()) {
-      return true;
-    }
-  }
-  return false;
-}
-
 Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Address addr, Register reg1) {
   Register tmp = noreg;
   Register fallback_live = noreg;
 
   // Try to select non-live first:
-  for (int i = 0; i < Register::available_gp_registers(); i++) {
+  for (int i = 0; i < Register::number_of_registers; i++) {
     Register r = as_Register(i);
     if (r != fp && r != sp &&
         r != xheapbase && r != xthread &&
-        r != t0 && r != t1 &&
+        r != t0 && r != t1 && r != zr &&
         r != reg1 && r != addr.base() && r != addr.index()) {
       if (!is_live(r)) {
         tmp = r;
@@ -901,8 +873,8 @@ void ShenandoahBarrierSetAssembler::patch_nop_to_branch(address pc, address stub
 #define __ masm->
 
 void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr,
-    Register oldval, Register newval, Register tmp, bool exchange, bool maybe_null, bool narrow, bool weak) {
-  const Assembler::Aqrl acquire = needs_acquiring_load_reserved(node) ? Assembler::aq : Assembler::relaxed;
+    Register oldval, Register newval, Register tmp, bool exchange, bool maybe_null, bool narrow, bool weak, bool is_acquire) {
+  const Assembler::Aqrl acquire = is_acquire ? Assembler::aq : Assembler::relaxed;
   const Assembler::Aqrl release = Assembler::rl;
 
   // Pre-barrier covers several things:
@@ -932,8 +904,7 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
 }
 
 void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval,
-    Register newval, Register addr, Register tmp) {
-  const bool acquire = needs_acquiring_load_reserved(node);
+    Register newval, Register addr, Register tmp, bool is_acquire) {
   const bool narrow = node->bottom_type()->isa_narrowoop();
 
   // Pre-barrier covers several things:
@@ -952,13 +923,13 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
   }
 
   if (narrow) {
-    if (acquire) {
-      __ atomic_xchgalw(preval, newval, addr);
+    if (is_acquire) {
+      __ atomic_xchgalwu(preval, newval, addr);
     } else {
-      __ atomic_xchgw(preval, newval, addr);
+      __ atomic_xchgwu(preval, newval, addr);
     }
   } else {
-    if (acquire) {
+    if (is_acquire) {
       __ atomic_xchgal(preval, newval, addr);
     } else {
       __ atomic_xchg(preval, newval, addr);
@@ -970,7 +941,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
 }
 
 void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm, Address dst, bool dst_narrow,
-    Register src, bool src_narrow, Register tmp) {
+    Register src, bool src_narrow, Register tmp, bool is_volatile) {
 
   // Pre-barrier: SATB / keep-alive on current value in memory.
   if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
@@ -980,16 +951,15 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   }
 
   // Do the actual store
-  const bool is_volatile = node->has_trailing_membar();
   if (dst_narrow) {
     Register actual_src = src;
     if (!src_narrow) {
       assert(tmp != noreg, "need temp register");
       __ mv(tmp, src);
       if (ShenandoahBarrierStubC2::maybe_null(node)) {
-        __ encode_heap_oop_not_null(tmp, tmp);
-      } else {
         __ encode_heap_oop(tmp, tmp);
+      } else {
+        __ encode_heap_oop_not_null(tmp, tmp);
       }
       actual_src = tmp;
     }
@@ -1013,19 +983,18 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   card_barrier_c2(node, masm, dst);
 }
 
-void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src) {
-  const bool acquire = node->memory_order() == MemNode::MemOrd::acquire;
+void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src, bool is_acquire) {
   const bool narrow = node->bottom_type()->isa_narrowoop();
 
   // Do the actual load. This load is the candidate for implicit null check, and MUST come first.
   if (narrow) {
     __ lwu(dst, src);
-    if (acquire) {
+    if (is_acquire) {
       __ membar(MacroAssembler::LoadLoad | MacroAssembler::LoadStore);
     }
   } else {
     __ ld(dst, src);
-    if (acquire) {
+    if (is_acquire) {
       __ membar(MacroAssembler::LoadLoad | MacroAssembler::LoadStore);
     }
   }
@@ -1063,11 +1032,11 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroA
   __ add(t1, t1, t0);
 
   if (UseCondCardMark) {
-    Label already_dirty;
+    Label L_already_dirty;
     __ lbu(t0, Address(t1));
-    __ beqz(t0, already_dirty);
+    __ beqz(t0, L_already_dirty);
     __ sb(zr, Address(t1));
-    __ bind(already_dirty);
+    __ bind(L_already_dirty);
   } else {
     __ sb(zr, Address(t1));
   }
@@ -1077,6 +1046,8 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroA
 #define __ masm.
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
+  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
+
   assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
 
   Label L_done;
@@ -1121,7 +1092,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ j(*continuation());
 }
 
-void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Register tmp1) {
+void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Register tmp1, Label* L_done_unused) {
   Address index(xthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(xthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
   Label L_runtime;
@@ -1176,7 +1147,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Regi
   }
 }
 
-void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address addr, Register tmp) {
+void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address addr, Register tmp, Label* L_done_unused) {
   Label L_done;
 
   // The node doesn't even need LRB barrier, just don't check anything else
@@ -1244,4 +1215,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address ad
   __ bind(L_done);
 }
 
+void ShenandoahBarrierStubC2::post_init(int offset) {
+  // Do nothing.
+}
 #endif // COMPILER2

@@ -153,11 +153,11 @@ public:
   static void patch_nop_to_branch(address pc, address stub_addr);
 
   // Entry points from Matcher
-  void load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address addr);
-  void store_c2(const MachNode* node, MacroAssembler* masm, Address dst, bool dst_narrow, Register src, bool src_narrow);
+  void load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address addr, bool is_narrow, bool is_acquire);
+  void store_c2(const MachNode* node, MacroAssembler* masm, Address dst, bool dst_narrow, Register src, bool src_narrow, bool is_volatile);
   void compare_and_set_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval,
-      Register newval, bool exchange, bool narrow, bool weak);
-  void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr);
+      Register newval, bool exchange, bool narrow, bool weak, bool acquire);
+  void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr, bool acquire);
   void card_barrier_c2(const MachNode* node, MacroAssembler* masm, Address addr);
   virtual void try_resolve_weak_handle_in_c2(MacroAssembler* masm, Register obj, Register tmp, Label& slow_path);
 #endif

@@ -198,6 +198,7 @@ ShenandoahRootAdjuster::ShenandoahRootAdjuster(uint n_workers, ShenandoahPhaseTi
 }
 
 void ShenandoahRootAdjuster::roots_do(uint worker_id, OopClosure* oops) {
+  NMethodToOopClosure code_blob_cl(oops, NMethodToOopClosure::FixRelocations);
   ShenandoahNMethodAndDisarmClosure nmethods_and_disarm_Cl(oops);
   CLDToOopClosure adjust_cld_closure(oops, ClassLoaderData::_claim_strong);
 

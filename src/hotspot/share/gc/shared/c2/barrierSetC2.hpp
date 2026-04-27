@@ -324,7 +324,6 @@ public:
   virtual bool is_gc_pre_barrier_node(Node* node) const { return false; }
   virtual bool is_gc_barrier_node(Node* node) const { return false; }
   virtual Node* step_over_gc_barrier(Node* c) const { return c; }
-  virtual int reserved_slots() const { return 0; }
 
   // Support for macro expanded GC barriers
   virtual void register_potential_barrier_node(Node* node) const { }
@@ -371,7 +370,7 @@ public:
   // Whether the given phi node joins OOPs from fast and slow allocation paths.
   static bool is_allocation(const Node* node);
   // Elide GC barriers from a Mach node according to elide_dominated_barriers().
-  virtual void elide_dominated_barrier(MachNode* mach) const { }
+  virtual void elide_dominated_barrier(MachNode* mach, MachNode* dominator) const { }
   // Elide GC barriers from instructions in 'accesses' if they are dominated by
   // instructions in 'access_dominators' (according to elide_mach_barrier()) and
   // there is no safepoint poll in between.

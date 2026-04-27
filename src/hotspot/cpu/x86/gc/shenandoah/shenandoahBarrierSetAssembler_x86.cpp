@@ -1193,8 +1193,8 @@ void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char
   __ jmp(*entry(), /* maybe_short = */ false);
 
 #ifdef ASSERT
-  Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-  __ testb(gc_state, 0xFF);
+  Address gc_state_fast(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(test_state)));
+  __ cmpb(gc_state_fast, 0);
   __ jccb(Assembler::zero, *continuation());
   __ hlt(); // Correctness bug: barrier is NOP-ed, but heap is NOT IDLE
 #endif
@@ -1253,11 +1253,10 @@ void ShenandoahBarrierSetAssembler::patch_nop_to_branch(address pc, address stub
 }
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
-  assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
+  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
+  __ align(InteriorEntryAlignment);
   __ bind(*entry());
-
-  Label L_done, L_barriers;
 
   // If we need to load ourselves, do it here.
   if (_do_load) {
@@ -1272,283 +1271,202 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   if (_narrow) {
     __ testl(_obj, _obj);
   } else {
-    __ testptr(_obj, _obj);
+    __ testq(_obj, _obj);
   }
-  __ jccb(Assembler::notZero, L_barriers);
+  __ jcc(Assembler::zero, *continuation());
 
-  // Exit here.
-  __ bind(L_done);
-  __ jmp(*continuation());
+  // Go for barriers. Hotpatching disambiguates only between idle/non-idle states,
+  // so we have to check for concrete barrier mode here.
+  Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
 
-  // Barriers start here.
-  __ bind(L_barriers);
-
-  // Barriers need temp to work, allocate one now.
-  bool tmp_live;
-  Register tmp = select_temp_register(tmp_live, _addr, _obj);
-  if (tmp_live) {
-    push_save_register(masm, tmp);
-  }
-
-  // If object is narrow, we need to decode it first: barrier checks need full oops.
-  if (_narrow) {
-    __ decode_heap_oop_not_null(_obj);
-  }
-
-  // Go for barriers. If both barriers are required (rare), do a runtime check for enabled barrier.
   if (_needs_keep_alive_barrier) {
-    keepalive(masm, _obj, tmp);
+    Label L_skip_keepalive;
+    __ testb(gc_state, ShenandoahHeap::MARKING);
+    __ jcc(Assembler::zero, L_skip_keepalive);
+    keepalive(masm, _needs_load_ref_barrier ? nullptr : continuation());
+    __ bind(L_skip_keepalive);
   }
+
   if (_needs_load_ref_barrier) {
-    lrb(masm, _obj, _addr, tmp);
+    __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0));
+    __ jcc(Assembler::zero, *continuation());
+    lrb(masm, continuation());
   }
-
-  if (tmp_live) {
-    pop_save_register(masm, tmp);
-  }
-
-  // If object is narrow, we need to encode it before exiting.
-  // For encoding, dst can only turn null if we are dealing with weak loads.
-  // Otherwise, we have already null-checked. We can skip all this if we performed
-  // the load ourselves, which means the value is not used by caller.
-  if (_narrow && !_do_load) {
-    if (_needs_load_ref_weak_barrier) {
-      __ encode_heap_oop(_obj);
-    } else {
-      __ encode_heap_oop_not_null(_obj);
-    }
-  }
-  __ jmp(L_done);
 }
 
-void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Register obj, Register tmp1) {
+void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
 
-  Label L_fast, L_done;
+  Label L_pop_and_slow;
 
-  // Hotpatched GC checks only care about idle/non-idle state, so we need to check again here.
-  Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-  __ testb(gc_state, ShenandoahHeap::MARKING);
-  __ jccb(Assembler::zero, L_done);
-
-  // Check if buffer is already full. Go slow, if so.
-  __ movptr(tmp1, index);
-  __ testptr(tmp1, tmp1);
-  __ jccb(Assembler::notZero, L_fast);
-
-  // Slow-path: call runtime to handle.
-  {
-    // Shuffle in the arguments. The end result should be:
-    //   c_rarg0 <-- obj
-    //
-    // Save clobbered registers before overwriting them.
-    bool clobbered_c_rarg0 = false;
-    if (c_rarg0 != obj) {
-      clobbered_c_rarg0 = push_save_register_if_live(masm, c_rarg0);
-      __ mov(c_rarg0, obj);
-    }
-
-    // Go to runtime stub and handle the rest there.
-    __ call(RuntimeAddress(keepalive_runtime_entry_addr()));
-
-    // Restore the clobbered registers.
-    if (clobbered_c_rarg0) {
-      pop_save_register(masm, c_rarg0);
-    }
-    __ jmpb(L_done);
+  // Need temp to work, allocate one now.
+  bool tmp_live;
+  Register tmp = select_temp_register(tmp_live);
+  if (tmp_live) {
+    __ push(tmp);
   }
 
   // Fast-path: put object into buffer.
-  __ bind(L_fast);
-  __ subptr(tmp1, wordSize);
-  __ movptr(index, tmp1);
-  __ addptr(tmp1, buffer);
-  __ movptr(Address(tmp1, 0), obj);
+  // If buffer is already full, go slow.
+  __ movptr(tmp, index);
+  __ subptr(tmp, wordSize);
+  __ jccb(Assembler::below, L_pop_and_slow);
+  __ movptr(index, tmp);
+  __ addptr(tmp, buffer);
 
-  __ bind(L_done);
+  // If object is narrow, we need to unpack it before inserting into buffer,
+  // and pack it back. The packing is needed if the caller did the load,
+  // which means it is going to need it. It is also needed when subsequent LRB
+  // would unpack again.
+  if (_narrow) {
+    __ decode_heap_oop_not_null(_obj);
+  }
+  __ movptr(Address(tmp, 0), _obj);
+  if (_narrow && ((L_done == nullptr) || !_do_load)) {
+    __ encode_heap_oop_not_null(_obj);
+  }
+
+  // Fast-path exits here.
+  if (tmp_live) {
+    __ pop(tmp);
+  }
+
+  Label L_fallthrough;
+  if (L_done != nullptr) {
+    __ jmp(*L_done);
+  } else {
+    __ jmp(L_fallthrough);
+  }
+
+  // Slow-path: call runtime to handle.
+  // Need to pop tmp immediately for stack to remain aligned.
+  __ bind(L_pop_and_slow);
+  if (tmp_live) {
+    __ pop(tmp);
+  }
+  {
+    SaveLiveRegisters slr(&masm, this);
+
+    // Shuffle in the arguments. The end result should be:
+    //   c_rarg0 <-- obj
+    if (c_rarg0 != _obj) {
+      __ mov(c_rarg0, _obj);
+    }
+
+    // Go to runtime and handle the rest there.
+    __ call(RuntimeAddress(keepalive_runtime_entry_addr()));
+  }
+  if (L_done != nullptr) {
+    __ jmp(*L_done);
+  } else {
+    __ bind(L_fallthrough);
+  }
 }
 
-void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Register obj, Address addr, Register tmp) {
-  Label L_done, L_slow;
+void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
+  assert(L_done != nullptr, "Must be set");
 
-  // Hotpatched GC checks only care about idle/non-idle state, so we need a check here.
-  Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-  __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0));
-  __ jccb(Assembler::zero, L_done);
+  Label L_pop_and_slow, L_slow;
 
   // If weak references are being processed, weak/phantom loads need to go slow,
-  // regadless of their cset status.
+  // regardless of their cset status.
   if (_needs_load_ref_weak_barrier) {
     Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
     __ testb(gc_state, ShenandoahHeap::WEAK_ROOTS);
     __ jccb(Assembler::notZero, L_slow);
   }
 
+  // Need temp to work, allocate one now.
+  bool tmp_live;
+  Register tmp = select_temp_register(tmp_live);
+  if (tmp_live) {
+    __ push(tmp);
+  }
+
   // Compute the cset bitmap index
-  __ movptr(tmp, obj);
+  if (_narrow) {
+    __ decode_heap_oop_not_null(tmp, _obj);
+  } else {
+    __ movptr(tmp, _obj);
+  }
   __ shrptr(tmp, ShenandoahHeapRegion::region_size_bytes_shift_jint());
 
   // If cset address is in good spot to just use it as offset. It almost always is.
   Address cset_addr_arg;
-  intptr_t cset_addr = (intptr_t) ShenandoahHeap::in_cset_fast_test_addr();
+  intptr_t cset_addr = reinterpret_cast<intptr_t>(ShenandoahHeap::in_cset_fast_test_addr());
   if ((cset_addr >> 3) < INT32_MAX) {
     assert(is_aligned(cset_addr, 8), "Sanity");
     cset_addr_arg = Address(tmp, checked_cast<int>(cset_addr >> 3), Address::times_8);
   } else {
-    __ addptr(tmp, cset_addr);
+    __ addptr(tmp, checked_cast<int32_t>(cset_addr));
     cset_addr_arg = Address(tmp, 0);
   }
 
   // Cset-check. Fall-through to slow if in collection set.
   __ cmpb(cset_addr_arg, 0);
-  __ jccb(Assembler::equal, L_done);
+  if (tmp_live) {
+    __ jccb(Assembler::notEqual, L_pop_and_slow);
+    __ pop(tmp);
+    __ jmp(*L_done);
+  } else {
+    // Nothing else to do, jump back
+    __ jcc(Assembler::equal, *L_done);
+  }
 
   // Slow path
+  __ bind(L_pop_and_slow);
+  // Need to pop tmp immediately for stack to remain aligned.
+  if (tmp_live) {
+    __ pop(tmp);
+  }
   __ bind(L_slow);
+
+  // Obj is the result, need to temporarily stop preserving it.
+  dont_preserve(_obj);
   {
+    SaveLiveRegisters slr(&masm, this);
+
     assert_different_registers(rax, c_rarg0, c_rarg1);
 
     // Shuffle in the arguments. The end result should be:
     //   c_rarg0 <-- obj
     //   c_rarg1 <-- lea(addr)
-    //
-    // Save clobbered registers before overwriting them, unless they
-    // carry obj, which would be overwritten on return.
-    bool clobbered_c_rarg0 = false;
-    bool clobbered_c_rarg1 = false;
-    bool clobbered_rax = false;
-
-    if (obj == c_rarg0) {
-      clobbered_c_rarg1 = push_save_register_if_live(masm, c_rarg1);
-      __ lea(c_rarg1, addr);
-    } else if (obj == c_rarg1) {
+    if (_obj == c_rarg0) {
+      __ lea(c_rarg1, _addr);
+    } else if (_obj == c_rarg1) {
       // Set up arguments in reverse, and then flip them
-      clobbered_c_rarg0 = push_save_register_if_live(masm, c_rarg0);
-      __ lea(c_rarg0, addr);
+      __ lea(c_rarg0, _addr);
       __ xchgptr(c_rarg0, c_rarg1);
     } else {
-      assert_different_registers(obj, c_rarg0, c_rarg1);
-      clobbered_c_rarg0 = push_save_register_if_live(masm, c_rarg0);
-      clobbered_c_rarg1 = push_save_register_if_live(masm, c_rarg1);
-      __ lea(c_rarg1, addr);
-      __ movptr(c_rarg0, obj);
-    }
-    if (obj != rax) {
-      clobbered_rax = push_save_register_if_live(masm, rax);
+      assert_different_registers(_obj, c_rarg0, c_rarg1);
+      __ lea(c_rarg1, _addr);
+      __ movptr(c_rarg0, _obj);
     }
 
-    // Go to runtime stub and handle the rest there.
+    // Go to runtime and handle the rest there.
     __ call(RuntimeAddress(lrb_runtime_entry_addr()));
 
-    // Save the result where needed and restore the clobbered registers.
-    if (obj != rax) {
-      __ movptr(obj, rax);
-    }
-    if (clobbered_rax) {
-      pop_save_register(masm, rax);
-    }
-    if (clobbered_c_rarg1) {
-      pop_save_register(masm, c_rarg1);
-    }
-    if (clobbered_c_rarg0) {
-      pop_save_register(masm, c_rarg0);
+    // Save the result where needed.
+    if (_obj != rax) {
+      __ movptr(_obj, rax);
     }
   }
+  preserve(_obj);
 
-  __ bind(L_done);
+  __ jmp(*L_done);
 }
 
-bool ShenandoahBarrierStubC2::has_live_vector_registers() {
-  RegMaskIterator rmi(preserve_set());
-  while (rmi.has_next()) {
-    const OptoReg::Name opto_reg = rmi.next();
-    const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
-    if (vm_reg->is_Register()) {
-      // Not a vector.
-    } else if (vm_reg->is_KRegister()) {
-      // Definitely vector.
-      return true;
-    } else if (vm_reg->is_XMMRegister()) {
-      // Maybe vector, assume the worst right now.
-      return true;
-    } else {
-      fatal("Unexpected register type");
-    }
-  }
-  return false;
+int ShenandoahBarrierStubC2::available_gp_registers() {
+  return Register::available_gp_registers();
 }
 
-bool ShenandoahBarrierStubC2::is_live(Register reg) {
-  // TODO: Precompute the generic register map for faster lookups.
-  RegMaskIterator rmi(preserve_set());
-  while (rmi.has_next()) {
-    const OptoReg::Name opto_reg = rmi.next();
-    const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
-    if (vm_reg->is_Register()) {
-      if (reg == vm_reg->as_Register()) {
-        return true;
-      }
-    } else if (vm_reg->is_KRegister()) {
-      // Do not care, skip.
-    } else if (vm_reg->is_XMMRegister()) {
-      // Do not care, skip.
-    } else {
-      fatal("Unexpected register type");
-    }
-  }
-  return false;
+bool ShenandoahBarrierStubC2::is_special_register(Register r) {
+  return r == rsp || r == rbp || r == r12_heapbase || r == r15_thread;
 }
 
-bool ShenandoahBarrierStubC2::push_save_register_if_live(MacroAssembler& masm, Register reg) {
-  if (is_live(reg)) {
-    push_save_register(masm, reg);
-    return true;
-  } else {
-    return false;
-  }
+void ShenandoahBarrierStubC2::post_init(int offset) {
+  // Do nothing.
 }
-
-void ShenandoahBarrierStubC2::push_save_register(MacroAssembler& masm, Register reg) {
-  __ movptr(Address(rsp, push_save_slot()), reg);
-}
-
-void ShenandoahBarrierStubC2::pop_save_register(MacroAssembler& masm, Register reg) {
-  __ movptr(reg, Address(rsp, pop_save_slot()));
-}
-
-Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Address addr, Register reg1) {
-  Register tmp = noreg;
-  Register fallback_live = noreg;
-
-  // Try to select non-live first:
-  for (int i = 0; i < Register::available_gp_registers(); i++) {
-    Register r = as_Register(i);
-    if (r != rsp && r != rbp && r != r12_heapbase && r != r15_thread &&
-        r != reg1 && r != addr.base() && r != addr.index()) {
-      if (!is_live(r)) {
-        tmp = r;
-        break;
-      } else if (fallback_live == noreg) {
-        fallback_live = r;
-      }
-    }
-  }
-
-  // If we could not find a non-live register, select the live fallback:
-  if (tmp == noreg) {
-    tmp = fallback_live;
-    selected_live = true;
-  } else {
-    selected_live = false;
-  }
-
-  assert(tmp != noreg, "successfully selected");
-  assert_different_registers(tmp, reg1);
-  assert_different_registers(tmp, addr.base());
-  assert_different_registers(tmp, addr.index());
-  return tmp;
-}
-
 #undef __
 #endif

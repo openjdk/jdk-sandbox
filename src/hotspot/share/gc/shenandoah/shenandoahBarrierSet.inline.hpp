@@ -56,16 +56,49 @@ inline oop ShenandoahBarrierSet::resolve_forwarded(oop p) {
   }
 }
 
-inline oop ShenandoahBarrierSet::resolve_forwarded_not_null_mutator(oop p) {
-  return ShenandoahForwarding::get_forwardee_mutator(p);
-}
-
-template <class T>
+template <DecoratorSet decorators, class T>
 inline oop ShenandoahBarrierSet::load_reference_barrier_mutator(oop obj, T* load_addr) {
-  assert(ShenandoahLoadRefBarrier, "should be enabled");
-  shenandoah_assert_in_cset(load_addr, obj);
+  assert(ShenandoahLoadRefBarrier, "Should be enabled");
 
-  oop fwd = resolve_forwarded_not_null_mutator(obj);
+  constexpr bool on_weak    = HasDecorator<decorators, ON_WEAK_OOP_REF>::value;
+  constexpr bool on_phantom = HasDecorator<decorators, ON_PHANTOM_OOP_REF>::value;
+
+  // Handle nulls. Strong loads filtered nulls with cset checks.
+  // Weak/phantom loads need to check for nulls here.
+  if (on_weak || on_phantom) {
+    if (obj == nullptr) {
+      return nullptr;
+    }
+  } else {
+    assert(obj != nullptr, "Should have been filtered before");
+  }
+
+  // Prevent resurrection of unreachable phantom (i.e. weak-native) references.
+  if (on_phantom &&
+      _heap->is_concurrent_weak_root_in_progress() &&
+      _heap->is_in_active_generation(obj) &&
+      !_heap->marking_context()->is_marked(obj)) {
+    return nullptr;
+  }
+
+  // Prevent resurrection of unreachable weak references.
+  if (on_weak &&
+      _heap->is_concurrent_weak_root_in_progress() &&
+      _heap->is_in_active_generation(obj) &&
+      !_heap->marking_context()->is_marked_strong(obj)) {
+    return nullptr;
+  }
+
+  // Weak/phantom loads need additional cset check.
+  if (on_phantom || on_weak) {
+    if (!_heap->has_forwarded_objects() || !_heap->in_collection_set(obj)) {
+      return obj;
+    }
+  } else {
+    shenandoah_assert_in_cset(load_addr, obj);
+  }
+
+  oop fwd = ShenandoahForwarding::get_forwardee_mutator(obj);
   if (obj == fwd) {
     assert(_heap->is_evacuation_in_progress(), "evac should be in progress");
     Thread* const t = Thread::current();
@@ -137,14 +170,14 @@ inline oop ShenandoahBarrierSet::load_reference_barrier(DecoratorSet decorators,
   return fwd;
 }
 
-inline void ShenandoahBarrierSet::enqueue(oop obj) {
+inline void ShenandoahBarrierSet::enqueue(oop obj, bool filter) {
   assert(obj != nullptr, "checked by caller");
   assert(_satb_mark_queue_set.is_active(), "only get here when SATB active");
 
   // Filter marked objects before hitting the SATB queues. The same predicate would
   // be used by SATBMQ::filter to eliminate already marked objects downstream, but
   // filtering here helps to avoid wasteful SATB queueing work to begin with.
-  if (!_heap->requires_marking(obj)) return;
+  if (filter && !_heap->requires_marking(obj)) return;
 
   SATBMarkQueue& queue = ShenandoahThreadLocalData::satb_mark_queue(Thread::current());
   _satb_mark_queue_set.enqueue_known_active(queue, obj);

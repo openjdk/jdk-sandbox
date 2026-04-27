@@ -59,9 +59,6 @@
 #include "adfiles/ad_riscv.hpp"
 #include "opto/runtime.hpp"
 #endif
-#if INCLUDE_SHENANDOAHGC
-#include "gc/shenandoah/shenandoahRuntime.hpp"
-#endif
 #if INCLUDE_JVMCI
 #include "jvmci/jvmciJavaClasses.hpp"
 #endif
@@ -2785,81 +2782,3 @@ RuntimeStub* SharedRuntime::generate_jfr_return_lease() {
 }
 
 #endif // INCLUDE_JFR
-
-#if INCLUDE_SHENANDOAHGC
-RuntimeStub* SharedRuntime::generate_shenandoah_stub(StubId stub_id) {
-  assert(UseShenandoahGC, "Only generate when Shenandoah is enabled");
-
-  const char* name = SharedRuntime::stub_name(stub_id);
-  address stub_addr = nullptr;
-  bool returns_obj = true;
-
-  switch (stub_id) {
-    case StubId::shared_shenandoah_keepalive_id: {
-      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre);
-      returns_obj = false;
-      break;
-    }
-    case StubId::shared_shenandoah_lrb_strong_id: {
-      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong);
-      break;
-    }
-    case StubId::shared_shenandoah_lrb_weak_id: {
-      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak);
-      break;
-    }
-    case StubId::shared_shenandoah_lrb_phantom_id: {
-      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom);
-      break;
-    }
-    case StubId::shared_shenandoah_lrb_strong_narrow_id: {
-      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow);
-      break;
-    }
-    case StubId::shared_shenandoah_lrb_weak_narrow_id: {
-      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow);
-      break;
-    }
-    case StubId::shared_shenandoah_lrb_phantom_narrow_id: {
-      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow);
-      break;
-    }
-    default:
-      ShouldNotReachHere();
-  }
-
-  CodeBuffer code(name, 2048, 64);
-  MacroAssembler* masm = new MacroAssembler(&code);
-  address start = __ pc();
-
-  int frame_size_in_words;
-  RegisterSaver reg_save(true /* save_vectors */);
-  OopMap* map = reg_save.save_live_registers(masm, 0, &frame_size_in_words);
-  address frame_complete_pc = __ pc();
-
-  // Call the runtime, but keep exact post-call PC for the oop map.
-  int32_t offset = 0;
-  __ movptr(t1, stub_addr, offset, t0);
-  __ jalr(t1, offset);
-  address post_call_pc = __ pc();
-
-  if (returns_obj) {
-    // RegisterSaver would clobber the call result when restoring.
-    // Carry the result out of this stub by overwriting saved x10/a0.
-    __ sd(x10, Address(sp, reg_save.reg_offset_in_bytes(x10)));
-  }
-
-  OopMapSet* oop_maps = new OopMapSet();
-  oop_maps->add_gc_map(post_call_pc - start, map);
-
-  reg_save.restore_live_registers(masm);
-  __ ret();
-
-  return RuntimeStub::new_runtime_stub(name,
-                                       &code,
-                                       frame_complete_pc - start,
-                                       frame_size_in_words,
-                                       oop_maps,
-                                       true);
-}
-#endif

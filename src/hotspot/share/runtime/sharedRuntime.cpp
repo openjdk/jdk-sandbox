@@ -96,9 +96,6 @@
 #if INCLUDE_JFR
 #include "jfr/jfr.inline.hpp"
 #endif
-#if INCLUDE_SHENANDOAHGC
-#include "gc/shenandoah/shenandoahRuntime.hpp"
-#endif
 
 // Shared runtime stub routines reside in their own unique blob with a
 // single entry point
@@ -181,27 +178,10 @@ void SharedRuntime::generate_stubs() {
 
   generate_deopt_blob();
 
-#if INCLUDE_SHENANDOAHGC
-  if (UseShenandoahGC) {
-    ResourceMark rm;
-    _shenandoah_keepalive_blob          = generate_shenandoah_stub(StubId::shared_shenandoah_keepalive_id);
-    _shenandoah_lrb_strong_blob         = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_strong_id);
-    _shenandoah_lrb_weak_blob           = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_weak_id);
-    _shenandoah_lrb_phantom_blob        = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_phantom_id);
-    _shenandoah_lrb_strong_narrow_blob  = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_strong_narrow_id);
-    _shenandoah_lrb_weak_narrow_blob    = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_weak_narrow_id);
-    _shenandoah_lrb_phantom_narrow_blob = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_phantom_narrow_id);
-
-    _shenandoah_keepalive_vectors_blob          = generate_shenandoah_stub(StubId::shared_shenandoah_keepalive_vectors_id);
-    _shenandoah_lrb_strong_vectors_blob         = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_strong_vectors_id);
-    _shenandoah_lrb_weak_vectors_blob           = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_weak_vectors_id);
-    _shenandoah_lrb_phantom_vectors_blob        = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_phantom_vectors_id);
-    _shenandoah_lrb_strong_narrow_vectors_blob  = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_strong_narrow_vectors_id);
-    _shenandoah_lrb_weak_narrow_vectors_blob    = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_weak_narrow_vectors_id);
-    _shenandoah_lrb_phantom_narrow_vectors_blob = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_phantom_narrow_vectors_id);
-
-  }
-#endif
+#if INCLUDE_CDS
+  // disallow any further generation of runtime stubs
+  AOTCodeCache::set_shared_stubs_complete();
+#endif // INCLUDE_CDS
 }
 
 void SharedRuntime::init_adapter_library() {
@@ -3105,7 +3085,7 @@ AdapterHandlerEntry::~AdapterHandlerEntry() {
     _fingerprint = nullptr;
   }
 #ifdef ASSERT
-  FREE_C_HEAP_ARRAY(unsigned char, _saved_code);
+  FREE_C_HEAP_ARRAY(_saved_code);
 #endif
   FreeHeap(this);
 }
@@ -3396,7 +3376,7 @@ JRT_LEAF(intptr_t*, SharedRuntime::OSR_migration_begin( JavaThread *current) )
 JRT_END
 
 JRT_LEAF(void, SharedRuntime::OSR_migration_end( intptr_t* buf) )
-  FREE_C_HEAP_ARRAY(intptr_t, buf);
+  FREE_C_HEAP_ARRAY(buf);
 JRT_END
 
 const char* AdapterHandlerLibrary::name(AdapterHandlerEntry* handler) {

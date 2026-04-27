@@ -57,10 +57,10 @@ ShenandoahNMethod::ShenandoahNMethod(nmethod* nm, GrowableArray<oop*>& oops, boo
 
 ShenandoahNMethod::~ShenandoahNMethod() {
   if (_oops != nullptr) {
-    FREE_C_HEAP_ARRAY(oop*, _oops);
+    FREE_C_HEAP_ARRAY(_oops);
   }
   if (_barriers != nullptr) {
-    FREE_C_HEAP_ARRAY(ShenandoahNMethodBarrier, _barriers);
+    FREE_C_HEAP_ARRAY(_barriers);
   }
 }
 
@@ -73,7 +73,7 @@ void ShenandoahNMethod::update() {
   parse(nm(), oops, non_immediate_oops, barriers);
   if (oops.length() != _oops_count) {
     if (_oops != nullptr) {
-      FREE_C_HEAP_ARRAY(oop*, _oops);
+      FREE_C_HEAP_ARRAY(_oops);
       _oops = nullptr;
     }
 
@@ -444,7 +444,7 @@ ShenandoahNMethodList::ShenandoahNMethodList(int size) :
 ShenandoahNMethodList::~ShenandoahNMethodList() {
   assert(_list != nullptr, "Sanity");
   assert(_ref_count == 0, "Must be");
-  FREE_C_HEAP_ARRAY(ShenandoahNMethod*, _list);
+  FREE_C_HEAP_ARRAY(_list);
 }
 
 void ShenandoahNMethodList::transfer(ShenandoahNMethodList* const list, int limit) {

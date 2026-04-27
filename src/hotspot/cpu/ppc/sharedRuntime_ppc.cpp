@@ -55,9 +55,6 @@
 #include "opto/ad.hpp"
 #include "opto/runtime.hpp"
 #endif
-#if INCLUDE_SHENANDOAHGC
-#include "gc/shenandoah/shenandoahRuntime.hpp"
-#endif
 
 #include <alloca.h>
 
@@ -3838,10 +3835,3 @@ RuntimeStub* SharedRuntime::generate_jfr_return_lease() {
 }
 
 #endif // INCLUDE_JFR
-
-#if INCLUDE_SHENANDOAHGC
-RuntimeStub* SharedRuntime::generate_shenandoah_stub(StubId stub_id) {
-  assert(UseShenandoahGC, "Only generate when Shenandoah is enabled");
-  return nullptr;
-}
-#endif

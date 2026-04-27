@@ -47,8 +47,30 @@ private:
   // Thread-local mirror for global GC state
   char _gc_state;
 
-  // Quickened version of GC state, use single bit to check the group of states
-  char _gc_state_fast;
+  // Quickened version of GC state.
+  // This allows all architectures to quickly check the group of states by using a single byte load.
+  enum FastGCState {
+    FORWARDED               = ShenandoahHeap::HAS_FORWARDED,
+    MARKING                 = ShenandoahHeap::MARKING,
+    WEAK                    = ShenandoahHeap::WEAK_ROOTS,
+    FORWARDED_MARKING       = ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::MARKING,
+    FORWARDED_WEAK          = ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::WEAK_ROOTS,
+    MARKING_WEAK            = ShenandoahHeap::MARKING       | ShenandoahHeap::WEAK_ROOTS,
+    FORWARDED_MARKING_WEAK  = ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::MARKING    | ShenandoahHeap::WEAK_ROOTS
+  };
+
+  enum FastGCStatePos {
+    POS_FORWARDED               = 0,
+    POS_MARKING                 = 1,
+    POS_WEAK                    = 2,
+    POS_FORWARDED_MARKING       = 3,
+    POS_FORWARDED_WEAK          = 4,
+    POS_MARKING_WEAK            = 5,
+    POS_FORWARDED_MARKING_WEAK  = 6,
+    POS_MAX
+  };
+
+  char _gc_state_fast_array[POS_MAX];
 
   // Evacuation OOM state
   uint8_t                 _oom_scope_nesting_level;
@@ -70,27 +92,10 @@ private:
   // for promotions from the young generation into the old generation.
   ShenandoahPLAB* _shenandoah_plab;
 
-  enum FastGCState {
-    FORWARDED                    = ShenandoahHeap::HAS_FORWARDED,
-    MARKING                      = ShenandoahHeap::MARKING,
-    WEAK                         = ShenandoahHeap::WEAK_ROOTS,
-    FORWARDED_OR_MARKING         = ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::MARKING,
-    FORWARDED_OR_WEAK            = ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::WEAK_ROOTS,
-    MARKING_OR_WEAK              = ShenandoahHeap::MARKING       | ShenandoahHeap::WEAK_ROOTS,
-    FORWARDED_OR_MARKING_OR_WEAK = ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::MARKING    | ShenandoahHeap::WEAK_ROOTS,
-  };
-
-  enum FastGCStateBitPos {
-    FORWARDED_BITPOS                    = 0,
-    MARKING_BITPOS                      = 1,
-    WEAK_BITPOS                         = 2,
-    FORWARDED_OR_MARKING_BITPOS         = 3,
-    FORWARDED_OR_WEAK_BITPOS            = 4,
-    MARKING_OR_WEAK_BITPOS              = 5,
-    FORWARDED_OR_MARKING_OR_WEAK_BITPOS = 6,
-  };
-
   ShenandoahEvacuationStats* _evacuation_stats;
+
+  Atomic<HeapWord*> _invisible_root;
+  Atomic<size_t> _invisible_root_word_size;
 
   ShenandoahThreadLocalData();
   ~ShenandoahThreadLocalData();
@@ -117,41 +122,28 @@ public:
     return data(thread)->_satb_mark_queue;
   }
 
-  static char gc_state_to_fast_bit(char gc_state) {
-    if (gc_state == FORWARDED)                    return FORWARDED_BITPOS;
-    if (gc_state == MARKING)                      return MARKING_BITPOS;
-    if (gc_state == WEAK)                         return WEAK_BITPOS;
-    if (gc_state == FORWARDED_OR_MARKING)         return FORWARDED_OR_MARKING_BITPOS;
-    if (gc_state == FORWARDED_OR_WEAK)            return FORWARDED_OR_WEAK_BITPOS;
-    if (gc_state == MARKING_OR_WEAK)              return MARKING_OR_WEAK_BITPOS;
-    if (gc_state == FORWARDED_OR_MARKING_OR_WEAK) return FORWARDED_OR_MARKING_OR_WEAK_BITPOS;
+  static char gc_state_to_fast_array_index(char gc_state) {
+    if (gc_state == FORWARDED)              return POS_FORWARDED;
+    if (gc_state == MARKING)                return POS_MARKING;
+    if (gc_state == WEAK)                   return POS_WEAK;
+    if (gc_state == FORWARDED_MARKING)      return POS_FORWARDED_MARKING;
+    if (gc_state == FORWARDED_WEAK)         return POS_FORWARDED_WEAK;
+    if (gc_state == MARKING_WEAK)           return POS_MARKING_WEAK;
+    if (gc_state == FORWARDED_MARKING_WEAK) return POS_FORWARDED_MARKING_WEAK;
     ShouldNotReachHere();
     return 0;
   }
 
-  static char gc_state_to_fast(char gc_state) {
-    return 1 << gc_state_to_fast_bit(gc_state);
-  }
-
-  static char compute_gc_state_fast(char gc_state) {
-    char fast = 0;
-    if ((gc_state & FORWARDED) > 0)                    fast |= (1 << FORWARDED_BITPOS);
-    if ((gc_state & MARKING) > 0)                      fast |= (1 << MARKING_BITPOS);
-    if ((gc_state & WEAK) > 0)                         fast |= (1 << WEAK_BITPOS);
-    if ((gc_state & FORWARDED_OR_MARKING) > 0)         fast |= (1 << FORWARDED_OR_MARKING_BITPOS);
-    if ((gc_state & FORWARDED_OR_WEAK) > 0)            fast |= (1 << FORWARDED_OR_WEAK_BITPOS);
-    if ((gc_state & MARKING_OR_WEAK) > 0)              fast |= (1 << MARKING_OR_WEAK_BITPOS);
-    if ((gc_state & FORWARDED_OR_MARKING_OR_WEAK) > 0) fast |= (1 << FORWARDED_OR_MARKING_OR_WEAK_BITPOS);
-    return fast;
-  }
-
-  static void set_gc_state(Thread* thread, char gc_state, char gc_state_fast) {
-    data(thread)->_gc_state = gc_state;
-    data(thread)->_gc_state_fast = gc_state_fast;
-  }
-
   static void set_gc_state(Thread* thread, char gc_state) {
-    set_gc_state(thread, gc_state, compute_gc_state_fast(gc_state));
+    ShenandoahThreadLocalData* d = data(thread);
+    d->_gc_state = gc_state;
+    d->_gc_state_fast_array[POS_FORWARDED]              = (gc_state & FORWARDED) > 0;
+    d->_gc_state_fast_array[POS_MARKING]                = (gc_state & MARKING) > 0;
+    d->_gc_state_fast_array[POS_WEAK]                   = (gc_state & WEAK) > 0;
+    d->_gc_state_fast_array[POS_FORWARDED_MARKING]      = (gc_state & FORWARDED_MARKING) > 0;
+    d->_gc_state_fast_array[POS_FORWARDED_WEAK]         = (gc_state & FORWARDED_WEAK) > 0;
+    d->_gc_state_fast_array[POS_MARKING_WEAK]           = (gc_state & MARKING_WEAK) > 0;
+    d->_gc_state_fast_array[POS_FORWARDED_MARKING_WEAK] = (gc_state & FORWARDED_MARKING_WEAK) > 0;
   }
 
   static char gc_state(Thread* thread) {
@@ -261,12 +253,31 @@ public:
     return Thread::gc_data_offset() + byte_offset_of(ShenandoahThreadLocalData, _gc_state);
   }
 
-  static ByteSize gc_state_fast_offset() {
-    return Thread::gc_data_offset() + byte_offset_of(ShenandoahThreadLocalData, _gc_state_fast);
+  static ByteSize gc_state_fast_array_offset(char gc_state) {
+    return Thread::gc_data_offset() + byte_offset_of(ShenandoahThreadLocalData, _gc_state_fast_array) + in_ByteSize(gc_state_to_fast_array_index(gc_state));
   }
 
   static ByteSize card_table_offset() {
     return Thread::gc_data_offset() + byte_offset_of(ShenandoahThreadLocalData, _card_table);
+  }
+
+  // invisible root are the partially initialized obj array set by ShenandoahObjArrayAllocator
+  static void set_invisible_root(Thread* thread, HeapWord* invisible_root, size_t word_size) {
+    data(thread)->_invisible_root.store_relaxed(invisible_root);
+    data(thread)->_invisible_root_word_size.store_relaxed(word_size);
+  }
+
+  static void clear_invisible_root(Thread* thread) {
+    data(thread)->_invisible_root.store_relaxed(nullptr);
+    data(thread)->_invisible_root_word_size.store_relaxed(0);
+  }
+
+  static HeapWord* get_invisible_root(Thread* thread) {
+    return data(thread)->_invisible_root.load_relaxed();
+  }
+
+  static size_t get_invisible_root_word_size(Thread* thread) {
+    return data(thread)->_invisible_root_word_size.load_relaxed();
   }
 };
 

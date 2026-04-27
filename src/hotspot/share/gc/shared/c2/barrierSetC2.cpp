@@ -1117,7 +1117,7 @@ void BarrierSetC2::elide_dominated_barriers(Node_List& accesses, Node_List& acce
       if (access_block == mem_block) {
         // Earlier accesses in the same block
         if (mem_index < access_index && !block_has_safepoint(mem_block, mem_index + 1, access_index)) {
-          elide_dominated_barrier(access);
+          elide_dominated_barrier(access, mem->is_Mach() ? mem->as_Mach() : nullptr);
         }
       } else if (mem_block->dominates(access_block)) {
         // Dominating block? Look around for safepoints
@@ -1147,7 +1147,7 @@ void BarrierSetC2::elide_dominated_barriers(Node_List& accesses, Node_List& acce
         }
 
         if (!safepoint_found) {
-          elide_dominated_barrier(access);
+          elide_dominated_barrier(access, mem->is_Mach() ? mem->as_Mach() : nullptr);
         }
       }
     }
