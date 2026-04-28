@@ -169,10 +169,6 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   bool _use_double_jumps;
 
   static void register_stub(ShenandoahBarrierStubC2* stub);
-  static void inc_trampoline_stubs_count();
-  static int trampoline_stubs_count();
-  static int stubs_start_offset();
-  static int save_slots_stack_offset();
 
   int available_gp_registers();
   bool is_live_register(Register reg);
@@ -185,10 +181,10 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   address keepalive_runtime_entry_addr();
   address lrb_runtime_entry_addr();
 
-  void post_init(int offset);
+  void post_init();
 
 public:
-  ShenandoahBarrierStubC2(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load, int offset) :
+  ShenandoahBarrierStubC2(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load) :
     BarrierStubC2(node),
     _obj(obj),
     _addr(addr),
@@ -200,7 +196,7 @@ public:
     _needs_keep_alive_barrier(needs_keep_alive_barrier(node)),
     _use_double_jumps() {
     assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
-    post_init(offset);
+    post_init();
   }
 
   static bool is_heap_access(const MachNode* node) {
@@ -225,7 +221,7 @@ public:
     return (node->barrier_data() & ShenandoahBitNotNull) == 0;
   }
 
-  static ShenandoahBarrierStubC2* create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load, int offset = 0);
+  static ShenandoahBarrierStubC2* create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load);
   void emit_code(MacroAssembler& masm);
 
   void enter_if_gc_state(MacroAssembler& masm, const char test_state);
