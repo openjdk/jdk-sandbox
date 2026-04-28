@@ -60,13 +60,6 @@ import jdk.internal.net.http.quic.packets.PacketSpace;
 import jdk.internal.net.http.quic.packets.QuicPacket;
 import jdk.internal.net.http.quic.packets.QuicPacket.PacketNumberSpace;
 import jdk.internal.net.http.quic.packets.QuicPacket.PacketType;
-import jdk.internal.net.quic.QuicKeyUnavailableException;
-import jdk.internal.net.quic.QuicOneRttContext;
-import jdk.internal.net.quic.QuicTLSEngine;
-import jdk.internal.net.quic.QuicTransportErrors;
-import jdk.internal.net.quic.QuicTransportException;
-
-import javax.net.ssl.SSLEngineResult;
 
 /**
  * A {@code PacketSpaceManager} takes care of acknowledgement and

@@ -22,10 +22,9 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package jdk.internal.net.quic;
+package jdk.internal.net.http.quic;
 
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.Objects;
 import java.util.Optional;
 

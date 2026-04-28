@@ -22,7 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package sun.security.ssl;
+package jdk.internal.net.http.quic.tls;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -47,22 +47,21 @@ import javax.crypto.spec.SecretKeySpec;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
 
-import jdk.internal.net.quic.QuicKeyUnavailableException;
-import jdk.internal.net.quic.QuicOneRttContext;
-import jdk.internal.net.quic.QuicTLSEngine;
-import jdk.internal.net.quic.QuicTransportErrors;
-import jdk.internal.net.quic.QuicTransportException;
-import jdk.internal.net.quic.QuicVersion;
-import jdk.internal.vm.annotation.Stable;
-import sun.security.ssl.QuicCipher.QuicReadCipher;
-import sun.security.ssl.QuicCipher.QuicWriteCipher;
-import sun.security.util.KeyUtil;
+import jdk.internal.net.http.common.Log;
+import jdk.internal.net.http.quic.QuicKeyUnavailableException;
+import jdk.internal.net.http.quic.QuicOneRttContext;
+import jdk.internal.net.http.quic.QuicTLSEngine;
+import jdk.internal.net.http.quic.QuicTransportErrors;
+import jdk.internal.net.http.quic.QuicTransportException;
+import jdk.internal.net.http.quic.QuicVersion;
+import jdk.internal.net.http.quic.tls.QuicCipher.QuicReadCipher;
+import jdk.internal.net.http.quic.tls.QuicCipher.QuicWriteCipher;
 
-import static jdk.internal.net.quic.QuicTLSEngine.KeySpace.HANDSHAKE;
-import static jdk.internal.net.quic.QuicTLSEngine.KeySpace.INITIAL;
-import static jdk.internal.net.quic.QuicTLSEngine.KeySpace.ONE_RTT;
-import static jdk.internal.net.quic.QuicTransportErrors.AEAD_LIMIT_REACHED;
-import static jdk.internal.net.quic.QuicTransportErrors.KEY_UPDATE_ERROR;
+import static jdk.internal.net.http.quic.QuicTLSEngine.KeySpace.HANDSHAKE;
+import static jdk.internal.net.http.quic.QuicTLSEngine.KeySpace.INITIAL;
+import static jdk.internal.net.http.quic.QuicTLSEngine.KeySpace.ONE_RTT;
+import static jdk.internal.net.http.quic.QuicTransportErrors.AEAD_LIMIT_REACHED;
+import static jdk.internal.net.http.quic.QuicTransportErrors.KEY_UPDATE_ERROR;
 
 sealed abstract class QuicKeyManager
         permits QuicKeyManager.HandshakeKeyManager,
@@ -269,8 +268,8 @@ sealed abstract class QuicKeyManager
             if (toDiscard == null) {
                 return;
             }
-            if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
-                SSLLogger.finest("discarding keys (keyphase="
+            if (Log.ssl()) {
+                Log.logSSL("discarding keys (keyphase="
                         + toDiscard.writeCipher.getKeyPhase()
                         + ") of " + this.keySpace + " key space");
             }
@@ -346,8 +345,8 @@ sealed abstract class QuicKeyManager
             } catch (GeneralSecurityException e) {
                 throw new SSLException("Missing cipher algorithm", e);
             } finally {
-                KeyUtil.destroySecretKeys(initial_secret, client_initial_secret,
-                        server_initial_secret);
+//                KeyUtil.destroySecretKeys(initial_secret, client_initial_secret,
+//                        server_initial_secret);
             }
         }
 
@@ -404,8 +403,8 @@ sealed abstract class QuicKeyManager
             if (toDiscard == null) {
                 return;
             }
-            if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
-                SSLLogger.finest("discarding keys (keyphase="
+            if (Log.ssl()) {
+                Log.logSSL("discarding keys (keyphase="
                         + toDiscard.writeCipher.getKeyPhase()
                         + ") of " + this.keySpace + " key space");
             }
@@ -501,7 +500,6 @@ sealed abstract class QuicKeyManager
         // when holding the keySeriesLock lock
         private volatile KeySeries keySeries;
 
-        @Stable
         private volatile QuicOneRttContext oneRttContext;
 
         OneRttKeyManager() {
@@ -541,8 +539,8 @@ sealed abstract class QuicKeyManager
             if (series == null) {
                 return;
             }
-            if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
-                SSLLogger.finest("discarding key (series) of " +
+            if (Log.ssl()) {
+                Log.logSSL("discarding key (series) of " +
                         this.keySpace + " key space");
             }
             if (series.old != null) {
@@ -582,8 +580,8 @@ sealed abstract class QuicKeyManager
             if (series.canUseOldDecryptKey(packetNumber)) {
                 final QuicReadCipher oldReadCipher = series.old;
                 assert oldReadCipher != null : "old key is unexpectedly null";
-                if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
-                    SSLLogger.finest("using old read key to decrypt packet: " +
+                if (Log.ssl()) {
+                    Log.logSSL("using old read key to decrypt packet: " +
                             packetNumber + ", with incoming key phase: " +
                             keyPhase + ", current key phase: " +
                             currentKeyPhase);
@@ -604,8 +602,8 @@ sealed abstract class QuicKeyManager
                     // KEY_UPDATE_ERROR. This indicates that a peer has
                     // received and acknowledged a packet that initiates a key
                     // update, but has not updated keys in response.
-                    if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
-                        SSLLogger.finest("peer used incorrect key, was" +
+                    if (Log.ssl()) {
+                        Log.logSSL("peer used incorrect key, was" +
                                 " expected to use updated key of" +
                                 " key phase: " + currentKeyPhase +
                                 ", incoming key phase: " + keyPhase +
@@ -617,8 +615,8 @@ sealed abstract class QuicKeyManager
                 }
                 return;
             }
-            if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
-                SSLLogger.finest("detected ONE_RTT key update, current key " +
+            if (Log.ssl()) {
+                Log.logSSL("detected ONE_RTT key update, current key " +
                         "phase: " + currentKeyPhase
                         + ", incoming key phase: " + keyPhase
                         + ", packet number: " + packetNumber);
@@ -688,8 +686,8 @@ sealed abstract class QuicKeyManager
             }
             final long numEncrypted = cipher.getNumEncrypted();
             if (numEncrypted >= 0.8 * confidentialityLimit) {
-                if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
-                    SSLLogger.finest("about to reach confidentiality limit, " +
+                if (Log.ssl()) {
+                    Log.logSSL("about to reach confidentiality limit, " +
                             "attempting to initiate a 1-RTT key update," +
                             " packet number: " +
                             packetNumber + ", current key phase: " +
@@ -703,8 +701,8 @@ sealed abstract class QuicKeyManager
                             : "key phase of updated key unexpectedly matches " +
                             "the key phase "
                             + cipher.getKeyPhase() + " of current keys";
-                    if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
-                        SSLLogger.finest(
+                    if (Log.ssl()) {
+                        Log.logSSL(
                                 "1-RTT key update initiated, new key phase: "
                                         + newKeyPhase);
                     }
@@ -726,8 +724,8 @@ sealed abstract class QuicKeyManager
                 // current key phase. This ensures that keys are
                 // available to both peers before
                 // another key update can be initiated.
-                if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
-                    SSLLogger.finest(
+                if (Log.ssl()) {
+                    Log.logSSL(
                             "skipping key update initiation because peer " +
                             "hasn't yet sent us a packet encrypted with " +
                             "current key of key phase: " +
@@ -774,8 +772,8 @@ sealed abstract class QuicKeyManager
                 // (we avoid timing attacks by not generating
                 // keys during decryption, our key generation
                 // only happens during encryption)
-                if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
-                    SSLLogger.finest("next keys unavailable," +
+                if (Log.ssl()) {
+                    Log.logSSL("next keys unavailable," +
                             " won't decrypt a packet which appears to be" +
                             " a key update");
                 }
@@ -786,8 +784,8 @@ sealed abstract class QuicKeyManager
             // use the next keys to attempt decrypting
             currentKeySeries.next.readCipher.decryptPacket(packetNumber, packet,
                     headerLength, output);
-            if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
-                SSLLogger.finest(
+            if (Log.ssl()) {
+                Log.logSSL(
                         "decrypted using next keys for peer-initiated" +
                         " key update; will now switch to new key phase: " +
                         currentKeySeries.next.readCipher.getKeyPhase());
@@ -987,15 +985,15 @@ sealed abstract class QuicKeyManager
                 // update the key series
                 this.keySeries = newSeries;
                 if (oldReadCipher != null) {
-                    if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
-                        SSLLogger.finest(
+                    if (Log.ssl()) {
+                        Log.logSSL(
                                 "discarding old read key of key phase: " +
                                 oldReadCipher.getKeyPhase());
                     }
                     oldReadCipher.discard(false);
                 }
-                if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
-                    SSLLogger.finest("discarding write key of key phase: " +
+                if (Log.ssl()) {
+                    Log.logSSL("discarding write key of key phase: " +
                             writeCipherToDiscard.getKeyPhase());
                 }
                 writeCipherToDiscard.discard(false);

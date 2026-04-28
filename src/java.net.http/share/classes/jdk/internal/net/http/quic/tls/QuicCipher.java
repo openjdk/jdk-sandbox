@@ -22,7 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package sun.security.ssl;
+package jdk.internal.net.http.quic.tls;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -41,11 +41,10 @@ import javax.crypto.spec.ChaCha20ParameterSpec;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.IvParameterSpec;
 
-import jdk.internal.net.quic.QuicTransportErrors;
-import jdk.internal.net.quic.QuicTransportException;
-import sun.security.util.KeyUtil;
+import jdk.internal.net.http.quic.QuicTransportErrors;
+import jdk.internal.net.http.quic.QuicTransportException;
 
-import static jdk.internal.net.quic.QuicTLSEngine.KeySpace.ONE_RTT;
+import static jdk.internal.net.http.quic.QuicTLSEngine.KeySpace.ONE_RTT;
 
 abstract class QuicCipher {
     private static final String
@@ -182,7 +181,7 @@ abstract class QuicCipher {
     }
 
     static void safeDiscard(final SecretKey secretKey) {
-        KeyUtil.destroySecretKeys(secretKey);
+//        KeyUtil.destroySecretKeys(secretKey);
     }
 
     abstract static class QuicReadCipher extends QuicCipher {

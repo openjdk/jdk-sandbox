@@ -44,7 +44,12 @@ import javax.net.ssl.SSLParameters;
 import jdk.internal.net.http.common.Log;
 import jdk.internal.net.http.common.Utils;
 import jdk.internal.net.http.quic.QuicEndpoint;
+import jdk.internal.net.http.quic.QuicKeyUnavailableException;
+import jdk.internal.net.http.quic.QuicTLSEngine;
+import jdk.internal.net.http.quic.QuicTransportErrors;
+import jdk.internal.net.http.quic.QuicTransportException;
 import jdk.internal.net.http.quic.QuicTransportParameters.VersionInformation;
+import jdk.internal.net.http.quic.QuicVersion;
 import jdk.internal.net.http.quic.TerminationCause;
 import jdk.internal.net.http.quic.QuicConnectionId;
 import jdk.internal.net.http.quic.QuicConnectionImpl;
@@ -61,11 +66,8 @@ import jdk.internal.net.http.quic.packets.QuicPacket;
 import jdk.internal.net.http.quic.packets.QuicPacket.PacketNumberSpace;
 import jdk.internal.net.http.quic.packets.QuicPacket.PacketType;
 import jdk.internal.net.http.quic.packets.QuicPacketDecoder;
-import jdk.internal.net.quic.QuicKeyUnavailableException;
-import jdk.internal.net.quic.QuicTLSEngine;
-import jdk.internal.net.quic.QuicTransportErrors;
-import jdk.internal.net.quic.QuicTransportException;
-import jdk.internal.net.quic.QuicVersion;
+
+import static jdk.internal.net.http.quic.QuicTransportErrors.PROTOCOL_VIOLATION;
 import static jdk.internal.net.http.quic.QuicTransportParameters.ParameterId.initial_max_data;
 import static jdk.internal.net.http.quic.QuicTransportParameters.ParameterId.initial_max_stream_data_bidi_local;
 import static jdk.internal.net.http.quic.QuicTransportParameters.ParameterId.initial_max_stream_data_bidi_remote;
@@ -78,7 +80,6 @@ import static jdk.internal.net.http.quic.QuicTransportParameters.ParameterId.ori
 import static jdk.internal.net.http.quic.QuicTransportParameters.ParameterId.retry_source_connection_id;
 import static jdk.internal.net.http.quic.QuicTransportParameters.ParameterId.stateless_reset_token;
 import static jdk.internal.net.http.quic.QuicTransportParameters.ParameterId.version_information;
-import static jdk.internal.net.quic.QuicTransportErrors.PROTOCOL_VIOLATION;
 
 public final class QuicServerConnection extends QuicConnectionImpl {
     private static final AtomicLong CONNECTIONS = new AtomicLong();

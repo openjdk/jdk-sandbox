@@ -31,8 +31,6 @@ import jdk.internal.net.http.quic.frames.AckFrame;
 import jdk.internal.net.http.quic.packets.PacketSpace;
 import jdk.internal.net.http.quic.packets.QuicPacket;
 import jdk.internal.net.http.quic.packets.QuicPacket.PacketNumberSpace;
-import jdk.internal.net.quic.QuicKeyUnavailableException;
-import jdk.internal.net.quic.QuicTransportException;
 
 /**
  * This interface is a useful abstraction used to tie

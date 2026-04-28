@@ -55,8 +55,8 @@ import jdk.httpclient.test.lib.common.ServerNameMatcher;
 import jdk.httpclient.test.lib.http3.Http3TestServer;
 import jdk.internal.net.http.frame.ErrorFrame;
 import jdk.internal.net.http.http3.Http3Error;
-import jdk.internal.net.quic.QuicVersion;
 import jdk.httpclient.test.lib.quic.QuicServer;
+import jdk.internal.net.http.quic.QuicVersion;
 
 /**
  * Waits for incoming TCP connections from a client and establishes

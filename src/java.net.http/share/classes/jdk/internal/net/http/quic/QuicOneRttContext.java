@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,47 +22,17 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package sun.security.ssl;
+package jdk.internal.net.http.quic;
 
 /**
- * This enum contains a copy of the CipherSuite fields relevant to QUIC
+ * Supplies contextual 1-RTT information that's available in the QUIC implementation of the
+ * {@code java.net.http} module, to the QUIC TLS layer in the {@code java.base} module.
  */
-enum QuicCipherSuite {
-    TLS_AES_256_GCM_SHA384("AES", 32, 12, "HKDF-SHA384", 48),
-    TLS_AES_128_GCM_SHA256("AES", 16, 12, "HKDF-SHA256", 32),
-    TLS_CHACHA20_POLY1305_SHA256("ChaCha20-Poly1305", 32, 12,"HKDF-SHA256", 32),
-    ;
+public interface QuicOneRttContext {
 
     /**
-     * copy of SSLCipher#algotirhm
+     * {@return the largest packet number that was acknowledged by
+     * the peer in the 1-RTT packet space}
      */
-    final String keyAlgorithm;
-    /**
-     * copy of SSLCipher#keySize
-     */
-    final int keySize;
-    /**
-     * copy of SSLCipher#ivSize
-     */
-    final int ivSize;
-    /**
-     * copy of HashAlg#hkdfAlgorithm
-     */
-    final String hkdfAlgorithm;
-    /**
-     * copy of HashAlg#hashLength
-     */
-    final int hashLength;
-
-    QuicCipherSuite(String keyAlgorithm,
-                    int keySize,
-                    int ivSize,
-                    String hkdfAlgorithm,
-                    int hashLength) {
-        this.keyAlgorithm = keyAlgorithm;
-        this.keySize = keySize;
-        this.ivSize = ivSize;
-        this.hkdfAlgorithm = hkdfAlgorithm;
-        this.hashLength = hashLength;
-    }
+    long getLargestPeerAckedPN();
 }

@@ -59,7 +59,6 @@ import org.junit.jupiter.api.Test;
  *          java.net.http/jdk.internal.net.http.common
  *          java.net.http/jdk.internal.net.http.frame
  *          java.net.http/jdk.internal.net.http.hpack
- *          java.base/jdk.internal.net.quic
  *          java.net.http/jdk.internal.net.http.quic
  *          java.net.http/jdk.internal.net.http.quic.packets
  *          java.net.http/jdk.internal.net.http.quic.frames

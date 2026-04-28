@@ -24,9 +24,9 @@ package jdk.httpclient.test.lib.quic;
 
 import jdk.internal.net.http.quic.CodingContext;
 import jdk.internal.net.http.quic.QuicConnectionId;
+import jdk.internal.net.http.quic.QuicTLSContext;
+import jdk.internal.net.http.quic.QuicTLSEngine;
 import jdk.internal.net.http.quic.packets.QuicPacket;
-import jdk.internal.net.quic.QuicTLSContext;
-import jdk.internal.net.quic.QuicTLSEngine;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

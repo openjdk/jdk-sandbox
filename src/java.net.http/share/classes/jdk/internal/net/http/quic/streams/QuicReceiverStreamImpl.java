@@ -34,9 +34,9 @@ import jdk.internal.net.http.quic.frames.ConnectionCloseFrame;
 import jdk.internal.net.http.quic.frames.ResetStreamFrame;
 import jdk.internal.net.http.quic.frames.StreamDataBlockedFrame;
 import jdk.internal.net.http.quic.frames.StreamFrame;
-import jdk.internal.net.quic.QuicTLSEngine;
-import jdk.internal.net.quic.QuicTransportErrors;
-import jdk.internal.net.quic.QuicTransportException;
+import jdk.internal.net.http.quic.QuicTLSEngine;
+import jdk.internal.net.http.quic.QuicTransportErrors;
+import jdk.internal.net.http.quic.QuicTransportException;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;

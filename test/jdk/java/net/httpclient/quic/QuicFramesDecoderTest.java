@@ -21,9 +21,9 @@
  * questions.
  */
 
+import jdk.internal.net.http.quic.QuicTransportErrors;
+import jdk.internal.net.http.quic.QuicTransportException;
 import jdk.internal.net.http.quic.frames.QuicFrame;
-import jdk.internal.net.quic.QuicTransportErrors;
-import jdk.internal.net.quic.QuicTransportException;
 
 import java.nio.ByteBuffer;
 import java.util.HexFormat;

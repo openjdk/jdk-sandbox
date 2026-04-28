@@ -22,19 +22,19 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package jdk.internal.net.quic;
+package jdk.internal.net.http.quic;
 
-import java.lang.invoke.MethodHandles;
-import java.lang.invoke.VarHandle;
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Objects;
 
+import javax.crypto.SecretKey;
+import javax.net.ssl.QuicTransport;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLContextSpi;
 import javax.net.ssl.SSLParameters;
 
-import sun.security.ssl.QuicTLSEngineImpl;
-import sun.security.ssl.SSLContextImpl;
+import jdk.internal.net.http.quic.tls.QuicTLSEngineImpl;
 
 /**
  * Instances of this class act as a factory for creation
@@ -46,29 +46,46 @@ public final class QuicTLSContext {
     // sun.security.ssl.SSLContextImpl. We can only support
     // Quic on SSLContext instances created by the default
     // SunJSSE Provider
-    private final SSLContextImpl sslCtxImpl;
+    private final SSLContext sslCtx;
 
     /**
      * {@return {@code true} if the given {@code sslContext} supports QUIC TLS, {@code false} otherwise}
      * @param sslContext an {@link SSLContext}
      */
     public static boolean isQuicCompatible(final SSLContext sslContext) {
-        boolean parametersSupported = isQuicCompatible(sslContext.getSupportedSSLParameters());
-        if (!parametersSupported) {
+        try {
+            sslContext.createQUICEngine(null, -1, new QuicTransport() {
+                @Override
+                public void deriveHandshakeReadSecrets(SecretKey secretKey) {
+                }
+                @Override
+                public void deriveHandshakeWriteSecrets(SecretKey secretKey) {
+                }
+                @Override
+                public void deriveApplicationReadSecrets(SecretKey secretKey) {
+                }
+                @Override
+                public void deriveApplicationWriteSecrets(SecretKey secretKey) {
+                }
+                @Override
+                public String[] getSupportedCipherSuites() {
+                    return new String[0];
+                }
+                @Override
+                public ByteBuffer localQuicTransportParameters() {
+                    return null;
+                }
+                @Override
+                public void remoteQuicTransportParameters(ByteBuffer parameters) throws IOException {
+                }
+                @Override
+                public void cryptoError(byte code, Exception closeReason) {
+                }
+            });
+            return true;
+        } catch (Exception e) {
             return false;
         }
-        // horrible hack - what we do here is try and get hold of a SSLContext
-        // that has already been initialised and configured with the HttpClient.
-        // We see if that SSLContext is created using an implementation of
-        // sun.security.ssl.SSLContextImpl. Since there's no API
-        // available to get hold of that underlying implementation, we use
-        // MethodHandle lookup to get access to the field which holds that
-        // detail.
-        final Object underlyingImpl = CONTEXT_SPI.get(sslContext);
-        if (!(underlyingImpl instanceof SSLContextImpl ssci)) {
-            return false;
-        }
-        return ssci.isUsableWithQuic();
     }
 
     /**
@@ -77,13 +94,6 @@ public final class QuicTLSContext {
     private static boolean isQuicCompatible(SSLParameters parameters) {
         String[] protocols = parameters.getProtocols();
         return protocols != null && Arrays.asList(protocols).contains("TLSv1.3");
-    }
-
-    private static SSLContextImpl getSSLContextImpl(
-            final SSLContext sslContext) {
-        final Object underlyingImpl = CONTEXT_SPI.get(sslContext);
-        assert underlyingImpl instanceof SSLContextImpl;
-        return (SSLContextImpl) underlyingImpl;
     }
 
     /**
@@ -100,7 +110,7 @@ public final class QuicTLSContext {
             throw new IllegalArgumentException(
                     "Cannot construct a QUIC TLS context with the given SSLContext");
         }
-        this.sslCtxImpl = getSSLContextImpl(sslContext);
+        this.sslCtx = sslContext;
     }
 
     /**
@@ -127,26 +137,7 @@ public final class QuicTLSContext {
      * @return the newly created QuicTLSEngine
      */
     public QuicTLSEngine createEngine(final String peerHost, final int peerPort) {
-        return new QuicTLSEngineImpl(this.sslCtxImpl, peerHost, peerPort);
-    }
-
-    // This VarHandle is used to access the SSLContext::contextSpi
-    // field which is not publicly accessible.
-    // In this implementation, Quic is only supported for SSLContext
-    // instances whose underlying implementation is provided by a
-    // sun.security.ssl.SSLContextImpl
-    private static final VarHandle CONTEXT_SPI;
-    static {
-        try {
-            final MethodHandles.Lookup lookup =
-                    MethodHandles.privateLookupIn(SSLContext.class,
-                            MethodHandles.lookup());
-            final VarHandle vh = lookup.findVarHandle(SSLContext.class,
-                    "contextSpi", SSLContextSpi.class);
-            CONTEXT_SPI = vh;
-        } catch (Exception x) {
-            throw new ExceptionInInitializerError(x);
-        }
+        return new QuicTLSEngineImpl(this.sslCtx, peerHost, peerPort);
     }
 }
 

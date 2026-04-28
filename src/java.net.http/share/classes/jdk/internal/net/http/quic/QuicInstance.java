@@ -35,8 +35,6 @@ import javax.net.ssl.SSLParameters;
 
 import jdk.internal.net.http.common.Utils;
 import jdk.internal.net.http.quic.packets.QuicPacket;
-import jdk.internal.net.quic.QuicTLSContext;
-import jdk.internal.net.quic.QuicVersion;
 
 /**
  * A {@code QuicInstance} represents a common abstraction which is

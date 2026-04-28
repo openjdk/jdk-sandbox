@@ -45,7 +45,7 @@ import jdk.internal.net.http.quic.streams.QuicSenderStream;
 import jdk.internal.net.http.quic.streams.QuicSenderStream.SendingStreamState;
 import jdk.internal.net.http.quic.streams.QuicStream;
 import jdk.internal.net.http.quic.streams.QuicStreamWriter;
-import jdk.internal.net.quic.QuicTLSEngine;
+import jdk.internal.net.http.quic.QuicTLSEngine;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -62,7 +62,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.stream.Stream;
@@ -74,8 +73,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 /*
  * @test
- * @modules java.base/jdk.internal.net.quic
- *          java.net.http/jdk.internal.net.http.hpack
+ * @modules java.net.http/jdk.internal.net.http.hpack
  *          java.net.http/jdk.internal.net.http.qpack
  *          java.net.http/jdk.internal.net.http.qpack.readers
  *          java.net.http/jdk.internal.net.http.qpack.writers

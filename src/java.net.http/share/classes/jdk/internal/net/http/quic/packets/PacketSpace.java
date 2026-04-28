@@ -32,7 +32,7 @@ import jdk.internal.net.http.quic.frames.AckFrame;
 import jdk.internal.net.http.quic.packets.QuicPacket.PacketNumberSpace;
 import jdk.internal.net.http.quic.packets.QuicPacket.PacketType;
 import jdk.internal.net.http.quic.PacketSpaceManager;
-import jdk.internal.net.quic.QuicTransportException;
+import jdk.internal.net.http.quic.QuicTransportException;
 
 /**
  * An interface implemented by classes which keep track of packet

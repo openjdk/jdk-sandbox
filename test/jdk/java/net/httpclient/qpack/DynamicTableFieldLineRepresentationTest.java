@@ -43,8 +43,7 @@ import org.junit.jupiter.api.Test;
  * @test
  * @key randomness
  * @library /test/lib
- * @modules java.base/jdk.internal.net.quic
- *          java.net.http/jdk.internal.net.http.hpack
+ * @modules java.net.http/jdk.internal.net.http.hpack
  *          java.net.http/jdk.internal.net.http.qpack:+open
  *          java.net.http/jdk.internal.net.http.qpack.readers
  *          java.net.http/jdk.internal.net.http.qpack.writers

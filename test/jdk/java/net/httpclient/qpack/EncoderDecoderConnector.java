@@ -43,7 +43,7 @@ import jdk.internal.net.http.quic.streams.QuicReceiverStream;
 import jdk.internal.net.http.quic.streams.QuicSenderStream;
 import jdk.internal.net.http.quic.streams.QuicStream;
 import jdk.internal.net.http.quic.streams.QuicStreamWriter;
-import jdk.internal.net.quic.QuicTLSEngine;
+import jdk.internal.net.http.quic.QuicTLSEngine;
 
 import java.io.IOException;
 import java.lang.invoke.MethodHandles;

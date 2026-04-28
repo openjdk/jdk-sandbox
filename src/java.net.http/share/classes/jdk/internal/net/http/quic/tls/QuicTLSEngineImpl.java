@@ -22,24 +22,26 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package sun.security.ssl;
+package jdk.internal.net.http.quic.tls;
 
-import jdk.internal.net.quic.QuicKeyUnavailableException;
-import jdk.internal.net.quic.QuicOneRttContext;
-import jdk.internal.net.quic.QuicTLSEngine;
-import jdk.internal.net.quic.QuicTransportErrors;
-import jdk.internal.net.quic.QuicTransportException;
-import jdk.internal.net.quic.QuicTransportParametersConsumer;
-import jdk.internal.net.quic.QuicVersion;
-import sun.security.ssl.QuicKeyManager.HandshakeKeyManager;
-import sun.security.ssl.QuicKeyManager.InitialKeyManager;
-import sun.security.ssl.QuicKeyManager.OneRttKeyManager;
+import jdk.internal.net.http.common.Log;
+import jdk.internal.net.http.quic.QuicKeyUnavailableException;
+import jdk.internal.net.http.quic.QuicOneRttContext;
+import jdk.internal.net.http.quic.QuicTLSEngine;
+import jdk.internal.net.http.quic.QuicTransportErrors;
+import jdk.internal.net.http.quic.QuicTransportException;
+import jdk.internal.net.http.quic.QuicTransportParametersConsumer;
+import jdk.internal.net.http.quic.QuicVersion;
+import jdk.internal.net.http.quic.tls.QuicKeyManager.HandshakeKeyManager;
+import jdk.internal.net.http.quic.tls.QuicKeyManager.InitialKeyManager;
+import jdk.internal.net.http.quic.tls.QuicKeyManager.OneRttKeyManager;
 
 import javax.crypto.AEADBadTagException;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.ShortBufferException;
 import javax.net.ssl.QuicTransport;
+import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLException;
@@ -54,7 +56,7 @@ import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.IntFunction;
 
-import static jdk.internal.net.quic.QuicTLSEngine.KeySpace.*;
+import static jdk.internal.net.http.quic.QuicTLSEngine.KeySpace.*;
 
 /**
  * One instance per QUIC connection. Configuration methods similar to
@@ -91,16 +93,16 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, QuicTransport {
     private volatile QuicVersion negotiatedVersion;
     private QuicTransportException cryptoError;
 
-    public QuicTLSEngineImpl(SSLContextImpl sslContextImpl) {
-        this(sslContextImpl, null, -1);
+    public QuicTLSEngineImpl(SSLContext sslContext) {
+        this(sslContext, null, -1);
     }
 
-    public QuicTLSEngineImpl(SSLContextImpl sslContextImpl, final String peerHost, final int peerPort) {
+    public QuicTLSEngineImpl(SSLContext sslContext, final String peerHost, final int peerPort) {
         this.peerHost = peerHost;
         this.peerPort = peerPort;
         this.sendKeySpace = INITIAL;
         this.recvKeySpace = INITIAL;
-        sslEngine = sslContextImpl.engineCreateQUICEngine(peerHost, peerPort, this);
+        sslEngine = sslContext.createQUICEngine(peerHost, peerPort, this);
     }
 
     @Override
@@ -558,8 +560,8 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, QuicTransport {
         }
         boolean confirmed = !handshakeDone.getAndSet(true);
         if (confirmed) {
-            if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
-                SSLLogger.fine("QuicTLSEngine (server) marked HANDSHAKE_DONE");
+            if (Log.ssl()) {
+                Log.logSSL("QuicTLSEngine (server) marked HANDSHAKE_DONE");
             }
         }
         return confirmed;
@@ -574,8 +576,8 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, QuicTransport {
         }
         boolean confirmed = !handshakeDone.getAndSet(true);
         if (confirmed) {
-            if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
-                SSLLogger.fine(
+            if (Log.ssl()) {
+                Log.logSSL(
                         "QuicTLSEngine (client) received HANDSHAKE_DONE");
             }
         }

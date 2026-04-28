@@ -27,10 +27,7 @@ package jdk.internal.net.http.quic;
 import java.io.IOException;
 import java.util.Objects;
 
-import jdk.internal.net.quic.QuicTLSEngine;
-import jdk.internal.net.quic.QuicTransportErrors;
-import jdk.internal.net.quic.QuicTransportException;
-import static jdk.internal.net.quic.QuicTransportErrors.NO_ERROR;
+import static jdk.internal.net.http.quic.QuicTransportErrors.NO_ERROR;
 
 // TODO: document this
 public abstract sealed class TerminationCause {

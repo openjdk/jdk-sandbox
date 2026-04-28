@@ -25,7 +25,7 @@ import jdk.httpclient.test.lib.common.HttpServerAdapters;
 import jdk.httpclient.test.lib.quic.QuicStandaloneServer;
 import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.Utils;
-import jdk.internal.net.quic.QuicVersion;
+import jdk.internal.net.http.quic.QuicVersion;
 import jdk.test.lib.net.SimpleSSLContext;
 import jdk.test.lib.net.URIBuilder;
 import org.junit.jupiter.api.AfterAll;

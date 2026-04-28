@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2022, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,24 +22,18 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package jdk.internal.net.quic;
+package jdk.internal.net.http.quic;
 
-
-import java.util.Objects;
-
-import jdk.internal.net.quic.QuicTLSEngine.KeySpace;
+import java.nio.ByteBuffer;
 
 /**
- * Thrown when an operation on {@link QuicTLSEngine} doesn't have the necessary
- * QUIC keys for encrypting or decrypting packets. This can either be because
- * the keys aren't available for a particular {@linkplain KeySpace keyspace} or
- * the keys for the {@code keyspace} have been discarded.
+ * Interface for consumer of QUIC transport parameters, in wire-encoded format
  */
-public final class QuicKeyUnavailableException extends Exception {
-    @java.io.Serial
-    private static final long serialVersionUID = 8553365136999153478L;
-
-    public QuicKeyUnavailableException(final String message, final KeySpace keySpace) {
-        super(Objects.requireNonNull(keySpace) + " keyspace: " + message);
-    }
+public interface QuicTransportParametersConsumer {
+    /**
+     * Consumes the provided QUIC transport parameters
+     * @param buffer byte buffer containing encoded quic transport parameters
+     * @throws QuicTransportException if buffer does not represent valid parameters
+     */
+    void accept(ByteBuffer buffer) throws QuicTransportException;
 }

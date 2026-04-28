@@ -45,8 +45,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  * @test
  * @summary check that unacknowledged header is not inserted
  *          twice to the dynamic table
- * @modules java.base/jdk.internal.net.quic
- *          java.net.http/jdk.internal.net.http.hpack
+ * @modules java.net.http/jdk.internal.net.http.hpack
  *          java.net.http/jdk.internal.net.http.qpack:+open
  *          java.net.http/jdk.internal.net.http.qpack.readers
  *          java.net.http/jdk.internal.net.http.qpack.writers

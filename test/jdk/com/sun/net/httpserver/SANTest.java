@@ -36,7 +36,6 @@
  *          java.base/sun.net.www.http
  *          java.base/sun.net.www
  *          java.base/sun.net
- *          java.base/jdk.internal.net.quic
  *          java.net.http/jdk.internal.net.http.quic
  *          java.net.http/jdk.internal.net.http.quic.packets
  *          java.net.http/jdk.internal.net.http.quic.frames

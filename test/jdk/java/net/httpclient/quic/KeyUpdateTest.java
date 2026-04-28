@@ -44,12 +44,11 @@ import jdk.httpclient.test.lib.quic.QuicServerHandler;
 import jdk.httpclient.test.lib.quic.QuicStandaloneServer;
 import jdk.internal.net.http.quic.QuicClient;
 import jdk.internal.net.http.quic.QuicConnection;
-import jdk.internal.net.quic.QuicKeyUnavailableException;
-import jdk.internal.net.quic.QuicTLSContext;
-import jdk.internal.net.quic.QuicVersion;
+import jdk.internal.net.http.quic.QuicKeyUnavailableException;
+import jdk.internal.net.http.quic.QuicTLSContext;
+import jdk.internal.net.http.quic.QuicVersion;
+import jdk.internal.net.http.quic.tls.QuicTLSEngineImpl;
 import jdk.test.lib.net.SimpleSSLContext;
-
-import sun.security.ssl.QuicTLSEngineImpl;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -63,8 +62,8 @@ import org.junit.jupiter.api.Test;
  * @library /test/lib /test/jdk/java/net/httpclient/lib
  * @modules java.net.http/jdk.internal.net.http
  *          java.net.http/jdk.internal.net.http.common
- *          java.base/jdk.internal.net.quic
  *          java.net.http/jdk.internal.net.http.quic
+ *          java.net.http/jdk.internal.net.http.quic.tls
  *          java.net.http/jdk.internal.net.http.quic.packets
  *          java.net.http/jdk.internal.net.http.quic.frames
  *          java.net.http/jdk.internal.net.http.quic.streams
@@ -73,7 +72,6 @@ import org.junit.jupiter.api.Test;
  *          java.net.http/jdk.internal.net.http.qpack.writers
  *
  * @modules java.base/jdk.internal.util
- *          java.base/sun.security.ssl
  * @build jdk.httpclient.test.lib.quic.QuicStandaloneServer
  *        jdk.httpclient.test.lib.quic.ClientConnection
  *        jdk.httpclient.test.lib.common.TestUtil

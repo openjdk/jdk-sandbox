@@ -41,10 +41,6 @@ import java.util.Optional;
 import java.util.stream.Stream;
 
 import jdk.internal.net.http.common.Log;
-import jdk.internal.net.quic.QuicTransportErrors;
-import jdk.internal.net.quic.QuicTransportException;
-import jdk.internal.net.quic.QuicTransportParametersConsumer;
-import jdk.internal.net.quic.QuicVersion;
 
 /**
  * This class models a collection of Quic transport parameters. This class is mutable
@@ -932,7 +928,7 @@ public final class QuicTransportParameters {
      * @return the number of bytes written
      * @throws BufferOverflowException if there is not enough space in the
      *         provided buffer
-     * @see jdk.internal.net.quic.QuicTLSEngine#setLocalQuicTransportParameters(ByteBuffer)
+     * @see QuicTLSEngine#setLocalQuicTransportParameters(ByteBuffer)
      * @see <a href="https://www.rfc-editor.org/rfc/rfc9000#section-18">
      *      RFC 9000, Section 18</a>
      * @see <a href="https://www.rfc-editor.org/rfc/rfc9001">
@@ -1024,8 +1020,8 @@ public final class QuicTransportParameters {
      * @return the decoded transport parameters
      * @throws QuicTransportException if the parameters couldn't be decoded
      *
-     * @see jdk.internal.net.quic.QuicTLSEngine#setRemoteQuicTransportParametersConsumer(QuicTransportParametersConsumer) (ByteBuffer)
-     * @see jdk.internal.net.quic.QuicTransportParametersConsumer#accept(ByteBuffer)
+     * @see QuicTLSEngine#setRemoteQuicTransportParametersConsumer(QuicTransportParametersConsumer) (ByteBuffer)
+     * @see QuicTransportParametersConsumer#accept(ByteBuffer)
      * @see #encode(ByteBuffer)
      * @see <a href="https://www.rfc-editor.org/rfc/rfc9000#section-18">
      *      RFC 9000, Section 18</a>

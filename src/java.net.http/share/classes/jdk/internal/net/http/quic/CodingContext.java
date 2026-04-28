@@ -26,9 +26,6 @@
 package jdk.internal.net.http.quic;
 
 import jdk.internal.net.http.quic.packets.QuicPacket;
-import jdk.internal.net.quic.QuicKeyUnavailableException;
-import jdk.internal.net.quic.QuicTLSEngine;
-import jdk.internal.net.quic.QuicTransportException;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;

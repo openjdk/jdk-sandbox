@@ -119,14 +119,8 @@ import jdk.internal.net.http.quic.streams.QuicStreams;
 import jdk.internal.net.http.quic.packets.QuicPacket;
 import jdk.internal.net.http.quic.packets.QuicPacket.PacketNumberSpace;
 import jdk.internal.net.http.quic.packets.QuicPacket.PacketType;
-import jdk.internal.net.quic.QuicKeyUnavailableException;
-import jdk.internal.net.quic.QuicOneRttContext;
-import jdk.internal.net.quic.QuicTLSEngine;
-import jdk.internal.net.quic.QuicTLSEngine.KeySpace;
-import jdk.internal.net.quic.QuicTransportErrors;
-import jdk.internal.net.quic.QuicTransportException;
+import jdk.internal.net.http.quic.QuicTLSEngine.KeySpace;
 import jdk.internal.net.http.quic.QuicTransportParameters.ParameterId;
-import jdk.internal.net.quic.QuicVersion;
 
 import static jdk.internal.net.http.quic.QuicClient.INITIAL_SERVER_CONNECTION_ID_LENGTH;
 import static jdk.internal.net.http.quic.QuicTransportParameters.ParameterId.active_connection_id_limit;
@@ -149,7 +143,7 @@ import static jdk.internal.net.http.quic.frames.QuicFrame.MAX_VL_INTEGER;
 import static jdk.internal.net.http.quic.packets.QuicPacketNumbers.computePacketNumberLength;
 import static jdk.internal.net.http.quic.streams.QuicStreams.isUnidirectional;
 import static jdk.internal.net.http.quic.streams.QuicStreams.streamType;
-import static jdk.internal.net.quic.QuicTransportErrors.PROTOCOL_VIOLATION;
+import static jdk.internal.net.http.quic.QuicTransportErrors.PROTOCOL_VIOLATION;
 
 /**
  * This class implements a QUIC connection.

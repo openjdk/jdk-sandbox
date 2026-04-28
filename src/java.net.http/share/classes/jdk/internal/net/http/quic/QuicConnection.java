@@ -37,7 +37,6 @@ import jdk.internal.net.http.quic.streams.QuicReceiverStream;
 import jdk.internal.net.http.quic.streams.QuicSenderStream;
 import jdk.internal.net.http.quic.streams.QuicStream;
 import jdk.internal.net.http.quic.streams.QuicStreams;
-import jdk.internal.net.quic.QuicTLSEngine;
 
 /**
  * This class implements a QUIC connection.

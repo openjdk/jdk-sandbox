@@ -21,10 +21,10 @@
  * questions.
  */
 
-import jdk.internal.net.quic.QuicTLSContext;
-import jdk.internal.net.quic.QuicTLSEngine;
-import jdk.internal.net.quic.QuicTransportException;
-import jdk.internal.net.quic.QuicVersion;
+import jdk.internal.net.http.quic.QuicTLSContext;
+import jdk.internal.net.http.quic.QuicTLSEngine;
+import jdk.internal.net.http.quic.QuicTransportException;
+import jdk.internal.net.http.quic.QuicVersion;
 import jdk.test.lib.net.SimpleSSLContext;
 import org.junit.jupiter.api.Test;
 
@@ -38,8 +38,7 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * @test
  * @library /test/lib
- * @modules java.base/sun.security.ssl
- *          java.base/jdk.internal.net.quic
+ * @modules java.net.http/jdk.internal.net.http.quic
  * @build jdk.test.lib.net.SimpleSSLContext
  * @summary Verify that a missing ALPN extension results in no_application_protocol alert
  * @run junit/othervm QuicTLSEngineFailedALPNTest

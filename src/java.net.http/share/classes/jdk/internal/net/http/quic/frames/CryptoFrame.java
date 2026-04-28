@@ -29,8 +29,8 @@ import java.nio.ByteBuffer;
 import java.util.Objects;
 
 import jdk.internal.net.http.common.Utils;
-import jdk.internal.net.quic.QuicTransportErrors;
-import jdk.internal.net.quic.QuicTransportException;
+import jdk.internal.net.http.quic.QuicTransportErrors;
+import jdk.internal.net.http.quic.QuicTransportException;
 import jdk.internal.net.http.quic.VariableLengthEncoder;
 
 /**

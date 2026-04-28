@@ -44,11 +44,9 @@ import jdk.internal.net.http.quic.frames.NewConnectionIDFrame;
 import jdk.internal.net.http.quic.frames.QuicFrame;
 import jdk.internal.net.http.quic.frames.RetireConnectionIDFrame;
 import jdk.internal.net.http.quic.packets.InitialPacket;
-import jdk.internal.net.quic.QuicTLSEngine;
-import jdk.internal.net.quic.QuicTransportErrors;
-import jdk.internal.net.quic.QuicTransportException;
+
 import static jdk.internal.net.http.quic.QuicConnectionId.MAX_CONNECTION_ID_LENGTH;
-import static jdk.internal.net.quic.QuicTransportErrors.PROTOCOL_VIOLATION;
+import static jdk.internal.net.http.quic.QuicTransportErrors.PROTOCOL_VIOLATION;
 
 /**
  * Manages the connection ids advertised by a peer of a connection.

@@ -25,9 +25,9 @@ import jdk.httpclient.test.lib.common.HttpServerAdapters;
 import jdk.httpclient.test.lib.quic.QuicServerConnection;
 import jdk.httpclient.test.lib.quic.QuicStandaloneServer;
 import jdk.internal.net.http.http3.Http3Error;
+import jdk.internal.net.http.quic.QuicVersion;
 import jdk.internal.net.http.quic.TerminationCause;
 import jdk.internal.net.http.quic.streams.QuicBidiStream;
-import jdk.internal.net.quic.QuicVersion;
 import jdk.test.lib.net.SimpleSSLContext;
 import jdk.test.lib.net.URIBuilder;
 

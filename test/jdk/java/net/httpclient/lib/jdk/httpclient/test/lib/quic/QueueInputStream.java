@@ -28,8 +28,8 @@ import java.nio.ByteBuffer;
 import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 
+import jdk.internal.net.http.quic.QuicTransportErrors;
 import jdk.internal.net.http.quic.streams.QuicStreamReader;
-import jdk.internal.net.quic.QuicTransportErrors;
 
 /**
  * An {@code InputStream} which reads its data from a {@link BlockingQueue}

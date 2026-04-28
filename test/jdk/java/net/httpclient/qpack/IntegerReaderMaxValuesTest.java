@@ -34,8 +34,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 
 /*
  * @test
- * @modules java.base/jdk.internal.net.quic
- *          java.net.http/jdk.internal.net.http.http3
+ * @modules java.net.http/jdk.internal.net.http.http3
  *          java.net.http/jdk.internal.net.http.hpack
  *          java.net.http/jdk.internal.net.http.qpack
  *          java.net.http/jdk.internal.net.http.qpack.readers

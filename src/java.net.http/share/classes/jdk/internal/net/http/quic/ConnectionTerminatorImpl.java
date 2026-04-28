@@ -44,17 +44,15 @@ import jdk.internal.net.http.quic.TerminationCause.TransportError;
 import jdk.internal.net.http.quic.frames.ConnectionCloseFrame;
 import jdk.internal.net.http.quic.frames.QuicFrame;
 import jdk.internal.net.http.quic.packets.QuicPacket;
-import jdk.internal.net.quic.QuicKeyUnavailableException;
-import jdk.internal.net.quic.QuicTLSEngine.KeySpace;
-import jdk.internal.net.quic.QuicTransportErrors;
-import jdk.internal.net.quic.QuicTransportException;
+import jdk.internal.net.http.quic.QuicTLSEngine.KeySpace;
+
 import static jdk.internal.net.http.quic.QuicConnectionImpl.QuicConnectionState.CLOSED;
 import static jdk.internal.net.http.quic.QuicConnectionImpl.QuicConnectionState.CLOSING;
 import static jdk.internal.net.http.quic.QuicConnectionImpl.QuicConnectionState.DRAINING;
 import static jdk.internal.net.http.quic.TerminationCause.appLayerClose;
 import static jdk.internal.net.http.quic.TerminationCause.forSilentTermination;
 import static jdk.internal.net.http.quic.TerminationCause.forTransportError;
-import static jdk.internal.net.quic.QuicTransportErrors.NO_ERROR;
+import static jdk.internal.net.http.quic.QuicTransportErrors.NO_ERROR;
 
 final class ConnectionTerminatorImpl implements ConnectionTerminator {
 

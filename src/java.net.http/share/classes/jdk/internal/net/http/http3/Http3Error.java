@@ -28,8 +28,6 @@ import java.util.HexFormat;
 import java.util.Optional;
 import java.util.stream.Stream;
 
-import jdk.internal.net.quic.QuicTransportErrors;
-
 /**
  * This enum models HTTP/3 error codes as specified in
  * <a href="https://www.rfc-editor.org/rfc/rfc9114.html#name-http-3-error-codes">RFC 9114, Section 8</a>,

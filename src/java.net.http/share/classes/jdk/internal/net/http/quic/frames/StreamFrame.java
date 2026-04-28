@@ -30,7 +30,7 @@ import java.util.Objects;
 
 import jdk.internal.net.http.common.Utils;
 import jdk.internal.net.http.quic.packets.QuicPacketEncoder;
-import jdk.internal.net.quic.QuicTransportException;
+import jdk.internal.net.http.quic.QuicTransportException;
 
 /**
  * A STREAM Frame

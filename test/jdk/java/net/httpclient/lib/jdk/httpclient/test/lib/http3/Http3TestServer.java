@@ -54,9 +54,10 @@ import jdk.internal.net.http.common.Utils;
 import jdk.internal.net.http.http3.ConnectionSettings;
 import jdk.internal.net.http.http3.Http3Error;
 import jdk.internal.net.http.http3.frames.SettingsFrame;
-import jdk.internal.net.quic.QuicTLSContext;
-import jdk.internal.net.quic.QuicTransportErrors;
-import jdk.internal.net.quic.QuicVersion;
+import jdk.internal.net.http.quic.QuicTLSContext;
+import jdk.internal.net.http.quic.QuicTransportErrors;
+import jdk.internal.net.http.quic.QuicVersion;
+
 import static java.nio.charset.StandardCharsets.US_ASCII;
 
 public class Http3TestServer implements QuicServer.ConnectionAcceptor, AutoCloseable {

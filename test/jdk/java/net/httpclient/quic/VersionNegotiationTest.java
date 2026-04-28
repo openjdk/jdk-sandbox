@@ -38,8 +38,8 @@ import jdk.httpclient.test.lib.quic.QuicServerConnection;
 import jdk.httpclient.test.lib.quic.QuicServerHandler;
 import jdk.httpclient.test.lib.quic.QuicStandaloneServer;
 import jdk.internal.net.http.quic.QuicClient;
-import jdk.internal.net.quic.QuicTLSContext;
-import jdk.internal.net.quic.QuicVersion;
+import jdk.internal.net.http.quic.QuicTLSContext;
+import jdk.internal.net.http.quic.QuicVersion;
 import jdk.test.lib.net.SimpleSSLContext;
 
 import org.junit.jupiter.api.AfterAll;

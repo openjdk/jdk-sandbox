@@ -49,10 +49,9 @@ import jdk.internal.net.http.common.Utils;
 import jdk.internal.net.http.http3.Http3Error;
 import jdk.internal.net.http.quic.QuicClient;
 import jdk.internal.net.http.quic.QuicTransportParameters;
-import jdk.internal.net.quic.QuicVersion;
-import jdk.internal.net.quic.QuicTLSContext;
+import jdk.internal.net.http.quic.QuicVersion;
+import jdk.internal.net.http.quic.QuicTLSContext;
 
-import static java.net.http.HttpClient.Version.HTTP_3;
 import static jdk.internal.net.http.Http3ClientProperties.WAIT_FOR_PENDING_CONNECT;
 import static jdk.internal.net.http.common.Alpns.H3;
 import static jdk.internal.net.http.quic.QuicTransportParameters.ParameterId.initial_max_stream_data_bidi_remote;

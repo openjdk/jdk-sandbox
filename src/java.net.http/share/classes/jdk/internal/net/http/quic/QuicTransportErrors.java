@@ -22,9 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package jdk.internal.net.quic;
-
-import sun.security.ssl.Alert;
+package jdk.internal.net.http.quic;
 
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -342,7 +340,8 @@ public enum QuicTransportErrors {
         if (c.isEmpty()) return "Unknown [0x"+Long.toHexString(code) + "]";
         if (c.get().hasCode()) return c.get().toString();
         if (c.get() == CRYPTO_ERROR)
-            return c.get() + "|" + Alert.nameOf((byte)code);
+            // TODO fix
+            return c.get() + "|" + (code&0xff);//Alert.nameOf((byte)code);
         return c.get() + " [0x" + Long.toHexString(code) + "]";
 
     }

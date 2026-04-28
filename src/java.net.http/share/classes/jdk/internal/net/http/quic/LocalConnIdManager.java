@@ -30,7 +30,6 @@ import jdk.internal.net.http.quic.frames.NewConnectionIDFrame;
 import jdk.internal.net.http.quic.frames.QuicFrame;
 import jdk.internal.net.http.quic.frames.RetireConnectionIDFrame;
 import jdk.internal.net.http.quic.packets.QuicPacket;
-import jdk.internal.net.quic.QuicTransportException;
 
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -39,7 +38,7 @@ import java.util.NavigableMap;
 import java.util.TreeMap;
 import java.util.concurrent.locks.ReentrantLock;
 
-import static jdk.internal.net.quic.QuicTransportErrors.PROTOCOL_VIOLATION;
+import static jdk.internal.net.http.quic.QuicTransportErrors.PROTOCOL_VIOLATION;
 
 /**
  * Manages the connection ids advertised by the local endpoint of a connection.

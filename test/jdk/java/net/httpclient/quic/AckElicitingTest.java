@@ -35,9 +35,12 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import jdk.internal.net.http.quic.PeerConnectionId;
-import jdk.internal.net.quic.QuicKeyUnavailableException;
-import jdk.internal.net.quic.QuicOneRttContext;
-import jdk.internal.net.quic.QuicVersion;
+import jdk.internal.net.http.quic.QuicKeyUnavailableException;
+import jdk.internal.net.http.quic.QuicOneRttContext;
+import jdk.internal.net.http.quic.QuicTLSEngine;
+import jdk.internal.net.http.quic.QuicTransportException;
+import jdk.internal.net.http.quic.QuicTransportParametersConsumer;
+import jdk.internal.net.http.quic.QuicVersion;
 import jdk.internal.net.http.quic.frames.AckFrame;
 import jdk.internal.net.http.quic.frames.AckFrame.AckRange;
 import jdk.internal.net.http.quic.frames.ConnectionCloseFrame;
@@ -67,9 +70,6 @@ import jdk.internal.net.http.quic.QuicConnectionId;
 import jdk.internal.net.http.quic.packets.QuicPacket;
 import jdk.internal.net.http.quic.packets.QuicPacket.PacketNumberSpace;
 import jdk.internal.net.http.quic.packets.QuicPacket.PacketType;
-import jdk.internal.net.quic.QuicTLSEngine;
-import jdk.internal.net.quic.QuicTransportException;
-import jdk.internal.net.quic.QuicTransportParametersConsumer;
 import jdk.test.lib.RandomFactory;
 
 import javax.crypto.AEADBadTagException;
@@ -114,7 +114,7 @@ public class AckElicitingTest {
             throw new AssertionError("should not come here!");
         }
         @Override
-        public boolean keysAvailable(KeySpace keySpace) {
+        public boolean keysAvailable(QuicTLSEngine.KeySpace keySpace) {
             return true;
         }
 

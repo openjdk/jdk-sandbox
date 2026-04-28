@@ -47,8 +47,6 @@ import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.Utils;
 import jdk.internal.net.http.quic.QuicEndpoint.QuicEndpointFactory;
 import jdk.internal.net.http.quic.packets.QuicPacket;
-import jdk.internal.net.quic.QuicTLSContext;
-import jdk.internal.net.quic.QuicVersion;
 
 /**
  * This class represents a QuicClient.

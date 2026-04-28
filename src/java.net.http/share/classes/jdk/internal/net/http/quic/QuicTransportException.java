@@ -22,7 +22,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package jdk.internal.net.quic;
+package jdk.internal.net.http.quic;
 
 /**
  * Exception that wraps QUIC transport error codes.

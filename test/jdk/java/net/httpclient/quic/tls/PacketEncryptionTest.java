@@ -21,12 +21,12 @@
  * questions.
  */
 
-import jdk.internal.net.quic.QuicKeyUnavailableException;
-import jdk.internal.net.quic.QuicTLSContext;
-import jdk.internal.net.quic.QuicTLSEngine;
-import jdk.internal.net.quic.QuicTransportException;
-import sun.security.ssl.QuicTLSEngineImpl;
-import sun.security.ssl.QuicTLSEngineImplAccessor;
+import jdk.internal.net.http.quic.QuicKeyUnavailableException;
+import jdk.internal.net.http.quic.QuicTLSContext;
+import jdk.internal.net.http.quic.QuicTLSEngine;
+import jdk.internal.net.http.quic.QuicTransportException;
+import jdk.internal.net.http.quic.tls.QuicTLSEngineImpl;
+import jdk.internal.net.http.quic.tls.QuicTLSEngineImplAccessor;
 
 import javax.crypto.AEADBadTagException;
 import javax.crypto.SecretKey;
@@ -38,7 +38,7 @@ import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.function.IntFunction;
 
-import static jdk.internal.net.quic.QuicVersion.QUIC_V1;
+import static jdk.internal.net.http.quic.QuicVersion.QUIC_V1;
 
 import org.junit.jupiter.api.Assertions;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -48,9 +48,9 @@ import org.junit.jupiter.api.Test;
 /**
  * @test
  * @library /test/lib
- * @modules java.base/sun.security.ssl
- *          java.base/jdk.internal.net.quic
- * @build java.base/sun.security.ssl.QuicTLSEngineImplAccessor
+ * @modules java.net.http/jdk.internal.net.http.quic
+ *          java.net.http/jdk.internal.net.http.quic.tls
+ * @build java.net.http/jdk.internal.net.http.quic.tls.QuicTLSEngineImplAccessor
  * @summary known-answer test for packet encryption and decryption
  * @run junit/othervm PacketEncryptionTest
  */

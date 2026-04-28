@@ -62,15 +62,16 @@ import jdk.internal.net.http.quic.QuicEndpoint;
 import jdk.internal.net.http.quic.QuicEndpoint.QuicEndpointFactory;
 import jdk.internal.net.http.quic.QuicInstance;
 import jdk.internal.net.http.quic.QuicSelector;
+import jdk.internal.net.http.quic.QuicTLSContext;
 import jdk.internal.net.http.quic.QuicTransportParameters;
+import jdk.internal.net.http.quic.QuicVersion;
 import jdk.internal.net.http.quic.packets.LongHeader;
 import jdk.internal.net.http.quic.packets.QuicPacket;
 import jdk.internal.net.http.quic.packets.QuicPacketDecoder;
 import jdk.internal.net.http.quic.packets.QuicPacketEncoder;
-import jdk.internal.net.quic.QuicTLSContext;
-import jdk.internal.net.quic.QuicVersion;
+
+import static jdk.internal.net.http.quic.QuicTransportErrors.CONNECTION_REFUSED;
 import static jdk.internal.net.http.quic.TerminationCause.forTransportError;
-import static jdk.internal.net.quic.QuicTransportErrors.CONNECTION_REFUSED;
 
 /**
  * This class represents a QuicServer.

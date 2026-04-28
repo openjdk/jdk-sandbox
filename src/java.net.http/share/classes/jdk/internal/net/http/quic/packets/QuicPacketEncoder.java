@@ -35,18 +35,18 @@ import java.util.function.IntFunction;
 
 import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.Utils;
-import jdk.internal.net.quic.QuicKeyUnavailableException;
-import jdk.internal.net.quic.QuicTransportErrors;
-import jdk.internal.net.quic.QuicTransportException;
-import jdk.internal.net.quic.QuicVersion;
+import jdk.internal.net.http.quic.QuicKeyUnavailableException;
+import jdk.internal.net.http.quic.QuicTransportErrors;
+import jdk.internal.net.http.quic.QuicTransportException;
+import jdk.internal.net.http.quic.QuicVersion;
 import jdk.internal.net.http.quic.frames.PaddingFrame;
 import jdk.internal.net.http.quic.frames.QuicFrame;
 import jdk.internal.net.http.quic.CodingContext;
 import jdk.internal.net.http.quic.QuicConnectionId;
 import jdk.internal.net.http.quic.packets.QuicPacket.PacketNumberSpace;
 import jdk.internal.net.http.quic.packets.QuicPacket.PacketType;
-import jdk.internal.net.quic.QuicTLSEngine;
-import jdk.internal.net.quic.QuicTLSEngine.KeySpace;
+import jdk.internal.net.http.quic.QuicTLSEngine;
+import jdk.internal.net.http.quic.QuicTLSEngine.KeySpace;
 import jdk.internal.net.http.quic.VariableLengthEncoder;
 
 import javax.crypto.ShortBufferException;

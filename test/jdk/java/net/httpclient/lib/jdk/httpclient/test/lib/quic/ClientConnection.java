@@ -37,8 +37,9 @@ import jdk.internal.net.http.quic.QuicConnection;
 import jdk.internal.net.http.quic.QuicConnectionImpl;
 import jdk.internal.net.http.quic.QuicEndpoint;
 import jdk.internal.net.http.quic.streams.QuicBidiStream;
+
+import static jdk.internal.net.http.quic.QuicTransportErrors.NO_ERROR;
 import static jdk.internal.net.http.quic.TerminationCause.forTransportError;
-import static jdk.internal.net.quic.QuicTransportErrors.NO_ERROR;
 
 /**
  * A client initiated QUIC connection to a server

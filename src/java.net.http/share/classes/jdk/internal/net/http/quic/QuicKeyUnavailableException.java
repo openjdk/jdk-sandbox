@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -22,17 +22,24 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package jdk.internal.net.quic;
+package jdk.internal.net.http.quic;
+
+
+import java.util.Objects;
+
+import jdk.internal.net.http.quic.QuicTLSEngine.KeySpace;
 
 /**
- * Supplies contextual 1-RTT information that's available in the QUIC implementation of the
- * {@code java.net.http} module, to the QUIC TLS layer in the {@code java.base} module.
+ * Thrown when an operation on {@link QuicTLSEngine} doesn't have the necessary
+ * QUIC keys for encrypting or decrypting packets. This can either be because
+ * the keys aren't available for a particular {@linkplain KeySpace keyspace} or
+ * the keys for the {@code keyspace} have been discarded.
  */
-public interface QuicOneRttContext {
+public final class QuicKeyUnavailableException extends Exception {
+    @java.io.Serial
+    private static final long serialVersionUID = 8553365136999153478L;
 
-    /**
-     * {@return the largest packet number that was acknowledged by
-     * the peer in the 1-RTT packet space}
-     */
-    long getLargestPeerAckedPN();
+    public QuicKeyUnavailableException(final String message, final KeySpace keySpace) {
+        super(Objects.requireNonNull(keySpace) + " keyspace: " + message);
+    }
 }

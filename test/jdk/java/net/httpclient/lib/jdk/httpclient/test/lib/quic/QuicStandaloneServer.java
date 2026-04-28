@@ -36,9 +36,9 @@ import javax.net.ssl.SSLContext;
 
 import jdk.internal.net.http.common.Logger;
 import jdk.internal.net.http.common.Utils;
+import jdk.internal.net.http.quic.QuicTLSContext;
+import jdk.internal.net.http.quic.QuicVersion;
 import jdk.internal.net.http.quic.streams.QuicBidiStream;
-import jdk.internal.net.quic.QuicTLSContext;
-import jdk.internal.net.quic.QuicVersion;
 
 public final class QuicStandaloneServer extends QuicServer {
     public static final String ALPN = "quic-standalone-test-alpn";

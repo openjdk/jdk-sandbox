@@ -24,13 +24,13 @@
  */
 package jdk.internal.net.http.quic.frames;
 
-import jdk.internal.net.quic.QuicTransportException;
+import jdk.internal.net.http.quic.QuicTransportException;
 
 import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 
-import jdk.internal.net.quic.QuicTransportErrors;
+import jdk.internal.net.http.quic.QuicTransportErrors;
 
 /**
  * A CONNECTION_CLOSE Frame
@@ -96,7 +96,7 @@ public final class ConnectionCloseFrame extends QuicFrame {
 
     /**
      * Outgoing CONNECTION_CLOSE frame (variant with errorFrameType - 0x1c).
-     * This indicates a {@linkplain jdk.internal.net.quic.QuicTransportErrors
+     * This indicates a {@linkplain QuicTransportErrors
      * quic transport error}.
      */
     public ConnectionCloseFrame(long errorCode, long errorFrameType, String reason) {

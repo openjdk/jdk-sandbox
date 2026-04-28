@@ -106,7 +106,7 @@ import static java.net.http.HttpOption.Http3DiscoveryMode.HTTP_3_URI_ONLY;
 import static java.net.http.HttpOption.H3_DISCOVERY;
 import static java.util.Objects.requireNonNullElse;
 import static java.util.Objects.requireNonNullElseGet;
-import static jdk.internal.net.quic.QuicTLSContext.isQuicCompatible;
+import static jdk.internal.net.http.quic.QuicTLSContext.isQuicCompatible;
 
 /**
  * Client implementation. Contains all configuration information and also

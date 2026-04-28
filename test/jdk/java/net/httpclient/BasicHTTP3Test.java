@@ -44,7 +44,7 @@ import javax.net.ssl.SSLContext;
 
 import jdk.httpclient.test.lib.common.HttpServerAdapters;
 import jdk.httpclient.test.lib.http2.Http2TestServer;
-import jdk.internal.net.quic.QuicVersion;
+import jdk.internal.net.http.quic.QuicVersion;
 import jdk.test.lib.net.SimpleSSLContext;
 import static java.net.http.HttpClient.Version.HTTP_2;
 import static java.net.http.HttpClient.Version.HTTP_3;

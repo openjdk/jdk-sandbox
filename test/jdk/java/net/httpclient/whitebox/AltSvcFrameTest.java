@@ -69,7 +69,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *          java.net.http/jdk.internal.net.http.frame
  *          java.net.http/jdk.internal.net.http.hpack
  *          java.base/jdk.internal.util
- *          java.base/jdk.internal.net.quic
  *          java.net.http/jdk.internal.net.http.quic
  *          java.net.http/jdk.internal.net.http.quic.packets
  *          java.net.http/jdk.internal.net.http.quic.frames
