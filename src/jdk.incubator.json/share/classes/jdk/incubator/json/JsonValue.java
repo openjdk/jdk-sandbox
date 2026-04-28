@@ -62,7 +62,7 @@ import java.util.Optional;
  * JsonValue}. Each conversion methods corresponds to a JSON type:
  * <ul>
  *     <li>{@code asString()} returns a String that represents the JSON string
- *     with all RFC 8259 JSON escapes translated to their corresponding
+ *     with all RFC 8259 JSON escapes converted to their corresponding
  *     characters.</li>
  *     <li>{@code asInt()} returns an int provided the JSON number is a whole
  *     number within range of {@code Integer.MIN_VALUE} and
@@ -173,7 +173,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
 
     /**
      * {@return the {@code boolean} value represented by this {@code JsonValue} if
-     * it is an instance of {@link JsonBoolean}; otherwise, throws an
+     * it is an instance of {@link JsonBoolean}; otherwise, throws a
      * {@code JsonValueException}}.
      *
      * @implSpec
@@ -189,7 +189,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
 
     /**
      * {@return an {@code int} if this {@code JsonValue} is an instance of {@link JsonNumber}
-     * and it can be translated from its string representation; otherwise, throws an
+     * and it can be converted from its string representation; otherwise, throws a
      * {@code JsonValueException}}} That is, it can be
      * expressed as a whole number and is within the range of
      * {@link Integer#MIN_VALUE} and {@link Integer#MAX_VALUE}. This occurs,
@@ -213,7 +213,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
 
     /**
      * {@return a {@code long} if this {@code JsonValue} is an instance of {@link JsonNumber} and
-     * it can be translated from its string representation; otherwise, throws an
+     * it can be converted from its string representation; otherwise, throws a
      * {@code JsonValueException}} That is, it can be expressed
      * as a whole number and is within the range of {@link Long#MIN_VALUE} and
      * {@link Long#MAX_VALUE}. This occurs, even if the string contains an
@@ -236,14 +236,13 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
 
     /**
      * {@return a finite {@code double} if this {@code JsonValue} is an instance of
-     * {@link JsonNumber} and it can be translated from its string representation;
-     * otherwise, throws an {@code JsonValueException}}
-     * If the finite {@code double} value from its string representation is outside
-     * the range of {@link Double#MAX_VALUE -Double.MAX_VALUE} and
-     * {@link Double#MAX_VALUE}, a {@code JsonValueException} is thrown.
+     * {@link JsonNumber} and it can be converted from its string representation;
+     * otherwise, throws a {@code JsonValueException}}
+     * If the converted {@code double} value is positive or negative infinity,
+     * a {@code JsonValueException} is thrown.
      *
      * @apiNote Callers of this method should be aware of the potential loss in
-     * precision when the string representation of the JSON number is translated
+     * precision when the string representation of the JSON number is converted
      * to a {@code double}.
      * @implSpec
      * The default implementation provided by {@code JsonValue} throws {@code
@@ -259,7 +258,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
 
     /**
      * {@return the {@code String} value represented by this {@code JsonValue} if
-     * it is an instance of {@link JsonString}; otherwise, throws an
+     * it is an instance of {@link JsonString}; otherwise, throws a
      * {@code JsonValueException}}.
      * If this {@code JsonString} was created by parsing a JSON document, any
      * escaped characters in the original JSON document are converted to their
@@ -278,7 +277,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
 
     /**
      * {@return an unmodifiable list of the {@code JsonValue}s if this
-     * {@code JsonValue} is an instance of {@link JsonArray}; otherwise, throws an
+     * {@code JsonValue} is an instance of {@link JsonArray}; otherwise, throws a
      * {@code JsonValueException}}.
      *
      * @implSpec
@@ -294,7 +293,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
 
     /**
      * {@return an unmodifiable map of {@code String} to {@code JsonValue} if this
-     * {@code JsonValue} is an instance of {@link JsonObject}; otherwise, throws an
+     * {@code JsonValue} is an instance of {@link JsonObject}; otherwise, throws a
      * {@code JsonValueException}}.
      *
      * @implSpec
@@ -317,7 +316,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
 
     /**
      * {@return the {@code JsonValue} associated with the given member name if this
-     * {@code JsonValue} is an instance of {@link JsonObject}} Otherwise, throws an
+     * {@code JsonValue} is an instance of {@link JsonObject}} Otherwise, throws a
      * {@code JsonValueException}.
      *
      * @implSpec
@@ -361,7 +360,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
 
     /**
      * {@return the {@code JsonValue} associated with the given index if this
-     * {@code JsonValue} is an instance of {@link JsonArray}} Otherwise, throws an
+     * {@code JsonValue} is an instance of {@link JsonArray}} Otherwise, throws a
      * {@code JsonValueException}.
      *
      * @implSpec
