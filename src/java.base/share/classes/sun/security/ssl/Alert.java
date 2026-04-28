@@ -36,7 +36,7 @@ import javax.net.ssl.SSLProtocolException;
 /**
  * SSL/(D)TLS Alert description
  */
-public enum Alert {
+enum Alert {
     // Please refer to TLS Alert Registry for the latest (D)TLS Alert values:
     //     https://www.iana.org/assignments/tls-parameters/
     CLOSE_NOTIFY            ((byte)0,   "close_notify", false),
@@ -103,7 +103,7 @@ public enum Alert {
         return null;
     }
 
-    public static String nameOf(byte id) {
+    static String nameOf(byte id) {
         for (Alert al : Alert.values()) {
             if (al.id == id) {
                 return al.description;
