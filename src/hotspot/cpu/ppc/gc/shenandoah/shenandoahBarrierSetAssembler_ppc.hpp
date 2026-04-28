@@ -137,7 +137,7 @@ public:
                Register dst, Register addr, int disp, bool narrow, bool acquire);
 
   void store_c2(const MachNode* node, MacroAssembler* masm,
-                Register dst, int disp, Register src, bool narrow);
+                Register dst, int disp, bool dst_narrow, Register src, bool src_narrow, Register tmp);
 
   void compare_and_set_c2(const MachNode* node, MacroAssembler* masm,
                           Register res, Register addr, Register oldval,

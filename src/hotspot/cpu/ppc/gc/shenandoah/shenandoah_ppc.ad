@@ -127,32 +127,57 @@ instruct loadP_acq_shenandoah(iRegPdst dst, memoryAlg4 mem) %{
 // ---------------------------------- STORES ---------------------------------------
 //
 
-instruct storeN_shenandoah(memory dst, iRegN_P2N src) %{
+instruct storeN_shenandoah(memory dst, iRegN_P2N src, iRegPdst tmp) %{
   match(Set dst (StoreN dst src));
   predicate(UseShenandoahGC && (n->as_Store()->barrier_data() != 0));
+  effect(TEMP tmp);
   format %{ "shenandoah_store $dst, $src\t# compressed ptr" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
       $dst$$base$$Register,
       $dst$$disp,
+      /* dst_narrow = */ true,
       $src$$Register,
-      /* narrow = */ true
+      /* src_narrow = */ true,
+      $tmp$$Register
     );
   %}
   ins_cost(MEMORY_REF_COST);
   ins_pipe(pipe_class_memory);
 %}
 
-instruct storeP_shenandoah(memoryAlg4 dst, iRegPsrc src) %{
+instruct storeP_shenandoah(memoryAlg4 dst, iRegPsrc src, iRegPdst tmp) %{
   match(Set dst (StoreP dst src));
   predicate(UseShenandoahGC && (n->as_Store()->barrier_data() != 0));
+  effect(TEMP tmp);
   format %{ "shenandoah_store $dst, $src\t# ptr" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
       $dst$$base$$Register,
       $dst$$disp,
+      /* dst_narrow = */ false,
       $src$$Register,
-      /* narrow = */ false
+      /* src_narrow = */ false,
+      $tmp$$Register
+    );
+  %}
+  ins_cost(MEMORY_REF_COST);
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct encodePAndStoreN_shenandoah(memory dst, iRegPsrc src, iRegPdst tmp) %{
+  match(Set dst (StoreN dst (EncodeP src)));
+  predicate(UseShenandoahGC && (n->as_Store()->barrier_data() != 0));
+  effect(TEMP tmp);
+  format %{ "shenandoah_store $dst, $src\t# compressed ptr (with encoding)" %}
+  ins_encode %{
+    ShenandoahBarrierSet::assembler()->store_c2(this, masm,
+      $dst$$base$$Register,
+      $dst$$disp,
+      /* dst_narrow = */ true,
+      $src$$Register,
+      /* src_narrow = */ false,
+      $tmp$$Register
     );
   %}
   ins_cost(MEMORY_REF_COST);

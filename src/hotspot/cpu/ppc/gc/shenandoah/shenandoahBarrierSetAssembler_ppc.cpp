@@ -1112,8 +1112,22 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
 }
 
 void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm,
-              Register dst, int disp, Register src, bool narrow) {
-  if (narrow) {
+              Register dst, int disp, bool dst_narrow,
+              Register src, bool src_narrow,
+              Register tmp) {
+
+  // Need to encode into tmp, because we cannot clobber src.
+  // TODO: Maybe there is a matcher way to test that src is unused after this?
+  if (dst_narrow && !src_narrow) {
+    __ mr(tmp, src);
+    if (ShenandoahBarrierStubC2::maybe_null(node)) {
+      __ encode_heap_oop(tmp, tmp);
+    } else {
+      __ encode_heap_oop_not_null(tmp);
+    }
+    src = tmp;
+  }
+  if (dst_narrow) {
     __ stw(src, disp, dst);
   } else {
     __ std(src, disp, dst);
