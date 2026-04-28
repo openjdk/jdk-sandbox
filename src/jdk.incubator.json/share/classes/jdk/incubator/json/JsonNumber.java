@@ -97,11 +97,14 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
 
     /**
      * {@return a finite {@code double} value from its string representation}
-     * The conversion is performed using {@link Double#parseDouble(String)}.
-     * If the converted {@code double} value is positive or negative infinity,
-     * a {@code JsonValueException} is thrown.
+     * If the finite {@code double} value from its string representation
+     * is outside the range of {@link Double#MAX_VALUE -Double.MAX_VALUE} and
+     * {@link Double#MAX_VALUE}, a {@code JsonValueException} is thrown.
      *
      * @apiNote {@inheritDoc}
+     * @implNote The JDK reference implementation uses {@link
+     * Double#parseDouble(String)} to perform the conversion from string to
+     * finite double.
      *
      * @throws JsonValueException if this {@code JsonNumber} cannot
      *      be represented as a finite {@code double}.
