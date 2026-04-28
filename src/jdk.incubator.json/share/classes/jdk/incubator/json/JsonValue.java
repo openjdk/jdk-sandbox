@@ -238,8 +238,9 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
      * {@return a finite {@code double} if this {@code JsonValue} is an instance of
      * {@link JsonNumber} and it can be translated from its string representation;
      * otherwise, throws an {@code JsonValueException}}
-     * If the string representation is outside the range of {@link Double#MAX_VALUE
-     * -Double.MAX_VALUE} and {@link Double#MAX_VALUE}, a {@code JsonValueException} is thrown.
+     * If the finite {@code double} value from its string representation is outside
+     * the range of {@link Double#MAX_VALUE -Double.MAX_VALUE} and
+     * {@link Double#MAX_VALUE}, a {@code JsonValueException} is thrown.
      *
      * @apiNote Callers of this method should be aware of the potential loss in
      * precision when the string representation of the JSON number is translated
