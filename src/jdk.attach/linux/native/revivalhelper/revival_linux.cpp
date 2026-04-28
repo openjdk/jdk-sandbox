@@ -277,7 +277,7 @@ char* readstring_at_offset_pd(const char* filename, uint64_t offset) {
 }
 
 char* readstring_from_core_at_vaddr_pd(const char* filename, uint64_t addr) {
-    ELFFile elf(filename, nullptr);
+    ELFFile elf(filename);
     if (!elf.is_valid()) {
         error("readstring_from_core_at_vaddr_pd: %s invalid", filename);
         return nullptr;
@@ -466,22 +466,62 @@ void* load_sharedobject_pd(const char* name, void* vaddr) {
     return h;
 }
 
-void copy_file_pd(const char* srcfile, const char* destfile) {
-    int fd_src = open(srcfile, O_RDONLY, S_IRUSR);
+#define NANOS_PER_SECOND 1000000000
+
+// Set value to be returned by interposed clock_gettime in revival support library (preloaded).
+void clock_fixup_pd(struct revival_data* rdata) {
+    void (*func)(unsigned long long) = (void(*)(unsigned long long)) dlsym(RTLD_NEXT, "set_revival_time_ns");
+    if (func != nullptr) {
+        double lifetime_s = 0;
+        if (rdata->error_time > 0) {
+            logv("revive_image: using JVM first error time"); // ...which is better than relying on core file timestamp.
+            lifetime_s = rdata->error_time;
+        } else {
+            logv("revive_image: using core timestamp");
+            if (core_timestamp == 0) {
+                warn("core timestamp not found in revival cache data");
+            } else {
+                lifetime_s = core_timestamp - rdata->initial_time_date;
+            }
+        }
+        if (lifetime_s != 0) {
+            func((lifetime_s * NANOS_PER_SECOND) + (rdata->initial_time_count));
+        }
+    } else {
+        // Function lookup failed, e.g. revivalhelper invoked directly without preload.
+        logv("set_revival_time_ns: symbol lookup failed.");
+    }
+}
+
+bool copy_file_pd(const char* srcfile, const char* destfile) {
+    bool result = false;
+    ssize_t count;
+    ssize_t e;
+    int fd_src;
+    int fd_dest = 0;
+
+    fd_src = open(srcfile, O_RDONLY, S_IRUSR);
     if (fd_src < 0) {
-        error("Cannot open source file %s: %s", srcfile, strerror(errno));
+        warn("Cannot open source file %s: %s", srcfile, strerror(errno));
+        goto out;
     }
-    int fd_dest = open(destfile, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR);
+    fd_dest = open(destfile, O_CREAT | O_WRONLY | O_TRUNC, S_IRUSR | S_IWUSR);
     if (fd_dest < 0) {
-        error("Cannot open destination file %s: %s", destfile, strerror(errno));
+        close(fd_src);
+        warn("Cannot open destination file %s: %s", destfile, strerror(errno));
+        goto out;
     }
-    ssize_t count = (ssize_t) file_size(srcfile);
-    ssize_t e = sendfile(fd_dest, fd_src, 0, count);
+    count = (ssize_t) file_size(srcfile);
+    e = sendfile(fd_dest, fd_src, 0, count);
     if (e != count) {
         warn("copy_file_pd: requested copy %ld bytes: got %s", count, strerror(errno));
+    } else {
+        result = true;
     }
+out:
     close(fd_src);
     close(fd_dest);
+    return result;
 }
 
 void relocate_sharedlib_pd(const char* filename, const uint64_t address) {
@@ -508,7 +548,7 @@ void write_symbols(int symbols_fd, const char* symbols[], int count, const char*
     memset(buf, 0, BUFLEN);
     strncpy(buf, revival_dirname, BUFLEN - 1);
     strncat(buf, "/" JVM_FILENAME, BUFLEN - 1);
-    ELFFile lib_copy(buf, nullptr);
+    ELFFile lib_copy(buf);
     lib_copy.write_symbols(symbols_fd, symbols, count);
 }
 
@@ -535,6 +575,10 @@ bool create_directory_pd(char* dirname) {
 }
 
 void write_sharedlib_mapping(int mappings_fd, char* filename, void* address) {
+        ELFFile elf(filename);
+        if (!elf.is_sharedlib()) {
+            return;
+        }
         char buf[BUFLEN];
         const char* checksum = "0";
         snprintf(buf, BUFLEN, "L %s %llx %s\n", basename(filename), (unsigned long long) address, checksum);
@@ -545,10 +589,10 @@ void write_sharedlib_mappings(ELFFile& core, int mappings_fd) {
     logv("write_sharedlib_mappings");
 
     if (!allLibraries) {
-        Segment* jvm_mapping = core.get_library_mapping(JVM_FILENAME);
+        Segment* jvm_mapping = core.get_file_mapping(JVM_FILENAME);
         write_sharedlib_mapping(mappings_fd, jvm_mapping->name, jvm_mapping->vaddr);
     } else {
-        std::list<Segment> libs = core.get_library_mappings();
+        std::list<Segment> libs = core.get_sharedlib_mappings();
         std::list<Segment>::iterator iter;
         for (iter = libs.begin(); iter != libs.end(); iter++) {
             write_sharedlib_mapping(mappings_fd, iter->name, iter->vaddr);
@@ -559,13 +603,20 @@ void write_sharedlib_mappings(ELFFile& core, int mappings_fd) {
 void copy_and_relocate(const char* srcfile, const char* destdir, uint64_t address) {
     char copy_path[BUFLEN];
 
+    ELFFile elf(srcfile);
+    if (!elf.is_sharedlib()) {
+        logv("copy_and_relocate: not an ELF sharedlib: %s", srcfile);
+        return;
+    }
     memset(copy_path, 0, BUFLEN);
     strncpy(copy_path, destdir, BUFLEN - 1);
     strncat(copy_path, "/", BUFLEN - 1);
     char* basefilename = basename((char*) srcfile);
     strncat(copy_path, basefilename, BUFLEN - 1);
     logv("Copying %s to %s", srcfile, copy_path);
-    copy_file_pd(srcfile, copy_path);
+    if (!copy_file_pd(srcfile, copy_path)) {
+        return;
+    }
 
     // Copy .debuginfo if present:
     char debuginfo_path[BUFLEN];
@@ -587,12 +638,12 @@ void copy_and_relocate(const char* srcfile, const char* destdir, uint64_t addres
 }
 
 void copy_and_relocate(ELFFile core, const char* destdir) {
-    logv("copy_and_relocate");
+    logv("copy_and_relocate: all=%d", allLibraries);
     if (!allLibraries) {
-        Segment* jvm_mapping = core.get_library_mapping(JVM_FILENAME);
+        Segment* jvm_mapping = core.get_file_mapping(JVM_FILENAME);
         copy_and_relocate(jvm_mapping->name, destdir, (uint64_t) jvm_mapping->vaddr);
     } else {
-        std::list<Segment> libs = core.get_library_mappings();
+        std::list<Segment> libs = core.get_sharedlib_mappings();
         std::list<Segment>::iterator iter;
         for (iter = libs.begin(); iter != libs.end(); iter++) {
             copy_and_relocate(iter->name, destdir, (uint64_t) iter->vaddr);
@@ -618,7 +669,7 @@ int create_revival_cache_pd(const char* corename, const char* revival_dirname, c
     }
 
     // Find JVM and its load address from core.
-    Segment* jvm_mapping = core.get_library_mapping(JVM_FILENAME);
+    Segment* jvm_mapping = core.get_file_mapping(JVM_FILENAME);
     if (jvm_mapping == nullptr) {
         warn("JVM library not found in core.");
         error("For cores from other systems, or if JDK at path in core has changed, use -L to specify JVM location.");

@@ -38,11 +38,12 @@
  */
 class ELFFile {
   public:
-    ELFFile(const char* filename, const char* libdir, bool write = false);
+    ELFFile(const char* filename, const char* libdir = nullptr, bool write = false);
     ~ELFFile();
 
     bool is_valid();
     bool is_core();
+    bool is_sharedlib();
 
     // Static check if named file is ELF
     static bool is_elf(const char* filename);
@@ -50,9 +51,10 @@ class ELFFile {
     uint64_t file_offset_for_vaddr(uint64_t addr);
     char* readstring_at_address(uint64_t addr);
 
-    // Return shared library information.
-    Segment* get_library_mapping(const char* filename);
-    std::list<Segment> get_library_mappings();
+    // File mapping information.
+    Segment* get_file_mapping(const char* filename);
+    std::list<Segment> get_file_mappings(); // Duplicates possible, all files.
+    std::list<Segment> get_sharedlib_mappings();
 
     // Relocate by some amount.  *Destructive*: changes the actual file.
     void relocate(long displacement);
@@ -73,12 +75,13 @@ class ELFFile {
     Elf64_Phdr* ph;     // First Program Header
     Elf64_Shdr* sh;     // First Section Header or nullptr
     char* shdr_strings;
+    std::list<Segment> file_mappings;
     std::list<Segment> libs;
 
     bool verify();
 
     char* find_note_data(Elf64_Phdr* notes_ph, Elf64_Word type);
-    void read_sharedlibs();
+    void read_file_mappings();
 
     // Section header actual address in mmapped file.
     Elf64_Shdr* section_header(unsigned long i);
@@ -105,7 +108,7 @@ class ELFFile {
     bool should_relocate_section_header(Elf64_Shdr* shdr);
     bool should_relocate_symbol(Elf64_Sym* sym);
 
-    void relocate_execution_header(long displacement);
+    void relocate_header(long displacement);
     void relocate_program_headers(long displacement);
     void relocate_section_headers(long displacement);
     void relocate_relocation_table(long displacement, const char* name);

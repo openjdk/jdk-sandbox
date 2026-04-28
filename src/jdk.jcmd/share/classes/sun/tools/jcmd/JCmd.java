@@ -94,7 +94,8 @@ public class JCmd {
                 executeCommandForCrashDump(arg.getProcessString(), arg.getLibDirs(), arg.getRevivalCachePath(), arg.getCommand());
                 System.exit(0);
             } catch (Throwable thr) {
-                thr.printStackTrace();
+                // An error like "Unknown diagnostic command" was already printed.
+                // thr.printStackTrace();
                 System.exit(1);
             }
         }

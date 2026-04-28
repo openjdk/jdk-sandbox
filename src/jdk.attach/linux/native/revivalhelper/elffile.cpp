@@ -132,7 +132,7 @@ bool ELFFile::verify() {
 }
 
 ELFFile::ELFFile(const char* filename, const char* libdir, bool write) {
-    logv("ELFFile: %s (write = %d)", filename, write);
+    logd("ELFFile: %s (write = %d)", filename, write);
     this->filename = filename;
     this->libdir = libdir;
     fd = -1;
@@ -144,7 +144,8 @@ ELFFile::ELFFile(const char* filename, const char* libdir, bool write) {
     int oflags = write ? O_RDWR : O_RDONLY;
     fd = open(filename, oflags);
     if (fd < 0) {
-        error("Cannot open '%s': %s", filename, strerror(errno));
+        warn("Cannot open '%s': %s", filename, strerror(errno));
+        return;
     }
     length = file_size(filename);
 
@@ -195,11 +196,15 @@ bool ELFFile::is_elf(const char* filename) {
 }
 
 bool ELFFile::is_valid() {
-    return m != nullptr;
+    return fd >= 0 &&  m != nullptr;
 }
 
 bool ELFFile::is_core() {
     return is_valid() && hdr != nullptr && hdr->e_type == ET_CORE;
+}
+
+bool ELFFile::is_sharedlib() {
+    return is_valid() && hdr != nullptr && hdr->e_type == ET_DYN;
 }
 
 ELFFile::~ELFFile() {
@@ -254,18 +259,6 @@ Elf64_Shdr* ELFFile::section_by_index(unsigned long index) {
     return (Elf64_Shdr*) ((char*) sh + (index * hdr->e_shentsize));
 }
 
-// Returns the first phdr where predicate returns true.
-/*Elf64_Phdr* ELFFile::program_header_by_predicate(bool (*predptr)(Elf64_Phdr*)) {
-    Elf64_Phdr* phdr = ph;
-    for (int i = 0; i < hdr->e_phnum; i++) {
-        if (predptr(phdr)) {
-            return phdr;
-        }
-        phdr = next_ph(phdr);
-    }
-    return nullptr;
-} */
-
 Elf64_Phdr* ELFFile::program_header_by_type(Elf32_Word type) {
     Elf64_Phdr* phdr = ph;
     for (int i = 0; i < hdr->e_phnum; i++) {
@@ -277,7 +270,7 @@ Elf64_Phdr* ELFFile::program_header_by_type(Elf32_Word type) {
     return nullptr;
 }
 
-void ELFFile::relocate_execution_header(long displacement) {
+void ELFFile::relocate_header(long displacement) {
     if (hdr->e_entry != 0) {
         hdr->e_entry += displacement;
     }
@@ -496,21 +489,21 @@ char* file_name_for_nt_file(char* name, const char* libdir) {
 /**
  * Read shared library list from the NT_FILE NOTE in a core file.
  */
-void ELFFile::read_sharedlibs() {
+void ELFFile::read_file_mappings() {
     if (!is_core()) {
-		error("read_sharedlibs: Not a core file: %s", filename);
+		error("read_file_mappings: Not a core file: %s", filename);
 	}
-    if (libs.size() != 0) return;
+    if (file_mappings.size() != 0) return;
 
     // Look for Program Header PT_NOTE:
     Elf64_Phdr* notes_ph = program_header_by_type(PT_NOTE);
     if (notes_ph == nullptr) {
-        error("read_sharedlibs: Cannot locate PT_NOTE in %s", filename);
+        error("read_file_mappings: Cannot locate PT_NOTE in %s", filename);
     }
     // Look for NT_FILE note:
     char* note_nt_file = find_note_data(notes_ph, 0x46494c45 /* NT_FILE */);
     if (note_nt_file == nullptr) {
-        error("read_sharedlibs: Cannot locate NOTE NT_FILE in %s", filename);
+        error("read_file_mappings: Cannot locate NOTE NT_FILE in %s", filename);
     }
     logv("NT_FILE note data at %p", note_nt_file);
 
@@ -551,11 +544,11 @@ void ELFFile::read_sharedlibs() {
                 // name changed, is now heap allocated
             }
             Segment seg(name, lib.vaddr, lib.length);
-            libs.push_back(seg);
+            file_mappings.push_back(seg);
         }
     }
 
-    logd("sharedlibs size = %ld", libs.size());
+    logd("file_mappings size = %ld", file_mappings.size());
     free(files);
 }
 
@@ -595,7 +588,9 @@ void ELFFile::relocate(long displacement) {
     if (shdr_strings == 0) {
         error("%s: ELFFile::relocate expects shdr_strings", filename);
     }
-    relocate_execution_header(displacement);
+    // Check first Program Header has zero vaddr?
+
+    relocate_header(displacement);
     relocate_program_headers(displacement);
     relocate_section_headers(displacement);
     relocate_relocation_table(displacement, ".rela.dyn");
@@ -631,9 +626,9 @@ void ELFFile::write_symbols(int symbols_fd, const char* symbols[], int count) {
     }
 }
 
-Segment* ELFFile::get_library_mapping(const char* filename) {
-    read_sharedlibs();
-    for (std::list<Segment>::iterator iter = libs.begin(); iter != libs.end(); iter++) {
+Segment* ELFFile::get_file_mapping(const char* filename) {
+    read_file_mappings();
+    for (std::list<Segment>::iterator iter = file_mappings.begin(); iter != file_mappings.end(); iter++) {
         if ((char*) iter->name == nullptr) {
             continue; // no name
         }
@@ -649,8 +644,22 @@ Segment* ELFFile::get_library_mapping(const char* filename) {
     return nullptr;
 }
 
-std::list<Segment> ELFFile::get_library_mappings() {
-    // Can be used to copy and relocate all libraries, but would need an is_elf check.
+std::list<Segment> ELFFile::get_file_mappings() {
+    return file_mappings;
+}
+
+std::list<Segment> ELFFile::get_sharedlib_mappings() {
+    if (libs.size() == 0) {
+        char* previous = nullptr;
+        std::list<Segment>::iterator iter;
+        for (iter = file_mappings.begin(); iter != file_mappings.end(); iter++) {
+            // Skip duplicate names (uses NT_FILE info which contains duplicate names).
+            if (previous == nullptr || strcmp(previous, iter->name) != 0) {
+                libs.push_back(*iter);
+            }
+            previous = iter->name;
+        }
+    }
     return libs;
 }
 
@@ -663,7 +672,7 @@ void ELFFile::write_mem_mappings(int mappings_fd) {
         warn("write_mem_mappings: Not writing mappings for non-core file: %s", filename);
         return;
     }
-    read_sharedlibs();
+    read_file_mappings();
 
     int n_skipped = 0;
     Elf64_Phdr* phdr = ph;
@@ -680,7 +689,7 @@ void ELFFile::write_mem_mappings(int mappings_fd) {
 		bool skip = false;
         if (!(phdr->p_flags & PF_W)) {
             std::list<Segment>::iterator iter;
-            for (iter = libs.begin(); iter != libs.end(); iter++) {
+            for (iter = file_mappings.begin(); iter != file_mappings.end(); iter++) {
                 Segment lib = *iter;
                 if (is_inside(phdr, lib.start(), lib.end())) {
                     logv("Skipping core PH 0x%lx - 0x%lx due to overlap with %s", phdr->p_vaddr, phdr->p_vaddr + phdr->p_memsz, lib.name);

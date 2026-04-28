@@ -178,6 +178,8 @@ extern int versionCheckEnabled; // set from env: REVIVAL_SKIPVERSIONCHECK
 extern char* core_filename;
 extern int core_fd;
 extern const char* revivaldir;
+extern unsigned long long core_timestamp;
+
 extern bool allLibraries;
 
 // Set during actual revival:
@@ -316,6 +318,8 @@ int mappings_file_create(const char* filename, const char* corename);
  * Return the fd so other code can write the symbols lines.
  */
 int symbols_file_create(const char* filename);
+
+void clock_fixup_pd(struct revival_data* rdata);
 
 /**
  * Load a shared library.  Return an opaque handle (not the load address), or -1 for error.

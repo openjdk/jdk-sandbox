@@ -869,31 +869,7 @@ int revive_image_cooperative() {
     logv("revive_image: initial_time_date  s  = %lld", (unsigned long long) rdata->initial_time_date);
     logv("revive_image: error time         s  = %f", rdata->error_time);
 
-#ifdef LINUX
-    // Set value to be returned by interposed clock_gettime in revival support library (preloaded).
-#define NANOS_PER_SECOND 1000000000
-    void (*func)(unsigned long long) = (void(*)(unsigned long long)) dlsym(RTLD_NEXT, "set_revival_time_ns");
-    if (func != nullptr) {
-        double lifetime_s = 0;
-        if (rdata->error_time > 0) {
-            logv("revive_image: using JVM first error time"); // ...which is better than relying on core file timestamp.
-            lifetime_s = rdata->error_time;
-        } else {
-            logv("revive_image: using core timestamp");
-            if (core_timestamp == 0) {
-                warn("core timestamp not found in revival cache data");
-            } else {
-                lifetime_s = core_timestamp - rdata->initial_time_date;
-            }
-        }
-        if (lifetime_s != 0) {
-            func((lifetime_s * NANOS_PER_SECOND) + (rdata->initial_time_count));
-        }
-    } else {
-        // Function lookup failed, e.g. revivalhelper invoked directly without preload.
-        logv("set_revival_time_ns: symbol lookup failed.");
-    }
-#endif
+    clock_fixup_pd(rdata);
     return 0;
 }
 
