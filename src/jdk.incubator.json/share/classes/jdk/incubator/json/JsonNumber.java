@@ -97,9 +97,8 @@ public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
 
     /**
      * {@return a finite {@code double} value from its string representation}
-     * If the finite {@code double} value from its string representation
-     * is outside the range of {@link Double#MAX_VALUE -Double.MAX_VALUE} and
-     * {@link Double#MAX_VALUE}, a {@code JsonValueException} is thrown.
+     * If the string representation is outside the range of {@link Double#MAX_VALUE
+     * -Double.MAX_VALUE} and {@link Double#MAX_VALUE}, a {@code JsonValueException} is thrown.
      *
      * @apiNote {@inheritDoc}
      * @implNote The JDK reference implementation uses {@link
