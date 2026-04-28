@@ -251,10 +251,13 @@ void ShenandoahForwardingTable::write_sentinels() {
   assert(_table != nullptr, "FWT must be built before writing sentinels");
   Entry* table = reinterpret_cast<Entry*>(_table);
   HeapWord* region_base = _region->bottom();
+  HeapWord* fwt_start = reinterpret_cast<HeapWord*>(_table);
   for (size_t i = 0; i < _num_entries; i++) {
     if (table[i].is_used()) {
       HeapWord* original = table[i].original(region_base);
-      *reinterpret_cast<uintptr_t*>(original) = CollectedHeap::in_fwt_addr_filler_word;
+      if (original < fwt_start) {
+        *reinterpret_cast<uintptr_t*>(original) = CollectedHeap::in_fwt_addr_filler_word;
+      }
     }
   }
 }
