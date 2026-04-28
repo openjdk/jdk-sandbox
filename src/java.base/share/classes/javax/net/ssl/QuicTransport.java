@@ -51,7 +51,6 @@ public interface QuicTransport {
      *
      * @param secretKey the base secret used for deriving the handshake read keys
      */
-    // TODO merge with deriveHandshakeWriteSecrets, since both are derived at the same time
     void deriveHandshakeReadSecrets(SecretKey secretKey);
 
     /**

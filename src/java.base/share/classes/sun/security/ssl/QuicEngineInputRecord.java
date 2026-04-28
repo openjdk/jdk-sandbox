@@ -136,7 +136,7 @@ final class QuicEngineInputRecord extends InputRecord implements SSLRecord {
             // Fail fast for unknown handshake message.
             byte handshakeType = handshakeFrag.get();
             if (!SSLHandshake.isKnown(handshakeType)) {
-                //TODO fail with TLS UNEXPECTED_MESSAGE
+                // SSLTransport.decode will convert this to UNEXPECTED_MESSAGE
                 throw new SSLProtocolException(
                         "Unknown handshake type size, Handshake.msg_type = " +
                                 (handshakeType & 0xFF));
@@ -144,7 +144,7 @@ final class QuicEngineInputRecord extends InputRecord implements SSLRecord {
 
             int handshakeBodyLen = Record.getInt24(handshakeFrag);
             if (handshakeBodyLen > SSLConfiguration.maxHandshakeMessageSize) {
-                // TODO fail with QUIC CRYPTO_BUFFER_EXCEEDED
+                // SSLTransport.decode will convert this to UNEXPECTED_MESSAGE
                 throw new SSLProtocolException(
                         "The size of the handshake message ("
                                 + handshakeBodyLen
