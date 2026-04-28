@@ -43,7 +43,6 @@ class MachNode;
 class StubCodeGenerator;
 
 class ShenandoahBarrierSetAssembler: public BarrierSetAssembler {
-  friend class ShenandoahCASBarrierSlowStub;
 private:
 
   void satb_barrier(MacroAssembler* masm,

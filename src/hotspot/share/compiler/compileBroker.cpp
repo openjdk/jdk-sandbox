@@ -188,7 +188,6 @@ uint CompileBroker::_sum_osr_bytes_compiled         = 0;
 uint CompileBroker::_sum_standard_bytes_compiled    = 0;
 uint CompileBroker::_sum_nmethod_size               = 0;
 uint CompileBroker::_sum_nmethod_code_size          = 0;
-uint CompileBroker::_largest_nmethod_code_size      = 0;
 
 jlong CompileBroker::_peak_compilation_time        = 0;
 
@@ -2653,7 +2652,6 @@ void CompileBroker::collect_statistics(CompilerThread* thread, elapsedTimer time
     // Collect counts of successful compilations
     _sum_nmethod_size      += task->nm_total_size();
     _sum_nmethod_code_size += task->nm_insts_size();
-    _largest_nmethod_code_size = MAX2(_largest_nmethod_code_size, (uint) task->nm_insts_size());
     _total_compile_count++;
 
     if (UsePerfData) {
@@ -2741,7 +2739,6 @@ void CompileBroker::print_times(bool per_compiler, bool aggregate) {
   uint total_invalidated_count = CompileBroker::_total_invalidated_count;
 
   uint nmethods_code_size = CompileBroker::_sum_nmethod_code_size;
-  uint largest_nmethod_code_size = CompileBroker::_largest_nmethod_code_size;
   uint nmethods_size = CompileBroker::_sum_nmethod_size;
 
   tty->cr();
@@ -2795,7 +2792,6 @@ void CompileBroker::print_times(bool per_compiler, bool aggregate) {
   uint bps = tcs == 0.0 ? 0 : (uint)(tcb / tcs);
   tty->print_cr("  Average compilation speed : %8u bytes/s", bps);
   tty->cr();
-  tty->print_cr("  largest nmethod code size : %8u bytes", largest_nmethod_code_size);
   tty->print_cr("  nmethod code size         : %8u bytes", nmethods_code_size);
   tty->print_cr("  nmethod total size        : %8u bytes", nmethods_size);
 }

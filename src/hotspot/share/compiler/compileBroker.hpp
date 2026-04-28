@@ -246,7 +246,6 @@ class CompileBroker: AllStatic {
   static uint _sum_standard_bytes_compiled;
   static uint _sum_nmethod_size;
   static uint _sum_nmethod_code_size;
-  static uint _largest_nmethod_code_size;
   static jlong _peak_compilation_time;
 
   static CompilerStatistics _stats_per_level[];
