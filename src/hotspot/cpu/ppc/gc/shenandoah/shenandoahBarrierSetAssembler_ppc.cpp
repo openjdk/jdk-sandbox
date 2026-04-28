@@ -1096,7 +1096,29 @@ void ShenandoahBarrierSetAssembler::generate_c1_load_reference_barrier_runtime_s
 #ifdef COMPILER2
 
 #undef __
-#define __ masm.
+#define __ masm->
+
+void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm,
+             Register dst, Register addr, int disp, bool narrow, bool acquire) {
+  if (narrow) {
+    __ lwz(dst, disp, addr);
+  } else {
+    __ ld(dst, disp, addr);
+  }
+  if (acquire) {
+    __ twi_0(dst);
+    __ isync();
+  }
+}
+
+void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm,
+              Register dst, int disp, Register src, bool narrow) {
+  if (narrow) {
+    __ stw(src, disp, dst);
+  } else {
+    __ std(src, disp, dst);
+  }
+}
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
