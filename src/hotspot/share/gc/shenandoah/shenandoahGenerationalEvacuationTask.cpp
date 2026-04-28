@@ -150,7 +150,10 @@ void ShenandoahGenerationalEvacuationTask::evacuate_and_promote_regions() {
 
     if (r->is_cset()) {
       assert(r->has_live(), "Region %zu should have been reclaimed early", r->index());
-      assert(!_heap->collection_set()->use_forward_table(r), "must not use forward table");
+      if (_heap->collection_set()->use_forward_table(r)) {
+        // Already evacuated (degenerated GC resumes here).
+        continue;
+      }
       size_t num_forwardings;
       {
         ShenandoahSuspendibleThreadSetJoiner stsj(_concurrent);
