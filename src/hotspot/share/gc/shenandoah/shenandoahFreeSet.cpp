@@ -2749,7 +2749,7 @@ bool ShenandoahFreeSet::recycle_fwt_region(ShenandoahHeapRegion* r,
                  i, p2i(top), p2i(r->forwarding_table_start()));
   }
 
-  r->make_regular_from_cset();
+  r->recycle_early();
 
   size_t available = r->capacity() - r->fwt_tail_bytes();
   if (available < PLAB::min_size() * HeapWordSize) {

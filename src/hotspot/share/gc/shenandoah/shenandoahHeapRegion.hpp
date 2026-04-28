@@ -169,6 +169,7 @@ private:
   }
 
   void report_illegal_transition(const char* method);
+  void reset();
   void recycle_internal();
 
 public:
@@ -187,7 +188,7 @@ public:
   void make_pinned();
   void make_unpinned();
   void make_cset();
-  void make_regular_from_cset();
+  void recycle_early();
   void make_trash();
   void make_trash_immediate();
   void make_empty();

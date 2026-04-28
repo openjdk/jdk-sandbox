@@ -289,20 +289,21 @@ void ShenandoahHeapRegion::make_cset() {
   }
 }
 
-// Use when a region with fwt is recycled back into the Mutator free set
-// after thread roots have been updated.
-// The region remains active for new allocations.
-void ShenandoahHeapRegion::make_regular_from_cset() {
+// Use when a region with fwt is recycled back into the Mutator free set.
+void ShenandoahHeapRegion::recycle_early() {
   shenandoah_assert_heaplocked();
   switch (state()) {
     case _cset:
-      make_trash();
-      recycle_internal();
+      // Bits of make_trash().
+      reset_age();
+      CENSUS_NOISE(clear_youth();)
+      _empty_time = os::elapsedTime();
+
+      reset();
       write_fwt_sentinels();
-      set_state(_regular);
       return;
     default:
-      report_illegal_transition("regular from cset");
+      report_illegal_transition("Should be cset");
   }
 }
 
@@ -578,10 +579,7 @@ ShenandoahHeapRegion* ShenandoahHeapRegion::humongous_start_region() const {
   return r;
 }
 
-
-void ShenandoahHeapRegion::recycle_internal() {
-  bool has_fwt = forwarding_table_start() != nullptr;
-  assert((_recycling.is_set() && is_trash()) || has_fwt, "Wrong state");
+void ShenandoahHeapRegion::reset() {
   ShenandoahHeap* heap = ShenandoahHeap::heap();
 
   _mixed_candidate_garbage_words = 0;
@@ -593,9 +591,13 @@ void ShenandoahHeapRegion::recycle_internal() {
   if (ZapUnusedHeapArea) {
     SpaceMangler::mangle_region(MemRegion(bottom(), alloc_end()));
   }
+}
 
+void ShenandoahHeapRegion::recycle_internal() {
+  assert(_recycling.is_set() && is_trash(), "Wrong state");
+  reset();
   make_empty();
-  if (!has_fwt) set_affiliation(FREE);
+  set_affiliation(FREE);
 }
 
 // Upon return, this region has been recycled.  We try to recycle it.
