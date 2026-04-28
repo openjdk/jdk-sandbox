@@ -345,8 +345,9 @@ sealed abstract class QuicKeyManager
             } catch (GeneralSecurityException e) {
                 throw new SSLException("Missing cipher algorithm", e);
             } finally {
-//                KeyUtil.destroySecretKeys(initial_secret, client_initial_secret,
-//                        server_initial_secret);
+                QuicCipher.safeDiscard(initial_secret);
+                QuicCipher.safeDiscard(client_initial_secret);
+                QuicCipher.safeDiscard(server_initial_secret);
             }
         }
 

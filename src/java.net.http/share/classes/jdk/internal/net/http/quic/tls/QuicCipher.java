@@ -40,6 +40,7 @@ import javax.crypto.ShortBufferException;
 import javax.crypto.spec.ChaCha20ParameterSpec;
 import javax.crypto.spec.GCMParameterSpec;
 import javax.crypto.spec.IvParameterSpec;
+import javax.security.auth.DestroyFailedException;
 
 import jdk.internal.net.http.quic.QuicTransportErrors;
 import jdk.internal.net.http.quic.QuicTransportException;
@@ -181,7 +182,13 @@ abstract class QuicCipher {
     }
 
     static void safeDiscard(final SecretKey secretKey) {
-//        KeyUtil.destroySecretKeys(secretKey);
+        try {
+            if (secretKey != null) {
+                secretKey.destroy();
+            }
+        } catch (DestroyFailedException e) {
+            // swallow
+        }
     }
 
     abstract static class QuicReadCipher extends QuicCipher {
