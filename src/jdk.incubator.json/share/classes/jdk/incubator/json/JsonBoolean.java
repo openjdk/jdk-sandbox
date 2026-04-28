@@ -39,7 +39,7 @@ import jdk.incubator.json.impl.JsonBooleanImpl;
  *      The JavaScript Object Notation (JSON) Data Interchange Format - Values
  * @since 99
  */
-public sealed interface JsonBoolean extends JsonValue permits JsonBooleanImpl {
+public non-sealed interface JsonBoolean extends JsonValue {
 
     /**
      * {@return the {@code boolean} value represented by this {@code JsonBoolean}}

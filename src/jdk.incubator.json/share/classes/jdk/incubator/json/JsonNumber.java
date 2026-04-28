@@ -60,7 +60,7 @@ import jdk.incubator.json.impl.JsonNumberImpl;
  *      The JavaScript Object Notation (JSON) Data Interchange Format - Numbers
  * @since 99
  */
-public sealed interface JsonNumber extends JsonValue permits JsonNumberImpl {
+public non-sealed interface JsonNumber extends JsonValue {
 
     /**
      * {@return an {@code int} value from the string representation}

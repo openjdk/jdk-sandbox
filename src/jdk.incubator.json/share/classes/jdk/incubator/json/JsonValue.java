@@ -151,6 +151,11 @@ import java.util.Optional;
  * <p>
  * Instances of {@code JsonValue} are immutable and thread safe.
  *
+ * @implSpec A class implementing a non-sealed {@code JsonValue} sub-interface
+ * must adhere to the
+ * <a href="../../../java/lang/doc-files/ValueBased.html">value-based</a>
+ * class requirements.
+ *
  * @since 99
  */
 public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, JsonArray, JsonBoolean, JsonNull {
