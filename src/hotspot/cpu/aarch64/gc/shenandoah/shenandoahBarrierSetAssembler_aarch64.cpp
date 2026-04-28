@@ -1149,7 +1149,15 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   if (tmp2_live) {
     __ pop(tmp2);
   }
-  preserve(_obj);
+
+  // If this stub also supports LRB then we need to preserve _obj to use it
+  // there.
+  if (_needs_load_ref_barrier) {
+    preserve(_obj);
+  } else {
+    dont_preserve(_obj);
+  }
+
   {
     SaveLiveRegisters slr(&masm, this);
 
@@ -1161,7 +1169,6 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
     __ mov(lr, keepalive_runtime_entry_addr());
     __ blr(lr);
   }
-  dont_preserve(_obj);
 
   if (L_done != nullptr) {
     __ b(*L_done);
