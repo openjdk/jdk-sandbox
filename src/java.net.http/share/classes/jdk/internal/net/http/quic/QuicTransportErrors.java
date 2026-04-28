@@ -340,9 +340,48 @@ public enum QuicTransportErrors {
         if (c.isEmpty()) return "Unknown [0x"+Long.toHexString(code) + "]";
         if (c.get().hasCode()) return c.get().toString();
         if (c.get() == CRYPTO_ERROR)
-            // TODO fix
-            return c.get() + "|" + (code&0xff);//Alert.nameOf((byte)code);
+            return c.get() + "|" + nameOfAlert((byte)code);
         return c.get() + " [0x" + Long.toHexString(code) + "]";
+    }
 
+    // keep in sync with sun.security.ssl.Alert
+    private static String nameOfAlert(byte id) {
+        return switch (id) {
+            case (byte)0 -> "close_notify";
+            case (byte)10 -> "unexpected_message";
+            case (byte)20 -> "bad_record_mac";
+            case (byte)21 -> "decryption_failed";
+            case (byte)22 -> "record_overflow";
+            case (byte)30 -> "decompression_failure";
+            case (byte)40 -> "handshake_failure";
+            case (byte)41 -> "no_certificate";
+            case (byte)42 -> "bad_certificate";
+            case (byte)43 -> "unsupported_certificate";
+            case (byte)44 -> "certificate_revoked";
+            case (byte)45 -> "certificate_expired";
+            case (byte)46 -> "certificate_unknown";
+            case (byte)47 -> "illegal_parameter";
+            case (byte)48 -> "unknown_ca";
+            case (byte)49 -> "access_denied";
+            case (byte)50 -> "decode_error";
+            case (byte)51 -> "decrypt_error";
+            case (byte)60 -> "export_restriction";
+            case (byte)70 -> "protocol_version";
+            case (byte)71 -> "insufficient_security";
+            case (byte)80 -> "internal_error";
+            case (byte)86 -> "inappropriate_fallback";
+            case (byte)90 -> "user_canceled";
+            case (byte)100 -> "no_renegotiation";
+            case (byte)109 -> "missing_extension";
+            case (byte)110 -> "unsupported_extension";
+            case (byte)111 -> "certificate_unobtainable";
+            case (byte)112 -> "unrecognized_name";
+            case (byte)113 -> "bad_certificate_status_response";
+            case (byte)114 -> "bad_certificate_hash_value";
+            case (byte)116 -> "certificate_required";
+            case (byte)115 -> "unknown_psk_identity";
+            case (byte)120 -> "no_application_protocol";
+            default -> "UNKNOWN ALERT (" + (id & 0x0FF) + ")";
+        };
     }
 }
