@@ -35,7 +35,7 @@ import jdk.incubator.json.impl.JsonNullImpl;
  *
  * @since 99
  */
-public non-sealed interface JsonNull extends JsonValue {
+public sealed interface JsonNull extends JsonValue permits JsonNullImpl {
 
     /**
      * {@return a {@code JsonNull}}

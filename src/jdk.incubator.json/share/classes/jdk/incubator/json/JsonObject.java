@@ -46,7 +46,7 @@ import jdk.incubator.json.impl.JsonObjectImpl;
  *      The JavaScript Object Notation (JSON) Data Interchange Format - Objects
  * @since 99
  */
-public non-sealed interface JsonObject extends JsonValue {
+public sealed interface JsonObject extends JsonValue permits JsonObjectImpl {
 
     /**
      * {@return an unmodifiable map of {@code String} to {@code JsonValue}}

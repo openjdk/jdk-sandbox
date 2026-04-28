@@ -42,7 +42,7 @@ import jdk.incubator.json.impl.JsonArrayImpl;
  *      The JavaScript Object Notation (JSON) Data Interchange Format - Arrays
  * @since 99
  */
-public non-sealed interface JsonArray extends JsonValue {
+public sealed interface JsonArray extends JsonValue permits JsonArrayImpl {
 
     /**
      * {@return an unmodifiable list of the {@code JsonValue} elements}

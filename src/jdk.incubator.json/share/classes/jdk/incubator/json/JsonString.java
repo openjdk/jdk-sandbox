@@ -51,7 +51,7 @@ import jdk.incubator.json.impl.Utils;
  *      The JavaScript Object Notation (JSON) Data Interchange Format - Strings
  * @since 99
  */
-public non-sealed interface JsonString extends JsonValue {
+public sealed interface JsonString extends JsonValue permits JsonStringImpl {
 
     /**
      * {@return the {@code JsonString} created from the given
