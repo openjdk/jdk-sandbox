@@ -204,14 +204,14 @@ bool ShenandoahConcurrentGC::collect(GCCause::Cause cause) {
       return false;
     }
 
-    // Recycle the memory below the FWT in cset regions.
-    entry_recycle_collection_set();
-
     // Perform update-refs phase.
     entry_concurrent_update_refs_prepare(heap);
     if (ShenandoahVerify) {
       vmop_entry_init_update_refs();
     }
+
+    // Recycle the memory below the FWT in cset regions.
+    entry_recycle_collection_set();
 
     entry_update_refs();
     if (check_cancellation_and_abort(ShenandoahDegenPoint::_degenerated_update_refs)) {
