@@ -300,15 +300,15 @@ uint8_t ShenandoahBarrierSetC2::refine_store(Node* n, uint8_t bd) {
   const Node* newval = n->in(MemNode::ValueIn);
   assert(newval != nullptr, "Should be present");
   const Type* newval_bottom = newval->bottom_type();
-  TypePtr::PTR newval_type = newval_bottom->make_ptr()->ptr();
   if (!newval_bottom->isa_oopptr() &&
       !newval_bottom->isa_narrowoop() &&
-      newval_type != TypePtr::Null) {
+      newval_bottom != TypePtr::NULL_PTR) {
     assert(bd == 0, "Non-oop stores should have no barrier data");
     return bd;
   }
 
   // Type system tells us something about nullity?
+  TypePtr::PTR newval_type = newval_bottom->make_ptr()->ptr();
   if (newval_type == TypePtr::Null) {
     bd &= ~ShenandoahBitNotNull;
     // Card table barrier is not needed if we store null.
