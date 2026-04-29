@@ -29,9 +29,39 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
- * TODO add description
- * This interface is used by the SSLEngine to communicate with the QUIC transport.
+ * This interface defines callback methods used by an {@link SSLEngine}
+ * to communicate with a QUIC transport.
+ * <P>
+ * The set of cipher suites supported by the {@code SSLEngine} may be different
+ * from the set supported by {@code QuicTransport}. The {@code SSLEngine} calls
+ * {@link #getSupportedCipherSuites()}, and then only negotiates cipher suites
+ * that are both {@link SSLEngine#getEnabledCipherSuites() enabled}
+ * and supported.
+ * <P>
+ * Each QUIC endpoint offers QUIC transport parameters to the peer.
+ * The {@code SSLEngine} calls {@link #localQuicTransportParameters()}
+ * to retrieve the local transport parameters, and calls
+ * {@link #remoteQuicTransportParameters(ByteBuffer)} to deliver the transport
+ * parameters offered by the peer.
+ * <P>
+ * The {@code SSLEngine} delivers the traffic secrets by calling
+ * {@link #deriveHandshakeReadSecrets(SecretKey)},
+ * {@link #deriveHandshakeWriteSecrets(SecretKey)},
+ * {@link #deriveApplicationReadSecrets(SecretKey)}, and
+ * {@link #deriveApplicationWriteSecrets(SecretKey)} callbacks.
+ * When application secrets are available in both directions,
+ * the handshake is complete.
+ * <P>
+ * The {@code SSLEngine} produces the first application secret only.
+ * Key updates are expected to be handled internally by the QUIC transport.
+ * <P>
+ * The {@code SSLEngine} reports any handshake failures using the
+ * {@link #cryptoError(byte, Exception)} callback.
+ * Failures are not recoverable.
  *
+ * @spec https://www.rfc-editor.org/info/rfc9001
+ *      RFC 9001: Using TLS to Secure QUIC
+ * @see SSLEngine
  * @since 27
  */
 public interface QuicTransport {
