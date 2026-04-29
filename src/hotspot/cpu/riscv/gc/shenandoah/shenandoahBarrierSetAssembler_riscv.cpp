@@ -985,7 +985,7 @@ void ShenandoahBarrierStubC2::post_init() {
   const int code_size = output->buffer_sizing_data()->_code +
                         output->buffer_sizing_data()->_stub +
                         output->buffer_sizing_data()->_reloc;
-  _needs_far_jump = code_size >= (int)(32*M);
+  _needs_far_jump = code_size >= (int)(4*K);
 }
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
@@ -1004,7 +1004,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
 
   // If the object is null, there is no point in applying barriers.
-  __ beqz(_obj, *continuation());
+  maybe_far_jump_if_zero(masm, _obj, continuation());
 
   // Go for barriers. Barriers can return straight to continuation, as long
   // as another barrier is not needed and we can reach the fastpath.
