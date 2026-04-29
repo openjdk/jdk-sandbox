@@ -110,6 +110,7 @@ void ShenandoahHeapRegion::make_regular_allocation(ShenandoahAffiliation affilia
       set_state(_regular);
     case _regular:
     case _pinned:
+    case _cset:
       return;
     default:
       report_illegal_transition("regular allocation");
@@ -301,6 +302,17 @@ void ShenandoahHeapRegion::recycle_early() {
 
       reset();
       write_fwt_sentinels();
+      return;
+    default:
+      report_illegal_transition("Should be cset");
+  }
+}
+
+void ShenandoahHeapRegion::make_regular_from_cset() {
+  shenandoah_assert_heaplocked();
+  switch (state()) {
+    case _cset:
+      set_state(_regular);
       return;
     default:
       report_illegal_transition("Should be cset");
