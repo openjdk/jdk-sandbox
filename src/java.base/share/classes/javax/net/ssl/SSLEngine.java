@@ -405,8 +405,8 @@ import java.util.function.BiFunction;
  *      because there is no way to guarantee the eventual packet ordering.
  * </OL>
  *
- * <h3 id="quic">Using SSLEngine to secure QUIC</h3>
- *
+ * <P><b>Using SSLEngine to secure QUIC</b></P>
+ * <P>
  * An {@code SSLEngine} can be used to secure a QUIC transport.
  * In this mode of operation, QUIC is responsible for confidentiality
  * and integrity protection, and for reliable delivery of handshake data.
