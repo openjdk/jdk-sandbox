@@ -762,13 +762,16 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
       uint8_t bd = n->as_Store()->barrier_data();
       const TypePtr* adr_type = n->as_Store()->adr_type();
       if (adr_type->isa_oopptr() || adr_type->isa_narrowoop()) {
-        // Reference.clear stores null
+        // Reference.referent stores can be without barriers.
         bool is_referent = adr_type->isa_instptr() &&
              adr_type->is_instptr()->instance_klass()->is_subtype_of(Compile::current()->env()->Reference_klass()) &&
              adr_type->is_instptr()->offset() == java_lang_ref_Reference::referent_offset();
 
-        const TypePtr* val_type = n->as_Store()->in(MemNode::Memory)->adr_type();
-        if (!is_referent && (val_type->isa_oopptr() || val_type->isa_narrowoop())) {
+        Node* newval = n->as_Store()->in(MemNode::ValueIn);
+        const Type* newval_type = newval->bottom_type();
+        bool is_oop = newval_type->isa_oopptr() || newval_type->isa_narrowoop() || newval_type == TypePtr::NULL_PTR;
+
+        if (!is_referent && is_oop) {
           verify_gc_barrier_assert(!expect_store_barriers || (bd != 0), "Oop store should have barrier data", bd, n);
         }
       } else if (adr_type->isa_rawptr() || adr_type->isa_klassptr()) {
