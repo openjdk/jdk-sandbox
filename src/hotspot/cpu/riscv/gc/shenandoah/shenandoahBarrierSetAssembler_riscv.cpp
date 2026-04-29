@@ -821,7 +821,7 @@ void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char
 #define __ masm->
 
 void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr,
-    Register oldval, Register newval, Register tmp, bool exchange, bool maybe_null, bool narrow, bool weak, bool is_acquire) {
+    Register oldval, Register newval, Register tmp, bool exchange, bool narrow, bool is_acquire) {
   const Assembler::Aqrl acquire = is_acquire ? Assembler::aq : Assembler::relaxed;
   const Assembler::Aqrl release = Assembler::rl;
 
