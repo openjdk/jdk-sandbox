@@ -89,10 +89,10 @@ public:
 #ifdef COMPILER2
   // Entry points from Matcher
   void load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address addr, bool is_narrow, bool is_acquire);
-  void store_c2(const MachNode* node, MacroAssembler* masm, Address dst, bool dst_narrow, Register src, bool src_narrow, bool is_volatile);
+  void store_c2(const MachNode* node, MacroAssembler* masm, Address dst, bool dst_narrow, Register src, bool src_narrow, Register tmp, bool is_volatile);
   void compare_and_set_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval,
-      Register newval, bool exchange, bool narrow, bool weak, bool acquire);
-  void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr, bool acquire);
+      Register newval, Register tmp, bool exchange, bool narrow, bool weak, bool acquire);
+  void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr, Register tmp, bool acquire);
   void card_barrier_c2(const MachNode* node, MacroAssembler* masm, Address addr);
   virtual void try_resolve_weak_handle_in_c2(MacroAssembler* masm, Register obj, Register tmp, Label& slow_path);
 #endif

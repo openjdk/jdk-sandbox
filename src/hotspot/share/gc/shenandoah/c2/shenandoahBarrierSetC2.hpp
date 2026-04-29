@@ -154,7 +154,7 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   const bool _needs_load_ref_barrier;
   const bool _needs_load_ref_weak_barrier;
   const bool _needs_keep_alive_barrier;
-  bool _use_double_jumps;
+  bool _needs_far_jump;
 
   static void register_stub(ShenandoahBarrierStubC2* stub);
 
@@ -169,6 +169,7 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   address keepalive_runtime_entry_addr();
   address lrb_runtime_entry_addr();
 
+  void maybe_far_jump_if_zero(MacroAssembler& masm, Register reg, Label* L_done);
   void post_init();
 
 public:
@@ -182,7 +183,7 @@ public:
     _needs_load_ref_barrier(needs_load_ref_barrier(node)),
     _needs_load_ref_weak_barrier(needs_load_ref_barrier_weak(node)),
     _needs_keep_alive_barrier(needs_keep_alive_barrier(node)),
-    _use_double_jumps() {
+    _needs_far_jump() {
     assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
     post_init();
   }
