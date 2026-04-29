@@ -318,12 +318,14 @@ uint8_t ShenandoahBarrierSetC2::refine_store(Node* n, uint8_t bd) {
   }
 
   // Type system tells us something about nullity?
-  TypePtr::PTR newval_type = newval_bottom->make_ptr()->ptr();
-  if (newval_type == TypePtr::Null) {
+  const TypePtr* newval_type = newval_bottom->make_ptr();
+  assert(newval_type != nullptr, "Should have been filtered before");
+  TypePtr::PTR newval_type_ptr = newval_type->ptr();
+  if (newval_type_ptr == TypePtr::Null) {
     bd &= ~ShenandoahBitNotNull;
     // Card table barrier is not needed if we store null.
     bd &= ~ShenandoahBitCardMark;
-  } else if (newval_type == TypePtr::NotNull) {
+  } else if (newval_type_ptr == TypePtr::NotNull) {
     // Definitely not null.
     bd |= ShenandoahBitNotNull;
   }
