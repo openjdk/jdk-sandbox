@@ -454,8 +454,8 @@ char* file_name_for_nt_file(char* name, const char* libdir) {
     // Filter on name from the NT_FILE list.
     // Keep all files in NT_FILE list, not just ELF sharedlibs.
     // But not classes.jsa or other ".jsa" file, we need the core file data for that.
-    //
     // In a transported core actual files are not available, so cannot check file type.
+
     char* p = strrchr(name, '.');
     if (p != nullptr && strcmp(p, ".jsa") == 0) {
         return nullptr;
@@ -487,7 +487,7 @@ char* file_name_for_nt_file(char* name, const char* libdir) {
 }
 
 /**
- * Read shared library list from the NT_FILE NOTE in a core file.
+ * Read file mapping list from the NT_FILE NOTE in a core file.
  */
 void ELFFile::read_file_mappings() {
     if (!is_core()) {
@@ -514,10 +514,13 @@ void ELFFile::read_file_mappings() {
     long pagesize = *(long*) note_nt_file;
     note_nt_file += 8;
     logd("NT_FILE count %d pagesize 0x%lx", nt_file_count, pagesize);
-
+    if (nt_file_count > 65536) {
+        // Arbitrary number but have a sanity check and warn if data looks strange.
+        warn("NT_FILE extreme file mapping count %d pagesize 0x%lx", nt_file_count, pagesize);
+    }
     // Read numerical data, then library names.
     // NT_FILE lists can contain multiple entries for the same filename.
-    Segment* files = (Segment*) malloc(sizeof(Segment) * nt_file_count); // new Segment[nt_file_count];
+    Segment* files = (Segment*) malloc(sizeof(Segment) * nt_file_count);
     for (int i = 0; i < nt_file_count; i++) {
         files[i].vaddr= (void*) *(long*) note_nt_file;
         note_nt_file += 8;
