@@ -236,9 +236,14 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* root) {
               out->in(2)->get_narrowcon() == 0) {
             // Null check, no oop is exposed.
             break;
-          } else {
-            return false;
           }
+          if (out->in(2) == n &&
+              out->in(1)->Opcode() == Op_ConN &&
+              out->in(1)->get_narrowcon() == 0) {
+            // Null check, no oop is exposed.
+            break;
+          }
+          return false;
         }
 
         case Op_CmpP: {
@@ -247,18 +252,22 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* root) {
               out->in(2)->get_ptr() == 0) {
             // Null check, no oop is exposed.
             break;
-          } else {
-            return false;
           }
+          if (out->in(2) == n &&
+              out->in(1)->Opcode() == Op_ConP &&
+              out->in(1)->get_ptr() == 0) {
+            // Null check, no oop is exposed.
+            break;
+          }
+          return false;
         }
 
         case Op_CallStaticJava: {
           if (out->as_CallStaticJava()->is_uncommon_trap()) {
             // Local feeds into uncommon trap. Deopt machinery handles barriers itself.
             break;
-          } else {
-            return false;
           }
+          return false;
         }
 
         default: {
