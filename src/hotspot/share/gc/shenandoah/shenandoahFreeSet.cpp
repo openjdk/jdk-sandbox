@@ -2894,8 +2894,8 @@ void ShenandoahFreeSet::account_fwt_tails() {
   size_t region_size_bytes = ShenandoahHeapRegion::region_size_bytes();
   for (size_t i = 0; i < _heap->num_regions(); i++) {
     ShenandoahHeapRegion* r = _heap->get_region(i);
-    if (cset->use_forward_table(r)) {
-      size_t tail = r->fwt_tail_bytes();
+    size_t tail = r->fwt_tail_bytes();
+    if (tail > 0) {
       size_t originally_available = region_size_bytes - tail;
       if (originally_available >= PLAB::min_size() * HeapWordSize) {
         // Adjust only if the region is still in Mutator (not yet retired, not a small tail).

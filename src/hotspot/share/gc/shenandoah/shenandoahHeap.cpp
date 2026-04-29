@@ -1459,9 +1459,9 @@ void ShenandoahHeap::trash_cset_regions() {
   while ((r = cset->next()) != nullptr) {
     //log_info(gc)("Make region trash: %lu", r->index());
     if (cset->use_forward_table(r)) {
+      cset->remove_region(r);
       r->reset_forwarding_table();
       r->make_regular_from_cset();
-      cset->remove_region(r);
       if (r->top() == r->bottom()) {
 	// If there are no allocations from this possibly early-recycled region, treat it the same as other trash.
 	r->make_trash();
