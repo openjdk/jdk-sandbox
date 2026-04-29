@@ -408,12 +408,12 @@ uint64_t MiniDump::file_offset_for_vaddr(uint64_t addr) {
         }
         seg = this->readSegment(&d, &currentRVA, false);
     }
-    return 0;
+    return (uint64_t) -1;
 }
 
 char* MiniDump::read_string_at_address(uint64_t addr) {
     uint64_t offset = file_offset_for_vaddr(addr);
-    if (offset == 0) {
+    if (offset == (uint64_t) -1) {
        return nullptr;
     } else {
         return readstring_at_offset_pd(this->filename, offset);
@@ -422,7 +422,7 @@ char* MiniDump::read_string_at_address(uint64_t addr) {
 
 uint64_t MiniDump::read_pointer_at_address(uint64_t addr) {
     uint64_t offset = file_offset_for_vaddr(addr);
-    if (offset == 0) {
+    if (offset == (uint64_t) -1) {
        return 0;
     } else {
         return read_pointer_at_offset_pd(this->filename, offset);
