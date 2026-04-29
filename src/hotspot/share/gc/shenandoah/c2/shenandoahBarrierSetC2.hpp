@@ -91,13 +91,6 @@ class ShenandoahBarrierSetC2 : public BarrierSetC2 {
   static uint8_t refine_load(Node* node, uint8_t bd);
   static uint8_t refine_store(Node* node, uint8_t bd);
 
-  static const TypeFunc* _write_barrier_pre_Type;
-  static const TypeFunc* _clone_barrier_Type;
-  static const TypeFunc* _load_reference_barrier_Type;
-  static void make_write_barrier_pre_Type();
-  static void make_clone_barrier_Type();
-  static void make_load_reference_barrier_Type();
-
   static bool is_Load(int opcode);
   static bool is_Store(int opcode);
   static bool is_LoadStore(int opcode);
