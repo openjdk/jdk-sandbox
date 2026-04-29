@@ -33,7 +33,6 @@ instruct store_P_Normal_shenandoah(memory8 mem, iRegP src, rFlagsReg cr)
   match(Set mem (StoreP mem src));
   predicate(UseShenandoahGC && !needs_releasing_store(n) && n->as_Store()->barrier_data() != 0);
   effect(KILL cr);
-  ins_cost(3*INSN_COST);
   format %{ "str $src, $mem" %}
   ins_encode %{
     const Address addr = mem2address($mem->opcode(), as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
@@ -42,6 +41,7 @@ instruct store_P_Normal_shenandoah(memory8 mem, iRegP src, rFlagsReg cr)
       $src$$Register, /* src_narrow  = */ false,
       /* is_volatile */ false);
   %}
+  ins_cost(3*INSN_COST);
   ins_pipe(pipe_class_memory);
 %}
 
@@ -50,7 +50,6 @@ instruct store_P_Volatile_shenandoah(indirect mem, iRegP src, rFlagsReg cr)
   match(Set mem (StoreP mem src));
   predicate(UseShenandoahGC && needs_releasing_store(n) && n->as_Store()->barrier_data() != 0);
   effect(KILL cr);
-  ins_cost(VOLATILE_REF_COST);
   format %{ "str $src, $mem" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
@@ -58,6 +57,7 @@ instruct store_P_Volatile_shenandoah(indirect mem, iRegP src, rFlagsReg cr)
       $src$$Register,             /* src_narrow  = */ false,
       /* is_volatile */ true);
   %}
+  ins_cost(VOLATILE_REF_COST);
   ins_pipe(pipe_class_memory);
 %}
 
@@ -66,7 +66,6 @@ instruct store_N_Normal_shenandoah(memory4 mem, iRegN src, rFlagsReg cr)
   match(Set mem (StoreN mem src));
   predicate(UseShenandoahGC && !needs_releasing_store(n) && n->as_Store()->barrier_data() != 0);
   effect(KILL cr);
-  ins_cost(3*INSN_COST);
   format %{ "str $src, $mem" %}
   ins_encode %{
     const Address addr = mem2address($mem->opcode(), as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
@@ -75,6 +74,7 @@ instruct store_N_Normal_shenandoah(memory4 mem, iRegN src, rFlagsReg cr)
       $src$$Register, /* src_narrow  = */ true,
       /* is_volatile */ false);
   %}
+  ins_cost(3*INSN_COST);
   ins_pipe(pipe_class_memory);
 %}
 
@@ -83,7 +83,6 @@ instruct store_N_Volatile_shenandoah(indirect mem, iRegN src, rFlagsReg cr)
   match(Set mem (StoreN mem src));
   predicate(UseShenandoahGC && needs_releasing_store(n) && n->as_Store()->barrier_data() != 0);
   effect(KILL cr);
-  ins_cost(VOLATILE_REF_COST);
   format %{ "str $src, $mem" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->store_c2(this, masm,
@@ -91,6 +90,7 @@ instruct store_N_Volatile_shenandoah(indirect mem, iRegN src, rFlagsReg cr)
       $src$$Register,             /* src_narrow  = */ true,
       /* is_volatile */ true);
   %}
+  ins_cost(VOLATILE_REF_COST);
   ins_pipe(pipe_class_memory);
 %}
 
@@ -99,7 +99,6 @@ instruct encodePAndStoreN_Normal_shenandoah(memory4 mem, iRegP src, rFlagsReg cr
   match(Set mem (StoreN mem (EncodeP src)));
   predicate(UseShenandoahGC && !needs_releasing_store(n) && n->as_Store()->barrier_data() != 0);
   effect(KILL cr);
-  ins_cost(4*INSN_COST);
   format %{ "encode_heap_oop tmp, $src\n\t"
             "str  tmp, $mem\t# compressed ptr" %}
   ins_encode %{
@@ -109,6 +108,7 @@ instruct encodePAndStoreN_Normal_shenandoah(memory4 mem, iRegP src, rFlagsReg cr
       $src$$Register,          /* src_narrow  = */ false,
       /* is_volatile */ false);
   %}
+  ins_cost(4*INSN_COST);
   ins_pipe(pipe_class_memory);
 %}
 
@@ -117,7 +117,6 @@ instruct encodePAndStoreN_Volatile_shenandoah(indirect mem, iRegP src, rFlagsReg
   match(Set mem (StoreN mem (EncodeP src)));
   predicate(UseShenandoahGC && needs_releasing_store(n) && n->as_Store()->barrier_data() != 0);
   effect(KILL cr);
-  ins_cost(4*INSN_COST);
   format %{ "encode_heap_oop tmp, $src\n\t"
             "str  tmp, $mem\t# compressed ptr" %}
   ins_encode %{
@@ -126,6 +125,7 @@ instruct encodePAndStoreN_Volatile_shenandoah(indirect mem, iRegP src, rFlagsReg
       $src$$Register,          /* src_narrow  = */ false,
       /* is_volatile */ true);
   %}
+  ins_cost(4*INSN_COST);
   ins_pipe(pipe_class_memory);
 %}
 
@@ -133,7 +133,6 @@ instruct compareAndSwap_P_shenandoah(iRegINoSp res, indirect mem, iRegPNoSp oldv
 %{
   match(Set res (CompareAndSwapP mem (Binary oldval newval)));
   predicate(UseShenandoahGC && !needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
-  ins_cost(VOLATILE_REF_COST);
   effect(TEMP_DEF res, KILL cr);
   format %{
     "cmpxchg_P_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
@@ -151,7 +150,7 @@ instruct compareAndSwap_P_shenandoah(iRegINoSp res, indirect mem, iRegPNoSp oldv
       /* weak */ false,
       /* acquire */ false);
   %}
-
+  ins_cost(VOLATILE_REF_COST);
   ins_pipe(pipe_slow);
 %}
 
@@ -159,7 +158,6 @@ instruct compareAndSwap_P_A_shenandoah(iRegINoSp res, indirect mem, iRegPNoSp ol
 %{
   match(Set res (CompareAndSwapP mem (Binary oldval newval)));
   predicate(UseShenandoahGC && needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
-  ins_cost(VOLATILE_REF_COST);
   effect(TEMP_DEF res, KILL cr);
   format %{
     "cmpxchg_P_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
@@ -177,7 +175,7 @@ instruct compareAndSwap_P_A_shenandoah(iRegINoSp res, indirect mem, iRegPNoSp ol
       /* weak */ false,
       /* acquire */ true);
   %}
-
+  ins_cost(VOLATILE_REF_COST);
   ins_pipe(pipe_slow);
 %}
 
@@ -185,7 +183,6 @@ instruct compareAndSwap_N_shenandoah(iRegINoSp res, indirect mem, iRegNNoSp oldv
 %{
   match(Set res (CompareAndSwapN mem (Binary oldval newval)));
   predicate(UseShenandoahGC && !needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
-  ins_cost(VOLATILE_REF_COST);
   effect(TEMP_DEF res, KILL cr);
   format %{
     "cmpxchg_N_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
@@ -203,7 +200,7 @@ instruct compareAndSwap_N_shenandoah(iRegINoSp res, indirect mem, iRegNNoSp oldv
       /* weak */ false,
       /* acquire */ false);
   %}
-
+  ins_cost(VOLATILE_REF_COST);
   ins_pipe(pipe_slow);
 %}
 
@@ -211,7 +208,6 @@ instruct compareAndSwap_N_A_shenandoah(iRegINoSp res, indirect mem, iRegNNoSp ol
 %{
   match(Set res (CompareAndSwapN mem (Binary oldval newval)));
   predicate(UseShenandoahGC && needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
-  ins_cost(VOLATILE_REF_COST);
   effect(TEMP_DEF res, KILL cr);
   format %{
     "cmpxchg_N_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
@@ -229,7 +225,7 @@ instruct compareAndSwap_N_A_shenandoah(iRegINoSp res, indirect mem, iRegNNoSp ol
       /* weak */ false,
       /* acquire */ true);
   %}
-
+  ins_cost(VOLATILE_REF_COST);
   ins_pipe(pipe_slow);
 %}
 
@@ -237,7 +233,6 @@ instruct compareAndExchange_N_shenandoah(iRegNNoSp res, indirect mem, iRegN oldv
 %{
   match(Set res (CompareAndExchangeN mem (Binary oldval newval)));
   predicate(UseShenandoahGC && !needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
-  ins_cost(2*VOLATILE_REF_COST);
   effect(TEMP_DEF res, KILL cr);
   format %{
     "cae_N_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
@@ -255,6 +250,7 @@ instruct compareAndExchange_N_shenandoah(iRegNNoSp res, indirect mem, iRegN oldv
       /* weak */ false,
       /* acquire */ false);
   %}
+  ins_cost(2*VOLATILE_REF_COST);
   ins_pipe(pipe_slow);
 %}
 
@@ -262,7 +258,6 @@ instruct compareAndExchange_N_A_shenandoah(iRegNNoSp res, indirect mem, iRegN ol
 %{
   match(Set res (CompareAndExchangeN mem (Binary oldval newval)));
   predicate(UseShenandoahGC && needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
-  ins_cost(2*VOLATILE_REF_COST);
   effect(TEMP_DEF res, KILL cr);
   format %{
     "cae_N_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
@@ -280,6 +275,7 @@ instruct compareAndExchange_N_A_shenandoah(iRegNNoSp res, indirect mem, iRegN ol
       /* weak */ false,
       /* acquire */ true);
   %}
+  ins_cost(2*VOLATILE_REF_COST);
   ins_pipe(pipe_slow);
 %}
 
@@ -287,7 +283,6 @@ instruct compareAndExchange_P_shenandoah(iRegPNoSp res, indirect mem, iRegP oldv
 %{
   match(Set res (CompareAndExchangeP mem (Binary oldval newval)));
   predicate(UseShenandoahGC && !needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
-  ins_cost(2*VOLATILE_REF_COST);
   effect(TEMP_DEF res, KILL cr);
   format %{
     "cae_P_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
@@ -305,6 +300,7 @@ instruct compareAndExchange_P_shenandoah(iRegPNoSp res, indirect mem, iRegP oldv
       /* weak */ false,
       /* acquire */ false);
   %}
+  ins_cost(2*VOLATILE_REF_COST);
   ins_pipe(pipe_slow);
 %}
 
@@ -312,7 +308,6 @@ instruct compareAndExchange_P_A_shenandoah(iRegPNoSp res, indirect mem, iRegP ol
 %{
   match(Set res (CompareAndExchangeP mem (Binary oldval newval)));
   predicate(UseShenandoahGC && needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
-  ins_cost(2*VOLATILE_REF_COST);
   effect(TEMP_DEF res, KILL cr);
   format %{
     "cae_P_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
@@ -330,6 +325,7 @@ instruct compareAndExchange_P_A_shenandoah(iRegPNoSp res, indirect mem, iRegP ol
       /* weak */ false,
       /* acquire */ true);
   %}
+  ins_cost(2*VOLATILE_REF_COST);
   ins_pipe(pipe_slow);
 %}
 
@@ -337,7 +333,6 @@ instruct weakCompareAndSwap_N_shenandoah(iRegINoSp res, indirect mem, iRegNNoSp 
 %{
   match(Set res (WeakCompareAndSwapN mem (Binary oldval newval)));
   predicate(UseShenandoahGC && !needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
-  ins_cost(VOLATILE_REF_COST);
   effect(TEMP_DEF res, KILL cr);
   format %{
     "cae_N_weak_shenandoah $res = $mem, $oldval, $newval\t# (N, weak) if $mem == $oldval then $mem <-- $newval\n\t"
@@ -356,6 +351,7 @@ instruct weakCompareAndSwap_N_shenandoah(iRegINoSp res, indirect mem, iRegNNoSp 
       /* weak */ true,
       /* acquire */ false);
   %}
+  ins_cost(VOLATILE_REF_COST);
   ins_pipe(pipe_slow);
 %}
 
@@ -363,7 +359,6 @@ instruct weakCompareAndSwap_N_A_shenandoah(iRegINoSp res, indirect mem, iRegNNoS
 %{
   match(Set res (WeakCompareAndSwapN mem (Binary oldval newval)));
   predicate(UseShenandoahGC && needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
-  ins_cost(VOLATILE_REF_COST);
   effect(TEMP_DEF res, KILL cr);
   format %{
     "cae_N_weak_shenandoah $res = $mem, $oldval, $newval\t# (N, weak) if $mem == $oldval then $mem <-- $newval\n\t"
@@ -382,6 +377,7 @@ instruct weakCompareAndSwap_N_A_shenandoah(iRegINoSp res, indirect mem, iRegNNoS
       /* weak */ true,
       /* acquire */ true);
   %}
+  ins_cost(VOLATILE_REF_COST);
   ins_pipe(pipe_slow);
 %}
 
@@ -389,7 +385,6 @@ instruct weakCompareAndSwap_P_shenandoah(iRegINoSp res, indirect mem, iRegPNoSp 
 %{
   match(Set res (WeakCompareAndSwapP mem (Binary oldval newval)));
   predicate(UseShenandoahGC && !needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
-  ins_cost(VOLATILE_REF_COST);
   effect(TEMP_DEF res, KILL cr);
   format %{
     "cae_P_weak_shenandoah $res = $mem, $oldval, $newval\t# (P, weak) if $mem == $oldval then $mem <-- $newval\n\t"
@@ -408,6 +403,7 @@ instruct weakCompareAndSwap_P_shenandoah(iRegINoSp res, indirect mem, iRegPNoSp 
       /* weak */ true,
       /* acquire */ false);
   %}
+  ins_cost(VOLATILE_REF_COST);
   ins_pipe(pipe_slow);
 %}
 
@@ -415,7 +411,6 @@ instruct weakCompareAndSwap_P_A_shenandoah(iRegINoSp res, indirect mem, iRegPNoS
 %{
   match(Set res (WeakCompareAndSwapP mem (Binary oldval newval)));
   predicate(UseShenandoahGC && needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
-  ins_cost(VOLATILE_REF_COST);
   effect(TEMP_DEF res, KILL cr);
   format %{
     "cae_P_weak_shenandoah $res = $mem, $oldval, $newval\t# (P, weak) if $mem == $oldval then $mem <-- $newval\n\t"
@@ -434,6 +429,7 @@ instruct weakCompareAndSwap_P_A_shenandoah(iRegINoSp res, indirect mem, iRegPNoS
       /* weak */ true,
       /* acquire */ true);
   %}
+  ins_cost(VOLATILE_REF_COST);
   ins_pipe(pipe_slow);
 %}
 
@@ -442,7 +438,6 @@ instruct getAndSet_P_shenandoah(indirect mem, iRegP newval, iRegPNoSp preval,  r
   match(Set preval (GetAndSetP mem newval));
   predicate(UseShenandoahGC && !needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
   effect(TEMP_DEF preval, KILL cr);
-  ins_cost(2*VOLATILE_REF_COST);
   format %{ "get_and_set_P $preval, $newval, [$mem]" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->get_and_set_c2(this, masm,
@@ -451,6 +446,7 @@ instruct getAndSet_P_shenandoah(indirect mem, iRegP newval, iRegPNoSp preval,  r
       $mem$$Register,
       /* acquire */ false);
   %}
+  ins_cost(2*VOLATILE_REF_COST);
   ins_pipe(pipe_serial);
 %}
 
@@ -459,7 +455,6 @@ instruct getAndSet_P_A_shenandoah(indirect mem, iRegP newval, iRegPNoSp preval, 
   match(Set preval (GetAndSetP mem newval));
   predicate(UseShenandoahGC && needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
   effect(TEMP_DEF preval, KILL cr);
-  ins_cost(2*VOLATILE_REF_COST);
   format %{ "get_and_set_P $preval, $newval, [$mem]" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->get_and_set_c2(this, masm,
@@ -468,6 +463,7 @@ instruct getAndSet_P_A_shenandoah(indirect mem, iRegP newval, iRegPNoSp preval, 
       $mem$$Register,
       /* acquire */ true);
   %}
+  ins_cost(2*VOLATILE_REF_COST);
   ins_pipe(pipe_serial);
 %}
 
@@ -476,7 +472,6 @@ instruct getAndSet_N_shenandoah(indirect mem, iRegN newval, iRegNNoSp preval, rF
   match(Set preval (GetAndSetN mem newval));
   predicate(UseShenandoahGC && !needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
   effect(TEMP_DEF preval, KILL cr);
-  ins_cost(2*VOLATILE_REF_COST);
   format %{ "get_and_set_N $preval, $newval, [$mem]" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->get_and_set_c2(this, masm,
@@ -485,6 +480,7 @@ instruct getAndSet_N_shenandoah(indirect mem, iRegN newval, iRegNNoSp preval, rF
       $mem$$Register,
       /* acquire */ false);
   %}
+  ins_cost(2*VOLATILE_REF_COST);
   ins_pipe(pipe_serial);
 %}
 
@@ -493,7 +489,6 @@ instruct getAndSet_N_A_shenandoah(indirect mem, iRegN newval, iRegNNoSp preval, 
   match(Set preval (GetAndSetN mem newval));
   predicate(UseShenandoahGC && needs_acquiring_load_exclusive(n) && n->as_LoadStore()->barrier_data() != 0);
   effect(TEMP_DEF preval, KILL cr);
-  ins_cost(2*VOLATILE_REF_COST);
   format %{ "get_and_set_N $preval, $newval, [$mem]" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->get_and_set_c2(this, masm,
@@ -502,6 +497,7 @@ instruct getAndSet_N_A_shenandoah(indirect mem, iRegN newval, iRegNNoSp preval, 
       $mem$$Register,
       /* acquire */ true);
   %}
+  ins_cost(2*VOLATILE_REF_COST);
   ins_pipe(pipe_serial);
 %}
 

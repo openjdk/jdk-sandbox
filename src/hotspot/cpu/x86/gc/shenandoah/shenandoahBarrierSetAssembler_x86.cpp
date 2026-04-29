@@ -1410,7 +1410,7 @@ bool ShenandoahBarrierStubC2::is_special_register(Register r) {
   return r == rsp || r == rbp || r == r12_heapbase || r == r15_thread;
 }
 
-void ShenandoahBarrierStubC2::post_init(int offset) {
+void ShenandoahBarrierStubC2::post_init() {
   // Do nothing.
 }
 #undef __

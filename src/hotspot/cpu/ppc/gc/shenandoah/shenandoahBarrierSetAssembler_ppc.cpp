@@ -1141,7 +1141,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   Unimplemented();
 }
 
-void ShenandoahBarrierStubC2::post_init(int offset) {
+void ShenandoahBarrierStubC2::post_init() {
   // Do nothing.
 }
 
