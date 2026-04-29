@@ -1225,9 +1225,9 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
       // Set up arguments in reverse, and then flip them
       __ lea(c_rarg0, _addr);
       // flip them
-      __ mov(rscratch1, c_rarg0);
+      __ mov(tmp1, c_rarg0);
       __ mov(c_rarg0, c_rarg1);
-      __ mov(c_rarg1, rscratch1);
+      __ mov(c_rarg1, tmp1);
     } else {
       assert_different_registers(c_rarg1, _obj);
       __ lea(c_rarg1, _addr);
