@@ -435,10 +435,12 @@ public class SSLContext {
      *          does not implement the operation.
      * @throws  IllegalStateException if the SSLContextImpl requires
      *          initialization and the {@code init()} has not been called
+     * @throws  NullPointerException if quicTransport is {@code null}
      * @since   27
      */
     public final SSLEngine createQUICEngine(String peerHost, int peerPort,
                                             QuicTransport quicTransport) {
+        Objects.requireNonNull(quicTransport, "null QuicTransport");
         return contextSpi.engineCreateQUICEngine(peerHost, peerPort,
                 quicTransport);
     }
