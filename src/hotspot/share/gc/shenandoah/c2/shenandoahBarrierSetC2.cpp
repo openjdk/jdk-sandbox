@@ -225,8 +225,9 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* root) {
 
         case Op_LoadRange:
         case Op_LoadKlass: {
-          // Loads of stable metadata values from the object.
-          // These are the same in all copies.
+          // Loads of stable metadata values from the object. These are the same in all copies.
+          // Note that LoadNKlass is *not* safe: with +UCOH, it loads from mark word, which
+          // clashes with forwarding pointers.
           break;
         }
 
