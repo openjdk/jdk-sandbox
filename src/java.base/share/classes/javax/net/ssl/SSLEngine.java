@@ -405,13 +405,39 @@ import java.util.function.BiFunction;
  *      because there is no way to guarantee the eventual packet ordering.
  * </OL>
  *
+ * <h3 id="quic">Using SSLEngine to secure QUIC</h3>
+ *
+ * An {@code SSLEngine} can be used to secure a QUIC transport.
+ * In this mode of operation, QUIC is responsible for confidentiality
+ * and integrity protection, and for reliable delivery of handshake data.
+ * The {@code SSLEngine} sends and receives handshake messages,
+ * and provides updates to QUIC through the {@link QuicTransport} interface.
+ * <P>
+ * A QUIC-supporting {@code SSLEngine} is created by calling
+ * {@link SSLContext#createQUICEngine(String, int, QuicTransport)}
+ * from an initialized {@code SSLContext}.
+ * <P>
+ * In this mode of operation, {@code wrap()} and {@code unwrap()} methods
+ * operate on handshake data only. They do not produce
+ * or consume application data.
+ * <P>
+ * Once the handshake is complete and the session tickets are sent,
+ * the {@code SSLEngine} becomes passive. It can still receive data
+ * from the peer, but it will not send data.
+ * <P>
+ * Connection state management is handled by QUIC.
+ * Closing a QUIC {@code SSLEngine} is not required.
+ *
  * @spec https://www.rfc-editor.org/info/rfc2246
  *      RFC 2246: The TLS Protocol Version 1.0
+ * @spec https://www.rfc-editor.org/info/rfc9001
+ *      RFC 9001: Using TLS to Secure QUIC
  * @see SSLContext
  * @see SSLSocket
  * @see SSLServerSocket
  * @see SSLSession
  * @see java.net.Socket
+ * @see QuicTransport
  *
  * @since 1.5
  * @author Brad R. Wetmore
