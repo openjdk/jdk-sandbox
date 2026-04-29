@@ -563,12 +563,12 @@ uint64_t ELFFile::file_offset_for_vaddr(uint64_t addr) {
         }
         phdr = next_ph(phdr);
     }
-    return 0;
+    return (uint64_t) -1;
 }
 
 char* ELFFile::readstring_at_address(uint64_t addr) {
     uint64_t offset = this->file_offset_for_vaddr(addr);
-    if (offset == 0) {
+    if (offset == (uint64_t) -1) {
         return nullptr;
     } else {
         return readstring_at_offset_pd(filename, offset);
