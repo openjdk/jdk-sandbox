@@ -1147,7 +1147,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   // Need to pop tmps immediately for stack to remain aligned.
   __ bind(L_pop_and_slow);
   if (tmp2_live) {
-    __ pop(tmp2);
+    __ pop(RegSet::of(tmp2), sp);
   }
 
   // If this stub also supports LRB then we need to preserve _obj to use it
