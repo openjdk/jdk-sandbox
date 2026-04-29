@@ -786,20 +786,21 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
         verify_gc_barrier_assert(!expect_load_store_barriers || (bd != 0), "Oop load-store should have barrier data", bd, n);
       }
     } else if (is_raw_addr) {
-      // TODO: Something is off with this verification still, disabling for now.
-      // if (is_native) {
-      //   if (is_Load(opc)) {
-      //     verify_gc_barrier_assert(!expect_load_barriers || (bd != 0), "Raw address oop load should have barrier data", bd, n);
-      //   }
-      //   if (is_Store(opc)) {
-      //     verify_gc_barrier_assert(!expect_store_barriers || (bd != 0), "Raw address oop store should have barrier data", bd, n);
-      //   }
-      //   if (is_LoadStore(opc)) {
-      //     verify_gc_barrier_assert(!expect_load_store_barriers || (bd != 0), "Raw address oop load-store should have barrier data", bd, n);
-      //   }
-      // } else {
-      //   verify_gc_barrier_assert(bd == 0, "Raw oop access should have no barrier data", bd, n);
-      // }
+      if (is_native) {
+        if (is_Load(opc)) {
+          verify_gc_barrier_assert(!expect_load_barriers || (bd != 0), "Native oop load should have barrier data", bd, n);
+        }
+        if (is_Store(opc)) {
+          verify_gc_barrier_assert(!expect_store_barriers || (bd != 0), "Native oop store should have barrier data", bd, n);
+        }
+        if (is_LoadStore(opc)) {
+          verify_gc_barrier_assert(!expect_load_store_barriers || (bd != 0), "Native oop load-store should have barrier data", bd, n);
+        }
+      } else {
+        // Some Load/Stores are used for T_ADDRESS and/or raw stores, which are supposed not to have barriers.
+        // Some other Load/Stores are emitted for real oops, but on raw addresses via Unsafe.
+        // The distinction on this level is lost, so we cannot really verify this.
+      }
     } else {
       if (is_Load(opc) || is_Store(opc) || is_LoadStore(opc)) {
         verify_gc_barrier_assert(false, "Unclassified access type", bd, n);
