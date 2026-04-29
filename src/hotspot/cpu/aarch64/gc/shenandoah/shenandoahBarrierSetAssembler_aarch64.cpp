@@ -901,8 +901,8 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
 }
 
 void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval,
-    Register newval, Register addr, Register tmp, bool acquire) {
-  bool narrow = node->bottom_type()->isa_narrowoop();
+    Register newval, Register addr, Register tmp, bool is_acquire) {
+  bool is_narrow = node->bottom_type()->isa_narrowoop();
 
   // Pre-barrier covers several things:
   //  a. Satisfies the need for LRB for the GAS result.
@@ -911,7 +911,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
   // (a) is covered because load barrier does memory location fixup.
   // (b) is covered by KA on the current memory value.
   if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
-    ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, tmp, addr, narrow, /* do_load: */ true);
+    ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, tmp, addr, is_narrow, /* do_load: */ true);
     char check = 0;
     check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
@@ -919,14 +919,14 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     stub->enter_if_gc_state(*masm, check);
   }
 
-  if (narrow) {
-    if (acquire) {
+  if (is_narrow) {
+    if (is_acquire) {
       __ atomic_xchgalw(preval, newval, addr);
     } else {
       __ atomic_xchgw(preval, newval, addr);
     }
   } else {
-    if (acquire) {
+    if (is_acquire) {
       __ atomic_xchgal(preval, newval, addr);
     } else {
       __ atomic_xchg(preval, newval, addr);
@@ -952,11 +952,10 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
     if (!src_narrow) {
       // Need to encode into rscratch, because we cannot clobber src.
       // TODO: Maybe there is a matcher way to test that src is unused after this?
-      __ mov(rscratch1, src);
       if (ShenandoahBarrierStubC2::maybe_null(node)) {
-        __ encode_heap_oop(rscratch1);
+        __ encode_heap_oop(rscratch1, src);
       } else {
-        __ encode_heap_oop_not_null(rscratch1);
+        __ encode_heap_oop_not_null(rscratch1, src);
       }
       src = rscratch1;
     }
@@ -1017,10 +1016,10 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroA
   Address curr_ct_holder_addr(rthread, in_bytes(ShenandoahThreadLocalData::card_table_offset()));
   __ ldr(rscratch1, curr_ct_holder_addr);
 
-  // rscratch2 = addr
+  // rscratch2 = effective address
   __ lea(rscratch2, address);
 
-  // rscratch2 = &card_table[ addr >> CardTable::card_shift() ]
+  // rscratch2 = &card_table[ addr >> CardTable::card_shift() ] ; card index
   __ add(rscratch2, rscratch1, rscratch2, Assembler::LSR, CardTable::card_shift());
 
   if (UseCondCardMark) {
@@ -1071,7 +1070,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   __ cbz(_obj, *continuation());
 
   // Go for barriers. Barriers can return straight to continuation, as long
-  // as another barrier is not needed.
+  // as another barrier is not needed and we can reach the fastpath.
   if (_needs_keep_alive_barrier && _needs_load_ref_barrier) {
     keepalive(masm, nullptr);
     lrb(masm, continuation());
@@ -1144,7 +1143,6 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   }
 
   // Slow-path: call runtime to handle.
-  // Need to pop tmps immediately for stack to remain aligned.
   __ bind(L_slowpath);
 
   // If this stub also supports LRB then we need to preserve _obj to use it
