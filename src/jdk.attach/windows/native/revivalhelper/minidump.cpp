@@ -80,7 +80,10 @@ err:
  */
 char *string_at_offset_minidump(int fd, ULONG32 offset) {
     off_t pos = lseek(fd, 0, SEEK_CUR);
-    lseek(fd, offset, SEEK_SET);
+    off_t pos2 = lseek(fd, offset, SEEK_SET);
+    if (pos2 != offset) {
+        return nullptr;
+    }
     char *s = readstring_minidump(fd);
     lseek(fd, pos, SEEK_SET);
     return s;
@@ -135,11 +138,19 @@ MINIDUMP_DIRECTORY* MiniDump::find_stream(int stream) {
         warn("malloc failed for MINIDUMP_DIRECTORY");
         return nullptr;
     }
-    lseek(fd, hdr.StreamDirectoryRva, SEEK_SET);
+    int pos = lseek(fd, hdr.StreamDirectoryRva, SEEK_SET);
+    if (pos != hdr.StreamDirectoryRva) {
+        warn("MiniDump seek failed StreamDirectoryRva: 0x%ld", hdr.StreamDirectoryRva);
+        return nullptr;
+    }
     for (unsigned int i = 0; i < hdr.NumberOfStreams; i++) {
         int e = read(fd, md, sizeof(*md));
         if (md->StreamType == stream) {
-            lseek(fd, md->Location.Rva, SEEK_SET);
+            pos = lseek(fd, md->Location.Rva, SEEK_SET);
+            if (pos != md->Location.Rva) {
+                warn("MiniDump seek failed Location.Rva: 0x%ld", md->Location.Rva);
+                return nullptr;
+            }
             return md;
         }
     }
@@ -311,29 +322,15 @@ Segment* MiniDump::readSegment0(MINIDUMP_MEMORY_DESCRIPTOR64 *d, RVA64* currentR
     if (rangesRead >= NumberOfMemoryRanges) {
         return nullptr;
     }
-
     int size = sizeof(MINIDUMP_MEMORY_DESCRIPTOR64);
-    do {
-        long pos1 = _lseek(fd, 0, SEEK_CUR);
-        int e = read(fd, d, size);
-        if (e < 0) {
-            warn("MiniDump::readSegment0: read failed, returns %d: %s", e, strerror(errno));
-            return nullptr;
-        } else if (e < size) {
-            long pos2 = _lseek(fd, 0, SEEK_CUR);
-            if (pos2 - pos1 == size) {
-                warn("MiniDump::readSegment0: read expects %d, got %d, at pos1 %ld pos2 %ld.  But looks OK.", size, e, pos1, pos2);
-                break;
-            }
-            // Retry a short read.
-            warn("MiniDump::readSegment0: read expects %d, got %d, at pos1 %ld pos2 %ld.  Retry...", size, e, pos1, pos2);
-            _lseek(fd, pos1, SEEK_SET);
-            waitHitRet();
-            continue;
-        } else {
-            break; // Done
-        }
-    } while (true);
+    int e = read(fd, d, size);
+    if (e < 0) {
+        warn("MiniDump::readSegment0: read failed, returns %d: %s", e, strerror(errno));
+        return nullptr;
+    } else if (e < size) {
+        warn("MiniDump::readSegment0: read expects %d, got %d.", size, e);
+        return nullptr;
+    }
 
     if (max_user_vaddr_pd() > 0 && d->StartOfMemoryRange >= max_user_vaddr_pd()) {
         logd("MiniDump::readSegment0: terminating as address 0x%llx >= 0x%llx", d->StartOfMemoryRange, max_user_vaddr_pd());
