@@ -665,11 +665,6 @@ void ShenandoahBarrierSetC2::print_barrier_data(outputStream* os, uint8_t data) 
     os->print("phantom ");
   }
 
-  if ((data & ShenandoahBitElided) != 0) {
-    data &= ~ShenandoahBitElided;
-    os->print("elided ");
-  }
-
   if ((data & ShenandoahBitKeepAlive) != 0) {
     data &= ~ShenandoahBitKeepAlive;
     os->print("keepalive ");
@@ -680,10 +675,21 @@ void ShenandoahBarrierSetC2::print_barrier_data(outputStream* os, uint8_t data) 
     os->print("cardmark ");
   }
 
+  if ((data & ShenandoahBitNative) != 0) {
+    data &= ~ShenandoahBitNative;
+    os->print("native ");
+  }
+
   if ((data & ShenandoahBitNotNull) != 0) {
     data &= ~ShenandoahBitNotNull;
     os->print("not-null ");
   }
+
+  if ((data & ShenandoahBitElided) != 0) {
+    data &= ~ShenandoahBitElided;
+    os->print("elided ");
+  }
+
   os->cr();
 
   if (data > 0) {
