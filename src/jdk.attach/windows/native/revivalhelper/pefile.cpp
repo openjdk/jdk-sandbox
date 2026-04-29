@@ -108,7 +108,7 @@ bool PEFile::remove_dynamicbase(const char* filename) {
     uint64_t peOffsetAddr = (uint64_t) base + 0x3c;
     ULONG32 peOffset = *(ULONG32*) peOffsetAddr;
     uint64_t peAddr = (uint64_t) base + peOffset;
-    logd("remove_dynamicbase: peAddr    0x%llx", peAddr);
+    logd("remove_dynamicbase: peAddr = 0x%llx", peAddr);
 
     // At peOffset, is IMAGE_NT_HEADERS32:
     ULONG32 peMagic = *(ULONG32*) peAddr;
@@ -117,14 +117,11 @@ bool PEFile::remove_dynamicbase(const char* filename) {
     }
 
     PIMAGE_OPTIONAL_HEADER32 optional = (PIMAGE_OPTIONAL_HEADER32) ((uint64_t) peAddr + sizeof(DWORD) + sizeof(IMAGE_FILE_HEADER));
-    logd("Optional hdr = 0x%llx", optional);
     logd("DllCharacteristics = 0x%llx", optional->DllCharacteristics);
-
     WORD dllCharacteristics = optional->DllCharacteristics;
     dllCharacteristics = dllCharacteristics & ~IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE; // Remove bit value of flag.
-    logd("DllCharacteristics = 0x%llx", dllCharacteristics);
-
-    logv("&optional.DllCharacteristics =  0x%llx", &(optional->DllCharacteristics));
+    logv("remove_dynamicbase: New DllCharacteristics = 0x%llx", dllCharacteristics);
+    logd("&optional.DllCharacteristics =  0x%llx", &(optional->DllCharacteristics));
     *(WORD*)(&(optional->DllCharacteristics)) = dllCharacteristics;
 
     if (!UnmapViewOfFile(base)) {
