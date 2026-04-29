@@ -88,7 +88,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  *                   -Djdk.httpclient.HttpClient.log=headers
  *                   -Djdk.internal.httpclient.disableHostnameVerification
  *                   -Djdk.internal.httpclient.debug=true
- *                    AltSvcFrameTest
+ *                    ${test.main.class}
  */
 
 public class AltSvcFrameTest {
