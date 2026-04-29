@@ -26,12 +26,6 @@
 #define SHARE_GC_SHENANDOAH_C2_SHENANDOAHBARRIERSETC2_HPP
 
 #include "gc/shared/c2/barrierSetC2.hpp"
-#include "gc/shared/gc_globals.hpp"
-#include "gc/shenandoah/shenandoahBarrierSetAssembler.hpp"
-#include "gc/shenandoah/shenandoahRuntime.hpp"
-#include "gc/shenandoah/shenandoahThreadLocalData.hpp"
-#include "opto/machnode.hpp"
-#include "utilities/growableArray.hpp"
 
 static const uint8_t ShenandoahBitStrong    = 1 << 0; // Barrier: LRB, strong
 static const uint8_t ShenandoahBitWeak      = 1 << 1; // Barrier: LRB, weak
@@ -47,6 +41,7 @@ static const uint8_t ShenandoahBitsReal = ShenandoahBitStrong | ShenandoahBitWea
                                           ShenandoahBitKeepAlive |
                                           ShenandoahBitCardMark;
 
+class MachNode;
 class ShenandoahBarrierStubC2;
 
 class ShenandoahBarrierSetC2State : public BarrierSetC2State {
