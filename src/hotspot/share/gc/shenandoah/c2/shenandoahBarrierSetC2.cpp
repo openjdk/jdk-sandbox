@@ -740,7 +740,6 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
   bool expect_load_store_barriers = !accept_blank && ShenandoahCASBarrier;
 
   Unique_Node_List wq;
-  VectorSet visited;
 
   wq.push(compile->root());
   for (uint next = 0; next < wq.size(); next++) {
@@ -758,7 +757,7 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
     } else if (is_LoadStore(opc)) {
       bd = n->as_LoadStore()->barrier_data();
       adr_type = n->as_LoadStore()->adr_type();
-    } else {
+    } else if (n->is_Mem()) {
       bd = MemNode::barrier_data(n);
       verify_gc_barrier_assert(bd == 0, "Other mem nodes should have no barrier data", bd, n);
     }
