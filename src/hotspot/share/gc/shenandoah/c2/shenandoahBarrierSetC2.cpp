@@ -764,7 +764,9 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
       verify_gc_barrier_assert(bd == 0, "Other mem nodes should have no barrier data", bd, n);
     }
 
-    bool is_weak = ((bd & (ShenandoahBitWeak | ShenandoahBitPhantom)) != 0);
+    bool is_weak   = (bd & (ShenandoahBitWeak | ShenandoahBitPhantom)) != 0;
+    bool is_native = (bd & ShenandoahBitNative) != 0;
+
     bool is_referent = adr_type != nullptr &&
                        adr_type->isa_instptr() &&
                        adr_type->is_instptr()->instance_klass()->is_subtype_of(Compile::current()->env()->Reference_klass()) &&
@@ -773,7 +775,6 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
     bool is_oop_addr = (adr_type != nullptr) && (adr_type->isa_oopptr() || adr_type->isa_narrowoop());
     bool is_raw_addr = (adr_type != nullptr) && (adr_type->isa_rawptr() || adr_type->isa_klassptr());
 
-    // Oop operations
     if (is_oop_addr) {
       if (is_Load(opc)) {
         verify_gc_barrier_assert(!expect_load_barriers || (bd != 0), "Oop load should have barrier data", bd, n);
@@ -785,9 +786,19 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
         verify_gc_barrier_assert(!expect_load_store_barriers || (bd != 0), "Oop load-store should have barrier data", bd, n);
       }
     } else if (is_raw_addr) {
-      // Some LoadP-s are used for T_ADDRESS loads from raw pointers. These are not oops.
-      // Some LoadP-s are used to load class data.
-      // TODO: Verify their barrier data.
+      if (is_native) {
+        if (is_Load(opc)) {
+          verify_gc_barrier_assert(!expect_load_barriers || (bd != 0), "Native oop load should have barrier data", bd, n);
+        }
+        if (is_Store(opc)) {
+          verify_gc_barrier_assert(!expect_store_barriers || (bd != 0), "Native oop store should have barrier data", bd, n);
+        }
+        if (is_LoadStore(opc)) {
+          verify_gc_barrier_assert(!expect_load_store_barriers || (bd != 0), "Native oop load-store should have barrier data", bd, n);
+        }
+      } else {
+        verify_gc_barrier_assert(bd == 0, "Raw oop access should have no barrier data", bd, n);
+      }
     } else {
       if (is_Load(opc) || is_Store(opc) || is_LoadStore(opc)) {
         verify_gc_barrier_assert(false, "Unclassified access type", bd, n);
