@@ -108,7 +108,7 @@ static _metadata safe_load_metadata(oop obj) {
   OrderAccess::loadload();
   markWord mark = obj->mark();
   if (mark.is_forwarded()) {
-    obj = mark.forwardee();
+    obj = mark.is_self_forwarded() ? obj : mark.forwardee();
     klass_word = *(cast_from_oop<_metadata*>(obj) + 1);
   }
   return klass_word;
