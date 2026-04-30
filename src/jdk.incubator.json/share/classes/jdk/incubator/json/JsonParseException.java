@@ -35,7 +35,7 @@ import java.io.Serial;
  *
  * @since 99
  */
-public class JsonParseException extends RuntimeException {
+public final class JsonParseException extends RuntimeException {
 
     @Serial
     private static final long serialVersionUID = 7022545379651073390L;
@@ -55,11 +55,36 @@ public class JsonParseException extends RuntimeException {
     /**
      * Constructs a JsonParseException with the specified detail message.
      * @param message the detail message
-     * @param line the line of the error on parsing the document
-     * @param pos the position of the error on parsing the document
+     * @param line the line of the error on parsing the document. Non-negative.
+     * @param pos the position of the error on parsing the document. Non-negative.
+     * @throws IllegalArgumentException if either {@code line} or {@code pos} are
+     *      non-negative
      */
     public JsonParseException(String message, int line, int pos) {
         super(message);
+        if (line < 0 || pos < 0) {
+            throw new IllegalArgumentException(
+                    "\"line\" and \"pos\" should be non-negative");
+        }
+        this.line = line;
+        this.pos = pos;
+    }
+
+    /**
+     * Constructs a JsonParseException with the specified detail message and cause.
+     * @param message the detail message
+     * @param line the line of the error on parsing the document. Non-negative.
+     * @param pos the position of the error on parsing the document. Non-negative.
+     * @param cause the cause
+     * @throws IllegalArgumentException if either {@code line} or {@code pos} are
+     *      non-negative
+     */
+    public JsonParseException(String message, int line, int pos, Throwable cause) {
+        super(message, cause);
+        if (line < 0 || pos < 0) {
+            throw new IllegalArgumentException(
+                    "\"line\" and \"pos\" should be non-negative");
+        }
         this.line = line;
         this.pos = pos;
     }

@@ -202,5 +202,11 @@ public class TestParse {
                     "Expected: " + msg + " but got line "
                             + e.getErrorLine() + ", position " + e.getErrorPosition());
         }
+
+        @Test
+        void testConstructorIAE() {
+            assertThrows(IllegalArgumentException.class, () -> new JsonParseException("Foo", 1, -1));
+            assertThrows(IllegalArgumentException.class, () -> new JsonParseException("Foo", -1, 1));
+        }
     }
 }

@@ -50,7 +50,7 @@ import java.io.Serial;
  * </ul>
  * @since 99
  */
-public class JsonValueException extends RuntimeException {
+public final class JsonValueException extends RuntimeException {
 
     @Serial
     private static final long serialVersionUID = 2040280066622450939L;
@@ -61,5 +61,14 @@ public class JsonValueException extends RuntimeException {
      */
     public JsonValueException(String message) {
         super(message);
+    }
+
+    /**
+     * Constructs a JsonValueException with the specified detail message and cause.
+     * @param message the detail message
+     * @param cause the cause
+     */
+    public JsonValueException(String message, Throwable cause) {
+        super(message, cause);
     }
 }
