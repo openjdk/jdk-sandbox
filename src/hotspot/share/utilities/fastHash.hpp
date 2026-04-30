@@ -57,11 +57,13 @@ private:
 
   static uint64_t ror64(uint64_t x, uint64_t distance) {
     distance = distance & (64 - 1);
+    if (distance == 0) return x;
     return (x >> distance) | (x << (64 - distance));
   }
 
   static uint32_t ror32(uint32_t x, uint32_t distance) {
     distance = distance & (32 - 1);
+    if (distance == 0) return x;
     return (x >> distance) | (x << (32 - distance));
   }
 
