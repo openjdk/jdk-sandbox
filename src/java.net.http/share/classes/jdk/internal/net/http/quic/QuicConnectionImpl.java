@@ -396,12 +396,14 @@ public class QuicConnectionImpl extends QuicConnection implements QuicPacketRece
                 NEW = 0,           // the connection is new
                 HISENT = 1,        // first initial hello packet sent
                 HSCOMPLETE = 16,   // handshake completed
+                HSCONFIRMED = 32,  // handshake confirmed
                 CLOSING = 128,     // connection has entered "Closing" state as defined in RFC-9000
                 DRAINING = 256,    // connection has entered "Draining" state as defined in RFC-9000
                 CLOSED = 512;      // CONNECTION_CLOSE ACK sent or received
         public abstract int state();
         public boolean helloSent() {return isMarked(HISENT);}
         public boolean handshakeComplete() { return isMarked(HSCOMPLETE);}
+        public boolean handshakeConfirmed() { return isMarked(HSCONFIRMED);}
         public boolean closing() { return isMarked(CLOSING);}
         public boolean draining() { return isMarked(DRAINING);}
         public boolean opened() { return (state() & (CLOSED | DRAINING | CLOSING)) == 0; }
@@ -554,6 +556,7 @@ public class QuicConnectionImpl extends QuicConnection implements QuicPacketRece
         }
         public boolean markHelloSent() { return mark(HISENT); }
         public boolean markHandshakeComplete() { return mark(HSCOMPLETE); }
+        public boolean markHandshakeConfirmed() { return mark(HSCONFIRMED); }
     }
 
     /**
@@ -3975,7 +3978,7 @@ public class QuicConnectionImpl extends QuicConnection implements QuicPacketRece
 
     protected void incoming1RTTFrame(final HandshakeDoneFrame frame)
             throws QuicTransportException {
-        if (quicTLSEngine.tryReceiveHandshakeDone()) {
+        if (stateHandle.markHandshakeConfirmed()) {
             // now that HANDSHAKE_DONE is received (and thus handshake confirmed),
             // close the HANDSHAKE packet space (and thus discard the keys)
             if (debug.on()) {

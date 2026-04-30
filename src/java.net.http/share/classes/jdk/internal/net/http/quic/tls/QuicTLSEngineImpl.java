@@ -72,7 +72,6 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, QuicTransport {
     private static final Set<QuicVersion> SUPPORTED_QUIC_VERSIONS =
             Set.of(QuicVersion.QUIC_V1, QuicVersion.QUIC_V2);
 
-    private final AtomicBoolean handshakeDone = new AtomicBoolean();
     private final SSLEngine sslEngine;
     private final String peerHost;
     private final int peerPort;
@@ -547,39 +546,6 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, QuicTransport {
                     recvKeySpace, 0,
                     BASE_CRYPTO_ERROR + (code & 0xff), closeReason);
         }
-    }
-
-    @Override
-    public boolean tryMarkHandshakeDone() {
-        if (getUseClientMode()) {
-            // not expected to be called on client
-            throw new IllegalStateException(
-                    "Not expected to be called in client mode");
-        }
-        boolean confirmed = !handshakeDone.getAndSet(true);
-        if (confirmed) {
-            if (Log.ssl()) {
-                Log.logSSL("QuicTLSEngine (server) marked HANDSHAKE_DONE");
-            }
-        }
-        return confirmed;
-    }
-
-    @Override
-    public boolean tryReceiveHandshakeDone() {
-        final boolean isClient = getUseClientMode();
-        if (!isClient) {
-            throw new IllegalStateException(
-                    "Not expected to receive HANDSHAKE_DONE in server mode");
-        }
-        boolean confirmed = !handshakeDone.getAndSet(true);
-        if (confirmed) {
-            if (Log.ssl()) {
-                Log.logSSL(
-                        "QuicTLSEngine (client) received HANDSHAKE_DONE");
-            }
-        }
-        return confirmed;
     }
 
     @Override

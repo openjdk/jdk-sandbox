@@ -194,15 +194,6 @@ public class AckElicitingTest {
             throw new AssertionError("should not come here!");
         }
         @Override
-        public boolean tryMarkHandshakeDone() {
-            throw new AssertionError("should not come here!");
-        }
-        @Override
-        public boolean tryReceiveHandshakeDone() {
-            throw new AssertionError("should not come here!");
-        }
-
-        @Override
         public Set<QuicVersion> getSupportedQuicVersions() {
             return Set.of(QuicVersion.QUIC_V1);
         }

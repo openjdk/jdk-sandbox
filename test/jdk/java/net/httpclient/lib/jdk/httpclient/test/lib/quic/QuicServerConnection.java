@@ -306,9 +306,10 @@ public final class QuicServerConnection extends QuicConnectionImpl {
             // HANDSHAKE_DONE frame (see sendStreamData)
             packetSpace(PacketNumberSpace.HANDSHAKE).runTransmitter();
             packetSpace(PacketNumberSpace.APPLICATION).confirmHandshake();
-            engine.tryMarkHandshakeDone();
-            enqueue1RTTFrame(new HandshakeDoneFrame());
-            debug.log("Adding HandshakeDoneFrame");
+            if (stateHandle().markHandshakeConfirmed()) {
+                enqueue1RTTFrame(new HandshakeDoneFrame());
+                debug.log("Adding HandshakeDoneFrame");
+            }
             completeHandshakeCF();
             packetSpace(PacketNumberSpace.APPLICATION).runTransmitter();
         }

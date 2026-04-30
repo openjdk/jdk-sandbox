@@ -445,42 +445,6 @@ public interface QuicTLSEngine {
     Runnable getDelegatedTask();
 
     /**
-     * Called to check if a {@code HANDSHAKE_DONE} frame needs to be sent by the
-     * server. This method will only be called for a {@code QuicTLSEngine} which
-     * is in {@linkplain #getUseClientMode() server mode}. If the current TLS handshake
-     * state is
-     * {@link  SSLEngineResult.HandshakeStatus#FINISHED
-     * FINISHED} then this method returns {@code true} and
-     * advances the TLS handshake state to
-     * {@link  SSLEngineResult.HandshakeStatus#NOT_HANDSHAKING NOT_HANDSHAKING}. Else
-     * returns {@code false}.
-     *
-     * @return true if handshake state was {@code FINISHED},
-     *         false otherwise
-     * @throws IllegalStateException If this {@code QuicTLSEngine} is
-     *         not in server mode
-     */
-    boolean tryMarkHandshakeDone() throws IllegalStateException;
-
-    /**
-     * Called when HANDSHAKE_DONE message is received from the server. This
-     * method will only be called for a {@code QuicTLSEngine} which is in
-     * {@linkplain #getUseClientMode() client mode}. If the current TLS handshake state
-     * is
-     * {@link  SSLEngineResult.HandshakeStatus#FINISHED
-     * FINISHED} then this method returns {@code true} and
-     * advances the TLS handshake state to
-     * {@link  SSLEngineResult.HandshakeStatus#NOT_HANDSHAKING NOT_HANDSHAKING}. Else
-     * returns {@code false}.
-     *
-     * @return true if handshake state was {@code FINISHED},
-     *         false otherwise
-     * @throws IllegalStateException if this {@code QuicTLSEngine} is
-     *         not in client mode
-     */
-    boolean tryReceiveHandshakeDone() throws IllegalStateException;
-
-    /**
      * Called when the client and the server, during the connection creation
      * handshake, have settled on a Quic version to use for the connection. This
      * can happen either due to an explicit version negotiation (as outlined in

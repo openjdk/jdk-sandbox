@@ -269,14 +269,6 @@ public class PacketEncodingTest {
         public Runnable getDelegatedTask() {
             throw new AssertionError("should not come here!");
         }
-        @Override
-        public boolean tryMarkHandshakeDone() {
-            throw new AssertionError("should not come here!");
-        }
-        @Override
-        public boolean tryReceiveHandshakeDone() {
-            throw new AssertionError("should not come here!");
-        }
 
         @Override
         public Set<QuicVersion> getSupportedQuicVersions() {
