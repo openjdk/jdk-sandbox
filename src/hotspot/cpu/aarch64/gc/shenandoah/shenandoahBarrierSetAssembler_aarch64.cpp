@@ -1067,7 +1067,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
 
   // If the object is null, there is no point in applying barriers.
-  __ cbz(_obj, *continuation());
+  maybe_far_jump_if_zero(masm, _obj, continuation());
 
   // Go for barriers. Barriers can return straight to continuation, as long
   // as another barrier is not needed and we can reach the fastpath.
@@ -1156,11 +1156,8 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   {
     SaveLiveRegisters slr(&masm, this);
 
-    if (c_rarg0 != _obj) {
-      __ mov(c_rarg0, _obj);
-    }
-
     // Go to runtime and handle the rest there.
+    __ mov(c_rarg0, _obj);
     __ mov(lr, keepalive_runtime_entry_addr());
     __ blr(lr);
   }
