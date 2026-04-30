@@ -71,8 +71,10 @@ import java.util.Optional;
  *     <li>{@code asLong()} returns a long provided the JSON number is a whole
  *     number within range of {@code Long.MIN_VALUE} and {@code Long.MAX_VALUE}.
  *     </li>
- *     <li>{@code asDouble()} returns a double provided the JSON number is
- *     within range of {@code -Double.MAX_VALUE} and {@code Double.MAX_VALUE}.
+ *     <li>{@code asDouble()} returns a {@code double} if the string
+ *     representation of theJSON number can be converted using
+ *     {@link Double#parseDouble(String)} and the resulting value is neither
+ *     positive nor negative infinity.
  *     </li>
  *     <li>{@code asBoolean()} returns {@code true} or {@code false} for JSON
  *     boolean literals.</li>
