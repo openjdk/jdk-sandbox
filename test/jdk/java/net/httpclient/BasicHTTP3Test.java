@@ -215,7 +215,7 @@ public class BasicHTTP3Test implements HttpServerAdapters {
     public static Object[][] versions() {
         Object[][] result = {
                 {h3URI}, {h3URIRetry},
-                /*{h3URIQv2}, TODO reenable*/ {h3URIQv2C},
+                {h3URIQv2}, {h3URIQv2C},
                 {h3mtlsURI}, {h3URITLSHelloRetry},
         };
         return result;

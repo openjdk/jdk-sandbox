@@ -53,7 +53,6 @@ import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.IntFunction;
 
 import static jdk.internal.net.http.quic.QuicTLSEngine.KeySpace.*;
@@ -72,7 +71,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, QuicTransport {
     private static final Set<QuicVersion> SUPPORTED_QUIC_VERSIONS =
             Set.of(QuicVersion.QUIC_V1, QuicVersion.QUIC_V2);
 
-    private final SSLEngine sslEngine;
+    private SSLEngine sslEngine;
     private final String peerHost;
     private final int peerPort;
     private volatile KeySpace recvKeySpace;
@@ -91,6 +90,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, QuicTransport {
 
     private volatile QuicVersion negotiatedVersion;
     private QuicTransportException cryptoError;
+    private final SSLContext sslContext;
 
     public QuicTLSEngineImpl(SSLContext sslContext) {
         this(sslContext, null, -1);
@@ -101,7 +101,8 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, QuicTransport {
         this.peerPort = peerPort;
         this.sendKeySpace = INITIAL;
         this.recvKeySpace = INITIAL;
-        sslEngine = sslContext.createQUICEngine(peerHost, peerPort, this);
+        this.sslContext = sslContext;
+        sslEngine = this.sslContext.createQUICEngine(peerHost, peerPort, this);
     }
 
     @Override
@@ -518,8 +519,18 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, QuicTransport {
 
     @Override
     public void restartHandshake() throws IOException {
-        // TODO create a new SSLEngine; this was a performance optimization
-        throw new UnsupportedOperationException();
+        if (negotiatedVersion != null) {
+            throw new IllegalStateException("Version already negotiated");
+        }
+        if (sendKeySpace != INITIAL || getHandshakeStatus() != SSLEngineResult.HandshakeStatus.NEED_UNWRAP) {
+            throw new IllegalStateException("Unexpected handshake state");
+        }
+        var newSslEngine = sslContext.createQUICEngine(peerHost, peerPort, this);
+        newSslEngine.setUseClientMode(sslEngine.getUseClientMode());
+        newSslEngine.setSSLParameters(sslEngine.getSSLParameters());
+        newSslEngine.beginHandshake();
+        sslEngine = newSslEngine;
+
     }
 
     @Override
