@@ -36,8 +36,8 @@ import jdk.incubator.json.impl.Utils;
  * A {@code JsonString} can be produced by a {@link Json#parse(String)}.
  * Within a valid JSON string, any character may be escaped using either a
  * two-character escape sequence (if applicable) or a Unicode escape sequence.
- * Quotation mark (U+0022), reverse solidus (U+005C), and the control characters
- * (U+0000 through U+001F) must be escaped.
+ * Quotation Mark (U+0022), Backslash (Reverse Solidus, U+005C), and the control
+ * characters (U+0000 through U+001F) must be escaped.
  * <p> Alternatively, {@link #of(String)} can be used to obtain a {@code JsonString}
  * directly from a {@code String}. The {@code JsonString} instances produced by
  * the following expressions are all equivalent,
