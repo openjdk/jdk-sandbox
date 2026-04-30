@@ -72,7 +72,7 @@ import java.util.Optional;
  *     number within range of {@code Long.MIN_VALUE} and {@code Long.MAX_VALUE}.
  *     </li>
  *     <li>{@code asDouble()} returns a {@code double} if the string
- *     representation of theJSON number can be converted using
+ *     representation of the JSON number can be converted using
  *     {@link Double#parseDouble(String)} and the resulting value is neither
  *     positive nor negative infinity.
  *     </li>
