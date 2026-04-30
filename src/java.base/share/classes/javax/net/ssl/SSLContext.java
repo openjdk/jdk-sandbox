@@ -413,13 +413,45 @@ public class SSLContext {
     }
 
     /**
-     * Creates a new {@code SSLEngine} using this context using
+     * Creates a new QUIC {@code SSLEngine} using this context.
+     * <P>
+     * Applications using this factory method are providing no hints
+     * for an internal session reuse strategy. If hints are desired,
+     * {@link #createQUICEngine(String, int, QuicTransport)} should be used
+     * instead.
+     *
+     * @implNote
+     * TODO revisit after JDK-8382270
+     * It is provider-specific if the returned SSLEngine uses client or
+     * server mode by default for the (D)TLS connection. The JDK SunJSSE
+     * provider implementation uses server mode by default.  However, it
+     * is recommended to always set the desired mode explicitly by calling
+     * {@link SSLEngine#setUseClientMode(boolean) SSLEngine.setUseClientMode()}
+     * before invoking other methods of the SSLEngine.
+     *
+     * @param   quicTransport the QUIC transport associated with this engine
+     * @return  the {@code SSLEngine} object
+     * @throws  UnsupportedOperationException if the underlying provider
+     *          does not implement the operation.
+     * @throws  IllegalStateException if the SSLContextImpl requires
+     *          initialization and the {@code init()} has not been called
+     * @throws  NullPointerException if quicTransport is {@code null}
+     * @since   27
+     */
+    public final SSLEngine createQUICEngine(QuicTransport quicTransport) {
+        Objects.requireNonNull(quicTransport, "null QuicTransport");
+        return contextSpi.engineCreateQUICEngine(quicTransport);
+    }
+
+    /**
+     * Creates a new QUIC {@code SSLEngine} using this context using
      * advisory peer information.
      * <P>
      * Applications using this factory method are providing hints
      * for an internal session reuse strategy.
      *
      * @implNote
+     * TODO revisit after JDK-8382270
      * It is provider-specific if the returned SSLEngine uses client or
      * server mode by default for the (D)TLS connection. The JDK SunJSSE
      * provider implementation uses server mode by default.  However, it

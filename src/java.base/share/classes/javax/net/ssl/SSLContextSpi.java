@@ -147,13 +147,39 @@ public abstract class SSLContextSpi {
     /**
      * Creates a QUIC {@code SSLEngine} using this context.
      * <P>
+     * Applications using this factory method are providing no hints
+     * for an internal session reuse strategy. If hints are desired,
+     * {@link #engineCreateQUICEngine(String, int, QuicTransport)}
+     * should be used instead.
+     *
+     * @implSpec
+     * The implementation in this class throws
+     * {@code UnsupportedOperationException} and performs no other action.
+     *
+     * @param   quicTransport the QUIC transport associated with this engine
+     * @return  the {@code SSLEngine} object
+     * @throws  UnsupportedOperationException if the underlying provider
+     *          does not implement the operation.
+     * @throws  IllegalStateException if the SSLContextImpl requires
+     *          initialization and the {@code init()} has not been called
+     *
+     * @see     SSLContext#createQUICEngine(QuicTransport)
+     * @since   27
+     */
+    protected SSLEngine engineCreateQUICEngine(QuicTransport quicTransport) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Creates a QUIC {@code SSLEngine} using this context.
+     * <P>
      * Applications using this factory method are providing hints
      * for an internal session reuse strategy.
      *
      * @implSpec
      * The implementation in this class throws
      * {@code UnsupportedOperationException} and performs no other action.
-
+     *
      * @param host the non-authoritative name of the host
      * @param port the non-authoritative port
      * @param quicTransport the QUIC transport associated with this engine
@@ -165,10 +191,9 @@ public abstract class SSLContextSpi {
      *         does not implement the operation.
      *
      * @see     SSLContext#createQUICEngine(String, int, QuicTransport)
-     *
      * @since   27
      */
-    public SSLEngine engineCreateQUICEngine(String host, int port, QuicTransport quicTransport) {
+    protected SSLEngine engineCreateQUICEngine(String host, int port, QuicTransport quicTransport) {
         throw new UnsupportedOperationException();
     }
 

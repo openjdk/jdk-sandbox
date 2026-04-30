@@ -164,6 +164,7 @@ public abstract class SSLContextImpl extends SSLContextSpi {
 
     abstract SSLEngine createSSLEngineImpl();
     abstract SSLEngine createSSLEngineImpl(String host, int port);
+    abstract SSLEngine createSSLEngineImpl(QuicTransport quicTransport);
     abstract SSLEngine createSSLEngineImpl(String host, int port, QuicTransport quicTransport);
 
     @Override
@@ -180,6 +181,14 @@ public abstract class SSLContextImpl extends SSLContextSpi {
             throw new IllegalStateException("SSLContext is not initialized");
         }
         return createSSLEngineImpl(host, port);
+    }
+
+    @Override
+    public SSLEngine engineCreateQUICEngine(QuicTransport quicTransport) {
+        if (!isInitialized) {
+            throw new IllegalStateException("SSLContext is not initialized");
+        }
+        return createSSLEngineImpl(quicTransport);
     }
 
     @Override
@@ -635,6 +644,11 @@ public abstract class SSLContextImpl extends SSLContextSpi {
         @Override
         SSLEngine createSSLEngineImpl(String host, int port) {
             return new SSLEngineImpl(this, host, port);
+        }
+
+        @Override
+        SSLEngine createSSLEngineImpl(QuicTransport quicTransport) {
+            return new SSLEngineImpl(this, quicTransport);
         }
 
         @Override
@@ -1273,6 +1287,11 @@ public abstract class SSLContextImpl extends SSLContextSpi {
         @Override
         SSLEngine createSSLEngineImpl(String host, int port) {
             return new SSLEngineImpl(this, host, port);
+        }
+
+        @Override
+        SSLEngine createSSLEngineImpl(QuicTransport quicTransport) {
+            throw new UnsupportedOperationException("DTLS context does not support QUIC");
         }
 
         @Override
