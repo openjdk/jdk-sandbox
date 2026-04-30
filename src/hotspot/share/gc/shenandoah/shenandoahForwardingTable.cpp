@@ -247,7 +247,7 @@ bool ShenandoahForwardingTable::build(size_t num_entries) {
 }
 
 template<class Entry>
-void ShenandoahForwardingTable::write_sentinels() {
+void ShenandoahForwardingTable::write_at_originals(uintptr_t value) {
   assert(_table != nullptr, "FWT must be built before writing sentinels");
   Entry* table = reinterpret_cast<Entry*>(_table);
   HeapWord* region_base = _region->bottom();
@@ -256,17 +256,25 @@ void ShenandoahForwardingTable::write_sentinels() {
     if (table[i].is_used()) {
       HeapWord* original = table[i].original(region_base);
       if (original < fwt_start) {
-        *reinterpret_cast<uintptr_t*>(original) = CollectedHeap::in_fwt_addr_filler_word;
+        *reinterpret_cast<uintptr_t*>(original) = value;
       }
     }
   }
 }
 
-void ShenandoahForwardingTable::write_sentinels() {
+void ShenandoahForwardingTable::install_sentinels() {
   if (_compact) {
-    write_sentinels<CompactFwdTableEntry>();
+    write_at_originals<CompactFwdTableEntry>(CollectedHeap::in_fwt_addr_filler_word);
   } else {
-    write_sentinels<FwdTableEntry>();
+    write_at_originals<FwdTableEntry>(CollectedHeap::in_fwt_addr_filler_word);
+  }
+}
+
+void ShenandoahForwardingTable::remove_sentinels() {
+  if (_compact) {
+    write_at_originals<CompactFwdTableEntry>(0);
+  } else {
+    write_at_originals<FwdTableEntry>(0);
   }
 }
 

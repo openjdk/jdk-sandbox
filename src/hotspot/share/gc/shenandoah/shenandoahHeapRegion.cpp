@@ -301,7 +301,8 @@ void ShenandoahHeapRegion::recycle_early() {
       _empty_time = os::elapsedTime();
 
       reset();
-      write_fwt_sentinels();
+      Copy::fill_to_aligned_words(bottom(), pointer_delta(forwarding_table_start(), bottom()));
+      _fwd_table.install_sentinels();
       return;
     default:
       report_illegal_transition("Should be cset");
@@ -317,6 +318,12 @@ void ShenandoahHeapRegion::make_regular_from_cset() {
     default:
       report_illegal_transition("Should be cset");
   }
+}
+
+void ShenandoahHeapRegion::reset_forwarding_table() {
+  _fwd_table.remove_sentinenls();
+   Copy::fill_to_aligned_words(forwarding_table_start(), pointer_delta(end(), forwarding_table_start()));
+  _fwd_table.reset();
 }
 
 void ShenandoahHeapRegion::make_trash() {
@@ -600,14 +607,14 @@ void ShenandoahHeapRegion::reset() {
   reset_alloc_metadata();
   heap->marking_context()->reset_top_at_mark_start(this);
   set_update_watermark(bottom());
-  if (ZapUnusedHeapArea) {
-    SpaceMangler::mangle_region(MemRegion(bottom(), alloc_end()));
-  }
 }
 
 void ShenandoahHeapRegion::recycle_internal() {
   assert(_recycling.is_set() && is_trash(), "Wrong state");
   reset();
+  if (ZapUnusedHeapArea) {
+    SpaceMangler::mangle_region(MemRegion(bottom(), end()));
+  }
   make_empty();
   set_affiliation(FREE);
 }

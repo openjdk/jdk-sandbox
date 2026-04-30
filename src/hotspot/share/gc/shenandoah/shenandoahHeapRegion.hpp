@@ -541,13 +541,7 @@ public:
     return _fwd_table.build(num_forwardings);
   }
 
-  void reset_forwarding_table() {
-    _fwd_table.reset();
-  }
-
-  void write_fwt_sentinels() {
-    _fwd_table.write_sentinels();
-  }
+  void reset_forwarding_table();
 
   HeapWord* forwarding_table_start() const {
     return _fwd_table.start();
