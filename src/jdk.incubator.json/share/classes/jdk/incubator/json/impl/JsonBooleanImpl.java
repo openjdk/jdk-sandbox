@@ -38,9 +38,6 @@ public final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
     private final int offset;
     private final char[] doc;
 
-    public static final JsonBooleanImpl TRUE = new JsonBooleanImpl(true, null, -1);
-    public static final JsonBooleanImpl FALSE = new JsonBooleanImpl(false, null, -1);
-
     public JsonBooleanImpl(Boolean bool, char[] doc, int offset) {
         theBoolean = bool;
         this.doc = doc;

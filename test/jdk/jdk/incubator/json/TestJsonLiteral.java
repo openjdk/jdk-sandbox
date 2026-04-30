@@ -31,7 +31,6 @@
  */
 
 import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.FieldSource;
@@ -39,12 +38,10 @@ import org.junit.jupiter.params.provider.FieldSource;
 import java.util.List;
 import jdk.incubator.json.Json;
 import jdk.incubator.json.JsonBoolean;
-import jdk.incubator.json.JsonNull;
 import jdk.incubator.json.JsonParseException;
 import java.util.stream.Stream;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -52,8 +49,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 public class TestJsonLiteral {
 
     void conversionTest() {
-        assertTrue(JsonBoolean.of(true).asBoolean());
-        assertFalse(JsonBoolean.of(false).asBoolean());
+        assertTrue(JsonBoolean.TRUE.asBoolean());
+        assertFalse(JsonBoolean.FALSE.asBoolean());
     }
 
     @Nested
@@ -94,20 +91,5 @@ public class TestJsonLiteral {
                         Arguments.of("tru", "Expected true"),
                         Arguments.of("t", "Expected true")
                 );
-    }
-
-    @Nested
-    class TestFactory {
-
-        @Test
-        void booleanOfTest() {
-            assertEquals(Json.parse("true"), JsonBoolean.of(true));
-            assertEquals(Json.parse("false"), JsonBoolean.of(false));
-        }
-
-        @Test
-        void nullOfTest() {
-            assertEquals(Json.parse("null"), JsonNull.of());
-        }
     }
 }

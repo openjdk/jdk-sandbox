@@ -89,8 +89,8 @@ public class TestJsonArray {
                     List.of(
                             JsonNumber.of(1),
                             JsonString.of("two"),
-                            JsonBoolean.of(Boolean.FALSE),
-                            JsonNull.of(),
+                            JsonBoolean.FALSE,
+                            JsonNull.NULL,
                             JsonObject.of(Map.of("name", JsonNumber.of(42))),
                             JsonArray.of(List.of(JsonNumber.of(1)))
                     )
@@ -121,7 +121,7 @@ public class TestJsonArray {
             assertEquals(1, ja.asList().size());
             // Modifications to JsonArray asList() should throw
             assertThrows(UnsupportedOperationException.class,
-                    () -> ja.asList().add(JsonNull.of()),
+                    () -> ja.asList().add(JsonNull.NULL),
                     "Array values able to be modified");
         }
 

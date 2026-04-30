@@ -78,8 +78,8 @@ public class TestAccess {
     void basicAccessTest() {
         JSON_ROOT_OBJECT.get("id");
         assertEquals(JsonString.of("value"), JSON_ROOT_OBJECT.get("values").get(0));
-        assertEquals(JsonNull.of(), JSON_ROOT_OBJECT.get("values").get(1));
-        assertEquals(JsonBoolean.of(true), JSON_ROOT_OBJECT.get("qux").get(0).get(0));
+        assertEquals(JsonNull.NULL, JSON_ROOT_OBJECT.get("values").get(1));
+        assertEquals(JsonBoolean.TRUE, JSON_ROOT_OBJECT.get("qux").get(0).get(0));
     }
 
     @Test
