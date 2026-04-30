@@ -321,7 +321,7 @@ void ShenandoahHeapRegion::make_regular_from_cset() {
 }
 
 void ShenandoahHeapRegion::reset_forwarding_table() {
-  _fwd_table.remove_sentinenls();
+  _fwd_table.remove_sentinels();
    Copy::fill_to_aligned_words(forwarding_table_start(), pointer_delta(end(), forwarding_table_start()));
   _fwd_table.reset();
 }
