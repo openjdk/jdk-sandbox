@@ -42,10 +42,6 @@ import jdk.internal.net.http.quic.tls.QuicTLSEngineImpl;
  */
 public final class QuicTLSContext {
 
-    // In this implementation, we have a dependency on
-    // sun.security.ssl.SSLContextImpl. We can only support
-    // Quic on SSLContext instances created by the default
-    // SunJSSE Provider
     private final SSLContext sslCtx;
 
     /**

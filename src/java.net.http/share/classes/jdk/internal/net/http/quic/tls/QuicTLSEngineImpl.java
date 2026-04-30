@@ -359,7 +359,6 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, QuicTransport {
             return null;
         var buf = ByteBuffer.allocate(4096);
         var result = sslEngine.wrap(ByteBuffer.allocate(0), buf);
-        System.err.println("wrap: "+result);
         buf.flip();
         return buf;
     }
@@ -381,7 +380,6 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, QuicTransport {
             }
             try {
                 var result = sslEngine.unwrap(payload, ByteBuffer.allocate(0));
-                System.err.println("unwrap remaining " + payload.remaining() + ": " + result);
                 while (getHandshakeStatus() == SSLEngineResult.HandshakeStatus.NEED_TASK) {
                     sslEngine.getDelegatedTask().run();
                 }
