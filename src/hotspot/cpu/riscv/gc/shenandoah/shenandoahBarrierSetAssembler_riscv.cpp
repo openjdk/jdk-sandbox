@@ -803,14 +803,9 @@ void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
   Address gc_state_fast(xthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(test_state)));
-  if (_needs_far_jump) {
-    __ lbu(t0, gc_state_fast);
-    __ beqz(t0, *continuation());
-    __ j(*entry());
-  } else {
-    __ lbu(t0, gc_state_fast);
-    __ bnez(t0, *entry());
-  }
+  __ lbu(t0, gc_state_fast);
+  __ beqz(t0, *continuation());
+  __ j(*entry());
 
   // This is were the slowpath stub will return to or the code above will
   // jump to if the checks are false
@@ -977,15 +972,8 @@ void ShenandoahBarrierStubC2::post_init() {
   // and force the use of trampolines
   PhaseOutput* const output = Compile::current()->output();
   if (output->in_scratch_emit_size()) {
-    _needs_far_jump = true;
     return;
   }
-
-  // TODO: how correct is this? factor out this into a method.
-  const int code_size = output->buffer_sizing_data()->_code +
-                        output->buffer_sizing_data()->_stub +
-                        output->buffer_sizing_data()->_reloc;
-  _needs_far_jump = code_size >= (int)(4*K);
 }
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
@@ -1021,14 +1009,10 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
 }
 
 void ShenandoahBarrierStubC2::maybe_far_jump_if_zero(MacroAssembler& masm, Register reg, Label* L_done) {
-  if (_needs_far_jump) {
-    Label L_short_jump;
-    __ bnez(reg, L_short_jump);
-    __ j(*L_done);
-    __ bind(L_short_jump);
-  } else {
-    __ beqz(reg, *L_done);
-  }
+  Label L_short_jump;
+  __ bnez(reg, L_short_jump);
+  __ j(*L_done);
+  __ bind(L_short_jump);
 }
 
 void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
