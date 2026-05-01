@@ -62,13 +62,4 @@ public final class JsonValueException extends RuntimeException {
     public JsonValueException(String message) {
         super(message);
     }
-
-    /**
-     * Constructs a JsonValueException with the specified detail message and cause.
-     * @param message the detail message
-     * @param cause the cause
-     */
-    public JsonValueException(String message, Throwable cause) {
-        super(message, cause);
-    }
 }
