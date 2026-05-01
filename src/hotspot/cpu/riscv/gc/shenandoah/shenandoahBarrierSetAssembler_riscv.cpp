@@ -1060,17 +1060,13 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   __ sd(tmp1, index);
   __ ld(tmp2, buffer);
 
-  // If object is narrow, we need to unpack it before inserting into buffer,
-  // and pack it back. The packing is needed for two cases: if there is
-  // a LRB that is chained after us, which would decode again; or the caller
-  // did the load, which means it is going to need it.
-  if (_narrow) {
-    __ decode_heap_oop_not_null(_obj);
-  }
+  // If object is narrow, we need to unpack it before inserting into buffer.
   __ add(tmp1, tmp1, tmp2);
-  __ sd(_obj, Address(tmp1, 0));
-  if (_narrow && ((L_done == nullptr) || !_do_load)) {
-    __ encode_heap_oop_not_null(_obj);
+  if (_narrow) {
+    __ decode_heap_oop_not_null(tmp2, _obj);
+    __ sd(tmp2, Address(tmp1));
+  } else {
+    __ sd(_obj, Address(tmp1));
   }
 
   // Fast-path exits here.
@@ -1083,8 +1079,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   // Slow-path: call runtime to handle.
   __ bind(L_slowpath);
 
-  // If this stub also supports LRB then we need to preserve _obj to use it
-  // there.
+  // If this stub also supports LRB then we need to preserve _obj to use it there.
   if (_needs_load_ref_barrier) {
     preserve(_obj);
   } else {
@@ -1094,11 +1089,8 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   {
     SaveLiveRegisters slr(&masm, this);
 
-    if (c_rarg0 != _obj) {
-      __ mv(c_rarg0, _obj);
-    }
-
     // Go to runtime and handle the rest there.
+    __ mv(c_rarg0, _obj);
     __ rt_call(keepalive_runtime_entry_addr());
   }
 
@@ -1138,7 +1130,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
   if (_narrow) {
     __ decode_heap_oop_not_null(tmp2, _obj);
   } else {
-    tmp2 = _obj;
+    __ mv(tmp2, _obj);
   }
 
   __ mv(tmp1, ShenandoahHeap::in_cset_fast_test_addr());
@@ -1177,7 +1169,9 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
     __ rt_call(lrb_runtime_entry_addr());
 
     // Save the result where needed.
-    if (_obj != x10) {
+    if (_narrow) {
+      __ zext_w(_obj, x10);
+    } else {
       __ mv(_obj, x10);
     }
   }
