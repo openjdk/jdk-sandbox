@@ -526,7 +526,7 @@ out:
 
 void relocate_sharedlib_pd(const char* filename, const uint64_t address) {
     ELFFile lib(filename, nullptr, true);
-    if (lib.is_valid()) {
+    if (lib.is_sharedlib()) {
         logv("Relocate %s to 0x%lx", filename, address);
         lib.relocate(address /* assume library currently has zero base address */);
         logv("Relocate done");
