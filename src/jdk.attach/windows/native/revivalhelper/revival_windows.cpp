@@ -187,15 +187,17 @@ void tls_fixup_pd(void* teb) {
     waitHitRet();
 }
 
+void clock_fixup_pd(struct revival_data* rdata) {
+    // Not implemented on Windows.
+}
+
 void init_pd() {
     logv("init_pd: PID %ld thread: 0x%lx", _getpid(), GetCurrentThreadId());
     hProc = GetCurrentProcess();
     _SYSTEM_INFO systemInfo;
     GetSystemInfo(&systemInfo);
     vaddr_align = systemInfo.dwAllocationGranularity - 1;
-    logv("revival: init_pd: dwAllocationGranularity = %d  vaddr_alignment_pd() = 0x%lx",
-          systemInfo.dwAllocationGranularity, vaddr_alignment_pd());
-
+    logv("revival: init_pd: dwAllocationGranularity = %d  vaddr_alignment_pd() = 0x%lx", systemInfo.dwAllocationGranularity, vaddr_alignment_pd());
     if (vaddr_align != 0xffff) {
         warn("Note: dwAllocationGranularity not 64k, vaddr_align = %lld", vaddr_align);
     }
@@ -290,18 +292,14 @@ void* symbol_dynamiclookup_pd(void* h, const char* str) {
 }
 
 void* load_sharedobject_pd(const char* name, void* vaddr) {
-    int max_tries = 1; // Retrying, even when allocating to force a new address, is not usually succesfull.
-
-    for (int i = 0; i < max_tries; i++) {
-        HMODULE h = LoadLibraryA(name);
-        if ((void*) h == vaddr) {
-            return (void*) h; // success
-        }
-        warn("load_sharedobject_pd: %s: load failed address 0x%p != requested 0x%p. error=0x%lx", name, h, vaddr, GetLastError());
-        if (h != nullptr) {
-            // Loaded, wrong address.
-            exitForRetry();
-        }
+    HMODULE h = LoadLibraryA(name);
+    if ((void*) h == vaddr) {
+        return (void*) h; // success
+    }
+    warn("load_sharedobject_pd: %s: load failed address 0x%p != requested 0x%p. error=0x%lx", name, h, vaddr, GetLastError());
+    if (h != nullptr) {
+        // Loaded, wrong address.
+        exitForRetry();
     }
     return (void*) -1;
 }
@@ -427,7 +425,7 @@ void* do_map_allocate_pd_VirtualAlloc2(void* addr, size_t length, int protReques
                 size_t remaining = (uint64_t) wanted_end - existing_end;
                 logv("do_map_allocate_pd_VirtualAlloc2: existing. remaining = 0x%llx protRequested = 0x%x", remaining, protRequested);
                 void* r = do_map_allocate_pd_VirtualAlloc2((void*) existing_end, remaining, protRequested);
-                logv("do_map_allocate_pd_VirtualAlloc2: done recurse");
+                logd("do_map_allocate_pd_VirtualAlloc2: done recurse");
                 // Return original requested address on success:
                 if ((uint64_t) r == (uint64_t) existing_end) {
                     return addr;
