@@ -120,15 +120,4 @@ public final class JsonStringImpl implements JsonString, JsonValueImpl {
         }
         return sb.toString();
     }
-
-    @Override
-    public boolean equals(Object o) {
-        return o instanceof JsonString ojs &&
-                asString().equals(ojs.asString());
-    }
-
-    @Override
-    public int hashCode() {
-        return asString().hashCode();
-    }
 }

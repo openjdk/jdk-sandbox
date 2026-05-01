@@ -60,14 +60,4 @@ public final class JsonNullImpl implements JsonNull, JsonValueImpl {
     public String toString() {
         return VALUE;
     }
-
-    @Override
-    public boolean equals(Object obj) {
-        return obj instanceof JsonNull;
-    }
-
-    @Override
-    public int hashCode() {
-        return HASH;
-    }
 }

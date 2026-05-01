@@ -101,13 +101,13 @@ public class TestJsonLiteral {
 
         @Test
         void booleanOfTest() {
-            assertEquals(Json.parse("true"), JsonBoolean.of(true));
-            assertEquals(Json.parse("false"), JsonBoolean.of(false));
+            assertTrue(JsonBoolean.of(true).asBoolean());
+            assertFalse(JsonBoolean.of(false).asBoolean());
         }
 
         @Test
         void nullOfTest() {
-            assertEquals(Json.parse("null"), JsonNull.of());
+            assertTrue(JsonNull.of() instanceof JsonNull);
         }
     }
 }

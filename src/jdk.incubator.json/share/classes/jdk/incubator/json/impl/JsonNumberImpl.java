@@ -89,17 +89,6 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
         return numString.get();
     }
 
-    @Override
-    public boolean equals(Object o) {
-        return o instanceof JsonNumber ojn &&
-                toString().compareToIgnoreCase(ojn.toString()) == 0;
-    }
-
-    @Override
-    public int hashCode() {
-        return toString().toLowerCase(Locale.ROOT).hashCode();
-    }
-
     // LazyConstants initializers
     private String initNumString() {
         return new String(doc, startOffset, endOffset - startOffset);

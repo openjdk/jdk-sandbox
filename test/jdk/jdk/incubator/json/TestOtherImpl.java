@@ -47,10 +47,7 @@ public class TestOtherImpl {
             new JsonFooString("bar".getBytes(StandardCharsets.UTF_8));
 
     @Test
-    void equalsHashcodeTest() {
-        assertEquals(ALT_JSON_STRING, STANDARD_JSON_STRING);
-        assertEquals(STANDARD_JSON_STRING, ALT_JSON_STRING);
-        assertEquals(STANDARD_JSON_STRING.hashCode(), ALT_JSON_STRING.hashCode());
+    void equalsToStringTest() {
         assertEquals(STANDARD_JSON_STRING.toString(), ALT_JSON_STRING.toString());
     }
 

@@ -91,15 +91,4 @@ public final class JsonArrayImpl implements JsonArray, JsonValueImpl {
         }
         return s.append("]").toString();
     }
-
-    @Override
-    public boolean equals(Object o) {
-        return o instanceof JsonArray oja &&
-                this.asList().equals(oja.asList());
-    }
-
-    @Override
-    public int hashCode() {
-        return this.asList().hashCode();
-    }
 }

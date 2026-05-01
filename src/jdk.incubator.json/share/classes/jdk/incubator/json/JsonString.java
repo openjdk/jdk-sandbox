@@ -89,24 +89,4 @@ public non-sealed interface JsonString extends JsonValue {
      */
     @Override
     String asString();
-
-    /**
-     * {@return true if the given {@code obj} is equal to this {@code JsonString}}
-     * Two {@code JsonString}s {@code js1} and {@code js2} represent the same value
-     * if {@code js1.asString().equals(js2.asString())}.
-     *
-     * @see #asString()
-     */
-    @Override
-    boolean equals(Object obj);
-
-    /**
-     * {@return the hash code value of this {@code JsonString}} The hash code of a
-     * {@code JsonString} is derived from the hash code of {@code JsonString}'s
-     * {@link #asString()}.
-     *
-     * @see #asString()
-     */
-    @Override
-    int hashCode();
 }

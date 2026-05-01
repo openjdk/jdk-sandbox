@@ -101,15 +101,4 @@ public final class JsonObjectImpl implements JsonObject, JsonValueImpl {
         }
         return s.append("}").toString();
     }
-
-    @Override
-    public boolean equals(Object o) {
-        return o instanceof JsonObject ojo &&
-                asMap().equals(ojo.asMap());
-    }
-
-    @Override
-    public int hashCode() {
-        return asMap().hashCode();
-    }
 }

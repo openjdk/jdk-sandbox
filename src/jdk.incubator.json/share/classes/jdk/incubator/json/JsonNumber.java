@@ -195,24 +195,4 @@ public non-sealed interface JsonNumber extends JsonValue {
      */
     @Override
     String toString();
-
-    /**
-     * {@return true if the given {@code obj} is equal to this {@code JsonNumber}}
-     * The comparison is based on the string representation of this {@code JsonNumber},
-     * ignoring the case.
-     *
-     * @see #toString()
-     */
-    @Override
-    boolean equals(Object obj);
-
-    /**
-     * {@return the hash code value of this {@code JsonNumber}} The returned hash code
-     * is derived from the string representation of this {@code JsonNumber},
-     * ignoring the case.
-     *
-     * @see #toString()
-     */
-    @Override
-    int hashCode();
 }

@@ -134,29 +134,5 @@ public class TestJsonArray {
             // JsonArray.of() should throw as typed to JsonValue
             assertThrows(NullPointerException.class, () -> JsonArray.of(list));
         }
-
-        private static final String json =
-                """
-                [
-                    {"name1": "val1", "name2": 10, "name3": true, "name4": [1, 2, 3]},
-                    {"name1": "val1", "name2": 10, "name3": true, "name4": [1,2,3]},
-                    "test",
-                    "test",
-                    30,
-                    30,
-                    false,
-                    false,
-                    null,
-                    null
-                ]
-                """;
-
-        @Test
-        public void testArrayEquality() {
-            JsonArray jsonArray = (JsonArray) Json.parse(json);
-            for (int i = 0; i < jsonArray.asList().size(); i += 2) {
-                assertEquals(jsonArray.asList().get(i), jsonArray.asList().get(i + 1));
-            }
-        }
     }
 }

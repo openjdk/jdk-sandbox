@@ -78,28 +78,4 @@ public non-sealed interface JsonArray extends JsonValue {
                 .collect(Collectors.toCollection(ArrayList::new))
         );
     }
-
-    /**
-     * {@return {@code true} if the given object is also a {@code JsonArray}
-     * and the two {@code JsonArray}s represent the same elements} Two
-     * {@code JsonArray}s {@code ja1} and {@code ja2} represent the same
-     * elements if {@code ja1.asList().equals(ja2.asList())}.
-     *
-     * @see #asList()
-     */
-    @Override
-    boolean equals(Object obj);
-
-    /**
-     * {@return the hash code value for this {@code JsonArray}} The hash code value
-     * of a {@code JsonArray} is derived from the hash code of {@code JsonArray}'s
-     * {@link #asList()}.
-     * Thus, for two {@code JsonArray}s {@code ja1} and {@code ja2},
-     * {@code ja1.equals(ja2)} implies that {@code ja1.hashCode() == ja2.hashCode()}
-     * as required by the general contract of {@link Object#hashCode}.
-     *
-     * @see #asList()
-     */
-    @Override
-    int hashCode();
 }

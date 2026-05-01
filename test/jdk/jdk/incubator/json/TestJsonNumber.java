@@ -254,7 +254,7 @@ public class TestJsonNumber {
             );
         }
 
-        private static Stream<Arguments> testNumberEquality() {
+        private static Stream<Arguments> testToStringEquality() {
             return Stream.of(
                     // true
                     Arguments.of("3", "3"),
@@ -279,7 +279,7 @@ public class TestJsonNumber {
 
         @ParameterizedTest
         @MethodSource
-        void testNumberEquality(String arg1, String arg2) {
+        void testToStringEquality(String arg1, String arg2) {
             var jv1 = Json.parse(arg1);
             var jv2 = Json.parse(arg2);
 
@@ -288,11 +288,6 @@ public class TestJsonNumber {
             var a2 = arg2.trim();
             assertEquals(a1, jv1.toString());
             assertEquals(a2, jv2.toString());
-
-            // equality should be decided by the equality of the string representation,
-            // ignoring the case.
-            assertEquals(a1.compareToIgnoreCase(a2) == 0, jv1.equals(jv2),
-                    "jv1: %s, jv2: %s".formatted(jv1, jv2));
         }
 
         private static final List<Arguments> INVALID_NUMBER = List.of(

@@ -66,14 +66,4 @@ public final class JsonBooleanImpl implements JsonBoolean, JsonValueImpl {
     public String toString() {
         return String.valueOf(asBoolean());
     }
-
-    @Override
-    public boolean equals(Object o) {
-        return o instanceof JsonBoolean ojb && asBoolean() == ojb.asBoolean();
-    }
-
-    @Override
-    public int hashCode() {
-        return Boolean.hashCode(asBoolean());
-    }
 }

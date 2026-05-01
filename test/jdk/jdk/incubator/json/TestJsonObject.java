@@ -50,6 +50,7 @@ import jdk.incubator.json.JsonValue;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 public class TestJsonObject {
@@ -80,12 +81,12 @@ public class TestJsonObject {
         void retrievalTest() {
             // parse
             var jo = (JsonObject) Json.parse("{ \"foo\\t\" : false}");
-            assertEquals(JsonBoolean.of(false), jo.asMap().get("foo\t"));
+            assertFalse(jo.asMap().get("foo\t").asBoolean());
             jo = (JsonObject) Json.parse("{ \"foo\\u0009\" : false}");
-            assertEquals(JsonBoolean.of(false), jo.asMap().get("foo\t"));
+            assertFalse(jo.asMap().get("foo\t").asBoolean());
             // jo factory
             jo = JsonObject.of(Map.of("foo\t", JsonBoolean.of(false)));
-            assertEquals(JsonBoolean.of(false), jo.asMap().get("foo\t"));
+            assertFalse(jo.asMap().get("foo\t").asBoolean());
         }
 
         @Test
