@@ -205,6 +205,7 @@ bool ELFFile::is_core() {
 
 bool ELFFile::is_sharedlib() {
     return is_valid() && hdr != nullptr && hdr->e_type == ET_DYN;
+    // To further distinguish from a PIE executable, an executable will have a PT_INTERP PH.
 }
 
 ELFFile::~ELFFile() {
