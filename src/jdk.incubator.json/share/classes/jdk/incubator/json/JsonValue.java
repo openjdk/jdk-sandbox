@@ -33,11 +33,20 @@ import java.util.Objects;
 import java.util.Optional;
 
 /**
- * The interface that represents a JSON value. A {@code JsonValue} can be
- * produced by parsing a JSON document with {@link Json#parse(String)}. Extracting
- * a value is done in a 2-step process using {@link ##access access} and {@link
- * ##conversion conversion} methods. The {@link ##generation generation} method
- * produces the JSON compliant text from the {@code JsonValue}.
+ * The interface that represents a JSON value. {@code JsonValue} is a wrapper
+ * around a syntactic element within a JSON document. The {@code JsonValue} subtypes
+ * correspond to the JSON types, while {@code JsonValue} itself provides a uniform
+ * interface for navigation, conversion, and generation.
+ * <p>
+ * A root {@code JsonValue} can be produced by parsing a JSON document with
+ * {@link Json#parse(String)}. Use the {@link ##access access} methods to navigate
+ * to the desired {@code JsonValue}. From there, use the {@link ##conversion conversion}
+ * methods to extract a corresponding Java value. Code that relies on equality
+ * or hashing should operate on the result of a <i>conversion</i> method instead of
+ * the {@code JsonValue} itself.
+ * <p>
+ * JSON text can be produced using the {@link ##generation generation} methods.
+ *
  * <h2 id="access">Navigating JSON documents</h2>
  * Use the access methods to navigate to the desired JSON value. {@link
  * #get(String)} is provided for JSON object and {@link #get(int)} for JSON array.
@@ -54,12 +63,31 @@ import java.util.Optional;
  * If an access method is invoked on an incompatible JSON type (for example,
  * calling {@code get(String)} on a JSON array), a {@code JsonValueException}
  * is thrown.
- * <p>
- * Once the desired JSON value is reached, call the corresponding conversion
- * method to retrieve an appropriate Java value from the {@code JsonValue}.
+ *
+ * <h3>Missing Object Members</h3>
+ * A member of a JSON object can be optional. In this scenario, use the access method
+ * {@link #tryGet(String)} which returns an Optional of JsonValue. For example:
+ * {@snippet lang=java:
+ * json.tryGet("foo")
+ *     .ifPresent(IO::println)
+ * }
+ * This example only prints the value if the member named "foo" exists.
+ *
+ * <h3>Handling of null</h3>
+ * JSON null can be used to signify absence.
+ * In this scenario, use the access method {@link #tryValue()} which returns an
+ * Optional of JsonValue. For example:
+ * {@snippet lang=java:
+ * json.get("baz")
+ *     .tryValue()
+ *     .ifPresent(IO::println)
+ * }
+ * This example only prints the value if the member named "baz" is not a JSON
+ * null.
+ *
  * <h2 id=conversion>Converting JSON values to Java values</h2>
  * Use the conversion methods to produce a Java value from the {@code
- * JsonValue}. Each conversion methods corresponds to a JSON type:
+ * JsonValue}. Each conversion method corresponds to a JSON type:
  * <ul>
  *     <li>{@code asString()} returns a String that represents the JSON string
  *     with all RFC 8259 JSON escapes converted to their corresponding
@@ -100,10 +128,9 @@ import java.util.Optional;
  * and {@code asDouble()}; they may throw a {@code JsonValueException} even
  * when the {@code JsonValue} is a JSON number, for example if it is outside
  * their supported ranges.
- * <h2>Subtypes of JsonValue</h2>
- * The {@code JsonValue} subtypes correspond to the JSON types. For example,
- * {@code JsonString} to JSON string. If the type of JSON value is unknown, it can
- * be retrieved as follows:
+ *
+ * <h2>Handling variance</h2>
+ * If the type for a JSON value is variable, it can be handled as follows:
  * {@snippet lang = java:
  * switch (json.get("foo")) {
  *     case JsonString js -> js.asString(); // handle the value as JSON string
@@ -111,27 +138,6 @@ import java.util.Optional;
  *     default -> throw new JsonValueException("unexpected type");
  * }
  *}
- * <h2>Missing Object Members</h2>
- * There are times when the member in a JSON object is optional. For those
- * cases, use the access method {@link #tryGet(String)} which returns an
- * Optional of JsonValue. For example:
- * {@snippet lang=java:
- * json.tryGet("foo")
- *     .ifPresent(IO::println)
- * }
- * This example only prints the value if the member named "foo" exists.
- * <h2>Handling of null</h2>
- * In some JSON documents, JSON null is used to signify absence.
- * For those cases, use the access method {@link #tryValue()} which returns an
- * Optional of JsonValue. For example:
- * {@snippet lang=java:
- * json.get("baz")
- *     .tryValue()
- *     .ifPresent(IO::println)
- * }
- * This example only prints the value if the member named "baz" is not a JSON
- * null.
- * <h2>Handling variance</h2>
  * There may be times when a JSON document can vary, but providing a fallback
  * value is preferable to throwing an exception. For example:
  * {@snippet lang = java:
@@ -145,6 +151,7 @@ import java.util.Optional;
  * The code above ensures that if the root JSON document is not an object,
  * the member "foo" does not exist, or if "foo" is not a String, that the "bar"
  * fallback value is used over throwing an exception.
+ *
  * <h2 id="generation">Generating JSON documents</h2>
  * {@code JsonValue} overrides {@link Object#toString()} to generate RFC 8259 compliant
  * JSON text in a compact representation with white spaces eliminated.
