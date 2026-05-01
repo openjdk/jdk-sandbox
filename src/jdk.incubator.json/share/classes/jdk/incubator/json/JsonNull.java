@@ -31,15 +31,18 @@ import jdk.incubator.json.impl.JsonNullImpl;
  * The interface that represents JSON null.
  * <p>
  * A {@code JsonNull} can be produced by {@link Json#parse(String)}.
+ * <p> Alternatively, {@link #of()} can be used to obtain a {@code JsonNull}.
  *
  * @since 99
  */
 public non-sealed interface JsonNull extends JsonValue {
 
     /**
-     * The constant that represents JSON {@code null}.
+     * {@return a {@code JsonNull}}
      */
-    JsonNull NULL =JsonNullImpl.NULL;
+    static JsonNull of() {
+        return JsonNullImpl.NULL;
+    }
 
     /**
      * {@return true if the given {@code obj} is a {@code JsonNull}}

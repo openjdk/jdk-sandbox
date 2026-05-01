@@ -80,12 +80,12 @@ public class TestJsonObject {
         void retrievalTest() {
             // parse
             var jo = (JsonObject) Json.parse("{ \"foo\\t\" : false}");
-            assertEquals(JsonBoolean.FALSE, jo.asMap().get("foo\t"));
+            assertEquals(JsonBoolean.of(false), jo.asMap().get("foo\t"));
             jo = (JsonObject) Json.parse("{ \"foo\\u0009\" : false}");
-            assertEquals(JsonBoolean.FALSE, jo.asMap().get("foo\t"));
+            assertEquals(JsonBoolean.of(false), jo.asMap().get("foo\t"));
             // jo factory
-            jo = JsonObject.of(Map.of("foo\t", JsonBoolean.FALSE));
-            assertEquals(JsonBoolean.FALSE, jo.asMap().get("foo\t"));
+            jo = JsonObject.of(Map.of("foo\t", JsonBoolean.of(false)));
+            assertEquals(JsonBoolean.of(false), jo.asMap().get("foo\t"));
         }
 
         @Test
@@ -300,7 +300,7 @@ public class TestJsonObject {
             HashMap<String, JsonValue> map = new HashMap<>();
             map.put("foo", JsonNumber.of(5));
             map.put("bar", JsonString.of("value"));
-            map.put("baz", JsonNull.NULL);
+            map.put("baz", JsonNull.of());
             compareValueTypes(JsonObject.of(map).asMap(),
                     ((JsonObject)Json.parse("{ \"foo\" : 5, \"bar\" : \"value\", \"baz\" : null}")).asMap());
         }
@@ -323,7 +323,7 @@ public class TestJsonObject {
             assertEquals(1, jo.asMap().size());
             // Modifications to JsonObject asMap() should not be possible
             assertThrows(UnsupportedOperationException.class,
-                    () -> jo.asMap().put("bar", JsonNull.NULL),
+                    () -> jo.asMap().put("bar", JsonNull.of()),
                     "Object members able to be modified");
         }
 
@@ -339,7 +339,7 @@ public class TestJsonObject {
             assertThrows(NullPointerException.class, () -> JsonObject.of(null));
             Map<String, JsonValue> map = new HashMap<>();
             // Check null key
-            map.put(null, JsonNull.NULL);
+            map.put(null, JsonNull.of());
             assertThrows(NullPointerException.class, () -> JsonObject.of(map));
             map.clear();
             // Check null value
@@ -353,7 +353,7 @@ public class TestJsonObject {
         @Test
         void controlCodeRoundTripTest() {
             for (int i = 0; i < 32; i++) {
-                var sequence = Map.of("\\u" + String.format("%04x", i), JsonNull.NULL);
+                var sequence = Map.of("\\u" + String.format("%04x", i), JsonNull.of());
                 var jo = JsonObject.of(sequence).asMap();
                 JsonObject.of(jo);
             }

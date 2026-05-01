@@ -32,6 +32,8 @@ import jdk.incubator.json.impl.JsonBooleanImpl;
  * {@code false}.
  * <p>
  * A {@code JsonBoolean} can be produced by {@link Json#parse(String)}.
+ * <p> Alternatively, {@link #of(boolean)} can be used to
+ * obtain a {@code JsonBoolean}.
  *
  * @spec https://datatracker.ietf.org/doc/html/rfc8259#section-3 RFC 8259:
  *      The JavaScript Object Notation (JSON) Data Interchange Format - Values
@@ -40,21 +42,20 @@ import jdk.incubator.json.impl.JsonBooleanImpl;
 public non-sealed interface JsonBoolean extends JsonValue {
 
     /**
-     * The constant that represents JSON boolean {@code true}.
-     */
-    JsonBoolean TRUE = new JsonBooleanImpl(true, null, -1);
-
-
-    /**
-     * The constant that represents JSON boolean {@code false}.
-     */
-    JsonBoolean FALSE = new JsonBooleanImpl(false, null, -1);
-
-    /**
      * {@return the {@code boolean} value represented by this {@code JsonBoolean}}
      */
     @Override
     boolean asBoolean();
+
+    /**
+     * {@return the {@code JsonBoolean} created from the given
+     * {@code boolean}}
+     *
+     * @param src the given {@code boolean}.
+     */
+    static JsonBoolean of(boolean src) {
+        return src ? JsonBooleanImpl.TRUE : JsonBooleanImpl.FALSE;
+    }
 
     /**
      * {@return {@code true} if the given object is also a {@code JsonBoolean}
