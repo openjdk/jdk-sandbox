@@ -39,12 +39,12 @@ import jdk.incubator.json.impl.Utils;
  * Quotation Mark (U+0022), Backslash (Reverse Solidus, U+005C), and the control
  * characters (U+0000 through U+001F) must be escaped.
  * <p> Alternatively, {@link #of(String)} can be used to obtain a {@code JsonString}
- * directly from a {@code String}. The {@code JsonString} instances produced by
- * the following expressions are all equivalent,
+ * directly from a {@code String}. The {@code String} values of {@code JsonString}
+ * instances produced by the following expressions are all equivalent,
  * {@snippet lang = "java":
- *     Json.parse("\"foo\\t\"");
- *     Json.parse("\"foo\\u0009\"");
- *     JsonString.of("foo\t");
+ *     Json.parse("\"foo\\t\"").asString();
+ *     Json.parse("\"foo\\u0009\"").asString();
+ *     JsonString.of("foo\t").asString();
  *}
  *
  * @spec https://datatracker.ietf.org/doc/html/rfc8259#section-7 RFC 8259:
