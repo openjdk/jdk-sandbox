@@ -44,8 +44,9 @@ bool need_acquire_load_store(const Node* n) {
 // ---------------------------------- LOADS ---------------------------------------
 //
 
-instruct loadN_shenandoah(iRegNdst dst, memory mem) %{
+instruct loadN_shenandoah(iRegNdst dst, memory mem, iRegPdst tmp) %{
   match(Set dst (LoadN mem));
+  effect(TEMP tmp);
   predicate(UseShenandoahGC && (n->as_Load()->barrier_data() != 0) &&
             !need_acquire_load(n));
   // The main load is a candidate to implement implicit null checks.
@@ -56,6 +57,7 @@ instruct loadN_shenandoah(iRegNdst dst, memory mem) %{
       $dst$$Register,
       $mem$$base$$Register,
       $mem$$disp,
+      $tmp$$Register,
       /* narrow = */ true,
       /* acquire = */ false
     );
@@ -64,8 +66,9 @@ instruct loadN_shenandoah(iRegNdst dst, memory mem) %{
   ins_pipe(pipe_class_memory);
 %}
 
-instruct loadN_acq_shenandoah(iRegNdst dst, memory mem) %{
+instruct loadN_acq_shenandoah(iRegNdst dst, memory mem, iRegPdst tmp) %{
   match(Set dst (LoadN mem));
+  effect(TEMP tmp);
   predicate(UseShenandoahGC && (n->as_Load()->barrier_data() != 0) &&
             need_acquire_load(n));
   // The main load is a candidate to implement implicit null checks.
@@ -76,6 +79,7 @@ instruct loadN_acq_shenandoah(iRegNdst dst, memory mem) %{
       $dst$$Register,
       $mem$$base$$Register,
       $mem$$disp,
+      $tmp$$Register,
       /* narrow = */ true,
       /* acquire = */ true
     );
@@ -84,8 +88,9 @@ instruct loadN_acq_shenandoah(iRegNdst dst, memory mem) %{
   ins_pipe(pipe_class_memory);
 %}
 
-instruct loadP_shenandoah(iRegPdst dst, memoryAlg4 mem) %{
+instruct loadP_shenandoah(iRegPdst dst, memoryAlg4 mem, iRegPdst tmp) %{
   match(Set dst (LoadP mem));
+  effect(TEMP tmp);
   predicate(UseShenandoahGC && (n->as_Load()->barrier_data() != 0) &&
             !need_acquire_load(n));
   // The main load is a candidate to implement implicit null checks.
@@ -96,6 +101,7 @@ instruct loadP_shenandoah(iRegPdst dst, memoryAlg4 mem) %{
       $dst$$Register,
       $mem$$base$$Register,
       $mem$$disp,
+      $tmp$$Register,
       /* narrow = */ false,
       /* acquire = */ false
     );
@@ -104,8 +110,9 @@ instruct loadP_shenandoah(iRegPdst dst, memoryAlg4 mem) %{
   ins_pipe(pipe_class_memory);
 %}
 
-instruct loadP_acq_shenandoah(iRegPdst dst, memoryAlg4 mem) %{
+instruct loadP_acq_shenandoah(iRegPdst dst, memoryAlg4 mem, iRegPdst tmp) %{
   match(Set dst (LoadP mem));
+  effect(TEMP tmp);
   predicate(UseShenandoahGC && (n->as_Load()->barrier_data() != 0) &&
             need_acquire_load(n));
   // The main load is a candidate to implement implicit null checks.
@@ -116,6 +123,7 @@ instruct loadP_acq_shenandoah(iRegPdst dst, memoryAlg4 mem) %{
       $dst$$Register,
       $mem$$base$$Register,
       $mem$$disp,
+      $tmp$$Register,
       /* narrow = */ false,
       /* acquire = */ true
     );
