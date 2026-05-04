@@ -42,7 +42,7 @@ import java.util.Optional;
  * {@link Json#parse(String)}. Use the {@link ##access access} methods to navigate
  * to the desired {@code JsonValue}. From there, use the {@link ##conversion conversion}
  * methods to extract a corresponding Java value. Code that relies on equality
- * or hashing should operate on the result of a <i>conversion</i> method instead of
+ * or hashing should utilize the results of a <i>conversion</i> method instead of
  * the {@code JsonValue} itself.
  * <p>
  * JSON text can be produced using the {@link ##generation generation} methods.
