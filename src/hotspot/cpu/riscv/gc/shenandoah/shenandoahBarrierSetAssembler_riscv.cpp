@@ -888,7 +888,6 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   if (dst_narrow) {
     if (!src_narrow) {
       // Need to encode into tmp, because we cannot clobber src.
-      // TODO: Maybe there is a matcher way to test that src is unused after this?
       assert(tmp != noreg, "need temp register");
       if (ShenandoahBarrierStubC2::maybe_null(node)) {
         __ encode_heap_oop(tmp, src);
