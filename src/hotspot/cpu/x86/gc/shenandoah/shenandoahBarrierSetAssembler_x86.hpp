@@ -48,9 +48,7 @@ private:
   void satb_barrier(MacroAssembler* masm,
                     Register obj,
                     Register pre_val,
-                    Register tmp,
-                    bool tosca_live,
-                    bool expand_call);
+                    Register tmp);
 
   void card_barrier(MacroAssembler* masm, Register obj);
 
@@ -75,6 +73,7 @@ public:
                         Address dst, Register val, Register tmp1, Register tmp2, Register tmp3);
   virtual void try_resolve_jobject_in_native(MacroAssembler* masm, Register jni_env,
                                              Register obj, Register tmp, Label& slowpath);
+  virtual void try_peek_weak_handle_in_nmethod(MacroAssembler* masm, Register weak_handle, Register obj, Label& slowpath);
 
 #ifdef COMPILER1
   void gen_pre_barrier_stub(LIR_Assembler* ce, ShenandoahPreBarrierStub* stub);
@@ -92,7 +91,6 @@ public:
                           Register tmp, bool narrow);
   void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register newval, Address addr, Register tmp, bool narrow);
   void card_barrier_c2(MacroAssembler* masm, Address dst, Register tmp);
-  virtual void try_resolve_weak_handle_in_c2(MacroAssembler* masm, Register obj, Label& slowpath);
 #endif
 };
 
