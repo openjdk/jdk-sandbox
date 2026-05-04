@@ -1046,9 +1046,6 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
 void ShenandoahBarrierSetAssembler::card_barrier_c2(MacroAssembler* masm, Address dst, Register tmp) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
-  // TODO: Might be a good place to implement some filters here.
-  // For example, G1 only flips card marks for stores within a single region.
-
   __ lea(tmp, dst);
   __ shrptr(tmp, CardTable::card_shift());
   __ addptr(tmp, Address(r15_thread, in_bytes(ShenandoahThreadLocalData::card_table_offset())));
