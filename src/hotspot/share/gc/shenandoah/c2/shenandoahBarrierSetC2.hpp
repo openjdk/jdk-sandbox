@@ -161,7 +161,7 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   int available_gp_registers();
   bool is_live_register(Register reg);
   bool is_special_register(Register reg);
-  Register select_temp_register(bool& selected_live);
+  Register select_temp_register(bool& selected_live, Register skip_reg1 = noreg);
 
   void keepalive(MacroAssembler& masm, Label* L_done = nullptr);
   void lrb(MacroAssembler& masm, Label* L_done = nullptr);

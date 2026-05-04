@@ -1224,21 +1224,17 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
   Address cset_addr_arg;
   intptr_t cset_addr = reinterpret_cast<intptr_t>(ShenandoahHeap::in_cset_fast_test_addr());
   if ((cset_addr >> 3) < INT32_MAX) {
-    // Cset bitmap is in the spot we tried to allocate it at, just use it as offset.
+    // Cset bitmap is at easily encodeable address. Just use it as offset.
     assert(is_aligned(cset_addr, 8), "Sanity");
-    cset_addr_arg = Address(tmp, checked_cast<int>(cset_addr >> 3), Address::times_8);
-  } else if (cset_addr < INT32_MAX) {
-    // Cset bitmap is not in the convenient spot, but still close enough.
-    __ addptr(tmp, checked_cast<int32_t>(cset_addr));
-    cset_addr_arg = Address(tmp, 0);
+    cset_addr_arg = Address(tmp, cset_addr >> 3, Address::times_8);
   } else {
-    // Cset bitmap is way further than our encoding limit. Bite the bullet and add it fully.
+    // Cset bitmap is way further than our encoding limit. Add its address fully.
     bool tmp2_live;
-    Register tmp2 = select_temp_register(tmp2_live);
+    Register tmp2 = select_temp_register(tmp2_live, /* skip_reg1 = */ tmp);
     if (tmp2_live) {
       __ push(tmp2);
     }
-    __ movptr(tmp2, checked_cast<int64_t>(cset_addr));
+    __ movptr(tmp2, cset_addr);
     __ addptr(tmp, tmp2);
     if (tmp2_live) {
       __ pop(tmp2);
