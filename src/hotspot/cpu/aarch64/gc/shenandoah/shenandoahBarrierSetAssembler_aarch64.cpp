@@ -1073,6 +1073,12 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   // If the object is null, there is no point in applying barriers.
   maybe_far_jump_if_zero(masm, _obj, continuation());
 
+  // We need to make sure that loads done by callers survive across slow-path calls.
+  // For self-loads, we need to care about the case when both KA and LRB are enabled (rare).
+  if (!_do_load || (_needs_keep_alive_barrier && _needs_load_ref_barrier)) {
+    preserve(_obj);
+  }
+
   // Go for barriers. Barriers can return straight to continuation, as long
   // as another barrier is not needed and we can reach the fastpath.
   if (_needs_keep_alive_barrier && _needs_load_ref_barrier) {
@@ -1128,14 +1134,12 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   __ ldr(tmp2, buffer);
 
   // If object is narrow, we need to unpack it before inserting into buffer,
-  // and pack it back. The packing is needed for two cases: if there is
-  // a LRB that is chained after us, which would decode again; or the caller
-  // did the load, which means it is going to need it.
+  // and pack it back. We can skip the unpack if we know that object is not preserved.
   if (_narrow) {
     __ decode_heap_oop_not_null(_obj);
   }
   __ str(_obj, Address(tmp2, tmp1));
-  if (_narrow && ((L_done == nullptr) || !_do_load)) {
+  if (_narrow && is_preserved(_obj)) {
     __ encode_heap_oop_not_null(_obj);
   }
 
@@ -1148,15 +1152,6 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
 
   // Slow-path: call runtime to handle.
   __ bind(L_slowpath);
-
-  // If this stub also supports LRB then we need to preserve _obj to use it
-  // there.
-  if (_needs_load_ref_barrier) {
-    preserve(_obj);
-  } else {
-    dont_preserve(_obj);
-  }
-
   {
     SaveLiveRegisters slr(&masm, this);
 
@@ -1213,7 +1208,10 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
   __ bind(L_slow);
 
   // Obj is the result, need to temporarily stop preserving it.
-  dont_preserve(_obj);
+  bool is_obj_preserved = is_preserved(_obj);
+  if (is_obj_preserved) {
+    dont_preserve(_obj);
+  }
   {
     SaveLiveRegisters slr(&masm, this);
 
@@ -1244,7 +1242,9 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
       __ mov(_obj, r0);
     }
   }
-  preserve(_obj);
+  if (is_obj_preserved) {
+    preserve(_obj);
+  }
 
   __ b(*L_done);
 }

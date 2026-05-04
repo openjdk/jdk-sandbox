@@ -129,6 +129,12 @@ void BarrierStubC2::dont_preserve(Register r) {
   } while (vm_reg->is_Register() && !vm_reg->is_concrete());
 }
 
+bool BarrierStubC2::is_preserved(Register r) {
+  const VMReg vm_reg = r->as_VMReg();
+  assert(vm_reg->is_Register(), "r must be a general-purpose register");
+  return _preserve.member(OptoReg::as_OptoReg(vm_reg));
+}
+
 const RegMask& BarrierStubC2::preserve_set() const {
   return _preserve;
 }
