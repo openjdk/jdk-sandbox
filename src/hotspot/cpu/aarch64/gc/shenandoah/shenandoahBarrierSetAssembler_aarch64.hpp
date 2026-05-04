@@ -94,7 +94,6 @@ public:
       Register newval, Register tmp, bool exchange, bool narrow, bool weak, bool acquire);
   void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr, Register tmp, bool acquire);
   void card_barrier_c2(const MachNode* node, MacroAssembler* masm, Address addr);
-  virtual void try_resolve_weak_handle_in_c2(MacroAssembler* masm, Register obj, Register tmp, Label& slow_path);
 #endif
 };
 
