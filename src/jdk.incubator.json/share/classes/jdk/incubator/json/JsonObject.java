@@ -77,7 +77,7 @@ public non-sealed interface JsonObject extends JsonValue {
      * {@return an {@code Optional} containing the {@code JsonValue} associated
      * with the given member name}
      * If there is no association with the given member name, an empty
-     * {@code Optional}} is returned.
+     * {@code Optional} is returned.
      *
      * @param name {@inheritDoc}
      * @throws NullPointerException {@inheritDoc}
