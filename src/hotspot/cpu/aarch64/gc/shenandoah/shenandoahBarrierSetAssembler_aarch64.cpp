@@ -1152,6 +1152,15 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
 
   // Slow-path: call runtime to handle.
   __ bind(L_slowpath);
+
+  // The Load match rule in the .ad file may have legitimized the load address
+  // using a TEMP register and in that case we need to explicitly preserve them
+  // here because the RA does not consider TEMP as live-in, of course.
+  if (_needs_load_ref_barrier) {
+    preserve(_addr.base());
+    preserve(_addr.index());
+  }
+
   {
     SaveLiveRegisters slr(&masm, this);
 
