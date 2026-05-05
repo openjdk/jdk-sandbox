@@ -523,7 +523,7 @@ instruct load_P_Normal_shenandoah(iRegPNoSp dst, memory8 mem, iRegPNoSp tmp, rFl
   predicate(UseShenandoahGC && !needs_acquiring_load(n) && n->as_Load()->barrier_data() != 0);
   effect(TEMP_DEF dst, TEMP tmp, KILL cr);
   // The main load is a candidate to implement implicit null checks.
-  ins_is_late_expanded_null_check_candidate(true);
+  ins_is_late_expanded_null_check_candidate(opnd_array(1)->opcode() == INDOFFL8);
   format %{ "ldr  $dst, $mem\t# ptr" %}
   ins_encode %{
     Address addr = mem2address($mem->opcode(), as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
@@ -557,7 +557,7 @@ instruct load_N_Normal_shenandoah(iRegNNoSp dst, memory4 mem, iRegPNoSp tmp, rFl
   predicate(UseShenandoahGC && !needs_acquiring_load(n) && n->as_Load()->barrier_data() != 0);
   effect(TEMP_DEF dst, TEMP tmp, KILL cr);
   // The main load is a candidate to implement implicit null checks.
-  ins_is_late_expanded_null_check_candidate(true);
+  ins_is_late_expanded_null_check_candidate(opnd_array(1)->opcode() == INDOFFL4);
   format %{ "ldrw  $dst, $mem\t# ptr" %}
   ins_encode %{
     Address addr = mem2address($mem->opcode(), as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
