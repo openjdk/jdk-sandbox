@@ -1303,84 +1303,87 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
 }
 
 void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
-//  assert(L_done != nullptr, "Must be set");
-//
-//  Label L_slow;
-//
-//  Register tmp1 = rscratch1;
-//  Register tmp2 = rscratch2;
-//  assert_different_registers(tmp1, tmp2, _obj, _addr.base(), _addr.index());
-//
-//  // If another barrier is enabled as well, do a runtime check for a specific barrier.
-//  if (_needs_keep_alive_barrier) {
-//    char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
-//    Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(state_to_check)));
-//    __ ldrb(tmp1, gc_state_fast);
-//    maybe_far_jump_if_zero(masm, tmp1, L_done);
-//  }
-//
-//  // If weak references are being processed, weak/phantom loads need to go slow,
-//  // regardless of their cset status.
-//  if (_needs_load_ref_weak_barrier) {
-//    Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(ShenandoahHeap::WEAK_ROOTS)));
-//    __ ldrb(tmp1, gc_state_fast);
-//    __ cbnz(tmp1, L_slow);
-//  }
-//
-//  // Cset-check. Fall-through to slow if in collection set.
-//  if (_narrow) {
-//    __ decode_heap_oop_not_null(tmp2, _obj);
-//  } else {
-//    tmp2 = _obj;
-//  }
-//  __ mov(tmp1, ShenandoahHeap::in_cset_fast_test_addr());
-//  __ add(tmp1, tmp1, tmp2, Assembler::LSR, ShenandoahHeapRegion::region_size_bytes_shift_jint());
-//  __ ldrb(tmp1, Address(tmp1, 0));
-//  maybe_far_jump_if_zero(masm, tmp1, L_done);
-//
-//  // Slow path
-//  __ bind(L_slow);
-//
-//  // Obj is the result, need to temporarily stop preserving it.
-//  bool is_obj_preserved = is_preserved(_obj);
-//  if (is_obj_preserved) {
-//    dont_preserve(_obj);
-//  }
-//  {
-//    SaveLiveRegisters slr(&masm, this);
-//
-//    // Shuffle in the arguments. The end result should be:
-//    //   c_rarg0 <-- obj
-//    //   c_rarg1 <-- lea(addr)
-//    if (c_rarg0 == _obj) {
-//      __ lea(c_rarg1, _addr);
-//    } else if (c_rarg1 == _obj) {
-//      // Set up arguments in reverse, and then flip them
-//      __ lea(c_rarg0, _addr);
-//      // flip them
-//      __ mov(tmp1, c_rarg0);
-//      __ mov(c_rarg0, c_rarg1);
-//      __ mov(c_rarg1, tmp1);
-//    } else {
-//      assert_different_registers(c_rarg1, _obj);
-//      __ lea(c_rarg1, _addr);
-//      __ mov(c_rarg0, _obj);
-//    }
-//
-//    // Go to runtime and handle the rest there.
-//    __ mov(lr, lrb_runtime_entry_addr());
-//    __ blr(lr);
-//
-//    // Save the result where needed.
-//    if (_obj != r0) {
-//      __ mov(_obj, r0);
-//    }
-//  }
-//  if (is_obj_preserved) {
-//    preserve(_obj);
-//  }
-//
-//  __ b(*L_done);
+  assert(L_done != nullptr, "Must be set");
+
+  Label L_slow;
+
+  // TODO: verify...
+  Register tmp1 = R11_scratch1;
+  Register tmp2 = R12_scratch2;
+  assert_different_registers(tmp1, tmp2, _obj, _addr.base(), _addr.index());
+
+  // If another barrier is enabled as well, do a runtime check for a specific barrier.
+  if (_needs_keep_alive_barrier) {
+    char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
+    __ lbz(tmp1, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(state_to_check)), R16_thread);
+    maybe_far_jump_if_zero(masm, tmp1, L_done);
+  }
+
+  // If weak references are being processed, weak/phantom loads need to go slow,
+  // regardless of their cset status.
+  if (_needs_load_ref_weak_barrier) {
+    __ lbz(tmp1, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(ShenandoahHeap::WEAK_ROOTS)), R16_thread);
+    __ cmpdi(CR0, tmp1, 0);
+    __ bne(CR0, L_slow);
+  }
+
+  // Cset-check. Fall-through to slow if in collection set.
+  if (_narrow) {
+    __ decode_heap_oop_not_null(tmp2, _obj);
+  } else {
+    // TODO: verify
+    tmp2 = _obj;
+  }
+  // TODO: verify
+  __ load_const(tmp1, ShenandoahHeap::in_cset_fast_test_addr());
+  __ srdi(tmp2, tmp2, ShenandoahHeapRegion::region_size_bytes_shift_jint());
+  __ lbzx(tmp2, tmp1, tmp2);
+  maybe_far_jump_if_zero(masm, tmp2, L_done);
+
+  // Slow path
+  __ bind(L_slow);
+
+  // Obj is the result, need to temporarily stop preserving it.
+  bool is_obj_preserved = is_preserved(_obj);
+  if (is_obj_preserved) {
+    dont_preserve(_obj);
+  }
+  {
+    SaveLiveRegisters slr(&masm, this);
+
+    // Shuffle in the arguments. The end result should be:
+    //   c_rarg0 <-- obj
+    //   c_rarg1 <-- lea(addr)
+    Register c_rarg0 = R3_ARG1;
+    Register c_rarg1 = R4_ARG2;
+    if (c_rarg0 == _obj) {
+      __ addi(c_rarg1, _addr.base(), _addr.disp());
+    } else if (c_rarg1 == _obj) {
+      // Set up arguments in reverse, and then flip them
+      __ addi(c_rarg0, _addr.base(), _addr.disp());
+      // flip them
+      __ mr(tmp1, c_rarg0);
+      __ mr(c_rarg0, c_rarg1);
+      __ mr(c_rarg1, tmp1);
+    } else {
+      assert_different_registers(c_rarg1, _obj);
+      __ addi(c_rarg1, _addr.base(), _addr.disp());
+      __ mr(c_rarg0, _obj);
+    }
+
+    // Go to runtime and handle the rest there.
+    __ call_VM_leaf(lrb_runtime_entry_addr(), c_rarg0, c_rarg1);
+
+    // Save the result where needed.
+    if (_obj != R3_RET) {
+      __ mr(_obj, R3_RET);
+    }
+  }
+  if (is_obj_preserved) {
+    preserve(_obj);
+  }
+
+  __ b(*L_done);
 }
 
 #undef __
