@@ -358,7 +358,11 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, QuicTransport {
         if (keySpace != INITIAL && getHandshakeStatus() != SSLEngineResult.HandshakeStatus.NEED_WRAP)
             return null;
         var buf = ByteBuffer.allocate(4096);
-        var result = sslEngine.wrap(ByteBuffer.allocate(0), buf);
+        SSLEngineResult result;
+        do {
+            result = sslEngine.wrap(ByteBuffer.allocate(0), buf);
+        } while (buf.hasRemaining() && keySpace == sendKeySpace
+                && result.getHandshakeStatus() == SSLEngineResult.HandshakeStatus.NEED_WRAP);
         buf.flip();
         return buf;
     }
