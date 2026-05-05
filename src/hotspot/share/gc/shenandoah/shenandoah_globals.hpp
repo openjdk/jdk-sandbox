@@ -561,10 +561,6 @@
   product(bool, ShenandoahElideDominatedBarriers, true, DIAGNOSTIC,         \
           "Elide redundant dominated Shenandoah barriers.")                 \
                                                                             \
-  product(int, ShenandoahDelayGC, 0, EXPERIMENTAL,                          \
-          "Delay GC phases by this amount of milliseconds. "                \
-          "Helps to measure active GC barriers costs.")                     \
-                                                                            \
   develop(bool, ShenandoahVerifyOptoBarriers, trueInDebug,                  \
           "Verify no missing barriers in C2.")                              \
                                                                             \

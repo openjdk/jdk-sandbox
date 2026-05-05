@@ -762,9 +762,6 @@ void ShenandoahConcurrentGC::op_mark_roots() {
 
 void ShenandoahConcurrentGC::op_mark() {
   _mark.concurrent_mark();
-  if (ShenandoahDelayGC > 0) {
-    os::naked_sleep(ShenandoahDelayGC);
-  }
 }
 
 void ShenandoahConcurrentGC::op_final_mark() {
@@ -1107,9 +1104,6 @@ void ShenandoahConcurrentGC::op_cleanup_early() {
 
 void ShenandoahConcurrentGC::op_evacuate() {
   ShenandoahHeap::heap()->evacuate_collection_set(_generation, true /*concurrent*/);
-  if (ShenandoahDelayGC > 0) {
-    os::naked_sleep(ShenandoahDelayGC);
-  }
 }
 
 void ShenandoahConcurrentGC::op_init_update_refs() {
@@ -1122,9 +1116,6 @@ void ShenandoahConcurrentGC::op_init_update_refs() {
 
 void ShenandoahConcurrentGC::op_update_refs() {
   ShenandoahHeap::heap()->update_heap_references(_generation, true /*concurrent*/);
-  if (ShenandoahDelayGC > 0) {
-    os::naked_sleep(ShenandoahDelayGC);
-  }
 }
 
 class ShenandoahUpdateThreadHandshakeClosure : public HandshakeClosure {
