@@ -1120,13 +1120,10 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
 
   // If another barrier is enabled as well, do a runtime check for a specific barrier.
   if (_needs_load_ref_barrier) {
+    assert(L_done == nullptr, "L_done is always null when _needs_load_ref_barrier is true");
     Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(ShenandoahHeap::MARKING)));
     __ ldrb(tmp1, gc_state_fast);
-    if (L_done != nullptr) {
-      maybe_far_jump_if_zero(masm, tmp1, L_done);
-    } else {
-      __ cbz(tmp1, L_through);
-    }
+    __ cbz(tmp1, L_through);
   }
 
   // Fast-path: put object into buffer.
