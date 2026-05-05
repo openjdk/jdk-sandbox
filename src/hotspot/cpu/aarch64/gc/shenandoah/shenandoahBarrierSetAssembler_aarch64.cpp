@@ -851,7 +851,7 @@ bool ShenandoahBarrierStubC2::is_special_register(Register r) {
          r == rscratch1 || r == rscratch2;
 }
 
-void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state) {
+void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
   Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(test_state)));
