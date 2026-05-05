@@ -1246,8 +1246,11 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
     __ mov(lr, lrb_runtime_entry_addr());
     __ blr(lr);
 
-    // Save the result where needed.
-    if (_obj != r0) {
+    // Save the result where needed. Narrow entries return narrowOop (32 bits)
+    // and AAPCS does not guarantee the upper 32 bits of x0 are zero.
+    if (_narrow) {
+      __ movw(_obj, r0);
+    } else if (_obj != r0) {
       __ mov(_obj, r0);
     }
   }
