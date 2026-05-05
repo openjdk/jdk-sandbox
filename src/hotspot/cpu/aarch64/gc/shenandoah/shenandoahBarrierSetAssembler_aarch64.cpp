@@ -1052,7 +1052,11 @@ void ShenandoahBarrierStubC2::post_init() {
   const int code_size = output->buffer_sizing_data()->_code +
                         output->buffer_sizing_data()->_stub +
                         output->buffer_sizing_data()->_reloc;
-  _needs_far_jump = code_size >= (int)(1*M);
+
+  // Maximum backward range is 1M. Maximum forward reach is 1M - 4bytes.
+  // I subtract a few more bytes just to be safe.
+  const int cond_branch_max_reach = (int)(1*M - 4*NativeInstruction::instruction_size);
+  _needs_far_jump = code_size >= cond_branch_max_reach;
 }
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
