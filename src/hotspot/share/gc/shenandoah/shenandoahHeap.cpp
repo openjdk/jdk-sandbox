@@ -1236,18 +1236,6 @@ private:
 };
 
 void ShenandoahHeap::evacuate_collection_set(ShenandoahGeneration* generation, bool concurrent) {
-  if (concurrent && ShenandoahWeakRootsEarly) {
-    // Turn weak roots off now, so that weak barriers do not go slow.
-    {
-      MutexLocker lock(Threads_lock);
-      set_gc_state_concurrent(WEAK_ROOTS, false);
-    }
-
-    ShenandoahGCStatePropagatorHandshakeClosure propagate_gc_state(_gc_state.raw_value());
-    Threads::non_java_threads_do(&propagate_gc_state);
-    Handshake::execute(&propagate_gc_state);
-  }
-
   assert(generation->is_global(), "Only global generation expected here");
   ShenandoahEvacuationTask task(this, _collection_set, concurrent);
   workers()->run_task(&task);
@@ -1263,10 +1251,8 @@ void ShenandoahHeap::concurrent_prepare_for_update_refs() {
 
     // A cancellation at this point means the degenerated cycle must resume from update-refs.
     set_gc_state_concurrent(EVACUATION, false);
+    set_gc_state_concurrent(WEAK_ROOTS, false);
     set_gc_state_concurrent(UPDATE_REFS, true);
-    if (!ShenandoahWeakRootsEarly) {
-      set_gc_state_concurrent(WEAK_ROOTS, false);
-    }
   }
 
   // This will propagate the gc state and retire gclabs and plabs for threads that require it.

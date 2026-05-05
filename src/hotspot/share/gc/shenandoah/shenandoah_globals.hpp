@@ -561,9 +561,6 @@
   product(bool, ShenandoahElideDominatedBarriers, true, DIAGNOSTIC,         \
           "Elide redundant dominated Shenandoah barriers.")                 \
                                                                             \
-  product(bool, ShenandoahWeakRootsEarly, false, EXPERIMENTAL,              \
-          "Turn off weak roots earlier than usual. TODO: Upstream!")        \
-                                                                            \
   product(int, ShenandoahDelayGC, 0, EXPERIMENTAL,                          \
           "Delay GC phases by this amount of milliseconds. "                \
           "Helps to measure active GC barriers costs.")                     \
