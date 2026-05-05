@@ -1129,7 +1129,51 @@ void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char
 #undef __
 #define __ masm->
 
-void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval, Register newval, bool exchange, bool narrow, bool weak) {
+void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval,
+      Register newval, Register tmp, bool exchange, bool narrow, bool weak, bool acquire) {
+  // Pre-barrier covers several things:
+  //  a. Avoids false positives from CAS encountering to-space memory values.
+  //  b. Satisfies the need for LRB for the CAE result.
+  //  c. Records old value for the sake of SATB.
+  //
+  // (a) and (b) are covered because load barrier does memory location fixup.
+  // (c) is covered by KA on the current memory value.
+  if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
+    ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, tmp, addr, narrow, /* do_load: */ true);
+    char check = 0;
+    check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
+    check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
+    assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node), "Not supported for CAS");
+    stub->enter_if_gc_state(*masm, check);
+  }
+
+  int semantics = MacroAssembler::MemBarNone;
+
+  if (weak && narrow) {
+    semantics = support_IRIW_for_not_multiple_copy_atomic_cpu ? MacroAssembler::MemBarAcq : MacroAssembler::MemBarFenceAfter;
+  }
+
+  // CmpxchgX sets CR0 to cmpX(src1, src2) and Rres to 'true'/'false'.
+  if (narrow) {
+    __ cmpxchgw(CR0, R0, oldval, newval, addr,
+                semantics, MacroAssembler::cmpxchgx_hint_atomic_update(),
+                res, nullptr, true, weak);
+  } else {
+    __ cmpxchgd(CR0, R0, oldval, newval, addr,
+                semantics, MacroAssembler::cmpxchgx_hint_atomic_update(),
+                res, nullptr, true, weak);
+  }
+
+  if (!weak) {
+    if (support_IRIW_for_not_multiple_copy_atomic_cpu) {
+      __ isync();
+    } else {
+      __ sync();
+    }
+  }
+
+  // Post-barrier deals with card updates.
+  card_barrier_c2(node, masm, Address(addr, 0));
 }
 
 void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr, Register tmp) {
