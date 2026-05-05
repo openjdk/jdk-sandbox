@@ -1239,64 +1239,63 @@ void ShenandoahBarrierStubC2::maybe_far_jump_if_zero(MacroAssembler& masm, Regis
 }
 
 void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
-//  Address index(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
-//  Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
-//
-//  Label L_through, L_slowpath;
-//
-//  Register tmp1 = rscratch1;
-//  Register tmp2 = rscratch2;
-//  assert_different_registers(tmp1, tmp2, _obj, _addr.base(), _addr.index());
-//
-//  // If another barrier is enabled as well, do a runtime check for a specific barrier.
-//  if (_needs_load_ref_barrier) {
-//    assert(L_done == nullptr, "L_done is always null when _needs_load_ref_barrier is true");
-//    Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(ShenandoahHeap::MARKING)));
-//    __ ldrb(tmp1, gc_state_fast);
-//    __ cbz(tmp1, L_through);
-//  }
-//
-//  // Fast-path: put object into buffer.
-//  // If buffer is already full, go slow.
-//  __ ldr(tmp1, index);
-//  __ cbz(tmp1, L_slowpath);
-//  __ sub(tmp1, tmp1, wordSize);
-//  __ str(tmp1, index);
-//  __ ldr(tmp2, buffer);
-//
-//  // If object is narrow, we need to unpack it before inserting into buffer,
-//  // and pack it back. We can skip the unpack if we know that object is not preserved.
-//  if (_narrow) {
-//    __ decode_heap_oop_not_null(_obj);
-//  }
-//  __ str(_obj, Address(tmp2, tmp1));
-//  if (_narrow && is_preserved(_obj)) {
-//    __ encode_heap_oop_not_null(_obj);
-//  }
-//
-//  // Fast-path exits here.
-//  if (L_done != nullptr) {
-//    __ b(*L_done);
-//  } else {
-//    __ b(L_through);
-//  }
-//
-//  // Slow-path: call runtime to handle.
-//  __ bind(L_slowpath);
-//  {
-//    SaveLiveRegisters slr(&masm, this);
-//
-//    // Go to runtime and handle the rest there.
-//    __ mov(c_rarg0, _obj);
-//    __ mov(lr, keepalive_runtime_entry_addr());
-//    __ blr(lr);
-//  }
-//
-//  if (L_done != nullptr) {
-//    __ b(*L_done);
-//  } else {
-//    __ bind(L_through);
-//  }
+  const int index = in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset());
+  const int buffer = in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset());
+
+  Label L_through, L_slowpath;
+
+  Register tmp1 = R11_scratch1;
+  Register tmp2 = R12_scratch2;
+  assert_different_registers(tmp1, tmp2, _obj, _addr.base(), _addr.index());
+
+  // If another barrier is enabled as well, do a runtime check for a specific barrier.
+  if (_needs_load_ref_barrier) {
+    assert(L_done == nullptr, "L_done is always null when _needs_load_ref_barrier is true");
+    __ lbz(tmp1, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(ShenandoahHeap::MARKING)), R16_thread);
+    __ cmpdi(CR0, tmp1, 0);
+    __ beq(CR0, L_through);
+  }
+
+  // Fast-path: put object into buffer.
+  // If buffer is already full, go slow.
+  __ ld(tmp1, index, R16_thread);
+  __ cmpdi(CR0, tmp1, 0);
+  __ beq(CR0, L_slowpath);
+  __ addi(tmp1, tmp1, -wordSize);
+  __ std(tmp1, index, R16_thread);
+  __ ld(tmp2, buffer, R16_thread);
+
+  // If object is narrow, we need to unpack it before inserting into buffer,
+  // and pack it back. We can skip the unpack if we know that object is not preserved.
+  if (_narrow) {
+    __ decode_heap_oop_not_null(_obj);
+  }
+  __ stdx(_obj, tmp2, tmp1);
+  if (_narrow && is_preserved(_obj)) {
+    __ encode_heap_oop_not_null(_obj);
+  }
+
+  // Fast-path exits here.
+  if (L_done != nullptr) {
+    __ b(*L_done);
+  } else {
+    __ b(L_through);
+  }
+
+  // Slow-path: call runtime to handle.
+  __ bind(L_slowpath);
+  {
+    SaveLiveRegisters slr(&masm, this);
+
+    // Go to runtime and handle the rest there.
+    __ call_VM_leaf(keepalive_runtime_entry_addr(), _obj);
+  }
+
+  if (L_done != nullptr) {
+    __ b(*L_done);
+  } else {
+    __ bind(L_through);
+  }
 }
 
 void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
@@ -1325,16 +1324,14 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
   }
 
   // Cset-check. Fall-through to slow if in collection set.
+  __ load_const_optimized(tmp1, ShenandoahHeap::in_cset_fast_test_addr(), tmp2);
   if (_narrow) {
     __ decode_heap_oop_not_null(tmp2, _obj);
   } else {
-    // TODO: verify
     tmp2 = _obj;
   }
-  // TODO: verify
-  __ load_const(tmp1, ShenandoahHeap::in_cset_fast_test_addr());
   __ srdi(tmp2, tmp2, ShenandoahHeapRegion::region_size_bytes_shift_jint());
-  __ lbzx(tmp2, tmp1, tmp2);
+  __ lbzx(tmp2, tmp2, tmp1);
   maybe_far_jump_if_zero(masm, tmp2, L_done);
 
   // Slow path
