@@ -144,7 +144,7 @@ public:
                           Register newval, bool exchange, bool narrow, bool weak);
 
   void get_and_set_c2(const MachNode* node, MacroAssembler* masm,
-                      Register preval, Register newval, Register addr);
+                      Register preval, Register newval, Register addr, Register tmp);
 
   void card_barrier_c2(const MachNode* node, MacroAssembler* masm,
                        Address addr);

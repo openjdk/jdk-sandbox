@@ -1132,13 +1132,49 @@ void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char
 void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval, Register newval, bool exchange, bool narrow, bool weak) {
 }
 
-void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr) {
+void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr, Register tmp) {
+  bool is_narrow = node->bottom_type()->isa_narrowoop();
+
+  // Pre-barrier covers several things:
+  //  a. Satisfies the need for LRB for the GAS result.
+  //  b. Records old value for the sake of SATB.
+  //
+  // (a) is covered because load barrier does memory location fixup.
+  // (b) is covered by KA on the current memory value.
+  if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
+    ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, tmp, addr, is_narrow, /* do_load: */ true);
+    char check = 0;
+    check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
+    check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
+    assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node), "Not supported for GAS");
+    stub->enter_if_gc_state(*masm, check);
+  }
+
+  if (is_narrow) {
+    __ getandsetw(preval, newval, addr, MacroAssembler::cmpxchgx_hint_atomic_update());
+  } else {
+    __ getandsetd(preval, newval, addr, MacroAssembler::cmpxchgx_hint_atomic_update());
+  }
+
+  if (support_IRIW_for_not_multiple_copy_atomic_cpu) {
+    __ isync();
+  } else {
+    __ sync();
+  }
+
+  // Post-barrier deals with card updates.
+  card_barrier_c2(node, masm, Address(addr, 0));
 }
 
 void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm,
-              Register dst, int disp, bool dst_narrow,
-              Register src, bool src_narrow,
-              Register tmp) {
+    Register dst, int disp, bool dst_narrow, Register src, bool src_narrow, Register tmp) {
+
+  // Pre-barrier: SATB, keep-alive the current memory value.
+  if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
+    assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier(node), "Should not be required for stores");
+    ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, tmp, Address(dst, disp), dst_narrow, /* do_load: */ true);
+    stub->enter_if_gc_state(*masm, ShenandoahHeap::MARKING);
+  }
 
   // Need to encode into tmp, because we cannot clobber src.
   if (dst_narrow && !src_narrow) {
@@ -1239,8 +1275,8 @@ void ShenandoahBarrierStubC2::maybe_far_jump_if_zero(MacroAssembler& masm, Regis
 }
 
 void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
-  const int index = in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset());
-  const int buffer = in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset());
+  const int index_offset = in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset());
+  const int buffer_offset = in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset());
 
   Label L_through, L_slowpath;
 
@@ -1258,12 +1294,12 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
 
   // Fast-path: put object into buffer.
   // If buffer is already full, go slow.
-  __ ld(tmp1, index, R16_thread);
+  __ ld(tmp1, index_offset, R16_thread);
   __ cmpdi(CR0, tmp1, 0);
   __ beq(CR0, L_slowpath);
   __ addi(tmp1, tmp1, -wordSize);
-  __ std(tmp1, index, R16_thread);
-  __ ld(tmp2, buffer, R16_thread);
+  __ std(tmp1, index_offset, R16_thread);
+  __ ld(tmp2, buffer_offset, R16_thread);
 
   // If object is narrow, we need to unpack it before inserting into buffer,
   // and pack it back. We can skip the unpack if we know that object is not preserved.

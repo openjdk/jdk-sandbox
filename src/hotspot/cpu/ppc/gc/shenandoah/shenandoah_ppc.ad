@@ -419,36 +419,32 @@ instruct compareAndExchangeP_acq_regP_regP_regP_shenandoah(iRegPdst res, iRegPds
   ins_pipe(pipe_class_default);
 %}
 
-instruct getAndSetP_shenandoah(iRegPdst res, iRegPdst mem_ptr, iRegPsrc src, flagsRegCR0 cr0) %{
+instruct getAndSetP_shenandoah(iRegPdst res, iRegPdst mem_ptr, iRegPsrc src, iRegPdst tmp, flagsRegCR0 cr0) %{
   match(Set res (GetAndSetP mem_ptr src));
   predicate(UseShenandoahGC && (n->as_LoadStore()->barrier_data() != 0));
-  effect(TEMP_DEF res, TEMP cr0);
+  effect(TEMP_DEF res, TEMP tmp, TEMP cr0);
   format %{ "GetAndSetP $res, $mem_ptr, $src" %}
   ins_encode %{
-    __ getandsetd($res$$Register, $src$$Register, $mem_ptr$$Register,
-                  MacroAssembler::cmpxchgx_hint_atomic_update());
-    if (support_IRIW_for_not_multiple_copy_atomic_cpu) {
-      __ isync();
-    } else {
-      __ sync();
-    }
+    ShenandoahBarrierSet::assembler()->get_and_set_c2(this, masm,
+      $res$$Register,
+      $src$$Register,
+      $mem_ptr$$Register,
+      $tmp$$Register);
   %}
   ins_pipe(pipe_class_default);
 %}
 
-instruct getAndSetN_shenandoah(iRegNdst res, iRegPdst mem_ptr, iRegNsrc src, flagsRegCR0 cr0) %{
+instruct getAndSetN_shenandoah(iRegNdst res, iRegPdst mem_ptr, iRegNsrc src, iRegPdst tmp, flagsRegCR0 cr0) %{
   match(Set res (GetAndSetN mem_ptr src));
   predicate(UseShenandoahGC && (n->as_LoadStore()->barrier_data() != 0));
-  effect(TEMP_DEF res, TEMP cr0);
+  effect(TEMP_DEF res, TEMP tmp, TEMP cr0);
   format %{ "GetAndSetN $res, $mem_ptr, $src" %}
   ins_encode %{
-    __ getandsetw($res$$Register, $src$$Register, $mem_ptr$$Register,
-                  MacroAssembler::cmpxchgx_hint_atomic_update());
-    if (support_IRIW_for_not_multiple_copy_atomic_cpu) {
-      __ isync();
-    } else {
-      __ sync();
-    }
+    ShenandoahBarrierSet::assembler()->get_and_set_c2(this, masm,
+      $res$$Register,
+      $src$$Register,
+      $mem_ptr$$Register,
+      $tmp$$Register);
   %}
   ins_pipe(pipe_class_default);
 %}
