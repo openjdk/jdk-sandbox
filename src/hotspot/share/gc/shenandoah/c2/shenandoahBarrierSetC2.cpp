@@ -325,6 +325,7 @@ uint8_t ShenandoahBarrierSetC2::refine_store(Node* n, uint8_t bd) {
     bd &= ~ShenandoahBitNotNull;
     // Card table barrier is not needed if we store null.
     bd &= ~ShenandoahBitCardMark;
+    bd |= ShenandoahBitElided;
   } else if (newval_type_ptr == TypePtr::NotNull) {
     // Definitely not null.
     bd |= ShenandoahBitNotNull;
@@ -353,13 +354,14 @@ bool ShenandoahBarrierSetC2::expand_barriers(Compile* C, PhaseIterGVN& igvn) con
     bool is_store = is_Store(opc);
     bool is_load_store = is_LoadStore(opc);
 
-    uint8_t bd = 0;
+    uint8_t orig_bd = 0;
     if (is_load_store) {
-      bd = n->as_LoadStore()->barrier_data();
+      orig_bd = n->as_LoadStore()->barrier_data();
     } else if (is_load || is_store) {
-      bd = n->as_Mem()->barrier_data();
+      orig_bd = n->as_Mem()->barrier_data();
     }
 
+    uint8_t bd = orig_bd;
     if (bd != 0) {
       if (is_load || is_load_store) {
         bd = refine_load(n, bd);
@@ -367,6 +369,10 @@ bool ShenandoahBarrierSetC2::expand_barriers(Compile* C, PhaseIterGVN& igvn) con
       if (is_store || is_load_store) {
         bd = refine_store(n, bd);
       }
+    }
+
+    if (bd != orig_bd) {
+      bd |= ShenandoahBitElided;
       if (is_load_store) {
         n->as_LoadStore()->set_barrier_data(bd);
       } else {
@@ -463,6 +469,7 @@ void ShenandoahBarrierSetC2::elide_dominated_barrier(MachNode* node, MachNode* d
   }
 
   if (orig_bd != bd) {
+    bd |= ShenandoahBitElided;
     node->set_barrier_data(bd);
   }
 }
@@ -735,7 +742,9 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
     return;
   }
 
-  // Optimizations might have removed the remaining auxiliary flags, making some accesses completely blank.
+  // Normally, we have _some_ bits set on all accesses. Optimizations may drop some bits,
+  // but only the last optimization step eliminates all remaining metadata flags. Only then
+  // the access data can be completely blank.
   bool accept_blank = (phase == BeforeCodeGen);
   bool expect_load_barriers       = !accept_blank && ShenandoahLoadRefBarrier;
   bool expect_store_barriers      = !accept_blank && (ShenandoahSATBBarrier || ShenandoahCardBarrier);

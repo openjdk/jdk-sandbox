@@ -34,7 +34,7 @@ static const uint8_t ShenandoahBitKeepAlive = 1 << 3; // Barrier: KeepAlive (SAT
 static const uint8_t ShenandoahBitCardMark  = 1 << 4; // Barrier: CM
 static const uint8_t ShenandoahBitNotNull   = 1 << 5; // Metadata: src/dst is definitely not null
 static const uint8_t ShenandoahBitNative    = 1 << 6; // Metadata: access is in native, not in heap
-static const uint8_t ShenandoahBitElided    = 1 << 7; // Metadata: barrier is elided
+static const uint8_t ShenandoahBitElided    = 1 << 7; // Metadata: some part of the barrier is elided
 
 // Barrier data that implies real barriers, not additional metadata.
 static const uint8_t ShenandoahBitsReal = ShenandoahBitStrong | ShenandoahBitWeak | ShenandoahBitPhantom |
