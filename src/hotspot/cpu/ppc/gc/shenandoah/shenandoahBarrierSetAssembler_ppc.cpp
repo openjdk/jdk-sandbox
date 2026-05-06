@@ -1263,6 +1263,20 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
 }
 
 void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroAssembler* masm, Address address) {
+  if (!ShenandoahBarrierStubC2::needs_card_barrier(node)) {
+    return;
+  }
+
+  Register tmp1 = R11_scratch1;
+  Register tmp2 = R12_scratch2;
+
+  assert(CardTable::dirty_card_val() == 0, "must be");
+  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+
+  __ ld(tmp1, in_bytes(ShenandoahThreadLocalData::card_table_offset()), R16_thread);
+  __ add(tmp2, address.index(), address.base());
+  __ srdi(tmp2, tmp2, CardTable::card_shift());
+  __ stbx(CardTable::dirty_card_val(), tmp2, tmp1);
 }
 #undef __
 #define __ masm.
