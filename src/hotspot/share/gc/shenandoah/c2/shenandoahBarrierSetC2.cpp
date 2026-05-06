@@ -748,7 +748,7 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
   bool accept_blank = (phase == BeforeCodeGen);
   bool expect_load_barriers       = !accept_blank && ShenandoahLoadRefBarrier;
   bool expect_store_barriers      = !accept_blank && (ShenandoahSATBBarrier || ShenandoahCardBarrier);
-  bool expect_load_store_barriers = !accept_blank && ShenandoahCASBarrier;
+  bool expect_load_store_barriers = expect_load_barriers || expect_store_barriers;
 
   Unique_Node_List wq;
 
