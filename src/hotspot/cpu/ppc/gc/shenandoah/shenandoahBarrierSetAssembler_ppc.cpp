@@ -1110,19 +1110,13 @@ bool ShenandoahBarrierStubC2::is_special_register(Register r) {
 void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
-  if (_needs_far_jump) {
-    __ lbz(tmp, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(test_state)), R16_thread);
-    __ cmpdi(CR0, tmp, 0);
-    __ beq(CR0, *continuation());
-    __ b(*entry());
-  } else {
-    __ lbz(tmp, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(test_state)), R16_thread);
-    __ cmpdi(CR0, tmp, 0);
-    __ bne(CR0, *entry());
-  }
+  __ lbz(tmp, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(test_state)), R16_thread);
+  __ cmpdi(CR0, tmp, 0);
+  __ beq(CR0, *continuation());
+  __ b(*entry());
 
-  // This is were the slowpath stub will return to or the code above will
-  // jump to if the checks are false
+  // This is were the slowpath stub will return to or the code above will jump
+  // to if the checks are false
   __ bind(*continuation());
 }
 
@@ -1149,16 +1143,15 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
 
   int semantics = MacroAssembler::MemBarNone;
 
-  if (weak && narrow) {
-    semantics = support_IRIW_for_not_multiple_copy_atomic_cpu ? MacroAssembler::MemBarAcq : MacroAssembler::MemBarFenceAfter;
-  }
-
-  // CmpxchgX sets CR0 to cmpX(src1, src2) and Rres to 'true'/'false'.
   if (narrow) {
+    semantics = weak && support_IRIW_for_not_multiple_copy_atomic_cpu ? MacroAssembler::MemBarAcq : MacroAssembler::MemBarFenceAfter;
+
+    // CmpxchgX sets CR0 to cmpX(src1, src2) and Rres to 'true'/'false'.
     __ cmpxchgw(CR0, R0, oldval, newval, addr,
                 semantics, MacroAssembler::cmpxchgx_hint_atomic_update(),
                 exchange ? noreg : res, nullptr, true, weak);
   } else {
+    // CmpxchgX sets CR0 to cmpX(src1, src2) and Rres to 'true'/'false'.
     __ cmpxchgd(CR0, R0, oldval, newval, addr,
                 semantics, MacroAssembler::cmpxchgx_hint_atomic_update(),
                 exchange ? noreg : res, nullptr, true, weak);
@@ -1169,7 +1162,8 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
       if (support_IRIW_for_not_multiple_copy_atomic_cpu) {
           __ isync();
       } else {
-         // isync would be sufficient in case of CompareAndExchangeAcquire, but we currently don't optimize for that.
+         // isync would be sufficient in case of CompareAndExchangeAcquire, but
+         // we currently don't optimize for that.
          __ sync();
       }
     }
@@ -1231,13 +1225,12 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
     stub->enter_if_gc_state(*masm, ShenandoahHeap::MARKING);
   }
 
-  // Need to encode into tmp, because we cannot clobber src.
   if (dst_narrow && !src_narrow) {
-    __ mr(tmp, src);
+    // Need to encode into tmp, because we cannot clobber src.
     if (ShenandoahBarrierStubC2::maybe_null(node)) {
-      __ encode_heap_oop(tmp, tmp);
+      __ encode_heap_oop(tmp, src);
     } else {
-      __ encode_heap_oop_not_null(tmp);
+      __ encode_heap_oop_not_null(tmp, src);
     }
     src = tmp;
   }
@@ -1317,16 +1310,11 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
 }
 
 void ShenandoahBarrierStubC2::maybe_far_jump_if_zero(MacroAssembler& masm, Register reg, Label* L_done) {
-  if (_needs_far_jump) {
-    Label L_short_jump;
-    __ cmpdi(CR0, reg, 0);
-    __ bne(CR0, L_short_jump);
-    __ b(*L_done);
-    __ bind(L_short_jump);
-  } else {
-    __ cmpdi(CR0, reg, 0);
-    __ beq(CR0, *L_done);
-  }
+  Label L_short_jump;
+  __ cmpdi(CR0, reg, 0);
+  __ bne(CR0, L_short_jump);
+  __ b(*L_done);
+  __ bind(L_short_jump);
 }
 
 void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {

@@ -47,8 +47,7 @@ bool need_acquire_load_store(const Node* n) {
 instruct loadN_shenandoah(iRegNdst dst, memory mem, iRegPdst tmp) %{
   match(Set dst (LoadN mem));
   effect(TEMP tmp);
-  predicate(UseShenandoahGC && (n->as_Load()->barrier_data() != 0) &&
-            !need_acquire_load(n));
+  predicate(UseShenandoahGC && (n->as_Load()->barrier_data() != 0) && !need_acquire_load(n));
   // The main load is a candidate to implement implicit null checks.
   ins_is_late_expanded_null_check_candidate(true);
   format %{ "shenandoah_load $dst, $mem\t# ptr" %}
@@ -69,8 +68,7 @@ instruct loadN_shenandoah(iRegNdst dst, memory mem, iRegPdst tmp) %{
 instruct loadN_acq_shenandoah(iRegNdst dst, memory mem, iRegPdst tmp) %{
   match(Set dst (LoadN mem));
   effect(TEMP tmp);
-  predicate(UseShenandoahGC && (n->as_Load()->barrier_data() != 0) &&
-            need_acquire_load(n));
+  predicate(UseShenandoahGC && (n->as_Load()->barrier_data() != 0) && need_acquire_load(n));
   // The main load is a candidate to implement implicit null checks.
   ins_is_late_expanded_null_check_candidate(true);
   format %{ "shenandoah_load $dst, $mem\t# ptr (acquire)" %}
@@ -91,8 +89,7 @@ instruct loadN_acq_shenandoah(iRegNdst dst, memory mem, iRegPdst tmp) %{
 instruct loadP_shenandoah(iRegPdst dst, memoryAlg4 mem, iRegPdst tmp) %{
   match(Set dst (LoadP mem));
   effect(TEMP tmp);
-  predicate(UseShenandoahGC && (n->as_Load()->barrier_data() != 0) &&
-            !need_acquire_load(n));
+  predicate(UseShenandoahGC && (n->as_Load()->barrier_data() != 0) && !need_acquire_load(n));
   // The main load is a candidate to implement implicit null checks.
   ins_is_late_expanded_null_check_candidate(true);
   format %{ "shenandoah_load $dst, $mem\t# ptr (acquire)" %}
@@ -113,8 +110,7 @@ instruct loadP_shenandoah(iRegPdst dst, memoryAlg4 mem, iRegPdst tmp) %{
 instruct loadP_acq_shenandoah(iRegPdst dst, memoryAlg4 mem, iRegPdst tmp) %{
   match(Set dst (LoadP mem));
   effect(TEMP tmp);
-  predicate(UseShenandoahGC && (n->as_Load()->barrier_data() != 0) &&
-            need_acquire_load(n));
+  predicate(UseShenandoahGC && (n->as_Load()->barrier_data() != 0) && need_acquire_load(n));
   // The main load is a candidate to implement implicit null checks.
   ins_is_late_expanded_null_check_candidate(true);
   format %{ "shenandoah_load $dst, $mem\t# ptr (acquire)" %}
@@ -377,8 +373,7 @@ instruct compareAndExchangeN_regP_regN_regN_shenandoah(iRegNdst res, iRegPdst me
 
 instruct compareAndExchangeN_acq_regP_regN_regN_shenandoah(iRegNdst res, iRegPdst mem_ptr, iRegNsrc src1, iRegNsrc src2, iRegPdst tmp, flagsRegCR0 cr0) %{
   match(Set res (CompareAndExchangeN mem_ptr (Binary src1 src2)));
-  predicate(UseShenandoahGC && (n->as_LoadStore()->barrier_data() != 0) &&
-            need_acquire_load_store(n));
+  predicate(UseShenandoahGC && (n->as_LoadStore()->barrier_data() != 0) && need_acquire_load_store(n));
   effect(TEMP_DEF res, TEMP tmp, TEMP cr0);
   format %{ "CMPXCHGW $res, $mem_ptr, $src1, $src2; as narrow oop" %}
   ins_encode %{
@@ -398,8 +393,7 @@ instruct compareAndExchangeN_acq_regP_regN_regN_shenandoah(iRegNdst res, iRegPds
 
 instruct compareAndExchangeP_regP_regP_regP_shenandoah(iRegPdst res, iRegPdst mem_ptr, iRegPsrc src1, iRegPsrc src2, iRegPdst tmp, flagsRegCR0 cr0) %{
   match(Set res (CompareAndExchangeP mem_ptr (Binary src1 src2)));
-  predicate(UseShenandoahGC && (n->as_LoadStore()->barrier_data() != 0) &&
-            !need_acquire_load_store(n));
+  predicate(UseShenandoahGC && (n->as_LoadStore()->barrier_data() != 0) && !need_acquire_load_store(n));
   effect(TEMP_DEF res, TEMP tmp, TEMP cr0);
   format %{ "CMPXCHGD $res, $mem_ptr, $src1, $src2; as ptr; ptr" %}
   ins_encode %{
@@ -419,8 +413,7 @@ instruct compareAndExchangeP_regP_regP_regP_shenandoah(iRegPdst res, iRegPdst me
 
 instruct compareAndExchangeP_acq_regP_regP_regP_shenandoah(iRegPdst res, iRegPdst mem_ptr, iRegPsrc src1, iRegPsrc src2, iRegPdst tmp, flagsRegCR0 cr0) %{
   match(Set res (CompareAndExchangeP mem_ptr (Binary src1 src2)));
-  predicate(UseShenandoahGC && (n->as_LoadStore()->barrier_data() != 0) &&
-            need_acquire_load_store(n));
+  predicate(UseShenandoahGC && (n->as_LoadStore()->barrier_data() != 0) && need_acquire_load_store(n));
   effect(TEMP_DEF res, TEMP tmp, TEMP cr0);
   format %{ "CMPXCHGD $res, $mem_ptr, $src1, $src2; as ptr; ptr" %}
   ins_encode %{
