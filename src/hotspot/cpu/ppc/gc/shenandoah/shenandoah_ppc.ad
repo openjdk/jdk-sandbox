@@ -355,78 +355,85 @@ instruct weakCompareAndSwapP_acq_regP_regP_regP_shenandoah(iRegIdst res, iRegPds
   ins_pipe(pipe_class_default);
 %}
 
-instruct compareAndExchangeN_regP_regN_regN_shenandoah(iRegNdst res, iRegPdst mem_ptr, iRegNsrc src1, iRegNsrc src2, flagsRegCR0 cr0) %{
+instruct compareAndExchangeN_regP_regN_regN_shenandoah(iRegNdst res, iRegPdst mem_ptr, iRegNsrc src1, iRegNsrc src2, iRegPdst tmp, flagsRegCR0 cr0) %{
   match(Set res (CompareAndExchangeN mem_ptr (Binary src1 src2)));
   predicate(UseShenandoahGC && (n->as_LoadStore()->barrier_data() != 0) && !need_acquire_load_store(n));
-  effect(TEMP_DEF res, TEMP cr0);
+  effect(TEMP_DEF res, TEMP tmp, TEMP cr0);
   format %{ "CMPXCHGW $res, $mem_ptr, $src1, $src2; as narrow oop" %}
   ins_encode %{
-    // CmpxchgX sets CR0 to cmpX(src1, src2) and Rres to 'true'/'false'.
-    __ cmpxchgw(CR0, $res$$Register, $src1$$Register, $src2$$Register, $mem_ptr$$Register,
-                MacroAssembler::MemBarNone, MacroAssembler::cmpxchgx_hint_atomic_update(),
-                noreg, nullptr, true);
+    ShenandoahBarrierSet::assembler()->compare_and_set_c2(this, masm,
+      $res$$Register,
+      $mem_ptr$$Register,
+      $src1$$Register,
+      $src2$$Register,
+      $tmp$$Register,
+      /* exchange */ true,
+      /* is_narrow */ true,
+      /* weak */ false,
+      /* acquire */ false);
   %}
   ins_pipe(pipe_class_default);
 %}
 
-instruct compareAndExchangeN_acq_regP_regN_regN_shenandoah(iRegNdst res, iRegPdst mem_ptr, iRegNsrc src1, iRegNsrc src2, flagsRegCR0 cr0) %{
+instruct compareAndExchangeN_acq_regP_regN_regN_shenandoah(iRegNdst res, iRegPdst mem_ptr, iRegNsrc src1, iRegNsrc src2, iRegPdst tmp, flagsRegCR0 cr0) %{
   match(Set res (CompareAndExchangeN mem_ptr (Binary src1 src2)));
   predicate(UseShenandoahGC && (n->as_LoadStore()->barrier_data() != 0) &&
             need_acquire_load_store(n));
-  effect(TEMP_DEF res, TEMP cr0);
+  effect(TEMP_DEF res, TEMP tmp, TEMP cr0);
   format %{ "CMPXCHGW $res, $mem_ptr, $src1, $src2; as narrow oop" %}
   ins_encode %{
-    // CmpxchgX sets CR0 to cmpX(src1, src2) and Rres to 'true'/'false'.
-    __ cmpxchgw(CR0, $res$$Register, $src1$$Register, $src2$$Register, $mem_ptr$$Register,
-                MacroAssembler::MemBarNone, MacroAssembler::cmpxchgx_hint_atomic_update(),
-                noreg, nullptr, true);
-
-    if (support_IRIW_for_not_multiple_copy_atomic_cpu) {
-        __ isync();
-    } else {
-       // isync would be sufficient in case of CompareAndExchangeAcquire, but we currently don't optimize for that.
-       __ sync();
-    }
+    ShenandoahBarrierSet::assembler()->compare_and_set_c2(this, masm,
+      $res$$Register,
+      $mem_ptr$$Register,
+      $src1$$Register,
+      $src2$$Register,
+      $tmp$$Register,
+      /* exchange */ true,
+      /* is_narrow */ true,
+      /* weak */ false,
+      /* acquire */ true);
   %}
   ins_pipe(pipe_class_default);
 %}
 
-instruct compareAndExchangeP_regP_regP_regP_shenandoah(iRegPdst res, iRegPdst mem_ptr, iRegPsrc src1, iRegPsrc src2, flagsRegCR0 cr0) %{
+instruct compareAndExchangeP_regP_regP_regP_shenandoah(iRegPdst res, iRegPdst mem_ptr, iRegPsrc src1, iRegPsrc src2, iRegPdst tmp, flagsRegCR0 cr0) %{
   match(Set res (CompareAndExchangeP mem_ptr (Binary src1 src2)));
   predicate(UseShenandoahGC && (n->as_LoadStore()->barrier_data() != 0) &&
             !need_acquire_load_store(n));
-  effect(TEMP_DEF res, TEMP cr0);
+  effect(TEMP_DEF res, TEMP tmp, TEMP cr0);
   format %{ "CMPXCHGD $res, $mem_ptr, $src1, $src2; as ptr; ptr" %}
   ins_encode %{
-    MemNode::MemOrd order = ((CompareAndSwapNode*)as_LoadStore())->order();
-    bool acquire = (order == MemNode::acquire) || (order == MemNode::seqcst);
-
-    // CmpxchgX sets CR0 to cmpX(src1, src2) and Rres to 'true'/'false'.
-    __ cmpxchgd(CR0, $res$$Register, $src1$$Register, $src2$$Register, $mem_ptr$$Register,
-                MacroAssembler::MemBarNone, MacroAssembler::cmpxchgx_hint_atomic_update(),
-                noreg, nullptr, true);
+    ShenandoahBarrierSet::assembler()->compare_and_set_c2(this, masm,
+      $res$$Register,
+      $mem_ptr$$Register,
+      $src1$$Register,
+      $src2$$Register,
+      $tmp$$Register,
+      /* exchange */ true,
+      /* is_narrow */ false,
+      /* weak */ false,
+      /* acquire */ false);
   %}
   ins_pipe(pipe_class_default);
 %}
 
-instruct compareAndExchangeP_acq_regP_regP_regP_shenandoah(iRegPdst res, iRegPdst mem_ptr, iRegPsrc src1, iRegPsrc src2, flagsRegCR0 cr0) %{
+instruct compareAndExchangeP_acq_regP_regP_regP_shenandoah(iRegPdst res, iRegPdst mem_ptr, iRegPsrc src1, iRegPsrc src2, iRegPdst tmp, flagsRegCR0 cr0) %{
   match(Set res (CompareAndExchangeP mem_ptr (Binary src1 src2)));
   predicate(UseShenandoahGC && (n->as_LoadStore()->barrier_data() != 0) &&
             need_acquire_load_store(n));
-  effect(TEMP_DEF res, TEMP cr0);
+  effect(TEMP_DEF res, TEMP tmp, TEMP cr0);
   format %{ "CMPXCHGD $res, $mem_ptr, $src1, $src2; as ptr; ptr" %}
   ins_encode %{
-    // CmpxchgX sets CR0 to cmpX(src1, src2) and Rres to 'true'/'false'.
-    __ cmpxchgd(CR0, $res$$Register, $src1$$Register, $src2$$Register, $mem_ptr$$Register,
-                MacroAssembler::MemBarNone, MacroAssembler::cmpxchgx_hint_atomic_update(),
-                noreg, nullptr, true);
-
-    if (support_IRIW_for_not_multiple_copy_atomic_cpu) {
-      __ isync();
-    } else {
-      // isync would be sufficient in case of CompareAndExchangeAcquire, but we currently don't optimize for that.
-      __  sync();
-    }
+    ShenandoahBarrierSet::assembler()->compare_and_set_c2(this, masm,
+      $res$$Register,
+      $mem_ptr$$Register,
+      $src1$$Register,
+      $src2$$Register,
+      $tmp$$Register,
+      /* exchange */ true,
+      /* is_narrow */ false,
+      /* weak */ false,
+      /* acquire */ true);
   %}
   ins_pipe(pipe_class_default);
 %}

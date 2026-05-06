@@ -1157,18 +1157,29 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
   if (narrow) {
     __ cmpxchgw(CR0, R0, oldval, newval, addr,
                 semantics, MacroAssembler::cmpxchgx_hint_atomic_update(),
-                res, nullptr, true, weak);
+                exchange ? noreg : res, nullptr, true, weak);
   } else {
     __ cmpxchgd(CR0, R0, oldval, newval, addr,
                 semantics, MacroAssembler::cmpxchgx_hint_atomic_update(),
-                res, nullptr, true, weak);
+                exchange ? noreg : res, nullptr, true, weak);
   }
 
-  if (!weak) {
-    if (support_IRIW_for_not_multiple_copy_atomic_cpu) {
-      __ isync();
-    } else {
-      __ sync();
+  if (exchange) {
+    if (acquire) {
+      if (support_IRIW_for_not_multiple_copy_atomic_cpu) {
+          __ isync();
+      } else {
+         // isync would be sufficient in case of CompareAndExchangeAcquire, but we currently don't optimize for that.
+         __ sync();
+      }
+    }
+  } else {
+    if (!weak) {
+      if (support_IRIW_for_not_multiple_copy_atomic_cpu) {
+        __ isync();
+      } else {
+        __ sync();
+      }
     }
   }
 
