@@ -1158,8 +1158,12 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   // using a TEMP register and in that case we need to explicitly preserve them
   // here because the RA does not consider TEMP as live-in, of course.
   if (_needs_load_ref_barrier) {
-    preserve(_addr.base());
-    preserve(_addr.index());
+    if (_addr.base() != noreg) {
+      preserve(_addr.base());
+    }
+    if (_addr.index() != noreg) {
+      preserve(_addr.index());
+    }
   }
 
   {
