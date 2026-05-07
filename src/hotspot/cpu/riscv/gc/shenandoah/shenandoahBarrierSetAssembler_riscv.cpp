@@ -794,8 +794,8 @@ void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
   Address gc_state_fast(xthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(test_state)));
-  __ lbu(t0, gc_state_fast);
-  __ beqz(t0, *continuation());
+  __ lbu(tmp, gc_state_fast);
+  __ beqz(tmp, *continuation());
   __ j(*entry());
 
   // This is were the slowpath stub will return to or the code above will
@@ -824,7 +824,7 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
     check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
     assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node), "Not supported for CAS/CAE");
-    stub->enter_if_gc_state(*masm, check);
+    stub->enter_if_gc_state(*masm, check, tmp);
   }
 
   // Existing RISCV cmpxchg_oop already handles Shenandoah forwarded-value retry logic.
@@ -853,7 +853,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
     assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node), "Not supported for GAS");
-    stub->enter_if_gc_state(*masm, check);
+    stub->enter_if_gc_state(*masm, check, tmp);
   }
 
   if (is_narrow) {
@@ -881,7 +881,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
     assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier(node), "Should not be required for stores");
     ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, tmp, dst, dst_narrow, /* do_load: */ true);
-    stub->enter_if_gc_state(*masm, ShenandoahHeap::MARKING);
+    stub->enter_if_gc_state(*masm, ShenandoahHeap::MARKING, tmp);
   }
 
   // Do the actual store
@@ -920,7 +920,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
     check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node) ? ShenandoahHeap::WEAK_ROOTS : 0;
-    stub->enter_if_gc_state(*masm, check);
+    stub->enter_if_gc_state(*masm, check, t0);
   }
 }
 
