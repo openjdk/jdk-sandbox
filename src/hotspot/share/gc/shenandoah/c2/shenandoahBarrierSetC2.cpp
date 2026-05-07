@@ -628,7 +628,7 @@ void ShenandoahBarrierSetC2::clone_at_expansion(PhaseMacroExpand* phase, ArrayCo
   if (ShenandoahCloneRuntime || !ac->is_clone_array() || !is_oop_array) {
     // Still looks like an instance? Likely a large instance or reflective
     // clone with unknown length. Go to runtime and handle it there.
-    clone_in_runtime(phase, ac, CAST_FROM_FN_PTR(address, ShenandoahRuntime::clone_addr()), "ShenandoahRuntime::clone");
+    clone_in_runtime(phase, ac, ShenandoahRuntime::clone_addr(), "ShenandoahRuntime::clone");
     return;
   }
 
