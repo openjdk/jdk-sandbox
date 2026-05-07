@@ -130,7 +130,7 @@ public:
 
   int estimate_stub_size() const;
   void emit_stubs(CodeBuffer& cb) const;
-  void late_barrier_analysis() const;
+  void late_barrier_analysis() const {
     compute_liveness_at_stubs();
     analyze_dominating_barriers();
   }
