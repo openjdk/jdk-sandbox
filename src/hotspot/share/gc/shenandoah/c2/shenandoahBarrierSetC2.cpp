@@ -293,7 +293,7 @@ uint8_t ShenandoahBarrierSetC2::refine_load(Node* n, uint8_t bd) {
     return bd;
   }
 
-  if (can_remove_load_barrier(n)) {
+  if (((bd & ShenandoahBitStrong) != 0) && can_remove_load_barrier(n)) {
     bd &= ~ShenandoahBitStrong;
   }
 
