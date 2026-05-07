@@ -25,8 +25,98 @@
 source %{
 #include "gc/shenandoah/shenandoahBarrierSet.hpp"
 #include "gc/shenandoah/shenandoahBarrierSetAssembler_aarch64.hpp"
-#include "gc/shenandoah/c2/shenandoahBarrierSetC2.hpp"
 %}
+
+// ---------------------------------- LOADS ---------------------------------------
+//
+
+instruct load_P_Normal_shenandoah(iRegPNoSp dst, memory8 mem, iRegPNoSp tmp, rFlagsReg cr)
+%{
+  match(Set dst (LoadP mem));
+  predicate(UseShenandoahGC && !needs_acquiring_load(n) && n->as_Load()->barrier_data() != 0);
+  effect(TEMP_DEF dst, TEMP tmp, KILL cr);
+  // The main load is a candidate to implement implicit null checks.
+  ins_is_late_expanded_null_check_candidate(opnd_array(1)->opcode() == INDOFFL8);
+  format %{ "ldr  $dst, $mem\t# ptr" %}
+  ins_encode %{
+    Address addr = mem2address($mem->opcode(), as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
+    if (addr.getMode() == Address::base_plus_offset) {
+      addr = __ legitimize_address(addr, /* size_in_memory */ 8, $tmp$$Register);
+    }
+    ShenandoahBarrierSet::assembler()->load_c2(this, masm,
+        $dst$$Register,
+        addr,
+        /* narrow = */ false,
+        /* acquire = */ false);
+  %}
+  ins_cost(3*INSN_COST);
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct load_P_Volatile_shenandoah(iRegPNoSp dst, indirect mem, rFlagsReg cr)
+%{
+  match(Set dst (LoadP mem));
+  predicate(UseShenandoahGC && needs_acquiring_load(n) && n->as_Load()->barrier_data() != 0);
+  effect(TEMP_DEF dst, KILL cr);
+  // The main load is a candidate to implement implicit null checks.
+  ins_is_late_expanded_null_check_candidate(true);
+  format %{ "ldr  $dst, $mem\t# ptr" %}
+  ins_encode %{
+    ShenandoahBarrierSet::assembler()->load_c2(this, masm,
+        $dst$$Register,
+        Address($mem$$Register),
+        /* narrow = */  false,
+        /* acquire = */ true);
+  %}
+  ins_cost(3*INSN_COST);
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct load_N_Normal_shenandoah(iRegNNoSp dst, memory4 mem, iRegPNoSp tmp, rFlagsReg cr)
+%{
+  match(Set dst (LoadN mem));
+  predicate(UseShenandoahGC && !needs_acquiring_load(n) && n->as_Load()->barrier_data() != 0);
+  effect(TEMP_DEF dst, TEMP tmp, KILL cr);
+  // The main load is a candidate to implement implicit null checks.
+  ins_is_late_expanded_null_check_candidate(opnd_array(1)->opcode() == INDOFFL4);
+  format %{ "ldrw  $dst, $mem\t# ptr" %}
+  ins_encode %{
+    Address addr = mem2address($mem->opcode(), as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
+    if (addr.getMode() == Address::base_plus_offset) {
+      addr = __ legitimize_address(addr, /* size_in_memory */ 4, $tmp$$Register);
+    }
+    ShenandoahBarrierSet::assembler()->load_c2(this, masm,
+        $dst$$Register,
+        addr,
+        /* narrow = */  true,
+        /* acquire = */ false);
+  %}
+  ins_cost(3*INSN_COST);
+  ins_pipe(pipe_class_memory);
+%}
+
+instruct load_N_Volatile_shenandoah(iRegNNoSp dst, indirect mem, rFlagsReg cr)
+%{
+  match(Set dst (LoadN mem));
+  predicate(UseShenandoahGC && needs_acquiring_load(n) && n->as_Load()->barrier_data() != 0);
+  effect(TEMP_DEF dst, KILL cr);
+  // The main load is a candidate to implement implicit null checks.
+  ins_is_late_expanded_null_check_candidate(true);
+  format %{ "ldrw  $dst, $mem\t# ptr" %}
+  ins_encode %{
+    ShenandoahBarrierSet::assembler()->load_c2(this, masm,
+        $dst$$Register,
+        Address($mem$$Register),
+        /* narrow = */  true,
+        /* acquire = */ true);
+  %}
+  ins_cost(VOLATILE_REF_COST);
+  ins_pipe(pipe_class_memory);
+%}
+
+
+// ---------------------------------- STORES ---------------------------------------
+//
 
 instruct store_P_Normal_shenandoah(memory8 mem, iRegP src, iRegPNoSp tmp1, iRegPNoSp tmp2, rFlagsReg cr)
 %{
@@ -137,6 +227,10 @@ instruct encodePAndStoreN_Volatile_shenandoah(indirect mem, iRegP src, iRegPNoSp
   ins_cost(4*INSN_COST);
   ins_pipe(pipe_class_memory);
 %}
+
+
+// ---------------------- LOAD-STORES -----------------------------------
+//
 
 instruct compareAndSwap_P_shenandoah(iRegINoSp res, indirect mem, iRegPNoSp oldval, iRegP newval, iRegPNoSp tmp, rFlagsReg cr)
 %{
@@ -525,88 +619,3 @@ instruct getAndSet_N_A_shenandoah(indirect mem, iRegN newval, iRegNNoSp preval, 
   ins_cost(2*VOLATILE_REF_COST);
   ins_pipe(pipe_serial);
 %}
-
-instruct load_P_Normal_shenandoah(iRegPNoSp dst, memory8 mem, iRegPNoSp tmp, rFlagsReg cr)
-%{
-  match(Set dst (LoadP mem));
-  predicate(UseShenandoahGC && !needs_acquiring_load(n) && n->as_Load()->barrier_data() != 0);
-  effect(TEMP_DEF dst, TEMP tmp, KILL cr);
-  // The main load is a candidate to implement implicit null checks.
-  ins_is_late_expanded_null_check_candidate(opnd_array(1)->opcode() == INDOFFL8);
-  format %{ "ldr  $dst, $mem\t# ptr" %}
-  ins_encode %{
-    Address addr = mem2address($mem->opcode(), as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
-    if (addr.getMode() == Address::base_plus_offset) {
-      addr = __ legitimize_address(addr, /* size_in_memory */ 8, $tmp$$Register);
-    }
-    ShenandoahBarrierSet::assembler()->load_c2(this, masm,
-        $dst$$Register,
-        addr,
-        /* narrow = */ false,
-        /* acquire = */ false);
-  %}
-  ins_cost(3*INSN_COST);
-  ins_pipe(pipe_class_memory);
-%}
-
-instruct load_P_Volatile_shenandoah(iRegPNoSp dst, indirect mem, rFlagsReg cr)
-%{
-  match(Set dst (LoadP mem));
-  predicate(UseShenandoahGC && needs_acquiring_load(n) && n->as_Load()->barrier_data() != 0);
-  effect(TEMP_DEF dst, KILL cr);
-  // The main load is a candidate to implement implicit null checks.
-  ins_is_late_expanded_null_check_candidate(true);
-  format %{ "ldr  $dst, $mem\t# ptr" %}
-  ins_encode %{
-    ShenandoahBarrierSet::assembler()->load_c2(this, masm,
-        $dst$$Register,
-        Address($mem$$Register),
-        /* narrow = */  false,
-        /* acquire = */ true);
-  %}
-  ins_cost(3*INSN_COST);
-  ins_pipe(pipe_class_memory);
-%}
-
-instruct load_N_Normal_shenandoah(iRegNNoSp dst, memory4 mem, iRegPNoSp tmp, rFlagsReg cr)
-%{
-  match(Set dst (LoadN mem));
-  predicate(UseShenandoahGC && !needs_acquiring_load(n) && n->as_Load()->barrier_data() != 0);
-  effect(TEMP_DEF dst, TEMP tmp, KILL cr);
-  // The main load is a candidate to implement implicit null checks.
-  ins_is_late_expanded_null_check_candidate(opnd_array(1)->opcode() == INDOFFL4);
-  format %{ "ldrw  $dst, $mem\t# ptr" %}
-  ins_encode %{
-    Address addr = mem2address($mem->opcode(), as_Register($mem$$base), $mem$$index, $mem$$scale, $mem$$disp);
-    if (addr.getMode() == Address::base_plus_offset) {
-      addr = __ legitimize_address(addr, /* size_in_memory */ 4, $tmp$$Register);
-    }
-    ShenandoahBarrierSet::assembler()->load_c2(this, masm,
-        $dst$$Register,
-        addr,
-        /* narrow = */  true,
-        /* acquire = */ false);
-  %}
-  ins_cost(3*INSN_COST);
-  ins_pipe(pipe_class_memory);
-%}
-
-instruct load_N_Volatile_shenandoah(iRegNNoSp dst, indirect mem, rFlagsReg cr)
-%{
-  match(Set dst (LoadN mem));
-  predicate(UseShenandoahGC && needs_acquiring_load(n) && n->as_Load()->barrier_data() != 0);
-  effect(TEMP_DEF dst, KILL cr);
-  // The main load is a candidate to implement implicit null checks.
-  ins_is_late_expanded_null_check_candidate(true);
-  format %{ "ldrw  $dst, $mem\t# ptr" %}
-  ins_encode %{
-    ShenandoahBarrierSet::assembler()->load_c2(this, masm,
-        $dst$$Register,
-        Address($mem$$Register),
-        /* narrow = */  true,
-        /* acquire = */ true);
-  %}
-  ins_cost(VOLATILE_REF_COST);
-  ins_pipe(pipe_class_memory);
-%}
-
