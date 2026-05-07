@@ -377,6 +377,12 @@ void AOTStreamedHeapWriter::update_header_for_buffered_addr(address buffered_add
   markWord mw = markWord::prototype();
   oopDesc* fake_oop = (oopDesc*)buffered_addr;
 
+  if (UseCompactObjectHeaders) {
+    mw = mw.set_narrow_klass(nk);
+  } else {
+    fake_oop->set_narrow_klass(nk);
+  }
+
   // We need to retain the identity_hash, because it may have been used by some hashtables
   // in the shared heap. This also has the side effect of pre-initializing the
   // identity_hash for all shared objects, so they are less likely to be written
@@ -403,12 +409,7 @@ void AOTStreamedHeapWriter::update_header_for_buffered_addr(address buffered_add
     mw = mw.set_marked();
   }
 
-  if (UseCompactObjectHeaders) {
-    fake_oop->set_mark(mw.set_narrow_klass(nk));
-  } else {
-    fake_oop->set_mark(mw);
-    fake_oop->set_narrow_klass(nk);
-  }
+  fake_oop->set_mark(mw);
 }
 
 class AOTStreamedHeapWriter::EmbeddedOopMapper: public BasicOopIterateClosure {
