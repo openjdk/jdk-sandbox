@@ -1116,35 +1116,30 @@ void ShenandoahBarrierStubC2::maybe_far_jump_if_zero(MacroAssembler& masm, Regis
 void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   Address index(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
-
   Label L_through, L_slowpath;
-
-  Register tmp1 = rscratch1;
-  Register tmp2 = rscratch2;
-  assert_different_registers(tmp1, tmp2, _obj, _addr.base(), _addr.index());
 
   // If another barrier is enabled as well, do a runtime check for a specific barrier.
   if (_needs_load_ref_barrier) {
     assert(L_done == nullptr, "L_done is always null when _needs_load_ref_barrier is true");
     Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(ShenandoahHeap::MARKING)));
-    __ ldrb(tmp1, gc_state_fast);
-    __ cbz(tmp1, L_through);
+    __ ldrb(_tmp1, gc_state_fast);
+    __ cbz(_tmp1, L_through);
   }
 
   // Fast-path: put object into buffer.
   // If buffer is already full, go slow.
-  __ ldr(tmp1, index);
-  __ cbz(tmp1, L_slowpath);
-  __ sub(tmp1, tmp1, wordSize);
-  __ str(tmp1, index);
-  __ ldr(tmp2, buffer);
+  __ ldr(_tmp1, index);
+  __ cbz(_tmp1, L_slowpath);
+  __ sub(_tmp1, _tmp1, wordSize);
+  __ str(_tmp1, index);
+  __ ldr(_tmp2, buffer);
 
   // If object is narrow, we need to unpack it before inserting into buffer,
   // and pack it back. We can skip the unpack if we know that object is not preserved.
   if (_narrow) {
     __ decode_heap_oop_not_null(_obj);
   }
-  __ str(_obj, Address(tmp2, tmp1));
+  __ str(_obj, Address(_tmp2, _tmp1));
   if (_narrow && is_preserved(_obj)) {
     __ encode_heap_oop_not_null(_obj);
   }
@@ -1190,36 +1185,32 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
 void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   Label L_slow;
 
-  Register tmp1 = rscratch1;
-  Register tmp2 = rscratch2;
-  assert_different_registers(tmp1, tmp2, _obj, _addr.base(), _addr.index());
-
   // If another barrier is enabled as well, do a runtime check for a specific barrier.
   if (_needs_keep_alive_barrier) {
     char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
     Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(state_to_check)));
-    __ ldrb(tmp1, gc_state_fast);
-    maybe_far_jump_if_zero(masm, tmp1, continuation());
+    __ ldrb(_tmp1, gc_state_fast);
+    maybe_far_jump_if_zero(masm, _tmp1, continuation());
   }
 
   // If weak references are being processed, weak/phantom loads need to go slow,
   // regardless of their cset status.
   if (_needs_load_ref_weak_barrier) {
     Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(ShenandoahHeap::WEAK_ROOTS)));
-    __ ldrb(tmp1, gc_state_fast);
-    __ cbnz(tmp1, L_slow);
+    __ ldrb(_tmp1, gc_state_fast);
+    __ cbnz(_tmp1, L_slow);
   }
 
   // Cset-check. Fall-through to slow if in collection set.
+  __ mov(_tmp1, ShenandoahHeap::in_cset_fast_test_addr());
   if (_narrow) {
-    __ decode_heap_oop_not_null(tmp2, _obj);
+    __ decode_heap_oop_not_null(_tmp2, _obj);
+    __ add(_tmp1, _tmp1, _tmp2, Assembler::LSR, ShenandoahHeapRegion::region_size_bytes_shift_jint());
   } else {
-    tmp2 = _obj;
+    __ add(_tmp1, _tmp1, _obj, Assembler::LSR, ShenandoahHeapRegion::region_size_bytes_shift_jint());
   }
-  __ mov(tmp1, ShenandoahHeap::in_cset_fast_test_addr());
-  __ add(tmp1, tmp1, tmp2, Assembler::LSR, ShenandoahHeapRegion::region_size_bytes_shift_jint());
-  __ ldrb(tmp1, Address(tmp1, 0));
-  maybe_far_jump_if_zero(masm, tmp1, continuation());
+  __ ldrb(_tmp1, Address(_tmp1, 0));
+  maybe_far_jump_if_zero(masm, _tmp1, continuation());
 
   // Slow path
   __ bind(L_slow);
@@ -1241,9 +1232,9 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
       // Set up arguments in reverse, and then flip them
       __ lea(c_rarg0, _addr);
       // flip them
-      __ mov(tmp1, c_rarg0);
+      __ mov(_tmp1, c_rarg0);
       __ mov(c_rarg0, c_rarg1);
-      __ mov(c_rarg1, tmp1);
+      __ mov(c_rarg1, _tmp1);
     } else {
       assert_different_registers(c_rarg1, _obj);
       __ lea(c_rarg1, _addr);

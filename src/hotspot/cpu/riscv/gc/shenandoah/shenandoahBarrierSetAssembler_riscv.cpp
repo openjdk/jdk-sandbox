@@ -1001,10 +1001,8 @@ void ShenandoahBarrierStubC2::maybe_far_jump_if_zero(MacroAssembler& masm, Regis
 }
 
 void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
-  assert_different_registers(_tmp1, _tmp2, _obj, _addr.base(), _addr.index());
   Address index(xthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(xthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
-
   Label L_through, L_slowpath;
 
   // If another barrier is enabled as well, do a runtime check for a specific barrier.
@@ -1065,8 +1063,6 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
 }
 
 void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
-  assert_different_registers(_tmp1, _tmp2, _obj, _addr.base(), _addr.index());
-
   Label L_slow;
 
   // If another barrier is enabled as well, do a runtime check for a specific barrier.

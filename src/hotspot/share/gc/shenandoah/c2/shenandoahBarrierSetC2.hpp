@@ -189,7 +189,12 @@ public:
     _needs_keep_alive_barrier(needs_keep_alive_barrier(node)),
     _needs_far_jump() {
     assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
-    assert((_tmp1 == noreg && _tmp2 == noreg) || _tmp1 != _tmp2, "_tmp1 and _tmp2 should be both noreg or different registers.");
+    if (_tmp1 != noreg && _tmp2 != noreg) {
+      assert_different_registers(_tmp1, _tmp2, _obj, _addr.base(), _addr.index());
+    } else {
+      assert(_tmp1 == _tmp2, "should both be noreg");
+      assert_different_registers(_obj, _addr.base(), _addr.index());
+    }
     post_init();
   }
 
