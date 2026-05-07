@@ -46,7 +46,7 @@ bool need_acquire_load_store(const Node* n) {
 
 instruct loadN_shenandoah(iRegNdst dst, memory mem, iRegPdstNoScratch tmp, flagsRegCR0 cr0) %{
   match(Set dst (LoadN mem));
-  effect(TEMP tmp, KILL cr0);
+  effect(TEMP_DEF dst, TEMP tmp, KILL cr0);
   predicate(UseShenandoahGC && (n->as_Load()->barrier_data() != 0) && !need_acquire_load(n));
   // The main load is a candidate to implement implicit null checks.
   ins_is_late_expanded_null_check_candidate(true);
@@ -67,7 +67,7 @@ instruct loadN_shenandoah(iRegNdst dst, memory mem, iRegPdstNoScratch tmp, flags
 
 instruct loadN_acq_shenandoah(iRegNdst dst, memory mem, iRegPdstNoScratch tmp, flagsRegCR0 cr0) %{
   match(Set dst (LoadN mem));
-  effect(TEMP tmp, KILL cr0);
+  effect(TEMP_DEF dst, TEMP tmp, KILL cr0);
   predicate(UseShenandoahGC && (n->as_Load()->barrier_data() != 0) && need_acquire_load(n));
   // The main load is a candidate to implement implicit null checks.
   ins_is_late_expanded_null_check_candidate(true);
@@ -88,7 +88,7 @@ instruct loadN_acq_shenandoah(iRegNdst dst, memory mem, iRegPdstNoScratch tmp, f
 
 instruct loadP_shenandoah(iRegPdst dst, memoryAlg4 mem, iRegPdstNoScratch tmp, flagsRegCR0 cr0) %{
   match(Set dst (LoadP mem));
-  effect(TEMP tmp, KILL cr0);
+  effect(TEMP_DEF dst, TEMP tmp, KILL cr0);
   predicate(UseShenandoahGC && (n->as_Load()->barrier_data() != 0) && !need_acquire_load(n));
   // The main load is a candidate to implement implicit null checks.
   ins_is_late_expanded_null_check_candidate(true);
@@ -109,7 +109,7 @@ instruct loadP_shenandoah(iRegPdst dst, memoryAlg4 mem, iRegPdstNoScratch tmp, f
 
 instruct loadP_acq_shenandoah(iRegPdst dst, memoryAlg4 mem, iRegPdstNoScratch tmp, flagsRegCR0 cr0) %{
   match(Set dst (LoadP mem));
-  effect(TEMP tmp, KILL cr0);
+  effect(TEMP_DEF dst, TEMP tmp, KILL cr0);
   predicate(UseShenandoahGC && (n->as_Load()->barrier_data() != 0) && need_acquire_load(n));
   // The main load is a candidate to implement implicit null checks.
   ins_is_late_expanded_null_check_candidate(true);
