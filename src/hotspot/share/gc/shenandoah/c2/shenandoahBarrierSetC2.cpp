@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2023, Red Hat, Inc. All rights reserved.
+ * Copyright (c) 2018, 2026, Red Hat, Inc. All rights reserved.
  * Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
@@ -955,6 +955,15 @@ void ShenandoahBarrierSetC2::clone_at_expansion(PhaseMacroExpand* phase, ArrayCo
     ctrl = phase->transform_later(region);
     mem = phase->transform_later(mem_phi);
 
+    if (should_copy_int_prefix(phase, ac)) {
+      mem = arraycopy_copy_int_prefix(phase, ctrl, mem, src, dest);
+
+      // We've copied the prefix, bump the pointers.
+      src = phase->basic_plus_adr(src_base, src, BytesPerInt);
+      dest = phase->basic_plus_adr(dest_base, dest, BytesPerInt);
+    }
+
+    // Bulk copy.
     const char* name = "arraycopy";
     call = phase->make_leaf_call(ctrl, mem,
                                  OptoRuntime::fast_arraycopy_Type(),
