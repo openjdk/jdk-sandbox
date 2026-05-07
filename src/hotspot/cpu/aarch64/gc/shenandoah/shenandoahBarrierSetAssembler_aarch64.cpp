@@ -1040,22 +1040,27 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroA
 #define __ masm.
 
 void ShenandoahBarrierStubC2::post_init() {
-  // If we are in scratch emit mode we assume worst case,
-  // and force the use of trampolines
+  // If we are in scratch emit mode we assume worst case, and force the use of
+  // far branches.
   PhaseOutput* const output = Compile::current()->output();
   if (output->in_scratch_emit_size()) {
     _needs_far_jump = true;
     return;
   }
 
-  // TODO: how correct is this? factor out this into a method.
-  const int code_size = output->buffer_sizing_data()->_code +
-                        output->buffer_sizing_data()->_stub +
-                        output->buffer_sizing_data()->_reloc;
+  // The formula below is based on how c2 estimates initial buffer size for a
+  // compilation. See C2Compiler::initial_code_buffer_size. The logic
+  // implemented in this stub only uses short jumps (cbz, cbnz) if the
+  // aggregation of all relevant code sections of a method fit in 1MB. We could
+  // be more aggressive and try and compute the distance between the fastpath
+  // branch and the stub entry but in practice not many methods reach the 1MB
+  // size.
+  const BufferSizingData* sizing = output->buffer_sizing_data();
+  const int code_size = sizing->_code + sizing->_stub +
+    PhaseOutput::MAX_inst_size + PhaseOutput::MAX_stubs_size + NativeCall::byte_size();
 
   // Maximum backward range is 1M. Maximum forward reach is 1M - 4bytes.
-  // I subtract a few more bytes just to be safe.
-  const int cond_branch_max_reach = (int)(1*M - 4*NativeInstruction::instruction_size);
+  const int cond_branch_max_reach = (int)(1*M - 4);
   _needs_far_jump = code_size >= cond_branch_max_reach;
 }
 
