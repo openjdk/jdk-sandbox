@@ -241,7 +241,7 @@ instruct compareAndSwap_P_shenandoah(iRegINoSp res, indirect mem, iRegPNoSp oldv
     "cmpxchg_P_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
   %}
   ins_encode %{
-    guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
+    assert($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
     ShenandoahBarrierSet::assembler()->compare_and_set_c2(this, masm,
       $res$$Register,
@@ -267,7 +267,7 @@ instruct compareAndSwap_P_A_shenandoah(iRegINoSp res, indirect mem, iRegPNoSp ol
     "cmpxchg_P_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
   %}
   ins_encode %{
-    guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
+    assert($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
     ShenandoahBarrierSet::assembler()->compare_and_set_c2(this, masm,
       $res$$Register,
@@ -293,7 +293,7 @@ instruct compareAndSwap_N_shenandoah(iRegINoSp res, indirect mem, iRegNNoSp oldv
     "cmpxchg_N_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
   %}
   ins_encode %{
-    guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
+    assert($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
     ShenandoahBarrierSet::assembler()->compare_and_set_c2(this, masm,
       $res$$Register,
@@ -319,7 +319,7 @@ instruct compareAndSwap_N_A_shenandoah(iRegINoSp res, indirect mem, iRegNNoSp ol
     "cmpxchg_N_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
   %}
   ins_encode %{
-    guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
+    assert($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
     ShenandoahBarrierSet::assembler()->compare_and_set_c2(this, masm,
       $res$$Register,
@@ -345,7 +345,7 @@ instruct compareAndExchange_N_shenandoah(iRegNNoSp res, indirect mem, iRegN oldv
     "cae_N_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
   %}
   ins_encode %{
-    guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
+    assert($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
     ShenandoahBarrierSet::assembler()->compare_and_set_c2(this, masm,
       $res$$Register,
@@ -371,7 +371,7 @@ instruct compareAndExchange_N_A_shenandoah(iRegNNoSp res, indirect mem, iRegN ol
     "cae_N_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
   %}
   ins_encode %{
-    guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
+    assert($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
     ShenandoahBarrierSet::assembler()->compare_and_set_c2(this, masm,
       $res$$Register,
@@ -397,7 +397,7 @@ instruct compareAndExchange_P_shenandoah(iRegPNoSp res, indirect mem, iRegP oldv
     "cae_P_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
   %}
   ins_encode %{
-    guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
+    assert($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
     ShenandoahBarrierSet::assembler()->compare_and_set_c2(this, masm,
       $res$$Register,
@@ -423,7 +423,7 @@ instruct compareAndExchange_P_A_shenandoah(iRegPNoSp res, indirect mem, iRegP ol
     "cae_P_shenandoah $mem, $oldval, $newval\t# (ptr) if $mem == $oldval then $mem <-- $newval"
   %}
   ins_encode %{
-    guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
+    assert($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
     ShenandoahBarrierSet::assembler()->compare_and_set_c2(this, masm,
       $res$$Register,
@@ -450,7 +450,7 @@ instruct weakCompareAndSwap_N_shenandoah(iRegINoSp res, indirect mem, iRegNNoSp 
     "csetw $res, EQ\t# $res <-- (EQ ? 1 : 0)"
   %}
   ins_encode %{
-    guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
+    assert($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
     ShenandoahBarrierSet::assembler()->compare_and_set_c2(this, masm,
       $res$$Register,
@@ -477,7 +477,7 @@ instruct weakCompareAndSwap_N_A_shenandoah(iRegINoSp res, indirect mem, iRegNNoS
     "csetw $res, EQ\t# $res <-- (EQ ? 1 : 0)"
   %}
   ins_encode %{
-    guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
+    assert($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
     ShenandoahBarrierSet::assembler()->compare_and_set_c2(this, masm,
       $res$$Register,
@@ -504,7 +504,7 @@ instruct weakCompareAndSwap_P_shenandoah(iRegINoSp res, indirect mem, iRegPNoSp 
     "csetw $res, EQ\t# $res <-- (EQ ? 1 : 0)"
   %}
   ins_encode %{
-    guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
+    assert($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
     ShenandoahBarrierSet::assembler()->compare_and_set_c2(this, masm,
       $res$$Register,
@@ -531,7 +531,7 @@ instruct weakCompareAndSwap_P_A_shenandoah(iRegINoSp res, indirect mem, iRegPNoS
     "csetw $res, EQ\t# $res <-- (EQ ? 1 : 0)"
   %}
   ins_encode %{
-    guarantee($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
+    assert($mem$$index == -1 && $mem$$disp == 0, "impossible encoding");
 
     ShenandoahBarrierSet::assembler()->compare_and_set_c2(this, masm,
       $res$$Register,

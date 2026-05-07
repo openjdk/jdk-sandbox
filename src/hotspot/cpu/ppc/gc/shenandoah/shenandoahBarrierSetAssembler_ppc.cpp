@@ -1214,7 +1214,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
   }
 
   // Post-barrier deals with card updates.
-  card_barrier_c2(node, masm, Address(addr, 0), tmp1, tmp2);
+  card_barrier_c2(node, masm, Address(addr), tmp1, tmp2);
 }
 
 void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm,
