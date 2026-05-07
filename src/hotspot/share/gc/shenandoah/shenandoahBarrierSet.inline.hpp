@@ -169,6 +169,7 @@ inline oop ShenandoahBarrierSet::load_reference_barrier(DecoratorSet decorators,
 
 inline void ShenandoahBarrierSet::enqueue(oop obj, bool filter) {
   assert(obj != nullptr, "checked by caller");
+  shenandoah_assert_correct(nullptr, obj);
   assert(_satb_mark_queue_set.is_active(), "only get here when SATB active");
 
   // Filter marked objects before hitting the SATB queues. The same predicate would
