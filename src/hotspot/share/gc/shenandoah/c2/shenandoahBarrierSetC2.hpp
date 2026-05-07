@@ -128,9 +128,9 @@ public:
   static void verify_gc_barrier_assert(bool cond, const char* msg, uint8_t bd, Node* n);
 #endif
 
-  int estimate_stub_size() const /* override */;
-  void emit_stubs(CodeBuffer& cb) const /* override */;
-  void late_barrier_analysis() const /* override*/ {
+  int estimate_stub_size() const;
+  void emit_stubs(CodeBuffer& cb) const;
+  void late_barrier_analysis() const;
     compute_liveness_at_stubs();
     analyze_dominating_barriers();
   }
