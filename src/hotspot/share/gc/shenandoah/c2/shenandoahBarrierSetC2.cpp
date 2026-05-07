@@ -877,8 +877,8 @@ void ShenandoahBarrierStubC2::register_stub(ShenandoahBarrierStubC2* stub) {
   }
 }
 
-ShenandoahBarrierStubC2* ShenandoahBarrierStubC2::create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load) {
-  auto* stub = new (Compile::current()->comp_arena()) ShenandoahBarrierStubC2(node, obj, addr, narrow, do_load);
+ShenandoahBarrierStubC2* ShenandoahBarrierStubC2::create(const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load) {
+  auto* stub = new (Compile::current()->comp_arena()) ShenandoahBarrierStubC2(node, obj, addr, tmp1, tmp2, narrow, do_load);
   ShenandoahBarrierStubC2::register_stub(stub);
   return stub;
 }

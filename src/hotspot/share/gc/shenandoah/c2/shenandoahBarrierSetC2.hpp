@@ -146,6 +146,8 @@ public:
 };
 
 class ShenandoahBarrierStubC2 : public BarrierStubC2 {
+  const Register _tmp1;
+  const Register _tmp2;
   Register _obj;
   Address  const _addr;
   const bool _do_load;
@@ -173,8 +175,10 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   void post_init();
 
 public:
-  ShenandoahBarrierStubC2(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load) :
+  ShenandoahBarrierStubC2(const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load) :
     BarrierStubC2(node),
+    _tmp1(tmp1),
+    _tmp2(tmp2),
     _obj(obj),
     _addr(addr),
     _do_load(do_load),
@@ -185,6 +189,7 @@ public:
     _needs_keep_alive_barrier(needs_keep_alive_barrier(node)),
     _needs_far_jump() {
     assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
+    assert((_tmp1 == noreg && _tmp2 == noreg) || _tmp1 != _tmp2, "_tmp1 and _tmp2 should be both noreg or different registers.");
     post_init();
   }
 
@@ -210,7 +215,7 @@ public:
     return (node->barrier_data() & ShenandoahBitNotNull) == 0;
   }
 
-  static ShenandoahBarrierStubC2* create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load);
+  static ShenandoahBarrierStubC2* create(const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load);
   void emit_code(MacroAssembler& masm);
 
   void enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp = noreg);

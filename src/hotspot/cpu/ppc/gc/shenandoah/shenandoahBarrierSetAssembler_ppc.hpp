@@ -134,19 +134,19 @@ public:
 
 #ifdef COMPILER2
   // Entry points from Matcher
-  void load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Register addr, int disp, Register tmp, bool narrow, bool acquire);
+  void load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Register addr, int disp, Register tmp1, Register tmp2, bool narrow, bool acquire);
 
   void store_c2(const MachNode* node, MacroAssembler* masm,
-                Register dst, int disp, bool dst_narrow, Register src, bool src_narrow, Register tmp);
+                Register dst, int disp, bool dst_narrow, Register src, bool src_narrow, Register tmp1, Register tmp2, Register tmp3);
 
   void compare_and_set_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval,
-      Register newval, Register tmp, bool exchange, bool narrow, bool weak, bool acquire);
+      Register newval, Register tmp1, Register tmp2, Register tmp3, bool exchange, bool narrow, bool weak, bool acquire);
 
   void get_and_set_c2(const MachNode* node, MacroAssembler* masm,
-                      Register preval, Register newval, Register addr, Register tmp);
+                      Register preval, Register newval, Register addr, Register tmp1, Register tmp2, Register tmp3);
 
   void card_barrier_c2(const MachNode* node, MacroAssembler* masm,
-                       Address addr);
+                       Address addr, Register tmp1, Register tmp2);
 #endif // COMPILER2
 };
 
