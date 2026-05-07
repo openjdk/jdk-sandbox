@@ -958,12 +958,7 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroA
 #define __ masm.
 
 void ShenandoahBarrierStubC2::post_init() {
-  // If we are in scratch emit mode we assume worst case,
-  // and force the use of trampolines
-  PhaseOutput* const output = Compile::current()->output();
-  if (output->in_scratch_emit_size()) {
-    return;
-  }
+  // Do nothing.
 }
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {

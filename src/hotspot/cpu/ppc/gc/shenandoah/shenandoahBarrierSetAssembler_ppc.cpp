@@ -1138,23 +1138,25 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
     check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
     assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node), "Not supported for CAS");
-    stub->enter_if_gc_state(*masm, check);
+    stub->enter_if_gc_state(*masm, check, R11_scratch1);
   }
 
-  int semantics = MacroAssembler::MemBarNone;
+  Register dest_current = exchange ? res : R0;
+  Register int_flag     = exchange ? noreg : res;
+  int semantics         = MacroAssembler::MemBarNone;
 
   if (narrow) {
     semantics = weak && support_IRIW_for_not_multiple_copy_atomic_cpu ? MacroAssembler::MemBarAcq : MacroAssembler::MemBarFenceAfter;
 
     // CmpxchgX sets CR0 to cmpX(src1, src2) and Rres to 'true'/'false'.
-    __ cmpxchgw(CR0, R0, oldval, newval, addr,
+    __ cmpxchgw(CR0, dest_current, oldval, newval, addr,
                 semantics, MacroAssembler::cmpxchgx_hint_atomic_update(),
-                exchange ? noreg : res, nullptr, true, weak);
+                int_flag, nullptr, true, weak);
   } else {
     // CmpxchgX sets CR0 to cmpX(src1, src2) and Rres to 'true'/'false'.
-    __ cmpxchgd(CR0, R0, oldval, newval, addr,
+    __ cmpxchgd(CR0, dest_current, oldval, newval, addr,
                 semantics, MacroAssembler::cmpxchgx_hint_atomic_update(),
-                exchange ? noreg : res, nullptr, true, weak);
+                int_flag, nullptr, true, weak);
   }
 
   if (exchange) {
@@ -1196,7 +1198,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
     assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node), "Not supported for GAS");
-    stub->enter_if_gc_state(*masm, check);
+    stub->enter_if_gc_state(*masm, check, R11_scratch1);
   }
 
   if (is_narrow) {
@@ -1222,7 +1224,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
     assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier(node), "Should not be required for stores");
     ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, tmp, Address(dst, disp), dst_narrow, /* do_load: */ true);
-    stub->enter_if_gc_state(*masm, ShenandoahHeap::MARKING);
+    stub->enter_if_gc_state(*masm, ShenandoahHeap::MARKING, R11_scratch1);
   }
 
   if (dst_narrow && !src_narrow) {
@@ -1239,6 +1241,9 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   } else {
     __ std(src, disp, dst);
   }
+
+  // Post-barrier: card updates.
+  card_barrier_c2(node, masm, Address(dst, disp));
 }
 
 void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Register addr, int disp, Register tmp, bool is_narrow, bool is_acquire) {
@@ -1270,13 +1275,21 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroA
   Register tmp1 = R11_scratch1;
   Register tmp2 = R12_scratch2;
 
-  assert(CardTable::dirty_card_val() == 0, "must be");
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+  assert_different_registers(tmp1, tmp2, address.index(), address.base());
 
   __ ld(tmp1, in_bytes(ShenandoahThreadLocalData::card_table_offset()), R16_thread);
-  __ add(tmp2, address.index(), address.base());
+  if (address.index() == noreg) {
+    __ add_const_optimized(tmp2, address.base(), address.disp(), R0);
+  } else {
+    __ add(tmp2, address.index(), address.base());
+    if (address.disp() != 0) {
+      __ addi(tmp2, tmp2, address.disp());
+    }
+  }
   __ srdi(tmp2, tmp2, CardTable::card_shift());
-  __ stbx(CardTable::dirty_card_val(), tmp2, tmp1);
+  __ li(R0, CardTable::dirty_card_val());
+  __ stbx(R0, tmp2, tmp1);
 }
 #undef __
 #define __ masm.
@@ -1421,7 +1434,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
   if (_narrow) {
     __ decode_heap_oop_not_null(tmp2, _obj);
   } else {
-    tmp2 = _obj;
+    __ mr(tmp2, _obj);
   }
   __ srdi(tmp2, tmp2, ShenandoahHeapRegion::region_size_bytes_shift_jint());
   __ lbzx(tmp2, tmp2, tmp1);
