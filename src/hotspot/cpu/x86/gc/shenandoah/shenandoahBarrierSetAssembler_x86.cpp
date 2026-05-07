@@ -1119,11 +1119,11 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
 
     __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0));
     __ jcc(Assembler::zero, *continuation());
-    lrb(masm, continuation());
+    lrb(masm);
   } else if (_needs_keep_alive_barrier) {
     keepalive(masm, continuation());
   } else if (_needs_load_ref_barrier) {
-    lrb(masm, continuation());
+    lrb(masm);
   } else {
     ShouldNotReachHere();
   }
@@ -1197,9 +1197,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   }
 }
 
-void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
-  assert(L_done != nullptr, "Must be set");
-
+void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   Label L_pop_and_slow, L_slow;
 
   // If weak references are being processed, weak/phantom loads need to go slow,
@@ -1251,10 +1249,10 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
   if (tmp_live) {
     __ jccb(Assembler::notEqual, L_pop_and_slow);
     __ pop(tmp);
-    __ jmp(*L_done);
+    __ jmp(*continuation());
   } else {
     // Nothing else to do, jump back
-    __ jcc(Assembler::equal, *L_done);
+    __ jcc(Assembler::equal, *continuation());
   }
 
   // Slow path
@@ -1302,7 +1300,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
     preserve(_obj);
   }
 
-  __ jmp(*L_done);
+  __ jmp(*continuation());
 }
 
 int ShenandoahBarrierStubC2::available_gp_registers() {

@@ -1323,11 +1323,11 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   // as another barrier is not needed and we can reach the fastpath.
   if (_needs_keep_alive_barrier && _needs_load_ref_barrier) {
     keepalive(masm, nullptr);
-    lrb(masm, continuation());
+    lrb(masm);
   } else if (_needs_keep_alive_barrier) {
     keepalive(masm, continuation());
   } else if (_needs_load_ref_barrier) {
-    lrb(masm, continuation());
+    lrb(masm);
   } else {
     ShouldNotReachHere();
   }
@@ -1399,8 +1399,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   }
 }
 
-void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
-  assert(L_done != nullptr, "Must be set");
+void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   assert_different_registers(_tmp1, _tmp2, _obj, _addr.base(), _addr.index());
 
   Label L_slow;
@@ -1409,7 +1408,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
   if (_needs_keep_alive_barrier) {
     char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
     __ lbz(_tmp1, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(state_to_check)), R16_thread);
-    maybe_far_jump_if_zero(masm, _tmp1, L_done);
+    maybe_far_jump_if_zero(masm, _tmp1, continuation());
   }
 
   // If weak references are being processed, weak/phantom loads need to go slow,
@@ -1429,7 +1428,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
   }
   __ srdi(_tmp2, _tmp2, ShenandoahHeapRegion::region_size_bytes_shift_jint());
   __ lbzx(_tmp2, _tmp2, _tmp1);
-  maybe_far_jump_if_zero(masm, _tmp2, L_done);
+  maybe_far_jump_if_zero(masm, _tmp2, continuation());
 
   // Slow path
   __ bind(L_slow);
@@ -1474,7 +1473,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
     preserve(_obj);
   }
 
-  __ b(*L_done);
+  __ b(*continuation());
 }
 
 #undef __

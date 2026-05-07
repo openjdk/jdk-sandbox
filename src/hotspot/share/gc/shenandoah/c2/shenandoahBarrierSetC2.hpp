@@ -166,7 +166,7 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   Register select_temp_register(bool& selected_live, Register skip_reg1 = noreg);
 
   void keepalive(MacroAssembler& masm, Label* L_done = nullptr);
-  void lrb(MacroAssembler& masm, Label* L_done = nullptr);
+  void lrb(MacroAssembler& masm);
 
   address keepalive_runtime_entry_addr();
   address lrb_runtime_entry_addr();
