@@ -295,7 +295,6 @@ uint8_t ShenandoahBarrierSetC2::refine_load(Node* n, uint8_t bd) {
 
   if (can_remove_load_barrier(n)) {
     bd &= ~ShenandoahBitStrong;
-    bd |= ShenandoahBitElided;
   }
 
   return bd;
@@ -325,7 +324,6 @@ uint8_t ShenandoahBarrierSetC2::refine_store(Node* n, uint8_t bd) {
     bd &= ~ShenandoahBitNotNull;
     // Card table barrier is not needed if we store null.
     bd &= ~ShenandoahBitCardMark;
-    bd |= ShenandoahBitElided;
   } else if (newval_type_ptr == TypePtr::NotNull) {
     // Definitely not null.
     bd |= ShenandoahBitNotNull;
@@ -372,7 +370,9 @@ bool ShenandoahBarrierSetC2::expand_barriers(Compile* C, PhaseIterGVN& igvn) con
     }
 
     if (bd != orig_bd) {
-      bd |= ShenandoahBitElided;
+      if ((bd & ShenandoahBitsReal) != (orig_bd & ShenandoahBitsReal)) {
+        bd |= ShenandoahBitElided;
+      }
       if (is_load_store) {
         n->as_LoadStore()->set_barrier_data(bd);
       } else {
