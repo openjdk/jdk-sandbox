@@ -469,7 +469,8 @@ void ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::clone_in_heap
 
   Raw::clone(src, dst, count);
 
-  // Safety: clone destination must be in young, otherwise we need card barriers.
+  // Current allocator never allocates in old, so clone destination is guaranteed to be in young.
+  // Otherwise we need card barriers.
   shenandoah_assert_in_young_if(nullptr, dst, ShenandoahCardBarrier);
 }
 
