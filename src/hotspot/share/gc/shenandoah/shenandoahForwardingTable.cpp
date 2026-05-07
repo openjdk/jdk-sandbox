@@ -163,12 +163,12 @@ void ShenandoahForwardingTable::enter_forwarding(HeapWord* original, HeapWord* f
   uint64_t index = hash % _num_entries;
   log_develop_trace(gc)("Finding slot, start at index: " UINT64_FORMAT ", for original: " PTR_FORMAT ", forwardee: " PTR_FORMAT, index, p2i(original), p2i(forwardee));
   HeapWord* region_base = _region->bottom();
-  while (table[index].is_used() /*|| table[index].is_marked(ctx)*/) {
+  ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
+  while (table[index].is_used() || table[index].is_marked(ctx)) {
 #ifndef PRODUCT
     if (table[index].is_marked(ShenandoahHeap::heap()->marking_context())) {
       assert(!table[index].is_original(region_base, original), "marked location must not look like the original entry");
     }
-    ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
     log_develop_trace(gc)("Collision on" UINT64_FORMAT ": is_marked: %s, original: " PTR_FORMAT ", forwardee: " PTR_FORMAT, index, BOOL_TO_STR(table[index].is_marked(ctx)), p2i(table[index].original(region_base)), p2i(table[index].forwardee()));
 #endif
     index = (index + 1) % _num_entries;
@@ -252,8 +252,9 @@ void ShenandoahForwardingTable::write_at_originals(uintptr_t value) {
   Entry* table = reinterpret_cast<Entry*>(_table);
   HeapWord* region_base = _region->bottom();
   HeapWord* fwt_start = reinterpret_cast<HeapWord*>(_table);
+  ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
   for (size_t i = 0; i < _num_entries; i++) {
-    if (table[i].is_used()) {
+    if (table[i].is_used() && !table[i].is_marked(ctx)) {
       HeapWord* original = table[i].original(region_base);
       if (original < fwt_start) {
         *reinterpret_cast<uintptr_t*>(original) = value;

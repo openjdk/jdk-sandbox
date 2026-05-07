@@ -88,8 +88,9 @@ HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
  HeapWord* const region_base = _region->bottom();
 
  // New allocations in early-recycled regions are not forwarded and are returned as is.
- while (table[index].is_used()) {
-  if (table[index].is_original(region_base, original)) {
+ ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
+ while (table[index].is_used() || table[index].is_marked(ctx)) {
+  if (table[index].is_used() && table[index].is_original(region_base, original)) {
    assert(table[index].forwardee() != nullptr, "must have found a forwarding");
    assert(!table[index].is_marked(ShenandoahHeap::heap()->marking_context()), "must have found unmarked slot");
    return table[index].forwardee();
@@ -101,7 +102,7 @@ HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
    return original;
   }
  }
- // Empty slot -> new allocation.
+ // Empty clean slot -> new allocation.
  return original;
 }
 
