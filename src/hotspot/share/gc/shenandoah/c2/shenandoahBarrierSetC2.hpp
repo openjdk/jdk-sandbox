@@ -148,7 +148,6 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   Address  const _addr;
   const bool _do_load;
   const bool _narrow;
-  const bool _maybe_null;
   const bool _needs_load_ref_barrier;
   const bool _needs_load_ref_weak_barrier;
   const bool _needs_keep_alive_barrier;
@@ -161,7 +160,7 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   bool is_special_register(Register reg);
   Register select_temp_register(bool& selected_live, Register skip_reg1 = noreg);
 
-  void keepalive(MacroAssembler& masm, Label* L_done = nullptr);
+  void keepalive(MacroAssembler& masm, Label* L_done);
   void lrb(MacroAssembler& masm);
 
   address keepalive_runtime_entry_addr();
@@ -179,7 +178,6 @@ public:
     _addr(addr),
     _do_load(do_load),
     _narrow(narrow),
-    _maybe_null(maybe_null(node)),
     _needs_load_ref_barrier(needs_load_ref_barrier(node)),
     _needs_load_ref_weak_barrier(needs_load_ref_barrier_weak(node)),
     _needs_keep_alive_barrier(needs_keep_alive_barrier(node)),
@@ -211,9 +209,6 @@ public:
   }
   static bool needs_card_barrier(const MachNode* node) {
     return (node->barrier_data() & ShenandoahBitCardMark) != 0;
-  }
-  static bool maybe_null(const MachNode* node) {
-    return (node->barrier_data() & ShenandoahBitNotNull) == 0;
   }
 
   static ShenandoahBarrierStubC2* create(const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load);
