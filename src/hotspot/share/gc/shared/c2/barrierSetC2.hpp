@@ -262,7 +262,7 @@ public:
   // Do not preserve the value in reg across runtime calls in this barrier.
   void dont_preserve(Register reg);
   // Check if register is in preserved set
-  bool is_preserved(Register reg);
+  bool is_preserved(Register reg) const;
   // Set of registers whose value needs to be preserved across runtime calls in this barrier.
   const RegMask& preserve_set() const;
 };
