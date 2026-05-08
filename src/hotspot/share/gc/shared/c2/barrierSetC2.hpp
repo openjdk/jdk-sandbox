@@ -341,6 +341,7 @@ public:
   // If the BarrierSetC2 state has barrier nodes in its compilation
   // unit state to be expanded later, then now is the time to do so.
   virtual bool expand_barriers(Compile* C, PhaseIterGVN& igvn) const { return false; }
+  virtual void final_refinement(Compile* C) const { }
   virtual bool optimize_loops(PhaseIdealLoop* phase, LoopOptsMode mode, VectorSet& visited, Node_Stack& nstack, Node_List& worklist) const { return false; }
   virtual bool strip_mined_loops_expanded(LoopOptsMode mode) const { return false; }
   virtual bool is_gc_specific_loop_opts_pass(LoopOptsMode mode) const { return false; }

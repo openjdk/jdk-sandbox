@@ -137,8 +137,7 @@ public:
 
   void elide_dominated_barrier(MachNode* mach, MachNode* dominator) const;
   void analyze_dominating_barriers() const;
-  void strip_extra_data(const Node* node) const;
-  void strip_extra_data(Node_List& accesses) const;
+  void final_refinement(Compile* C) const;
 
   virtual uint estimated_barrier_size(const Node* node) const;
 

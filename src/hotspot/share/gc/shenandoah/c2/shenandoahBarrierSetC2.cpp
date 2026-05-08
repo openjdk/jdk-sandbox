@@ -416,31 +416,6 @@ void ShenandoahBarrierSetC2::eliminate_gc_barrier_data(Node* node) const {
   }
 }
 
-// If there are no real barrier flags on the node, strip away additional fluff.
-// Matcher does not care about this, and we would like to avoid invoking "barrier_data() != 0"
-// rules when the only flags are the irrelevant fluff.
-void ShenandoahBarrierSetC2::strip_extra_data(const Node* n) const {
-  if (n->is_LoadStore()) {
-    LoadStoreNode* load_store = n->as_LoadStore();
-    uint8_t barrier_data = load_store->barrier_data();
-    if ((barrier_data & ShenandoahBitsReal) == 0) {
-      load_store->set_barrier_data(0);
-    }
-  } else if (n->is_Mem()) {
-    MemNode* mem = n->as_Mem();
-    uint8_t barrier_data = mem->barrier_data();
-    if ((barrier_data & ShenandoahBitsReal) == 0) {
-      mem->set_barrier_data(0);
-    }
-  }
-}
-
-void ShenandoahBarrierSetC2::strip_extra_data(Node_List& accesses) const {
-  for (uint c = 0; c < accesses.size(); c++) {
-    strip_extra_data(accesses.at(c));
-  }
-}
-
 void ShenandoahBarrierSetC2::eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) const {
   eliminate_gc_barrier_data(node);
 }
@@ -529,10 +504,6 @@ void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
   }
 
   elide_dominated_barriers(accesses, dominators);
-
-  // Also clean up extra metadata. Dominance analysis likely left
-  // many non-elided barriers with extra metadata, which can be stripped away.
-  strip_extra_data(accesses);
 }
 
 uint ShenandoahBarrierSetC2::estimated_barrier_size(const Node* node) const {
@@ -742,6 +713,35 @@ void ShenandoahBarrierSetC2::print_barrier_data(outputStream* os, uint8_t data) 
   );
 }
 
+void ShenandoahBarrierSetC2::final_refinement(Compile* compile) const {
+  ResourceMark rm;
+  Unique_Node_List wq;
+
+  wq.push(compile->root());
+  for (uint next = 0; next < wq.size(); next++) {
+    Node* n = wq.at(next);
+    assert(!n->is_Mach(), "No Mach nodes here yet");
+
+    // If there are no real barrier flags on the node, strip away additional fluff.
+    // Matcher does not care about this, and we would like to avoid invoking "barrier_data() != 0"
+    // rules when the only flags are the irrelevant fluff.
+
+    uint8_t bd = MemNode::barrier_data(n);
+    if ((bd != 0) && (bd & ShenandoahBitsReal) == 0) {
+      if (n->is_LoadStore()) {
+        n->as_LoadStore()->set_barrier_data(0);
+      } else if (n->is_Mem()) {
+        n->as_Mem()->set_barrier_data(0);
+      }
+    }
+
+    for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
+      Node* m = n->fast_out(i);
+      wq.push(m);
+    }
+  }
+}
+
 #ifdef ASSERT
 void ShenandoahBarrierSetC2::verify_gc_barrier_assert(bool cond, const char* msg, uint8_t bd, Node* n) {
   if (!cond) {
@@ -763,16 +763,19 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
   // Normally, we have _some_ bits set on all accesses. Optimizations may drop some bits,
   // but only the last optimization step eliminates all remaining metadata flags. Only then
   // the access data can be completely blank.
-  bool accept_blank = (phase == BeforeCodeGen);
-  bool expect_load_barriers       = !accept_blank && ShenandoahLoadRefBarrier;
-  bool expect_store_barriers      = !accept_blank && (ShenandoahSATBBarrier || ShenandoahCardBarrier);
+  bool final_phase = (phase == BeforeCodeGen);
+  bool expect_load_barriers       = !final_phase && ShenandoahLoadRefBarrier;
+  bool expect_store_barriers      = !final_phase && (ShenandoahSATBBarrier || ShenandoahCardBarrier);
   bool expect_load_store_barriers = expect_load_barriers || expect_store_barriers;
+  bool expect_some_real           = final_phase;
 
   Unique_Node_List wq;
 
   wq.push(compile->root());
   for (uint next = 0; next < wq.size(); next++) {
     Node *n = wq.at(next);
+    assert(!n->is_Mach(), "No Mach nodes here yet");
+
     int opc = n->Opcode();
 
     uint8_t bd = 0;
@@ -801,6 +804,8 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
 
     bool is_oop_addr = (adr_type != nullptr) && (adr_type->isa_oopptr() || adr_type->isa_narrowoop());
     bool is_raw_addr = (adr_type != nullptr) && (adr_type->isa_rawptr() || adr_type->isa_klassptr());
+
+    verify_gc_barrier_assert(!expect_some_real || (bd == 0) || (bd & ShenandoahBitsReal) != 0, "Without real barriers, metadata should be stripped at this point", bd, n);
 
     if (is_oop_addr) {
       if (is_Load(opc)) {
