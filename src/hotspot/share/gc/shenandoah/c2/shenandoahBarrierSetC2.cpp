@@ -374,7 +374,9 @@ bool ShenandoahBarrierSetC2::expand_barriers(Compile* C, PhaseIterGVN& igvn) con
 
     uint8_t bd = orig_bd;
     if (bd != 0) {
-      if (is_load || is_load_store) {
+      // Note: we cannot apply load optimizations to LoadStores,
+      // because their load barriers are needed for fixups.
+      if (is_load) {
         bd = refine_load(n, bd);
       }
       if (is_store || is_load_store) {
@@ -465,19 +467,22 @@ void ShenandoahBarrierSetC2::elide_dominated_barrier(MachNode* node, MachNode* d
       bd &= ~ShenandoahBitCardMark;
     }
   } else {
-    assert(is_Load(node_opcode) || is_Store(node_opcode) || is_LoadStore(node_opcode), "Sanity");
-    int dom_opcode = dominator->ideal_Opcode();
-    uint8_t dom_bd = dominator->barrier_data();
+    // LoadStores do not get these optimizations, since their LRBs
+    // are required for fixups.
+    if (is_Load(node_opcode) || is_Store(node_opcode)) {
+      int dom_opcode = dominator->ideal_Opcode();
+      uint8_t dom_bd = dominator->barrier_data();
 
-    if (is_Load(dom_opcode) || is_LoadStore(dom_opcode)) {
-      // If dominating load is set up to perform LRB fixups, no further LRB is needed.
-      if ((dom_bd & ShenandoahBitStrong) != 0) {
+      if (is_Load(dom_opcode) || is_LoadStore(dom_opcode)) {
+        // If dominating load is set up to perform LRB fixups, no further LRB is needed.
+        if ((dom_bd & ShenandoahBitStrong) != 0) {
+          bd &= ~ShenandoahBitStrong;
+        }
+      }
+      if (is_Store(dom_opcode)) {
+        // Dominating store has stored the good ref, no LRB is needed.
         bd &= ~ShenandoahBitStrong;
       }
-    }
-    if (is_Store(dom_opcode)) {
-      // Dominating store has stored the good ref, no LRB is needed.
-      bd &= ~ShenandoahBitStrong;
     }
   }
 
