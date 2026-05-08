@@ -38,10 +38,14 @@ JRT_LEAF(void, ShenandoahRuntime::arraycopy_barrier_narrow_oop(narrowOop* src, n
 JRT_END
 
 JRT_LEAF(void, ShenandoahRuntime::write_barrier_pre(oopDesc* obj))
+  // Called from barrier slow-paths on full buffer.
+  // We need to enqueue without filters to force buffer cleanups.
   ShenandoahBarrierSet::barrier_set()->enqueue(obj, /* filter = */ false);
 JRT_END
 
 JRT_LEAF(void, ShenandoahRuntime::write_barrier_pre_narrow(narrowOop nobj))
+  // Called from barrier slow-paths on full buffer.
+  // We need to enqueue without filters to force buffer cleanups.
   oop obj = CompressedOops::decode(nobj);
   ShenandoahBarrierSet::barrier_set()->enqueue(obj, /* filter = */ false);
 JRT_END
