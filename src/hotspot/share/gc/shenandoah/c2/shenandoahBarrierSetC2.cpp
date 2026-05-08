@@ -473,7 +473,7 @@ void ShenandoahBarrierSetC2::elide_dominated_barrier(MachNode* node, MachNode* d
 }
 
 void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
-  if (!ShenandoahElideDominatedBarriers) {
+  if (!ShenandoahElideMachBarriers) {
     return;
   }
 

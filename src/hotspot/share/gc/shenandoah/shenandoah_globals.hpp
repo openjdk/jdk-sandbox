@@ -558,8 +558,8 @@
   product(bool, ShenandoahElideBarriers, true, DIAGNOSTIC,                  \
           "Elide redundant Shenandoah barriers.")                           \
                                                                             \
-  product(bool, ShenandoahElideDominatedBarriers, true, DIAGNOSTIC,         \
-          "Elide redundant dominated Shenandoah barriers.")                 \
+  product(bool, ShenandoahElideMachBarriers, true, DIAGNOSTIC,              \
+          "Elide redundant Shenandoah barriers on Mach level.")             \
                                                                             \
   develop(bool, ShenandoahVerifyOptoBarriers, trueInDebug,                  \
           "Verify no missing barriers in C2.")                              \
