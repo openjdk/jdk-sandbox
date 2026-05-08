@@ -462,8 +462,13 @@ void ShenandoahBarrierSetC2::elide_dominated_barrier(MachNode* node, MachNode* d
   }
 
   if (orig_bd != bd) {
-    bd |= ShenandoahBitElided;
-    node->set_barrier_data(bd);
+    // We are already in final output, do not put ShenandoahBitElided here.
+    // Strip the extra barrier data if no real bits are left.
+    if ((bd & ShenandoahBitsReal) != 0) {
+      node->set_barrier_data(bd);
+    } else {
+      node->set_barrier_data(0);
+    }
   }
 }
 
