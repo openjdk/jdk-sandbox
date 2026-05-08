@@ -347,15 +347,19 @@ uint8_t ShenandoahBarrierSetC2::refine_store(Node* n, uint8_t bd) {
 
 void ShenandoahBarrierSetC2::final_refinement(Compile* compile) const {
   ResourceMark rm;
-  VectorSet visited;
-  Node_List worklist;
+  Unique_Node_List wq;
 
-  worklist.push(compile->root());
-  while (worklist.size() > 0) {
-    Node* n = worklist.pop();
-    if (visited.test_set(n->_idx)) {
-      continue;
-    }
+  RootNode* root = compile->root();
+  wq.push(root);
+
+  // Also seed the outs to capture nodes are not reachable from in()-s, e.g. endless loops.
+  for (DUIterator_Fast imax, i = root->fast_outs(imax); i < imax; i++) {
+    Node* m = root->fast_out(i);
+    wq.push(m);
+  }
+
+  for (uint next = 0; next < wq.size(); next++) {
+    Node* n = wq.at(next);
 
     assert(!n->is_Mach(), "No Mach nodes here yet");
 
@@ -401,7 +405,7 @@ void ShenandoahBarrierSetC2::final_refinement(Compile* compile) const {
     for (uint j = 0; j < n->req(); j++) {
       Node* in = n->in(j);
       if (in != nullptr) {
-        worklist.push(in);
+        wq.push(in);
       }
     }
   }
@@ -750,7 +754,15 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
 
   Unique_Node_List wq;
 
-  wq.push(compile->root());
+  RootNode* root = compile->root();
+  wq.push(root);
+
+  // Also seed the outs to capture nodes are not reachable from in()-s, e.g. endless loops.
+  for (DUIterator_Fast imax, i = root->fast_outs(imax); i < imax; i++) {
+    Node* m = root->fast_out(i);
+    wq.push(m);
+  }
+
   for (uint next = 0; next < wq.size(); next++) {
     Node *n = wq.at(next);
     assert(!n->is_Mach(), "No Mach nodes here yet");
@@ -818,9 +830,11 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
       }
     }
 
-    for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
-      Node* m = n->fast_out(i);
-      wq.push(m);
+    for (uint j = 0; j < n->req(); j++) {
+      Node* in = n->in(j);
+      if (in != nullptr) {
+        wq.push(in);
+      }
     }
   }
 }
