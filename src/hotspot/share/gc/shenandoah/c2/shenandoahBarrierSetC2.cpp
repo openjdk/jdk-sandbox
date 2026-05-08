@@ -223,12 +223,25 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* root) {
           break;
         }
 
-        case Op_LoadRange:
-        case Op_LoadKlass: {
-          // Loads of stable metadata values from the object. These are the same in all copies.
-          // Note that LoadNKlass is *not* safe: with +UCOH, it loads from mark word, which
-          // clashes with forwarding pointers.
+        case Op_LoadRange: {
+          // Array length is the same in all copies.
           break;
+        }
+
+        case Op_LoadKlass: {
+          // Klass is the same in all copies.
+          // We would have liked to assert -UCOH, but there are legitimate klass
+          // loads from native Klass* instances, which are also safe under +UCOH.
+          break;
+        }
+
+        case Op_LoadNKlass: {
+          // Similar to above, but LoadNKlass is only safe without +UCOH.
+          // With +UCOH, it loads from mark word, which clashes with forwarding pointers.
+          if (!UseCompactObjectHeaders) {
+            break;
+          }
+          return false;
         }
 
         case Op_CmpN: {
