@@ -1221,15 +1221,11 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
     Register dst, int disp, bool dst_narrow, Register src, bool src_narrow, Register tmp1, Register tmp2, Register tmp3) {
 
   // Pre-barrier: SATB, keep-alive the current memory value.
-  if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
-    assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier(node), "Should not be required for stores");
-    ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, tmp1, Address(dst, disp), tmp2, tmp3, dst_narrow, /* do_load: */ true);
-    stub->enter_if_gc_state(*masm, ShenandoahHeap::MARKING, tmp1);
-  }
+  ShenandoahBarrierStubC2::store_c2(masm, node, tmp1, Address(dst, disp), tmp2, tmp3, dst_narrow, /* do_load: */ true);
 
   if (dst_narrow && !src_narrow) {
     // Need to encode into tmp, because we cannot clobber src.
-    if (ShenandoahBarrierStubC2::maybe_null(node)) {
+    if ((node->barrier_data() & ShenandoahBitNotNull) == 0) {
       __ encode_heap_oop(tmp1, src);
     } else {
       __ encode_heap_oop_not_null(tmp1, src);
