@@ -345,20 +345,19 @@ uint8_t ShenandoahBarrierSetC2::refine_store(Node* n, uint8_t bd) {
   return bd;
 }
 
-bool ShenandoahBarrierSetC2::expand_barriers(Compile* C, PhaseIterGVN& igvn) const {
-  if (!ShenandoahElideBarriers) {
-    return false;
-  }
-
+void ShenandoahBarrierSetC2::final_refinement(Compile* compile) const {
   ResourceMark rm;
   VectorSet visited;
   Node_List worklist;
-  worklist.push(C->root());
+
+  worklist.push(compile->root());
   while (worklist.size() > 0) {
     Node* n = worklist.pop();
     if (visited.test_set(n->_idx)) {
       continue;
     }
+
+    assert(!n->is_Mach(), "No Mach nodes here yet");
 
     int opc = n->Opcode();
     bool is_load = is_Load(opc);
@@ -373,7 +372,7 @@ bool ShenandoahBarrierSetC2::expand_barriers(Compile* C, PhaseIterGVN& igvn) con
     }
 
     uint8_t bd = orig_bd;
-    if (bd != 0) {
+    if (ShenandoahElideBarriers && bd != 0) {
       // Note: we cannot apply load optimizations to LoadStores,
       // because their load barriers are needed for fixups.
       if (is_load) {
@@ -384,10 +383,14 @@ bool ShenandoahBarrierSetC2::expand_barriers(Compile* C, PhaseIterGVN& igvn) con
       }
     }
 
+    // If there are no real barrier flags on the node, strip away additional fluff.
+    // Matcher does not care about this, and we would like to avoid invoking "barrier_data() != 0"
+    // rules when the only flags are the irrelevant fluff.
+    if ((bd != 0) && (bd & ShenandoahBitsReal) == 0) {
+      bd = 0;
+    }
+
     if (bd != orig_bd) {
-      if ((bd & ShenandoahBitsReal) != (orig_bd & ShenandoahBitsReal)) {
-        bd |= ShenandoahBitElided;
-      }
       if (is_load_store) {
         n->as_LoadStore()->set_barrier_data(bd);
       } else {
@@ -402,7 +405,6 @@ bool ShenandoahBarrierSetC2::expand_barriers(Compile* C, PhaseIterGVN& igvn) con
       }
     }
   }
-  return false;
 }
 
 // Support for macro expanded GC barriers
@@ -462,7 +464,7 @@ void ShenandoahBarrierSetC2::elide_dominated_barrier(MachNode* node, MachNode* d
   }
 
   if (orig_bd != bd) {
-    // We are already in final output, do not put ShenandoahBitElided here.
+    // We are already in final output.
     // Strip the extra barrier data if no real bits are left.
     if ((bd & ShenandoahBitsReal) != 0) {
       node->set_barrier_data(bd);
@@ -718,34 +720,6 @@ void ShenandoahBarrierSetC2::print_barrier_data(outputStream* os, uint8_t data) 
   );
 }
 
-void ShenandoahBarrierSetC2::final_refinement(Compile* compile) const {
-  ResourceMark rm;
-  Unique_Node_List wq;
-
-  wq.push(compile->root());
-  for (uint next = 0; next < wq.size(); next++) {
-    Node* n = wq.at(next);
-    assert(!n->is_Mach(), "No Mach nodes here yet");
-
-    // If there are no real barrier flags on the node, strip away additional fluff.
-    // Matcher does not care about this, and we would like to avoid invoking "barrier_data() != 0"
-    // rules when the only flags are the irrelevant fluff.
-
-    uint8_t bd = MemNode::barrier_data(n);
-    if ((bd != 0) && (bd & ShenandoahBitsReal) == 0) {
-      if (n->is_LoadStore()) {
-        n->as_LoadStore()->set_barrier_data(0);
-      } else if (n->is_Mem()) {
-        n->as_Mem()->set_barrier_data(0);
-      }
-    }
-
-    for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
-      Node* m = n->fast_out(i);
-      wq.push(m);
-    }
-  }
-}
 
 #ifdef ASSERT
 void ShenandoahBarrierSetC2::verify_gc_barrier_assert(bool cond, const char* msg, uint8_t bd, Node* n) {

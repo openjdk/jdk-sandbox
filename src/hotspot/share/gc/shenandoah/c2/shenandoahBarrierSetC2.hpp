@@ -112,9 +112,6 @@ public:
   virtual bool array_copy_requires_gc_barriers(bool tightly_coupled_alloc, BasicType type, bool is_clone,
       bool is_clone_instance, ArrayCopyPhase phase) const;
 
-  // Support for GC barriers emitted during parsing
-  virtual bool expand_barriers(Compile* C, PhaseIterGVN& igvn) const;
-
   // Support for macro expanded GC barriers
   virtual void eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) const;
   virtual void eliminate_gc_barrier_data(Node* node) const;
