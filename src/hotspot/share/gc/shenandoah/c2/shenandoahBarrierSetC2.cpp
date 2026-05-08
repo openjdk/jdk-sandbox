@@ -213,6 +213,7 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* root) {
     for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
       Node* out = n->fast_out(i);
       switch (out->Opcode()) {
+        case Op_Phi:
         case Op_EncodeP:
         case Op_DecodeN:
         case Op_CastPP:
