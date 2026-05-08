@@ -956,7 +956,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   if (dst_narrow) {
     if (!src_narrow) {
       // Need to encode into rscratch, because we cannot clobber src.
-      if (ShenandoahBarrierStubC2::maybe_null(node)) {
+      if ((node->barrier_data() & ShenandoahBitNotNull) == 0) {
         __ encode_heap_oop(rscratch1, src);
       } else {
         __ encode_heap_oop_not_null(rscratch1, src);
@@ -998,14 +998,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
   }
 
   // Post-barrier: LRB / KA / weak-root processing.
-  if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
-    ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, dst, src, rscratch1, rscratch2, is_narrow, /* do_load: */ false);
-    char check = 0;
-    check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
-    check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
-    check |= ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node) ? ShenandoahHeap::WEAK_ROOTS : 0;
-    stub->enter_if_gc_state(*masm, check, rscratch1);
-  }
+  ShenandoahBarrierStubC2::load_c2(masm, node, dst, src, rscratch1, rscratch2, is_narrow, /* do_load: */ false);
 }
 
 void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroAssembler* masm, Address address) {

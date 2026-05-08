@@ -918,15 +918,8 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
     __ movq(dst, src);
   }
 
-  // Post-barrier: LRB
-  if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
-    ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, dst, src, noreg, noreg, narrow, false);
-    char check = 0;
-    check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
-    check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
-    check |= ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node) ? ShenandoahHeap::WEAK_ROOTS : 0;
-    stub->enter_if_gc_state(*masm, check);
-  }
+  // Post-barrier: LRB / KA / weak-root processing.
+  ShenandoahBarrierStubC2::load_c2(masm, node, dst, src, noreg, noreg, narrow, /* do_load: */ false);
 }
 
 void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm,
@@ -938,7 +931,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
     assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier(node), "Should not be required for stores");
     ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, tmp, dst, noreg, noreg, dst_narrow, true);
-    stub->enter_if_gc_state(*masm, ShenandoahHeap::MARKING);
+    stub->enter_if_gc_state(*masm, ShenandoahHeap::MARKING, noreg);
   }
 
   // Need to encode into tmp, because we cannot clobber src.
@@ -990,7 +983,7 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
     check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
     assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node), "Not supported for CAS");
-    stub->enter_if_gc_state(*masm, check);
+    stub->enter_if_gc_state(*masm, check, noreg);
   }
 
   // CAS!
@@ -1027,7 +1020,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
     check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
     assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node), "Not supported for GAS");
-    stub->enter_if_gc_state(*masm, check);
+    stub->enter_if_gc_state(*masm, check, noreg);
   }
 
   if (narrow) {

@@ -212,8 +212,11 @@ public:
   }
 
   static ShenandoahBarrierStubC2* create(const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load);
+
+  static void load_c2(MacroAssembler* masm, const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load);
+
   void emit_code(MacroAssembler& masm);
 
-  void enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp = noreg);
+  void enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp);
 };
 #endif // SHARE_GC_SHENANDOAH_C2_SHENANDOAHBARRIERSETC2_HPP

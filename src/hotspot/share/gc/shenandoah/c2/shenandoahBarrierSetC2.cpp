@@ -900,6 +900,17 @@ ShenandoahBarrierStubC2* ShenandoahBarrierStubC2::create(const MachNode* node, R
   return stub;
 }
 
+void ShenandoahBarrierStubC2::load_c2(MacroAssembler* masm, const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load) {
+  if (needs_slow_barrier(node)) {
+    ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, obj, addr, tmp1, tmp2, narrow, do_load);
+    char check = 0;
+    check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
+    check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
+    check |= ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node) ? ShenandoahHeap::WEAK_ROOTS : 0;
+    stub->enter_if_gc_state(*masm, check, rscratch1);
+  }
+}
+
 bool ShenandoahBarrierStubC2::is_live_register(Register reg) {
   return preserve_set().member(OptoReg::as_OptoReg(reg->as_VMReg()));
 }

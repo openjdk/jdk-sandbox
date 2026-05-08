@@ -1257,14 +1257,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
     __ isync();
   }
   // Post-barrier: LRB / KA / weak-root processing.
-  if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
-    ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, dst, Address(addr, disp), tmp1, tmp2, is_narrow, /* do_load: */ false);
-    char check = 0;
-    check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
-    check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
-    check |= ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node) ? ShenandoahHeap::WEAK_ROOTS : 0;
-    stub->enter_if_gc_state(*masm, check, tmp1);
-  }
+  ShenandoahBarrierStubC2::load_c2(masm, node, dst, Address(addr, disp), tmp1, tmp2, is_narrow, /* do_load: */ false);
 }
 
 void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroAssembler* masm, Address address, Register tmp1, Register tmp2) {
