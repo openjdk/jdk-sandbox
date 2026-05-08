@@ -90,7 +90,7 @@ public:
   void compare_and_set_c2(const MachNode* node, MacroAssembler* masm, Register res, Address addr, Register oldval, Register newval,
                           Register tmp, bool narrow);
   void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register newval, Address addr, Register tmp, bool narrow);
-  void card_barrier_c2(MacroAssembler* masm, Address dst, Register tmp);
+  void card_barrier_c2(const MachNode* node, MacroAssembler* masm, Address dst, Register tmp);
 #endif
 };
 

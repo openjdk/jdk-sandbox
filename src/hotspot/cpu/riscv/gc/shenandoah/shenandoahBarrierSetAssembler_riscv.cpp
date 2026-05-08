@@ -818,7 +818,7 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
   //
   // (a) and (b) are covered because load barrier does memory location fixup.
   // (c) is covered by KA on the current memory value.
-  ShenandoahBarrierStubC2::compare_and_set_c2(masm, node, tmp, Address(addr), t0, t1, narrow, /* do_load: */ true);
+  ShenandoahBarrierStubC2::slowpath_stub_c2(masm, node, tmp, Address(addr), t0, t1, narrow, /* do_load: */ true);
 
   // Existing RISCV cmpxchg_oop already handles Shenandoah forwarded-value retry logic.
   // It returns:
@@ -840,7 +840,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
   //
   // (a) is covered because load barrier does memory location fixup.
   // (b) is covered by KA on the current memory value.
-  ShenandoahBarrierStubC2::get_and_set_c2(masm, node, tmp, Address(addr, 0), t0, t1, is_narrow, /* do_load: */ true);
+  ShenandoahBarrierStubC2::slowpath_stub_c2(masm, node, tmp, Address(addr, 0), t0, t1, is_narrow, /* do_load: */ true);
 
   if (is_narrow) {
     if (is_acquire) {
@@ -864,7 +864,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
     Register src, bool src_narrow, Register tmp) {
 
   // Pre-barrier: SATB / keep-alive on current value in memory.
-  ShenandoahBarrierStubC2::store_c2(masm, node, tmp, dst, t0, t1, dst_narrow, /* do_load: */ true);
+  ShenandoahBarrierStubC2::slowpath_stub_c2(masm, node, tmp, dst, t0, t1, dst_narrow, /* do_load: */ true);
 
   // Do the actual store
   if (dst_narrow) {
@@ -896,7 +896,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
   }
 
   // Post-barrier: LRB / KA / weak-root processing.
-  ShenandoahBarrierStubC2::load_c2(masm, node, dst, src, t0, t1, is_narrow, /* do_load: */ false);
+  ShenandoahBarrierStubC2::slowpath_stub_c2(masm, node, dst, src, t0, t1, is_narrow, /* do_load: */ false);
 }
 
 void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroAssembler* masm, Address address) {

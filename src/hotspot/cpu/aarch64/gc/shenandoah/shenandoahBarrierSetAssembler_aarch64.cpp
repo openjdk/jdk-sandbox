@@ -883,7 +883,7 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
   //
   // (a) and (b) are covered because load barrier does memory location fixup.
   // (c) is covered by KA on the current memory value.
-  ShenandoahBarrierStubC2::compare_and_set_c2(masm, node, tmp, addr, rscratch1, rscratch2, narrow, /* do_load: */ true);
+  ShenandoahBarrierStubC2::slowpath_stub_c2(masm, node, tmp, addr, rscratch1, rscratch2, narrow, /* do_load: */ true);
 
   // CAS!
   __ cmpxchg(addr, oldval, newval, op_size, acquire, /* release */ true, weak, exchange ? res : noreg);
@@ -908,7 +908,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
   //
   // (a) is covered because load barrier does memory location fixup.
   // (b) is covered by KA on the current memory value.
-  ShenandoahBarrierStubC2::get_and_set_c2(masm, node, tmp, addr, rscratch1, rscratch2, is_narrow, /* do_load: */ true);
+  ShenandoahBarrierStubC2::slowpath_stub_c2(masm, node, tmp, addr, rscratch1, rscratch2, is_narrow, /* do_load: */ true);
 
   if (is_narrow) {
     if (is_acquire) {
@@ -932,7 +932,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
     Register src, bool src_narrow, Register tmp, bool is_volatile) {
 
   // Pre-barrier: SATB, keep-alive the current memory value.
-  ShenandoahBarrierStubC2::store_c2(masm, node, tmp, dst, rscratch1, rscratch2, dst_narrow, /* do_load: */ true);
+  ShenandoahBarrierStubC2::slowpath_stub_c2(masm, node, tmp, dst, rscratch1, rscratch2, dst_narrow, /* do_load: */ true);
 
   // Do the actual store
   if (dst_narrow) {
@@ -980,7 +980,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
   }
 
   // Post-barrier: LRB / KA / weak-root processing.
-  ShenandoahBarrierStubC2::load_c2(masm, node, dst, src, rscratch1, rscratch2, is_narrow, /* do_load: */ false);
+  ShenandoahBarrierStubC2::slowpath_stub_c2(masm, node, dst, src, rscratch1, rscratch2, is_narrow, /* do_load: */ false);
 }
 
 void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroAssembler* masm, Address address) {

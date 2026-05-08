@@ -169,7 +169,6 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   void maybe_far_jump_if_zero(MacroAssembler& masm, Register reg, Label* L_done);
   void post_init();
 
-public:
   ShenandoahBarrierStubC2(const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load) :
     BarrierStubC2(node),
     _tmp1(tmp1),
@@ -195,9 +194,6 @@ public:
   static bool is_heap_access(const MachNode* node) {
     return (node->barrier_data() & ShenandoahBitNative) == 0;
   }
-  static bool needs_slow_barrier(const MachNode* node) {
-    return needs_load_ref_barrier(node) || needs_keep_alive_barrier(node);
-  }
   static bool needs_load_ref_barrier(const MachNode* node) {
     return (node->barrier_data() & (ShenandoahBitStrong | ShenandoahBitWeak | ShenandoahBitPhantom)) != 0;
   }
@@ -207,19 +203,25 @@ public:
   static bool needs_keep_alive_barrier(const MachNode* node) {
     return (node->barrier_data() & ShenandoahBitKeepAlive) != 0;
   }
-  static bool needs_card_barrier(const MachNode* node) {
-    return (node->barrier_data() & ShenandoahBitCardMark) != 0;
-  }
 
   static ShenandoahBarrierStubC2* create(const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load);
+  void enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp);
 
+  // TODO: delete after dogfooding latest commits
   static void load_c2(MacroAssembler* masm, const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load);
   static void store_c2(MacroAssembler* masm, const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load);
   static void compare_and_set_c2(MacroAssembler* masm, const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load);
   static void get_and_set_c2(MacroAssembler* masm, const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load);
 
-  void emit_code(MacroAssembler& masm);
+public:
+  static bool needs_slow_barrier(const MachNode* node) {
+    return needs_load_ref_barrier(node) || needs_keep_alive_barrier(node);
+  }
+  static bool needs_card_barrier(const MachNode* node) {
+    return (node->barrier_data() & ShenandoahBitCardMark) != 0;
+  }
 
-  void enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp);
+  void emit_code(MacroAssembler& masm);
+  static void slowpath_stub_c2(MacroAssembler* masm, const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load);
 };
 #endif // SHARE_GC_SHENANDOAH_C2_SHENANDOAHBARRIERSETC2_HPP
