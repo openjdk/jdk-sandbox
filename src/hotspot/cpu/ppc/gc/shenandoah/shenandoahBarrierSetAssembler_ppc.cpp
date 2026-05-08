@@ -1132,14 +1132,7 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
   //
   // (a) and (b) are covered because load barrier does memory location fixup.
   // (c) is covered by KA on the current memory value.
-  if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
-    ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, tmp1, addr, tmp2, tmp3, narrow, /* do_load: */ true);
-    char check = 0;
-    check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
-    check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
-    assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node), "Not supported for CAS");
-    stub->enter_if_gc_state(*masm, check, tmp1);
-  }
+  ShenandoahBarrierStubC2::compare_and_set_c2(masm, node, tmp1, addr, tmp2, tmp3, narrow, /* do_load: */ true);
 
   Register dest_current = exchange ? res : R0;
   Register int_flag     = exchange ? noreg : res;
@@ -1192,14 +1185,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
   //
   // (a) is covered because load barrier does memory location fixup.
   // (b) is covered by KA on the current memory value.
-  if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
-    ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, tmp1, addr, tmp2, tmp3, is_narrow, /* do_load: */ true);
-    char check = 0;
-    check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
-    check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
-    assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node), "Not supported for GAS");
-    stub->enter_if_gc_state(*masm, check, tmp1);
-  }
+  ShenandoahBarrierStubC2::get_and_set_c2(masm, node, tmp1, addr, tmp2, tmp3, is_narrow, /* do_load: */ true);
 
   if (is_narrow) {
     __ getandsetw(preval, newval, addr, MacroAssembler::cmpxchgx_hint_atomic_update());

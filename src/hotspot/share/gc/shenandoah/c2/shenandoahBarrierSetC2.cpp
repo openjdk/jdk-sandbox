@@ -912,10 +912,32 @@ void ShenandoahBarrierStubC2::load_c2(MacroAssembler* masm, const MachNode* node
 }
 
 void ShenandoahBarrierStubC2::store_c2(MacroAssembler* masm, const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load) {
-  if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
+  if (needs_slow_barrier(node)) {
     assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier(node), "Should not be required for stores");
     ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, obj, addr, tmp1, tmp2, narrow, do_load);
     stub->enter_if_gc_state(*masm, ShenandoahHeap::MARKING, tmp1);
+  }
+}
+
+void ShenandoahBarrierStubC2::compare_and_set_c2(MacroAssembler* masm, const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load) {
+  if (needs_slow_barrier(node)) {
+    ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, obj, addr, tmp1, tmp2, narrow, do_load);
+    char check = 0;
+    check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
+    check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
+    assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node), "Not supported for CAS");
+    stub->enter_if_gc_state(*masm, check, tmp1);
+  }
+}
+
+void ShenandoahBarrierStubC2::get_and_set_c2(MacroAssembler* masm, const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load) {
+  if (needs_slow_barrier(node)) {
+    ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, obj, addr, tmp1, tmp2, narrow, do_load);
+    char check = 0;
+    check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
+    check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
+    assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node), "Not supported for GAS");
+    stub->enter_if_gc_state(*masm, check, tmp1);
   }
 }
 
