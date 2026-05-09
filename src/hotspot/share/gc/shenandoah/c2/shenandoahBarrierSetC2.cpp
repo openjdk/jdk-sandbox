@@ -298,7 +298,7 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* root) {
 }
 
 uint8_t ShenandoahBarrierSetC2::refine_load(Node* n, uint8_t bd) {
-  assert(ShenandoahElideBarriers, "Checked by caller");
+  assert(ShenandoahElideIdealBarriers, "Checked by caller");
   assert(bd != 0, "Checked by caller");
 
   // Do not touch weak loads at all: they are responsible for shielding from
@@ -315,7 +315,7 @@ uint8_t ShenandoahBarrierSetC2::refine_load(Node* n, uint8_t bd) {
 }
 
 uint8_t ShenandoahBarrierSetC2::refine_store(Node* n, uint8_t bd) {
-  assert(ShenandoahElideBarriers, "Checked by caller");
+  assert(ShenandoahElideIdealBarriers, "Checked by caller");
   assert(bd != 0, "Checked by caller");
   assert(n->is_Mem() || n->is_LoadStore(), "Sanity");
 
@@ -377,7 +377,7 @@ void ShenandoahBarrierSetC2::final_refinement(Compile* compile) const {
     }
 
     uint8_t bd = orig_bd;
-    if (ShenandoahElideBarriers && bd != 0) {
+    if (ShenandoahElideIdealBarriers && bd != 0) {
       // Note: we cannot apply load optimizations to LoadStores,
       // because their load barriers are needed for fixups.
       if (is_load) {

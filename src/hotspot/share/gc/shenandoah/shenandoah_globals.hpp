@@ -555,11 +555,11 @@
   product(bool, ShenandoahCloneRuntime, false, DIAGNOSTIC,                  \
           "Handle clone in runtime instead of in copy stubs.")              \
                                                                             \
-  product(bool, ShenandoahElideBarriers, true, DIAGNOSTIC,                  \
-          "Elide redundant Shenandoah barriers.")                           \
+  product(bool, ShenandoahElideIdealBarriers, true, DIAGNOSTIC,             \
+          "Elide redundant Shenandoah barriers on C2 Ideal level.")         \
                                                                             \
   product(bool, ShenandoahElideMachBarriers, true, DIAGNOSTIC,              \
-          "Elide redundant Shenandoah barriers on Mach level.")             \
+          "Elide redundant Shenandoah barriers on C2 Mach level.")          \
                                                                             \
   develop(bool, ShenandoahVerifyOptoBarriers, trueInDebug,                  \
           "Verify no missing barriers in C2.")                              \
