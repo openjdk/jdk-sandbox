@@ -1251,7 +1251,9 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
     __ call(RuntimeAddress(lrb_runtime_entry_addr()));
 
     // Save the result where needed.
-    if (_obj != rax) {
+    if (_narrow) {
+      __ movl(_obj, rax);
+    } else if (_obj != rax) {
       __ movptr(_obj, rax);
     }
   }
