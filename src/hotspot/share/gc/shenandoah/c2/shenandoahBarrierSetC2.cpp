@@ -744,6 +744,7 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
     return;
   }
 
+  // Verify depending on the barriers actually enabled, allowing verification in passive mode.
   // Normally, we have _some_ bits set on all accesses. Optimizations may drop some bits,
   // but only the last optimization step eliminates all remaining metadata flags. Only then
   // the access data can be completely blank.
