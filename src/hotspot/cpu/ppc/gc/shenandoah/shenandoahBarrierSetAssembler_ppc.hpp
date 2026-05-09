@@ -144,9 +144,6 @@ public:
 
   void get_and_set_c2(const MachNode* node, MacroAssembler* masm,
                       Register preval, Register newval, Register addr, Register tmp1, Register tmp2, Register tmp3);
-
-  void card_barrier_c2(const MachNode* node, MacroAssembler* masm,
-                       Address addr, Register tmp1, Register tmp2);
 #endif // COMPILER2
 };
 

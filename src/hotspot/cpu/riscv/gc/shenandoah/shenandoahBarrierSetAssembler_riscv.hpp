@@ -100,7 +100,6 @@ public:
       Register newval, Register tmp, bool exchange, bool narrow, bool is_acquire);
   void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval,
       Register addr, Register tmp, bool is_acquire);
-  void card_barrier_c2(const MachNode* node, MacroAssembler* masm, Address addr);
 #endif
 };
 
