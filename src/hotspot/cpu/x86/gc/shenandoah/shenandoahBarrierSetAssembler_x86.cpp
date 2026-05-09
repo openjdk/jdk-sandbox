@@ -918,8 +918,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
     __ movq(dst, src);
   }
 
-  // Post-barrier: LRB / KA / weak-root processing.
-  ShenandoahBarrierStubC2::slowpath_stub_c2(masm, node, dst, src, noreg, noreg, narrow, /* do_load: */ false);
+  ShenandoahBarrierStubC2::load_post(masm, node, dst, src, noreg, noreg, narrow, /* do_load: */ false);
 }
 
 void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm,
@@ -927,8 +926,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
                                              Register src, bool src_narrow,
                                              Register tmp) {
 
-  // Pre-barrier: SATB, keep-alive the current memory value.
-  ShenandoahBarrierStubC2::slowpath_stub_c2(masm, node, tmp, dst, noreg, noreg, dst_narrow, /* do_load: */ true);
+  ShenandoahBarrierStubC2::store_pre(masm, node, tmp, dst, noreg, noreg, dst_narrow, /* do_load: */ true);
 
   // Need to encode into tmp, because we cannot clobber src.
   if (dst_narrow && !src_narrow) {
@@ -948,8 +946,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
     __ movq(dst, src);
   }
 
-  // Post-barrier: card updates.
-  card_barrier_c2(node, masm, dst, tmp);
+  ShenandoahBarrierStubC2::store_post(masm, node, dst, tmp, noreg);
 }
 
 void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, MacroAssembler* masm,
@@ -964,14 +961,7 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
   assert_different_registers(oldval, tmp, addr.base(), addr.index());
   assert_different_registers(newval, tmp, addr.base(), addr.index());
 
-  // Pre-barrier covers several things:
-  //  a. Avoids false positives from CAS encountering to-space memory values.
-  //  b. Satisfies the need for LRB for the CAE result.
-  //  c. Records old value for the sake of SATB.
-  //
-  // (a) and (b) are covered because load barrier does memory location fixup.
-  // (c) is covered by KA on the current memory value.
-  ShenandoahBarrierStubC2::slowpath_stub_c2(masm, node, tmp, addr, noreg, noreg, narrow, /* do_load: */ true);
+  ShenandoahBarrierStubC2::load_store_pre(masm, node, tmp, addr, noreg, noreg, narrow, /* do_load: */ true);
 
   // CAS!
   __ lock();
@@ -986,20 +976,13 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
     __ setcc(Assembler::equal, res);
   }
 
-  // Post-barrier deals with card updates.
-  card_barrier_c2(node, masm, addr, tmp);
+  ShenandoahBarrierStubC2::load_store_post(masm, node, addr, tmp, noreg);
 }
 
 void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register newval, Address addr, Register tmp, bool narrow) {
   assert_different_registers(newval, tmp, addr.base(), addr.index());
 
-  // Pre-barrier covers several things:
-  //  a. Satisfies the need for LRB for the GAS result.
-  //  b. Records old value for the sake of SATB.
-  //
-  // (a) is covered because load barrier does memory location fixup.
-  // (b) is covered by KA on the current memory value.
-  ShenandoahBarrierStubC2::slowpath_stub_c2(masm, node, tmp, addr, noreg, noreg, narrow, /* do_load: */ true);
+  ShenandoahBarrierStubC2::load_store_pre(masm, node, tmp, addr, noreg, noreg, narrow, /* do_load: */ true);
 
   if (narrow) {
     __ xchgl(newval, addr);
@@ -1007,21 +990,20 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     __ xchgq(newval, addr);
   }
 
-  // Post-barrier deals with card updates.
-  card_barrier_c2(node, masm, addr, tmp);
+  ShenandoahBarrierStubC2::load_store_post(masm, node, addr, tmp, noreg);
 }
 
-void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroAssembler* masm, Address dst, Register tmp) {
-  if (!ShenandoahBarrierStubC2::needs_card_barrier(node)) {
+void ShenandoahBarrierStubC2::store_post(MacroAssembler* masm, const MachNode* node, Address addr, Register tmp1, Register tmp2) {
+  if (!needs_card_barrier(node)) {
     return;
   }
 
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
-  __ lea(tmp, dst);
-  __ shrptr(tmp, CardTable::card_shift());
-  __ addptr(tmp, Address(r15_thread, in_bytes(ShenandoahThreadLocalData::card_table_offset())));
-  Address card_address(tmp, 0);
+  __ lea(tmp1, addr);
+  __ shrptr(tmp1, CardTable::card_shift());
+  __ addptr(tmp1, Address(r15_thread, in_bytes(ShenandoahThreadLocalData::card_table_offset())));
+  Address card_address(tmp1, 0);
 
   assert(CardTable::dirty_card_val() == 0, "Encoding assumption");
   Label L_done;
@@ -1035,6 +1017,10 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroA
     __ movb(card_address, 0);
   }
   __ bind(L_done);
+}
+
+void ShenandoahBarrierStubC2::load_store_post(MacroAssembler* masm, const MachNode* node, Address addr, Register tmp1, Register tmp2) {
+  store_post(masm, node, addr, tmp1, tmp2);
 }
 
 #undef __

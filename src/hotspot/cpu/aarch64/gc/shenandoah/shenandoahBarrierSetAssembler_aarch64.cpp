@@ -876,14 +876,7 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
     Register oldval, Register newval, Register tmp, bool exchange, bool narrow, bool weak, bool acquire) {
   Assembler::operand_size op_size = narrow ? Assembler::word : Assembler::xword;
 
-  // Pre-barrier covers several things:
-  //  a. Avoids false positives from CAS encountering to-space memory values.
-  //  b. Satisfies the need for LRB for the CAE result.
-  //  c. Records old value for the sake of SATB.
-  //
-  // (a) and (b) are covered because load barrier does memory location fixup.
-  // (c) is covered by KA on the current memory value.
-  ShenandoahBarrierStubC2::slowpath_stub_c2(masm, node, tmp, addr, rscratch1, rscratch2, narrow, /* do_load: */ true);
+  ShenandoahBarrierStubC2::load_store_pre(masm, node, tmp, addr, rscratch1, rscratch2, narrow, /* do_load: */ true);
 
   // CAS!
   __ cmpxchg(addr, oldval, newval, op_size, acquire, /* release */ true, weak, exchange ? res : noreg);
@@ -894,21 +887,14 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
     __ cset(res, Assembler::EQ);
   }
 
-  // Post-barrier deals with card updates.
-  card_barrier_c2(node, masm, Address(addr, 0));
+  ShenandoahBarrierStubC2::load_store_post(masm, node, Address(addr, 0), noreg, noreg);
 }
 
 void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval,
     Register newval, Register addr, Register tmp, bool is_acquire) {
   bool is_narrow = node->bottom_type()->isa_narrowoop();
 
-  // Pre-barrier covers several things:
-  //  a. Satisfies the need for LRB for the GAS result.
-  //  b. Records old value for the sake of SATB.
-  //
-  // (a) is covered because load barrier does memory location fixup.
-  // (b) is covered by KA on the current memory value.
-  ShenandoahBarrierStubC2::slowpath_stub_c2(masm, node, tmp, addr, rscratch1, rscratch2, is_narrow, /* do_load: */ true);
+  ShenandoahBarrierStubC2::load_store_pre(masm, node, tmp, addr, rscratch1, rscratch2, is_narrow, /* do_load: */ true);
 
   if (is_narrow) {
     if (is_acquire) {
@@ -924,15 +910,13 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     }
   }
 
-  // Post-barrier deals with card updates.
-  card_barrier_c2(node, masm, Address(addr, 0));
+  ShenandoahBarrierStubC2::load_store_post(masm, node, Address(addr, 0), noreg, noreg);
 }
 
 void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm, Address dst, bool dst_narrow,
     Register src, bool src_narrow, Register tmp, bool is_volatile) {
 
-  // Pre-barrier: SATB, keep-alive the current memory value.
-  ShenandoahBarrierStubC2::slowpath_stub_c2(masm, node, tmp, dst, rscratch1, rscratch2, dst_narrow, /* do_load: */ true);
+  ShenandoahBarrierStubC2::store_pre(masm, node, tmp, dst, rscratch1, rscratch2, dst_narrow, /* do_load: */ true);
 
   // Do the actual store
   if (dst_narrow) {
@@ -959,8 +943,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
     }
   }
 
-  // Post-barrier: card updates.
-  card_barrier_c2(node, masm, dst);
+  ShenandoahBarrierStubC2::store_post(masm, node, dst, noreg, noreg);
 }
 
 void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src, bool is_narrow, bool is_acquire) {
@@ -979,12 +962,11 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
     }
   }
 
-  // Post-barrier: LRB / KA / weak-root processing.
-  ShenandoahBarrierStubC2::slowpath_stub_c2(masm, node, dst, src, rscratch1, rscratch2, is_narrow, /* do_load: */ false);
+  ShenandoahBarrierStubC2::load_post(masm, node, dst, src, rscratch1, rscratch2, is_narrow, /* do_load: */ false);
 }
 
-void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroAssembler* masm, Address address) {
-  if (!ShenandoahBarrierStubC2::needs_card_barrier(node)) {
+void ShenandoahBarrierStubC2::store_post(MacroAssembler* masm, const MachNode* node, Address address, Register tmp1, Register tmp2) {
+  if (!needs_card_barrier(node)) {
     return;
   }
 
@@ -1011,6 +993,11 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(const MachNode* node, MacroA
     __ strb(zr, Address(rscratch2));
   }
 }
+
+void ShenandoahBarrierStubC2::load_store_post(MacroAssembler* masm, const MachNode* node, Address address, Register tmp1, Register tmp2) {
+  store_post(masm, node, address, tmp1, tmp2);
+}
+
 #undef __
 #define __ masm.
 
