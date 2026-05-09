@@ -811,7 +811,7 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
   const Assembler::Aqrl acquire = is_acquire ? Assembler::aq : Assembler::relaxed;
   const Assembler::Aqrl release = Assembler::rl;
 
-  ShenandoahBarrierStubC2::load_store_pre(masm, node, tmp, Address(addr), t0, t1, narrow, /* do_load: */ true);
+  ShenandoahBarrierStubC2::load_store_pre(masm, node, tmp, Address(addr), t0, t1, narrow);
 
   // Existing RISCV cmpxchg_oop already handles Shenandoah forwarded-value retry logic.
   // It returns:
@@ -826,7 +826,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     Register newval, Register addr, Register tmp, bool is_acquire) {
   const bool is_narrow = node->bottom_type()->isa_narrowoop();
 
-  ShenandoahBarrierStubC2::load_store_pre(masm, node, tmp, Address(addr, 0), t0, t1, is_narrow, /* do_load: */ true);
+  ShenandoahBarrierStubC2::load_store_pre(masm, node, tmp, Address(addr, 0), t0, t1, is_narrow);
 
   if (is_narrow) {
     if (is_acquire) {
@@ -848,7 +848,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
 void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm, Address dst, bool dst_narrow,
     Register src, bool src_narrow, Register tmp) {
 
-  ShenandoahBarrierStubC2::store_pre(masm, node, tmp, dst, t0, t1, dst_narrow, /* do_load: */ true);
+  ShenandoahBarrierStubC2::store_pre(masm, node, tmp, dst, t0, t1, dst_narrow);
 
   // Do the actual store
   if (dst_narrow) {
@@ -878,7 +878,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
     __ ld(dst, src);
   }
 
-  ShenandoahBarrierStubC2::load_post(masm, node, dst, src, t0, t1, is_narrow, /* do_load: */ false);
+  ShenandoahBarrierStubC2::load_post(masm, node, dst, src, t0, t1, is_narrow);
 }
 
 void ShenandoahBarrierStubC2::store_post(MacroAssembler* masm, const MachNode* node, Address address, Register tmp1, Register tmp2) {

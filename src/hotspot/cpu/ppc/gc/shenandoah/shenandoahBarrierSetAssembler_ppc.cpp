@@ -1126,7 +1126,7 @@ void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char
 void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval,
       Register newval, Register tmp1, Register tmp2, Register tmp3, bool exchange, bool narrow, bool weak, bool acquire) {
 
-  ShenandoahBarrierStubC2::load_store_pre(masm, node, tmp1, addr, tmp2, tmp3, narrow, /* do_load: */ true);
+  ShenandoahBarrierStubC2::load_store_pre(masm, node, tmp1, addr, tmp2, tmp3, narrow);
 
   Register dest_current = exchange ? res : R0;
   Register int_flag     = exchange ? noreg : res;
@@ -1172,7 +1172,7 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
 void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr, Register tmp1, Register tmp2, Register tmp3) {
   bool is_narrow = node->bottom_type()->isa_narrowoop();
 
-  ShenandoahBarrierStubC2::load_store_pre(masm, node, tmp1, addr, tmp2, tmp3, is_narrow, /* do_load: */ true);
+  ShenandoahBarrierStubC2::load_store_pre(masm, node, tmp1, addr, tmp2, tmp3, is_narrow);
 
   if (is_narrow) {
     __ getandsetw(preval, newval, addr, MacroAssembler::cmpxchgx_hint_atomic_update());
@@ -1192,7 +1192,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
 void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm,
     Register dst, int disp, bool dst_narrow, Register src, bool src_narrow, Register tmp1, Register tmp2, Register tmp3) {
 
-  ShenandoahBarrierStubC2::store_pre(masm, node, tmp1, Address(dst, disp), tmp2, tmp3, dst_narrow, /* do_load: */ true);
+  ShenandoahBarrierStubC2::store_pre(masm, node, tmp1, Address(dst, disp), tmp2, tmp3, dst_narrow);
 
   if (dst_narrow && !src_narrow) {
     // Need to encode into tmp, because we cannot clobber src.
@@ -1223,7 +1223,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
     __ isync();
   }
 
-  ShenandoahBarrierStubC2::load_post(masm, node, dst, Address(addr, disp), tmp1, tmp2, is_narrow, /* do_load: */ false);
+  ShenandoahBarrierStubC2::load_post(masm, node, dst, Address(addr, disp), tmp1, tmp2, is_narrow);
 }
 
 void ShenandoahBarrierStubC2::store_post(MacroAssembler* masm, const MachNode* node, Address address, Register tmp1, Register tmp2) {

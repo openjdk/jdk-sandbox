@@ -900,13 +900,13 @@ ShenandoahBarrierStubC2* ShenandoahBarrierStubC2::create(const MachNode* node, R
   return stub;
 }
 
-void ShenandoahBarrierStubC2::load_post(MacroAssembler* masm, const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load) {
+void ShenandoahBarrierStubC2::load_post(MacroAssembler* masm, const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow) {
   // Load post-barrier:
   //  a. Satisfies the need for LRB for normal loads
   //  b. Passes a weak load through LRB-weak
   //  c. Keep-alives a weak load
   if (needs_slow_barrier(node)) {
-    ShenandoahBarrierStubC2* const stub = create(node, obj, addr, tmp1, tmp2, narrow, do_load);
+    ShenandoahBarrierStubC2* const stub = create(node, obj, addr, tmp1, tmp2, narrow, /* do_load = */ false);
     char check = 0;
     check |= needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
     check |= needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
@@ -915,16 +915,16 @@ void ShenandoahBarrierStubC2::load_post(MacroAssembler* masm, const MachNode* no
   }
 }
 
-void ShenandoahBarrierStubC2::store_pre(MacroAssembler* masm, const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load) {
+void ShenandoahBarrierStubC2::store_pre(MacroAssembler* masm, const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow) {
   // Store pre-barrier: SATB, keep-alive the current memory value.
   if (needs_slow_barrier(node)) {
     assert(!needs_load_ref_barrier(node), "Should not be required for stores");
-    ShenandoahBarrierStubC2* const stub = create(node, obj, addr, tmp1, tmp2, narrow, do_load);
+    ShenandoahBarrierStubC2* const stub = create(node, obj, addr, tmp1, tmp2, narrow, /* do_load = */ true);
     stub->enter_if_gc_state(*masm, ShenandoahHeap::MARKING, tmp1);
   }
 }
 
-void ShenandoahBarrierStubC2::load_store_pre(MacroAssembler* masm, const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load) {
+void ShenandoahBarrierStubC2::load_store_pre(MacroAssembler* masm, const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow) {
   // Load/Store pre-barrier:
   //  a. Avoids false positives from CAS encountering to-space memory values.
   //  b. Satisfies the need for LRB for the CAE result.
@@ -933,7 +933,7 @@ void ShenandoahBarrierStubC2::load_store_pre(MacroAssembler* masm, const MachNod
   // (a) and (b) are covered because load barrier does memory location fixup.
   // (c) is covered by KA on the current memory value.
   if (needs_slow_barrier(node)) {
-    ShenandoahBarrierStubC2* const stub = create(node, obj, addr, tmp1, tmp2, narrow, do_load);
+    ShenandoahBarrierStubC2* const stub = create(node, obj, addr, tmp1, tmp2, narrow, /* do_load = */ true);
     char check = 0;
     check |= needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
     check |= needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
