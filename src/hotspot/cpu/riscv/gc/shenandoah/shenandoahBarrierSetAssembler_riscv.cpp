@@ -971,7 +971,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   if (_needs_load_ref_barrier) {
     assert(L_done == nullptr, "L_done is always null when _needs_load_ref_barrier is true");
     Address gc_state_fast(xthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(ShenandoahHeap::MARKING)));
-    __ lbu(t0, gc_state_fast);
+    __ lbu(_tmp1, gc_state_fast);
     __ beqz(_tmp1, L_through);
   }
 
