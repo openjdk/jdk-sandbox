@@ -820,7 +820,7 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
   //   - loaded/current value for CAE (exchange)
   ShenandoahBarrierSet::assembler()->cmpxchg_oop(masm, addr, oldval, newval, acquire, release, exchange /* is_cae */, res);
 
-  ShenandoahBarrierStubC2::load_store_post(masm, node, Address(addr, 0), noreg, noreg);
+  ShenandoahBarrierStubC2::load_store_post(masm, node, Address(addr, 0), t0, t1);
 }
 
 void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval,
@@ -843,7 +843,7 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     }
   }
 
-  ShenandoahBarrierStubC2::load_store_post(masm, node, Address(addr, 0), noreg, noreg);
+  ShenandoahBarrierStubC2::load_store_post(masm, node, Address(addr, 0), t0, t1);
 }
 
 void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm, Address dst, bool dst_narrow,
@@ -868,7 +868,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
     __ sd(src, dst);
   }
 
-  ShenandoahBarrierStubC2::store_post(masm, node, dst, noreg, noreg);
+  ShenandoahBarrierStubC2::store_post(masm, node, dst, t0, t1);
 }
 
 void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src, bool is_narrow) {
@@ -890,25 +890,25 @@ void ShenandoahBarrierStubC2::store_post(MacroAssembler* masm, const MachNode* n
   assert(CardTable::dirty_card_val() == 0, "must be");
   Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
 
-  // t0 = card table base (holder)
+  // tmp1 = card table base (holder)
   Address curr_ct_holder_addr(xthread, in_bytes(ShenandoahThreadLocalData::card_table_offset()));
-  __ ld(t0, curr_ct_holder_addr);
+  __ ld(tmp1, curr_ct_holder_addr);
 
-  // t1 = effective address
-  __ la(t1, address);
+  // tmp1 = effective address
+  __ la(tmp2, address);
 
-  // t1 = &card_table[ addr >> CardTable::card_shift() ] ; card index
-  __ srli(t1, t1, CardTable::card_shift());
-  __ add(t1, t1, t0);
+  // tmp2 = &card_table[ addr >> CardTable::card_shift() ] ; card index
+  __ srli(tmp2, tmp2, CardTable::card_shift());
+  __ add(tmp2, tmp2, tmp1);
 
   if (UseCondCardMark) {
     Label L_already_dirty;
-    __ lbu(t0, Address(t1));
-    __ beqz(t0, L_already_dirty);
-    __ sb(zr, Address(t1));
+    __ lbu(tmp1, Address(tmp2));
+    __ beqz(tmp1, L_already_dirty);
+    __ sb(zr, Address(tmp2));
     __ bind(L_already_dirty);
   } else {
-    __ sb(zr, Address(t1));
+    __ sb(zr, Address(tmp2));
   }
 }
 
