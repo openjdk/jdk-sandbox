@@ -125,16 +125,16 @@ public:
   static void verify_gc_barrier_assert(bool cond, const char* msg, uint8_t bd, Node* n);
 #endif
 
-  int estimate_stub_size() const;
-  void emit_stubs(CodeBuffer& cb) const;
-  void late_barrier_analysis() const {
+  virtual int estimate_stub_size() const;
+  virtual void emit_stubs(CodeBuffer& cb) const;
+  virtual void late_barrier_analysis() const {
     compute_liveness_at_stubs();
     analyze_dominating_barriers();
   }
 
-  void elide_dominated_barrier(MachNode* mach, MachNode* dominator) const;
-  void analyze_dominating_barriers() const;
-  void final_refinement(Compile* C) const;
+  virtual void elide_dominated_barrier(MachNode* mach, MachNode* dominator) const;
+  virtual void analyze_dominating_barriers() const;
+  virtual void final_refinement(Compile* C) const;
 
   virtual uint estimated_barrier_size(const Node* node) const;
 
