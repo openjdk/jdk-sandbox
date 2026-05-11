@@ -122,26 +122,19 @@ public interface QuicTLSEngine {
     /**
      * Begins handshaking on this {@code QuicTLSEngine}.
      * <P>
-     * The behavior of this method is protocol (and possibly implementation)
-     * dependent. For example, in TLSv1.3 calling this method after the
-     * connection has been established will force a key update.
-     * <P>
      * This method is not needed for the initial handshake, as the
-     * {@code wrap()} and {@code unwrap()} methods will
-     * implicitly call this method if handshaking has not already begun.
+     * {@code getHandshakeBytes()} and {@code consumeHandshakeBytes()} methods
+     * will implicitly call this method if handshaking has not already begun.
      * <P>
      * Unlike the {@link SSLSocket#startHandshake()
      * SSLSocket#startHandshake()} method, this method does not block
      * until handshaking is completed.
      * <P>
-     * Some protocols may not support multiple handshakes on an existing
-     * engine and may throw an {@code SSLException}.
+     * If a handshake has already been started, this method has no effect.
      *
      * @throws SSLException
      *          if a problem was encountered while signaling the
      *          {@code QuicTLSEngine} to begin a new handshake.
-     *          See the class description for more information on
-     *          engine closure.
      * @throws  IllegalStateException if the client/server mode
      *          has not yet been set.
      * @see     SSLSession#invalidate()
