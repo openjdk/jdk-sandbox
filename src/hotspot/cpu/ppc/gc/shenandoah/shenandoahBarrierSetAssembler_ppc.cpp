@@ -1142,13 +1142,16 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
 
   ShenandoahBarrierStubC2::load_store_pre(masm, node, tmp1, addr, tmp2, tmp3, narrow);
 
-  Register dest_current = exchange ? res : R0;
+  Register dest_current = exchange ? res   : R0;
   Register int_flag     = exchange ? noreg : res;
   int semantics         = MacroAssembler::MemBarNone;
 
-  if (narrow) {
-    semantics = weak && support_IRIW_for_not_multiple_copy_atomic_cpu ? MacroAssembler::MemBarAcq : MacroAssembler::MemBarFenceAfter;
+  if (acquire) {
+    semantics = support_IRIW_for_not_multiple_copy_atomic_cpu ?
+                  MacroAssembler::MemBarAcq : MacroAssembler::MemBarFenceAfter;
+  }
 
+  if (narrow) {
     // CmpxchgX sets CR0 to cmpX(src1, src2) and Rres to 'true'/'false'.
     __ cmpxchgw(CR0, dest_current, oldval, newval, addr,
                 semantics, MacroAssembler::cmpxchgx_hint_atomic_update(),
@@ -1158,26 +1161,6 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
     __ cmpxchgd(CR0, dest_current, oldval, newval, addr,
                 semantics, MacroAssembler::cmpxchgx_hint_atomic_update(),
                 int_flag, nullptr, true, weak);
-  }
-
-  if (exchange) {
-    if (acquire) {
-      if (support_IRIW_for_not_multiple_copy_atomic_cpu) {
-          __ isync();
-      } else {
-         // isync would be sufficient in case of CompareAndExchangeAcquire, but
-         // we currently don't optimize for that.
-         __ sync();
-      }
-    }
-  } else {
-    if (!weak) {
-      if (support_IRIW_for_not_multiple_copy_atomic_cpu) {
-        __ isync();
-      } else {
-        __ sync();
-      }
-    }
   }
 
   ShenandoahBarrierStubC2::load_store_post(masm, node, Address(addr, 0), tmp1, tmp2);
@@ -1284,15 +1267,15 @@ void ShenandoahBarrierStubC2::maybe_far_jump_if_zero(MacroAssembler& masm, Regis
 }
 
 void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
+  const int gcstate_offset = in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(ShenandoahHeap::MARKING));
   const int index_offset = in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset());
   const int buffer_offset = in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset());
-
   Label L_through, L_slowpath;
 
   // If another barrier is enabled as well, do a runtime check for a specific barrier.
   if (_needs_load_ref_barrier) {
     assert(L_done == nullptr, "L_done is always null when _needs_load_ref_barrier is true");
-    __ lbz(_tmp1, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(ShenandoahHeap::MARKING)), R16_thread);
+    __ lbz(_tmp1, gcstate_offset, R16_thread);
     __ cmpdi(CR0, _tmp1, 0);
     __ beq(CR0, L_through);
   }
@@ -1325,6 +1308,19 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
 
   // Slow-path: call runtime to handle.
   __ bind(L_slowpath);
+
+  // The Load match rule in the .ad file may have legitimized the load address
+  // using a TEMP register and in that case we need to explicitly preserve them
+  // here because the RA does not consider TEMP as live-in, of course.
+  if (_needs_load_ref_barrier) {
+    if (_addr.base() != noreg) {
+      preserve(_addr.base());
+    }
+    if (_addr.index() != noreg) {
+      preserve(_addr.index());
+    }
+  }
+
   {
     SaveLiveRegisters slr(&masm, this);
 
@@ -1361,10 +1357,10 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   __ load_const_optimized(_tmp1, ShenandoahHeap::in_cset_fast_test_addr(), _tmp2);
   if (_narrow) {
     __ decode_heap_oop_not_null(_tmp2, _obj);
+    __ srdi(_tmp2, _tmp2, ShenandoahHeapRegion::region_size_bytes_shift_jint());
   } else {
-    __ mr(_tmp2, _obj);
+    __ srdi(_tmp2, _obj, ShenandoahHeapRegion::region_size_bytes_shift_jint());
   }
-  __ srdi(_tmp2, _tmp2, ShenandoahHeapRegion::region_size_bytes_shift_jint());
   __ lbzx(_tmp2, _tmp2, _tmp1);
   maybe_far_jump_if_zero(masm, _tmp2);
 
