@@ -163,6 +163,8 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   void keepalive(MacroAssembler& masm, Label* L_done);
   void lrb(MacroAssembler& masm);
 
+  static void cardtable(MacroAssembler& masm, Address addr, Register tmp1, Register tmp2);
+
   address keepalive_runtime_entry_addr();
   address lrb_runtime_entry_addr();
 

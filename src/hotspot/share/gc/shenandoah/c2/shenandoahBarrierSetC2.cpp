@@ -943,6 +943,16 @@ void ShenandoahBarrierStubC2::load_store_pre(MacroAssembler* masm, const MachNod
   }
 }
 
+void ShenandoahBarrierStubC2::store_post(MacroAssembler* masm, const MachNode* node, Address addr, Register tmp1, Register tmp2) {
+  if (needs_card_barrier(node)) {
+    cardtable(*masm, addr, tmp1, tmp2);
+  }
+}
+
+void ShenandoahBarrierStubC2::load_store_post(MacroAssembler* masm, const MachNode* node, Address addr, Register tmp1, Register tmp2) {
+  store_post(masm, node, addr, tmp1, tmp2);
+}
+
 bool ShenandoahBarrierStubC2::is_live_register(Register reg) {
   return preserve_set().member(OptoReg::as_OptoReg(reg->as_VMReg()));
 }

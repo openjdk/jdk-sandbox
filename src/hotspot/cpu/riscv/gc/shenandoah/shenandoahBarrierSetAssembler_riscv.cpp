@@ -851,13 +851,12 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
   ShenandoahBarrierStubC2::load_store_post(masm, node, Address(addr, 0), t0, t1);
 }
 
-void ShenandoahBarrierStubC2::store_post(MacroAssembler* masm, const MachNode* node, Address address, Register tmp1, Register tmp2) {
-  if (!needs_card_barrier(node)) {
-    return;
-  }
+#undef __
+#define __ masm.
 
+void ShenandoahBarrierStubC2::cardtable(MacroAssembler& masm, Address address, Register tmp1, Register tmp2) {
   assert(CardTable::dirty_card_val() == 0, "must be");
-  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
   // tmp1 = card table base (holder)
   Address curr_ct_holder_addr(xthread, in_bytes(ShenandoahThreadLocalData::card_table_offset()));
@@ -880,13 +879,6 @@ void ShenandoahBarrierStubC2::store_post(MacroAssembler* masm, const MachNode* n
     __ sb(zr, Address(tmp2));
   }
 }
-
-void ShenandoahBarrierStubC2::load_store_post(MacroAssembler* masm, const MachNode* node, Address address, Register tmp1, Register tmp2) {
-  store_post(masm, node, address, tmp1, tmp2);
-}
-
-#undef __
-#define __ masm.
 
 void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);

@@ -993,12 +993,11 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
   ShenandoahBarrierStubC2::load_store_post(masm, node, addr, tmp, noreg);
 }
 
-void ShenandoahBarrierStubC2::store_post(MacroAssembler* masm, const MachNode* node, Address addr, Register tmp1, Register tmp2) {
-  if (!needs_card_barrier(node)) {
-    return;
-  }
+#undef __
+#define __ masm.
 
-  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+void ShenandoahBarrierStubC2::cardtable(MacroAssembler& masm, Address addr, Register tmp1, Register tmp2) {
+  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
   __ lea(tmp1, addr);
   __ shrptr(tmp1, CardTable::card_shift());
@@ -1018,13 +1017,6 @@ void ShenandoahBarrierStubC2::store_post(MacroAssembler* masm, const MachNode* n
   }
   __ bind(L_done);
 }
-
-void ShenandoahBarrierStubC2::load_store_post(MacroAssembler* masm, const MachNode* node, Address addr, Register tmp1, Register tmp2) {
-  store_post(masm, node, addr, tmp1, tmp2);
-}
-
-#undef __
-#define __ masm.
 
 void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
