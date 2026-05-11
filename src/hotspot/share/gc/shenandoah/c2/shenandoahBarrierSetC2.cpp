@@ -319,18 +319,13 @@ uint8_t ShenandoahBarrierSetC2::refine_store(Node* n, uint8_t bd) {
   assert(bd != 0, "Checked by caller");
   assert(n->is_Mem() || n->is_LoadStore(), "Sanity");
 
-  // Not an oop store? There should be no barriers.
   const Node* newval = n->in(MemNode::ValueIn);
   assert(newval != nullptr, "Should be present");
-  const Type* newval_bottom = newval->bottom_type();
-  if (!newval_bottom->isa_oopptr() &&
-      !newval_bottom->isa_narrowoop() &&
-      newval_bottom != TypePtr::NULL_PTR) {
-    assert(bd == 0, "Non-oop stores should have no barrier data");
-    return bd;
-  }
 
   // Type system tells us something about nullity?
+  const Type* newval_bottom = newval->bottom_type();
+  assert(newval_bottom->isa_oopptr() || newval_bottom->isa_narrowoop() ||
+         newval_bottom == TypePtr::NULL_PTR, "Should be an oop store");
   const TypePtr* newval_type = newval_bottom->make_ptr();
   assert(newval_type != nullptr, "Should have been filtered before");
   TypePtr::PTR newval_type_ptr = newval_type->ptr();
