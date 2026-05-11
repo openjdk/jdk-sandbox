@@ -1101,8 +1101,8 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   __ movptr(index, tmp);
   __ addptr(tmp, buffer);
 
-  // If object is narrow, we need to unpack it before inserting into buffer,
-  // and pack it back. We can skip the unpack if we know that object is not preserved.
+  // If object is narrow, we need to decode it before inserting into buffer.
+  // We can skip the re-encoding if we know that object is not preserved.
   if (_narrow) {
     __ decode_heap_oop_not_null(_obj);
   }
