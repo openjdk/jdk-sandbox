@@ -1122,11 +1122,10 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
   if (dst_narrow && !src_narrow) {
     // Need to encode into tmp, because we cannot clobber src.
     if ((node->barrier_data() & ShenandoahBitNotNull) == 0) {
-      __ encode_heap_oop(tmp1, src);
+      src = __ encode_heap_oop(tmp1, src);
     } else {
-      __ encode_heap_oop_not_null(tmp1, src);
+      src = __ encode_heap_oop_not_null(tmp1, src);
     }
-    src = tmp1;
   }
   if (dst_narrow) {
     __ stw(src, disp, dst);
@@ -1293,8 +1292,8 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   // If object is narrow, we need to decode it before inserting.
   if (_narrow) {
     __ add(_tmp2, _tmp2, _tmp1);
-    __ decode_heap_oop_not_null(_tmp1, _obj);
-    __ stdx(_tmp1, _tmp2);
+    Register decoded = __ decode_heap_oop_not_null(_tmp1, _obj);
+    __ stdx(decoded, _tmp2);
   } else {
     __ stdx(_obj, _tmp2, _tmp1);
   }
@@ -1356,8 +1355,8 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   // Cset-check. Fall-through to slow if in collection set.
   __ load_const_optimized(_tmp1, ShenandoahHeap::in_cset_fast_test_addr(), _tmp2);
   if (_narrow) {
-    __ decode_heap_oop_not_null(_tmp2, _obj);
-    __ srdi(_tmp2, _tmp2, ShenandoahHeapRegion::region_size_bytes_shift_jint());
+    Register decoded = __ decode_heap_oop_not_null(_tmp2, _obj);
+    __ srdi(_tmp2, decoded, ShenandoahHeapRegion::region_size_bytes_shift_jint());
   } else {
     __ srdi(_tmp2, _obj, ShenandoahHeapRegion::region_size_bytes_shift_jint());
   }
