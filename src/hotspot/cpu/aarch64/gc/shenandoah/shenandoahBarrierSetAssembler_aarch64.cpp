@@ -1186,14 +1186,13 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
 }
 
 int ShenandoahBarrierStubC2::available_gp_registers() {
-  return Register::number_of_registers;
+  Unimplemented(); // Not used
+  return 0;
 }
 
 bool ShenandoahBarrierStubC2::is_special_register(Register r) {
-  return R18_RESERVED_ONLY(r == r18_tls ||)
-         r == rfp || r == sp || r == lr ||
-         r == rheapbase || r == rthread ||
-         r == rscratch1 || r == rscratch2;
+  Unimplemented(); // Not used
+  return true;
 }
 
 void ShenandoahBarrierStubC2::post_init() {
