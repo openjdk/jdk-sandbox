@@ -45,8 +45,6 @@
 #ifdef COMPILER2
 #include "gc/shenandoah/c2/shenandoahBarrierSetC2.hpp"
 #include "opto/output.hpp"
-#include "utilities/population_count.hpp"
-#include "utilities/powerOfTwo.hpp"
 #endif
 
 #define __ masm->
