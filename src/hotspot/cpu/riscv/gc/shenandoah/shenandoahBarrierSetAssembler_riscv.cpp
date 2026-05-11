@@ -810,15 +810,12 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
     Register oldval, Register newval, Register tmp, bool exchange, bool narrow, bool is_acquire) {
   const Assembler::Aqrl acquire = is_acquire ? Assembler::aq : Assembler::relaxed;
   const Assembler::Aqrl release = Assembler::rl;
+  const Assembler::operand_size size = narrow ? Assembler::uint32 : Assembler::int64;
 
   ShenandoahBarrierStubC2::load_store_pre(masm, node, tmp, Address(addr), t0, t1, narrow);
 
-  // Existing RISCV cmpxchg_oop already handles Shenandoah forwarded-value retry logic.
-  // FIXME: Why? Pre-barrier already obviates the need for retry. This is an awkward dependency on SBSA. Emit the plain cmpxchg.
-  // It returns:
-  //   - boolean 0/1 for CAS (!exchange)
-  //   - loaded/current value for CAE (exchange)
-  ShenandoahBarrierSet::assembler()->cmpxchg_oop(masm, addr, oldval, newval, acquire, release, exchange /* is_cae */, res);
+  // CAS!
+  __ cmpxchg(addr, oldval, newval, size, acquire, release, /* result */ res, !exchange /* result_as_bool */);
 
   ShenandoahBarrierStubC2::load_store_post(masm, node, Address(addr, 0), t0, t1);
 }
