@@ -997,7 +997,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
 
   // If the object is null, there is no point in applying barriers.
-  maybe_far_jump_if_zero(masm, _obj, continuation());
+  maybe_far_jump_if_zero(masm, _obj);
 
   // We need to make sure that loads done by callers survive across slow-path calls.
   // For self-loads, we need to care about the case when both KA and LRB are enabled (rare).
@@ -1019,14 +1019,14 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
 }
 
-void ShenandoahBarrierStubC2::maybe_far_jump_if_zero(MacroAssembler& masm, Register reg, Label* L_done) {
+void ShenandoahBarrierStubC2::maybe_far_jump_if_zero(MacroAssembler& masm, Register reg) {
   if (_needs_far_jump) {
     Label L_short_jump;
     __ cbnz(reg, L_short_jump);
-    __ b(*L_done);
+    __ b(*continuation());
     __ bind(L_short_jump);
   } else {
-    __ cbz(reg, *L_done);
+    __ cbz(reg, *continuation());
   }
 }
 
@@ -1108,7 +1108,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
     char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
     Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(state_to_check)));
     __ ldrb(_tmp1, gc_state_fast);
-    maybe_far_jump_if_zero(masm, _tmp1, continuation());
+    maybe_far_jump_if_zero(masm, _tmp1);
   }
 
   // If weak references are being processed, weak/phantom loads need to go slow,
@@ -1128,7 +1128,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
     __ add(_tmp1, _tmp1, _obj, Assembler::LSR, ShenandoahHeapRegion::region_size_bytes_shift_jint());
   }
   __ ldrb(_tmp1, Address(_tmp1, 0));
-  maybe_far_jump_if_zero(masm, _tmp1, continuation());
+  maybe_far_jump_if_zero(masm, _tmp1);
 
   // Slow path
   __ bind(L_slow);

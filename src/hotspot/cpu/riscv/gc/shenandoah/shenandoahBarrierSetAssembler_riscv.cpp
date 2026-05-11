@@ -909,7 +909,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
 
   // If the object is null, there is no point in applying barriers.
-  maybe_far_jump_if_zero(masm, _obj, continuation());
+  maybe_far_jump_if_zero(masm, _obj);
 
   // Go for barriers. Barriers can return straight to continuation, as long
   // as another barrier is not needed and we can reach the fastpath.
@@ -925,10 +925,10 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
 }
 
-void ShenandoahBarrierStubC2::maybe_far_jump_if_zero(MacroAssembler& masm, Register reg, Label* L_done) {
+void ShenandoahBarrierStubC2::maybe_far_jump_if_zero(MacroAssembler& masm, Register reg) {
   Label L_short_jump;
   __ bnez(reg, L_short_jump);
-  __ j(*L_done);
+  __ j(*continuation());
   __ bind(L_short_jump);
 }
 
@@ -1003,7 +1003,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
     char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
     Address gc_state_fast(xthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(state_to_check)));
     __ lbu(_tmp1, gc_state_fast);
-    maybe_far_jump_if_zero(masm, _tmp1, continuation());
+    maybe_far_jump_if_zero(masm, _tmp1);
   }
 
   // If weak references are being processed, weak/phantom loads need to go slow,
@@ -1025,13 +1025,16 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   __ srli(_tmp2, _tmp2, ShenandoahHeapRegion::region_size_bytes_shift_jint());
   __ add(_tmp1, _tmp1, _tmp2);
   __ lbu(_tmp1, Address(_tmp1, 0));
-  maybe_far_jump_if_zero(masm, _tmp1, continuation());
+  maybe_far_jump_if_zero(masm, _tmp1);
 
   // Slow path
   __ bind(L_slow);
 
   // Obj is the result, need to temporarily stop preserving it.
-  dont_preserve(_obj);
+  bool is_obj_preserved = is_preserved(_obj);
+  if (is_obj_preserved) {
+    dont_preserve(_obj);
+  }
   {
     SaveLiveRegisters slr(&masm, this);
 
@@ -1056,14 +1059,17 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
     // Go to runtime and handle the rest there.
     __ rt_call(lrb_runtime_entry_addr());
 
-    // Save the result where needed.
+    // Save the result where needed. Narrow entries return narrowOop (32 bits)
+    // we need to zero the upper 32 bits of x10.
     if (_narrow) {
       __ zext_w(_obj, x10);
     } else {
       __ mv(_obj, x10);
     }
   }
-  preserve(_obj);
+  if (is_obj_preserved) {
+    preserve(_obj);
+  }
 
   __ j(*continuation());
 }
