@@ -1096,32 +1096,46 @@ void ShenandoahBarrierSetAssembler::generate_c1_load_reference_barrier_runtime_s
 #endif // COMPILER1
 
 #ifdef COMPILER2
-#undef __
-#define __ masm.
-
-int ShenandoahBarrierStubC2::available_gp_registers() {
-  return 0;
-}
-
-bool ShenandoahBarrierStubC2::is_special_register(Register r) {
-  return true;
-}
-
-void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp) {
-  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
-
-  __ lbz(tmp, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(test_state)), R16_thread);
-  __ cmpdi(CR0, tmp, 0);
-  __ beq(CR0, *continuation());
-  __ b(*entry());
-
-  // This is were the slowpath stub will return to or the code above will jump
-  // to if the checks are false
-  __ bind(*continuation());
-}
 
 #undef __
 #define __ masm->
+
+void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Register addr, int disp, Register tmp1, Register tmp2, bool is_narrow, bool is_acquire) {
+  if (is_narrow) {
+    __ lwz(dst, disp, addr);
+  } else {
+    __ ld(dst, disp, addr);
+  }
+  if (is_acquire) {
+    __ twi_0(dst);
+    __ isync();
+  }
+
+  ShenandoahBarrierStubC2::load_post(masm, node, dst, Address(addr, disp), tmp1, tmp2, is_narrow);
+}
+
+void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm,
+    Register dst, int disp, bool dst_narrow, Register src, bool src_narrow, Register tmp1, Register tmp2, Register tmp3) {
+
+  ShenandoahBarrierStubC2::store_pre(masm, node, tmp1, Address(dst, disp), tmp2, tmp3, dst_narrow);
+
+  if (dst_narrow && !src_narrow) {
+    // Need to encode into tmp, because we cannot clobber src.
+    if ((node->barrier_data() & ShenandoahBitNotNull) == 0) {
+      __ encode_heap_oop(tmp1, src);
+    } else {
+      __ encode_heap_oop_not_null(tmp1, src);
+    }
+    src = tmp1;
+  }
+  if (dst_narrow) {
+    __ stw(src, disp, dst);
+  } else {
+    __ std(src, disp, dst);
+  }
+
+  ShenandoahBarrierStubC2::store_post(masm, node, Address(dst, disp), tmp1, tmp2);
+}
 
 void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval,
       Register newval, Register tmp1, Register tmp2, Register tmp3, bool exchange, bool narrow, bool weak, bool acquire) {
@@ -1189,43 +1203,6 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
   ShenandoahBarrierStubC2::load_store_post(masm, node, Address(addr, 0), tmp1, tmp2);
 }
 
-void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm,
-    Register dst, int disp, bool dst_narrow, Register src, bool src_narrow, Register tmp1, Register tmp2, Register tmp3) {
-
-  ShenandoahBarrierStubC2::store_pre(masm, node, tmp1, Address(dst, disp), tmp2, tmp3, dst_narrow);
-
-  if (dst_narrow && !src_narrow) {
-    // Need to encode into tmp, because we cannot clobber src.
-    if ((node->barrier_data() & ShenandoahBitNotNull) == 0) {
-      __ encode_heap_oop(tmp1, src);
-    } else {
-      __ encode_heap_oop_not_null(tmp1, src);
-    }
-    src = tmp1;
-  }
-  if (dst_narrow) {
-    __ stw(src, disp, dst);
-  } else {
-    __ std(src, disp, dst);
-  }
-
-  ShenandoahBarrierStubC2::store_post(masm, node, Address(dst, disp), tmp1, tmp2);
-}
-
-void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Register addr, int disp, Register tmp1, Register tmp2, bool is_narrow, bool is_acquire) {
-  if (is_narrow) {
-    __ lwz(dst, disp, addr);
-  } else {
-    __ ld(dst, disp, addr);
-  }
-  if (is_acquire) {
-    __ twi_0(dst);
-    __ isync();
-  }
-
-  ShenandoahBarrierStubC2::load_post(masm, node, dst, Address(addr, disp), tmp1, tmp2, is_narrow);
-}
-
 void ShenandoahBarrierStubC2::store_post(MacroAssembler* masm, const MachNode* node, Address address, Register tmp1, Register tmp2) {
   if (!ShenandoahBarrierStubC2::needs_card_barrier(node)) {
     return;
@@ -1255,8 +1232,17 @@ void ShenandoahBarrierStubC2::load_store_post(MacroAssembler* masm, const MachNo
 #undef __
 #define __ masm.
 
-void ShenandoahBarrierStubC2::post_init() {
-  // Do nothing.
+void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp) {
+  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
+
+  __ lbz(tmp, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(test_state)), R16_thread);
+  __ cmpdi(CR0, tmp, 0);
+  __ beq(CR0, *continuation());
+  __ b(*entry());
+
+  // This is were the slowpath stub will return to or the code above will jump
+  // to if the checks are false
+  __ bind(*continuation());
 }
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
@@ -1436,7 +1422,18 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   __ b(*continuation());
 }
 
-#undef __
-#define __ masm->
+int ShenandoahBarrierStubC2::available_gp_registers() {
+  Unimplemented(); // Not used
+  return 0;
+}
+
+bool ShenandoahBarrierStubC2::is_special_register(Register r) {
+  Unimplemented(); // Not used
+  return true;
+}
+
+void ShenandoahBarrierStubC2::post_init() {
+  // Do nothing.
+}
 
 #endif // COMPILER2

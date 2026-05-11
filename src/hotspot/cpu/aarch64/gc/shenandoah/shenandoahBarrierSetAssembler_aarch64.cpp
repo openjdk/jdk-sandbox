@@ -837,40 +837,62 @@ void ShenandoahBarrierSetAssembler::generate_c1_load_reference_barrier_runtime_s
 #endif // COMPILER1
 
 #ifdef COMPILER2
-#undef __
-#define __ masm.
-
-int ShenandoahBarrierStubC2::available_gp_registers() {
-  return Register::number_of_registers;
-}
-
-bool ShenandoahBarrierStubC2::is_special_register(Register r) {
-  return R18_RESERVED_ONLY(r == r18_tls ||)
-         r == rfp || r == sp || r == lr ||
-         r == rheapbase || r == rthread ||
-         r == rscratch1 || r == rscratch2;
-}
-
-void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp) {
-  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
-
-  Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(test_state)));
-  if (_needs_far_jump) {
-    __ ldrb(tmp, gc_state_fast);
-    __ cbz(tmp, *continuation());
-    __ b(*entry());
-  } else {
-    __ ldrb(tmp, gc_state_fast);
-    __ cbnz(tmp, *entry());
-  }
-
-  // This is were the slowpath stub will return to or the code above will
-  // jump to if the checks are false
-  __ bind(*continuation());
-}
 
 #undef __
 #define __ masm->
+
+
+void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src, bool is_narrow, bool is_acquire) {
+  // Do the actual load. This load is the candidate for implicit null check, and MUST come first.
+  if (is_narrow) {
+    if (is_acquire) {
+      __ ldarw(dst, src.base());
+    } else {
+      __ ldrw(dst, src);
+    }
+  } else {
+    if (is_acquire) {
+      __ ldar(dst, src.base());
+    } else {
+      __ ldr(dst, src);
+    }
+  }
+
+  ShenandoahBarrierStubC2::load_post(masm, node, dst, src, rscratch1, rscratch2, is_narrow);
+}
+
+void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm, Address dst, bool dst_narrow,
+    Register src, bool src_narrow, Register tmp, bool is_volatile) {
+
+  ShenandoahBarrierStubC2::store_pre(masm, node, tmp, dst, rscratch1, rscratch2, dst_narrow);
+
+  // Do the actual store
+  if (dst_narrow) {
+    if (!src_narrow) {
+      // Need to encode into rscratch, because we cannot clobber src.
+      if ((node->barrier_data() & ShenandoahBitNotNull) == 0) {
+        __ encode_heap_oop(rscratch1, src);
+      } else {
+        __ encode_heap_oop_not_null(rscratch1, src);
+      }
+      src = rscratch1;
+    }
+
+    if (is_volatile) {
+      __ stlrw(src, dst.base());
+    } else {
+      __ strw(src, dst);
+    }
+  } else {
+    if (is_volatile) {
+      __ stlr(src, dst.base());
+    } else {
+      __ str(src, dst);
+    }
+  }
+
+  ShenandoahBarrierStubC2::store_post(masm, node, dst, rscratch1, rscratch2);
+}
 
 void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr,
     Register oldval, Register newval, Register tmp, bool exchange, bool narrow, bool weak, bool acquire) {
@@ -913,58 +935,6 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
   ShenandoahBarrierStubC2::load_store_post(masm, node, Address(addr, 0), rscratch1, rscratch2);
 }
 
-void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm, Address dst, bool dst_narrow,
-    Register src, bool src_narrow, Register tmp, bool is_volatile) {
-
-  ShenandoahBarrierStubC2::store_pre(masm, node, tmp, dst, rscratch1, rscratch2, dst_narrow);
-
-  // Do the actual store
-  if (dst_narrow) {
-    if (!src_narrow) {
-      // Need to encode into rscratch, because we cannot clobber src.
-      if ((node->barrier_data() & ShenandoahBitNotNull) == 0) {
-        __ encode_heap_oop(rscratch1, src);
-      } else {
-        __ encode_heap_oop_not_null(rscratch1, src);
-      }
-      src = rscratch1;
-    }
-
-    if (is_volatile) {
-      __ stlrw(src, dst.base());
-    } else {
-      __ strw(src, dst);
-    }
-  } else {
-    if (is_volatile) {
-      __ stlr(src, dst.base());
-    } else {
-      __ str(src, dst);
-    }
-  }
-
-  ShenandoahBarrierStubC2::store_post(masm, node, dst, rscratch1, rscratch2);
-}
-
-void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src, bool is_narrow, bool is_acquire) {
-  // Do the actual load. This load is the candidate for implicit null check, and MUST come first.
-  if (is_narrow) {
-    if (is_acquire) {
-      __ ldarw(dst, src.base());
-    } else {
-      __ ldrw(dst, src);
-    }
-  } else {
-    if (is_acquire) {
-      __ ldar(dst, src.base());
-    } else {
-      __ ldr(dst, src);
-    }
-  }
-
-  ShenandoahBarrierStubC2::load_post(masm, node, dst, src, rscratch1, rscratch2, is_narrow);
-}
-
 void ShenandoahBarrierStubC2::store_post(MacroAssembler* masm, const MachNode* node, Address address, Register tmp1, Register tmp2) {
   if (!needs_card_barrier(node)) {
     return;
@@ -1001,29 +971,22 @@ void ShenandoahBarrierStubC2::load_store_post(MacroAssembler* masm, const MachNo
 #undef __
 #define __ masm.
 
-void ShenandoahBarrierStubC2::post_init() {
-  // If we are in scratch emit mode we assume worst case, and force the use of
-  // far branches.
-  PhaseOutput* const output = Compile::current()->output();
-  if (output->in_scratch_emit_size()) {
-    _needs_far_jump = true;
-    return;
+void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp) {
+  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
+
+  Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(test_state)));
+  if (_needs_far_jump) {
+    __ ldrb(tmp, gc_state_fast);
+    __ cbz(tmp, *continuation());
+    __ b(*entry());
+  } else {
+    __ ldrb(tmp, gc_state_fast);
+    __ cbnz(tmp, *entry());
   }
 
-  // The formula below is based on how c2 estimates initial buffer size for a
-  // compilation. See C2Compiler::initial_code_buffer_size. The logic
-  // implemented in this stub only uses short jumps (cbz, cbnz) if the
-  // aggregation of all relevant code sections of a method fit in 1MB. We could
-  // be more aggressive and try and compute the distance between the fastpath
-  // branch and the stub entry but in practice not many methods reach the 1MB
-  // size.
-  const BufferSizingData* sizing = output->buffer_sizing_data();
-  const int code_size = sizing->_code + sizing->_stub +
-    PhaseOutput::MAX_inst_size + PhaseOutput::MAX_stubs_size + NativeCall::byte_size();
-
-  // Maximum backward range is 1M. Maximum forward reach is 1M - 4bytes.
-  const int cond_branch_max_reach = (int)(1*M - 4);
-  _needs_far_jump = code_size >= cond_branch_max_reach;
+  // This is were the slowpath stub will return to or the code above will
+  // jump to if the checks are false
+  __ bind(*continuation());
 }
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
@@ -1222,7 +1185,40 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   __ b(*continuation());
 }
 
-#undef __
-#define __ masm->
+int ShenandoahBarrierStubC2::available_gp_registers() {
+  return Register::number_of_registers;
+}
+
+bool ShenandoahBarrierStubC2::is_special_register(Register r) {
+  return R18_RESERVED_ONLY(r == r18_tls ||)
+         r == rfp || r == sp || r == lr ||
+         r == rheapbase || r == rthread ||
+         r == rscratch1 || r == rscratch2;
+}
+
+void ShenandoahBarrierStubC2::post_init() {
+  // If we are in scratch emit mode we assume worst case, and force the use of
+  // far branches.
+  PhaseOutput* const output = Compile::current()->output();
+  if (output->in_scratch_emit_size()) {
+    _needs_far_jump = true;
+    return;
+  }
+
+  // The formula below is based on how c2 estimates initial buffer size for a
+  // compilation. See C2Compiler::initial_code_buffer_size. The logic
+  // implemented in this stub only uses short jumps (cbz, cbnz) if the
+  // aggregation of all relevant code sections of a method fit in 1MB. We could
+  // be more aggressive and try and compute the distance between the fastpath
+  // branch and the stub entry but in practice not many methods reach the 1MB
+  // size.
+  const BufferSizingData* sizing = output->buffer_sizing_data();
+  const int code_size = sizing->_code + sizing->_stub +
+    PhaseOutput::MAX_inst_size + PhaseOutput::MAX_stubs_size + NativeCall::byte_size();
+
+  // Maximum backward range is 1M. Maximum forward reach is 1M - 4bytes.
+  const int cond_branch_max_reach = (int)(1*M - 4);
+  _needs_far_jump = code_size >= cond_branch_max_reach;
+}
 
 #endif // COMPILER2

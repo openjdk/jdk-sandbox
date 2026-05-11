@@ -776,33 +776,43 @@ void ShenandoahBarrierSetAssembler::generate_c1_load_reference_barrier_runtime_s
 #ifdef COMPILER2
 
 #undef __
-#define __ masm.
-
-int ShenandoahBarrierStubC2::available_gp_registers() {
-  return Register::number_of_registers;
-}
-
-bool ShenandoahBarrierStubC2::is_special_register(Register r) {
-  return r == fp || r == sp ||
-         r == xheapbase || r == xthread ||
-         r == t0 || r == t1 || r == zr;
-}
-
-void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp) {
-  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
-
-  Address gc_state_fast(xthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(test_state)));
-  __ lbu(tmp, gc_state_fast);
-  __ beqz(tmp, *continuation());
-  __ j(*entry());
-
-  // This is were the slowpath stub will return to or the code above will
-  // jump to if the checks are false
-  __ bind(*continuation());
-}
-
-#undef __
 #define __ masm->
+
+void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src, bool is_narrow) {
+  // Do the actual load. This load is the candidate for implicit null check, and MUST come first.
+  if (is_narrow) {
+    __ lwu(dst, src);
+  } else {
+    __ ld(dst, src);
+  }
+
+  ShenandoahBarrierStubC2::load_post(masm, node, dst, src, t0, t1, is_narrow);
+}
+
+void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm, Address dst, bool dst_narrow,
+    Register src, bool src_narrow, Register tmp) {
+
+  ShenandoahBarrierStubC2::store_pre(masm, node, tmp, dst, t0, t1, dst_narrow);
+
+  // Do the actual store
+  if (dst_narrow) {
+    if (!src_narrow) {
+      // Need to encode into tmp, because we cannot clobber src.
+      assert(tmp != noreg, "need temp register");
+      if ((node->barrier_data() & ShenandoahBitNotNull) == 0) {
+        __ encode_heap_oop(tmp, src);
+      } else {
+        __ encode_heap_oop_not_null(tmp, src);
+      }
+      src = tmp;
+    }
+    __ sw(src, dst);
+  } else {
+    __ sd(src, dst);
+  }
+
+  ShenandoahBarrierStubC2::store_post(masm, node, dst, t0, t1);
+}
 
 void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr,
     Register oldval, Register newval, Register tmp, bool exchange, bool narrow, bool is_acquire) {
@@ -839,42 +849,6 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
   }
 
   ShenandoahBarrierStubC2::load_store_post(masm, node, Address(addr, 0), t0, t1);
-}
-
-void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm, Address dst, bool dst_narrow,
-    Register src, bool src_narrow, Register tmp) {
-
-  ShenandoahBarrierStubC2::store_pre(masm, node, tmp, dst, t0, t1, dst_narrow);
-
-  // Do the actual store
-  if (dst_narrow) {
-    if (!src_narrow) {
-      // Need to encode into tmp, because we cannot clobber src.
-      assert(tmp != noreg, "need temp register");
-      if ((node->barrier_data() & ShenandoahBitNotNull) == 0) {
-        __ encode_heap_oop(tmp, src);
-      } else {
-        __ encode_heap_oop_not_null(tmp, src);
-      }
-      src = tmp;
-    }
-    __ sw(src, dst);
-  } else {
-    __ sd(src, dst);
-  }
-
-  ShenandoahBarrierStubC2::store_post(masm, node, dst, t0, t1);
-}
-
-void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src, bool is_narrow) {
-  // Do the actual load. This load is the candidate for implicit null check, and MUST come first.
-  if (is_narrow) {
-    __ lwu(dst, src);
-  } else {
-    __ ld(dst, src);
-  }
-
-  ShenandoahBarrierStubC2::load_post(masm, node, dst, src, t0, t1, is_narrow);
 }
 
 void ShenandoahBarrierStubC2::store_post(MacroAssembler* masm, const MachNode* node, Address address, Register tmp1, Register tmp2) {
@@ -914,8 +888,17 @@ void ShenandoahBarrierStubC2::load_store_post(MacroAssembler* masm, const MachNo
 #undef __
 #define __ masm.
 
-void ShenandoahBarrierStubC2::post_init() {
-  // Do nothing.
+void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp) {
+  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
+
+  Address gc_state_fast(xthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(test_state)));
+  __ lbu(tmp, gc_state_fast);
+  __ beqz(tmp, *continuation());
+  __ j(*entry());
+
+  // This is were the slowpath stub will return to or the code above will
+  // jump to if the checks are false
+  __ bind(*continuation());
 }
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
@@ -1090,6 +1073,20 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   preserve(_obj);
 
   __ j(*continuation());
+}
+
+int ShenandoahBarrierStubC2::available_gp_registers() {
+  return Register::number_of_registers;
+}
+
+bool ShenandoahBarrierStubC2::is_special_register(Register r) {
+  return r == fp || r == sp ||
+         r == xheapbase || r == xthread ||
+         r == t0 || r == t1 || r == zr;
+}
+
+void ShenandoahBarrierStubC2::post_init() {
+  // Do nothing.
 }
 
 #endif // COMPILER2

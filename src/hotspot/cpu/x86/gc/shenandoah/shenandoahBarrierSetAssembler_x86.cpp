@@ -1275,5 +1275,5 @@ bool ShenandoahBarrierStubC2::is_special_register(Register r) {
 void ShenandoahBarrierStubC2::post_init() {
   // Do nothing.
 }
-#undef __
-#endif
+
+#endif // COMPILER2
