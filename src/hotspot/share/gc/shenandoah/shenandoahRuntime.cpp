@@ -93,5 +93,7 @@ JRT_LEAF(narrowOop, ShenandoahRuntime::load_reference_barrier_phantom_narrow_nar
 JRT_END
 
 JRT_LEAF(void, ShenandoahRuntime::clone(oopDesc* src, oopDesc* dst, size_t size))
+  shenandoah_assert_correct(nullptr, src);
+  shenandoah_assert_correct(nullptr, dst);
   HeapAccess<>::clone(src, dst, size);
 JRT_END

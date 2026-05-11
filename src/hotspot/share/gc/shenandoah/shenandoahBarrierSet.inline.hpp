@@ -454,7 +454,7 @@ void ShenandoahBarrierSet::clone_update(oop obj) {
 }
 
 template <DecoratorSet decorators, typename BarrierSetT>
-void ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::clone_in_heap(oop src, oop dst, size_t count) {
+void ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::clone_in_heap(oop src, oop dst, size_t size) {
   // Hot code path, called from compiler/runtime. Make sure fast path is fast.
 
   // Fix up src before doing the copy, if needed.
@@ -468,7 +468,7 @@ void ShenandoahBarrierSet::AccessBarrier<decorators, BarrierSetT>::clone_in_heap
     }
   }
 
-  Raw::clone(src, dst, count);
+  Raw::clone(src, dst, size);
 
   // Current allocator never allocates in old, so clone destination is guaranteed to be in young.
   // Otherwise we need card barriers.
