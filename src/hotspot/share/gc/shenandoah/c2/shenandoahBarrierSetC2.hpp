@@ -142,10 +142,10 @@ public:
 };
 
 class ShenandoahBarrierStubC2 : public BarrierStubC2 {
-  const Register _tmp1;
-  const Register _tmp2;
   Register _obj;
-  Address  const _addr;
+  Address const _addr;
+  Register const _tmp1;
+  Register const _tmp2;
   const bool _do_load;
   const bool _narrow;
   const bool _needs_load_ref_barrier;
@@ -160,6 +160,10 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   bool is_special_register(Register reg);
   Register select_temp_register(bool& selected_live, Register skip_reg1 = noreg);
 
+  void maybe_far_jump_if_zero(MacroAssembler& masm, Register reg, Label* L_done);
+
+  void enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp);
+
   void keepalive(MacroAssembler& masm, Label* L_done);
   void lrb(MacroAssembler& masm);
 
@@ -168,15 +172,15 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   address keepalive_runtime_entry_addr();
   address lrb_runtime_entry_addr();
 
-  void maybe_far_jump_if_zero(MacroAssembler& masm, Register reg, Label* L_done);
+  static ShenandoahBarrierStubC2* create(const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load);
   void post_init();
 
   ShenandoahBarrierStubC2(const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load) :
     BarrierStubC2(node),
-    _tmp1(tmp1),
-    _tmp2(tmp2),
     _obj(obj),
     _addr(addr),
+    _tmp1(tmp1),
+    _tmp2(tmp2),
     _do_load(do_load),
     _narrow(narrow),
     _needs_load_ref_barrier(needs_load_ref_barrier(node)),
@@ -208,9 +212,6 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   static bool needs_card_barrier(const MachNode* node) {
     return (node->barrier_data() & ShenandoahBitCardMark) != 0;
   }
-
-  static ShenandoahBarrierStubC2* create(const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load);
-  void enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp);
 
 public:
   static bool needs_slow_barrier(const MachNode* node) {

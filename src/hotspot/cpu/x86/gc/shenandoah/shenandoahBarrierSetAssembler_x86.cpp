@@ -1268,4 +1268,8 @@ void ShenandoahBarrierStubC2::post_init() {
   // Do nothing.
 }
 
+void ShenandoahBarrierStubC2::maybe_far_jump_if_zero(MacroAssembler& masm, Register reg, Label* L_done) {
+  Unimplemented(); // Not used.
+}
+
 #endif // COMPILER2
