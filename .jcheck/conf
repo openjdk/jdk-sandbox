@@ -1,5 +1,5 @@
 [general]
-project=jdk
+project=lilliput
 jbs=JDK
 version=27
 
@@ -23,7 +23,7 @@ ignore-tabs=.*\.gmk|Makefile
 message=Merge
 
 [checks "reviewers"]
-reviewers=1
+committers=1
 ignore=duke
 
 [checks "committer"]
