@@ -156,6 +156,24 @@ static int archive_array_length(oopDesc* archive_array) {
   return *(int*)(address(archive_array) + arrayOopDesc::length_offset_in_bytes());
 }
 
+// archive_object lives in CDS mapped memory, not in the GC heap.
+// Calling expand_for_hash() converts the raw oopDesc* to an oop, which
+// triggers oop verification.  ZGC's verifier rejects non-heap addresses,
+// so we must suspend the check for that call.
+#ifdef CHECK_UNHANDLED_OOPS
+class SuspendCheckOopFunction : public StackObj {
+  CheckOopFunctionPointer _saved;
+public:
+  SuspendCheckOopFunction()  : _saved(check_oop_function) { check_oop_function = nullptr; }
+  ~SuspendCheckOopFunction()                               { check_oop_function = _saved; }
+};
+#endif
+
+static bool archive_expand_for_hash(Klass* klass, oopDesc* archive_object) {
+  CHECK_UNHANDLED_OOPS_ONLY(SuspendCheckOopFunction suspend;)
+  return klass->expand_for_hash(archive_object, archive_object->mark());
+}
+
 static size_t archive_object_size(oopDesc* archive_object) {
   Klass* klass = archive_object->klass();
   int lh = klass->layout_helper();
@@ -166,7 +184,7 @@ static size_t archive_object_size(oopDesc* archive_object) {
       return ((size_t*)(archive_object))[-1];
     } else {
       size_t size = (size_t)Klass::layout_helper_size_in_bytes(lh) >> LogHeapWordSize;
-      if (UseCompactObjectHeaders && archive_object->mark().is_expanded() && klass->expand_for_hash(archive_object, archive_object->mark())) {
+      if (UseCompactObjectHeaders && archive_object->mark().is_expanded() && archive_expand_for_hash(klass, archive_object)) {
         size = align_object_size(size + 1);
       }
       return size;
@@ -179,7 +197,7 @@ static size_t archive_object_size(oopDesc* archive_object) {
     size_in_bytes += (size_t)Klass::layout_helper_header_size(lh);
 
     size_t size = align_up(size_in_bytes, (size_t)MinObjAlignmentInBytes) / HeapWordSize;
-    if (UseCompactObjectHeaders && archive_object->mark().is_expanded() && klass->expand_for_hash(archive_object, archive_object->mark())) {
+    if (UseCompactObjectHeaders && archive_object->mark().is_expanded() && archive_expand_for_hash(klass, archive_object)) {
       size = align_object_size(size + 1);
     }
     return size;
