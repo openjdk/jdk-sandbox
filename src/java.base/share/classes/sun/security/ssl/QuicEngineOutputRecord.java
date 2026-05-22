@@ -112,8 +112,6 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
     Ciphertext encode(ByteBuffer[] srcs, int srcsOffset, int srcsLength, ByteBuffer[] dsts, int dstsOffset, int dstsLength) throws IOException {
         recordLock.lock();
         try {
-            assert srcs == null;
-
             ByteBuffer dst = dsts[0];
             if (isClosed()) {
                 if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
