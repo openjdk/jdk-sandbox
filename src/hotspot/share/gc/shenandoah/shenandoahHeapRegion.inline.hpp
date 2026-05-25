@@ -42,6 +42,8 @@ HeapWord* ShenandoahHeapRegion::allocate_aligned(size_t size, ShenandoahAllocReq
   assert(is_old(), "aligned allocations are only taken from OLD regions to support PLABs");
   assert(is_aligned(alignment_in_bytes, HeapWordSize), "Expect heap word alignment");
 
+  if (forwarding_table_start() != nullptr) return nullptr;
+
   HeapWord* orig_top = top();
   size_t alignment_in_words = alignment_in_bytes / HeapWordSize;
 
@@ -55,9 +57,10 @@ HeapWord* ShenandoahHeapRegion::allocate_aligned(size_t size, ShenandoahAllocReq
     aligned_obj += alignment_in_words;
   }
 
-  if (pointer_delta(end(), aligned_obj) < size) {
+  HeapWord* const alloc_limit = alloc_end();
+  if (pointer_delta(alloc_limit, aligned_obj) < size) {
     // Shrink size to fit within available space and align it
-    size = pointer_delta(end(), aligned_obj);
+    size = pointer_delta(alloc_limit, aligned_obj);
     size = align_down(size, alignment_in_words);
   }
 
@@ -75,7 +78,7 @@ HeapWord* ShenandoahHeapRegion::allocate_aligned(size_t size, ShenandoahAllocReq
     adjust_alloc_metadata(req, size);
 
     HeapWord* new_top = aligned_obj + size;
-    assert(new_top <= end(), "PLAB cannot span end of heap region");
+    assert(new_top <= alloc_limit, "PLAB cannot span end of heap region");
     set_top(new_top);
     // We do not req.set_actual_size() here.  The caller sets it.
     req.set_waste(pad_words);
