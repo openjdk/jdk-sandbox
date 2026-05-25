@@ -116,6 +116,11 @@ HeapWord* ShenandoahHeapRegion::allocate(size_t size, const ShenandoahAllocReque
   HeapWord* const fwt_start = forwarding_table_start();
   HeapWord* alloc_limit = (fwt_start != nullptr) ? fwt_start : _end;
 
+  // Disable PLAB/GCLAB allocation in early-recycled FWT regions.
+  if (fwt_start != nullptr && req.is_gc_alloc() && req.is_lab_alloc()) {
+    return nullptr;
+  }
+
   // Don't allocate at adresses that are in the FWT.
   if (fwt_start != nullptr) {
     while (obj < alloc_limit
