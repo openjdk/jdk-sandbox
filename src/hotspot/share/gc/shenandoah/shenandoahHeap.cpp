@@ -1452,25 +1452,28 @@ bool ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t nu
 void ShenandoahHeap::trash_cset_regions() {
   ShenandoahHeapLocker locker(lock());
 
-  free_set()->account_fwt_tails();
   ShenandoahCollectionSet* cset = collection_set();
   ShenandoahHeapRegion* r;
+  size_t released_regions = 0;
+  size_t released_bytes = 0;
   cset->clear_current_index();
   while ((r = cset->next()) != nullptr) {
-    //log_info(gc)("Make region trash: %lu", r->index());
     if (cset->use_forward_table(r)) {
       cset->remove_region(r);
+      free_set()->release_fwt_tail(r, released_regions, released_bytes);
       r->reset_forwarding_table();
-      r->make_regular_from_cset();
       if (r->top() == r->bottom()) {
-	// If there are no allocations from this possibly early-recycled region, treat it the same as other trash.
-	r->make_trash();
+        r->make_trash();
+      } else {
+        r->make_regular_from_cset();
       }
     } else {
       r->make_trash();
     }
   }
-  //log_info(gc)("Clearing cset");
+  log_info(gc, ergo)("Released FWT tails for %zu regions, adding %zu%s to free set",
+                     released_regions,
+                     byte_size_in_proper_unit(released_bytes), proper_unit_for_byte_size(released_bytes));
   cset->clear();
 }
 

@@ -2881,39 +2881,15 @@ void ShenandoahFreeSet::recycle_collection_set() {
                      byte_size_in_proper_unit(recycled_bytes), proper_unit_for_byte_size(recycled_bytes));
 }
 
-// Account for recycling of the FWT space.  We do not reclaim the space here.  That is done in ShenandoahHeap::trash_cset_regions()
-void ShenandoahFreeSet::account_fwt_tails() {
+void ShenandoahFreeSet::release_fwt_tail(ShenandoahHeapRegion* r, size_t& released_regions, size_t& released_bytes) {
   shenandoah_assert_heaplocked();
-  size_t released_regions = 0;
-  size_t released_bytes = 0;
-#undef KELVIN_END_OF_GC
-#ifdef KELVIN_END_OF_GC
-  log_info(gc)("account_fwt_tails()");
-#endif
-  ShenandoahCollectionSet* cset = _heap->collection_set();
-  size_t region_size_bytes = ShenandoahHeapRegion::region_size_bytes();
-  for (size_t i = 0; i < _heap->num_regions(); i++) {
-    ShenandoahHeapRegion* r = _heap->get_region(i);
-    size_t tail = r->fwt_tail_bytes();
-    if (tail > 0) {
-      size_t originally_available = region_size_bytes - tail;
-      if (originally_available >= PLAB::min_size() * HeapWordSize) {
-        // Adjust only if the region is still in Mutator (not yet retired, not a small tail).
-        if (_partitions.membership(i) == ShenandoahFreeSetPartitionId::Mutator) {
-	  _partitions.decrease_used(ShenandoahFreeSetPartitionId::Mutator, tail);
-	  released_bytes += tail;
-#ifdef KELVIN_END_OF_GC
-	  log_info(gc)("account_fwt_tails() for recycled region %zu is decreasing mutator used by %zu", r->index(), tail);
-#endif
-        }
-      }
-      released_regions++;
-    }
-  }
-  log_info(gc, ergo)("Released FWT tails for %zu regions,"
-                     " adding %zu%s to Mutator free set",
-                     released_regions,
-                     byte_size_in_proper_unit(released_bytes), proper_unit_for_byte_size(released_bytes));
+  size_t tail = r->fwt_tail_bytes();
+  if (tail == 0) return;
+  ShenandoahFreeSetPartitionId p = _partitions.membership(r->index());
+  if (p == ShenandoahFreeSetPartitionId::NotFree) return;
+  _partitions.decrease_used(p, tail);
+  released_regions++;
+  released_bytes += tail;
 }
 
 // Overwrite arguments to represent the amount of memory in each generation that is about to be recycled

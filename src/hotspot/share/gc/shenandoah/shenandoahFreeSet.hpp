@@ -779,7 +779,7 @@ public:
 
   // Add cset regions that have a forwarding table to the Mutator free set.
   void recycle_collection_set();
-  void account_fwt_tails();
+  void release_fwt_tail(ShenandoahHeapRegion* r, size_t& released_regions, size_t& released_bytes);
 
   void transfer_humongous_regions_from_mutator_to_old_collector(size_t xfer_regions, size_t humongous_waste_words);
 
