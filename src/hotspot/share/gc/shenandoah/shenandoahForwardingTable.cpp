@@ -247,16 +247,14 @@ bool ShenandoahForwardingTable::build(size_t num_entries) {
 }
 
 template<class Entry>
-void ShenandoahForwardingTable::write_at_originals(uintptr_t value) {
+void ShenandoahForwardingTable::write_at_originals(uintptr_t value, HeapWord* from, HeapWord* to) {
   assert(_table != nullptr, "FWT must be built before writing sentinels");
   Entry* table = reinterpret_cast<Entry*>(_table);
   HeapWord* region_base = _region->bottom();
-  HeapWord* fwt_start = reinterpret_cast<HeapWord*>(_table);
-  ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
   for (size_t i = 0; i < _num_entries; i++) {
-    if (table[i].is_used() && !table[i].is_marked(ctx)) {
+    if (table[i].is_used()) {
       HeapWord* original = table[i].original(region_base);
-      if (original < fwt_start) {
+      if (original >= from && original < to) {
         *reinterpret_cast<uintptr_t*>(original) = value;
       }
     }
@@ -264,18 +262,20 @@ void ShenandoahForwardingTable::write_at_originals(uintptr_t value) {
 }
 
 void ShenandoahForwardingTable::install_sentinels() {
+  HeapWord* fwt_start = reinterpret_cast<HeapWord*>(_table);
   if (_compact) {
-    write_at_originals<CompactFwdTableEntry>(CollectedHeap::in_fwt_addr_filler_word);
+    write_at_originals<CompactFwdTableEntry>(CollectedHeap::in_fwt_addr_filler_word, _region->bottom(), fwt_start);
   } else {
-    write_at_originals<FwdTableEntry>(CollectedHeap::in_fwt_addr_filler_word);
+    write_at_originals<FwdTableEntry>(CollectedHeap::in_fwt_addr_filler_word, _region->bottom(), fwt_start);
   }
 }
 
-void ShenandoahForwardingTable::remove_sentinels() {
+void ShenandoahForwardingTable::zap_sentinels() {
+  HeapWord* fwt_start = reinterpret_cast<HeapWord*>(_table);
   if (_compact) {
-    write_at_originals<CompactFwdTableEntry>(0);
+    write_at_originals<CompactFwdTableEntry>(badHeapWordVal, _region->top(), fwt_start);
   } else {
-    write_at_originals<FwdTableEntry>(0);
+    write_at_originals<FwdTableEntry>(badHeapWordVal, _region->top(), fwt_start);
   }
 }
 
