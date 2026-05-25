@@ -230,6 +230,16 @@ void ShenandoahAsserts::assert_correct(void* interior_loc, oop obj, const char* 
                   file, line);
   }
 
+  if (heap->collection_set()->use_forward_table(obj)) {
+    ShenandoahHeapRegion* fwt_r = heap->heap_region_containing(obj);
+    HeapWord* obj_addr = cast_from_oop<HeapWord*>(obj);
+    if (obj_addr >= fwt_r->forwarding_table_start()) {
+      print_failure(_safe_oop, obj, interior_loc, nullptr, "Shenandoah assert_correct failed",
+                    "Object points into FWT area",
+                    file, line);
+    }
+  }
+
   if (!heap->is_in(obj)) {
     print_failure(_safe_unknown, obj, interior_loc, nullptr, "Shenandoah assert_correct failed",
                   "Object should be in active region area",
@@ -450,10 +460,21 @@ void ShenandoahAsserts::assert_not_in_cset(void* interior_loc, oop obj, const ch
   assert_correct(interior_loc, obj, file, line);
 
   ShenandoahHeap* heap = ShenandoahHeap::heap();
-  if (heap->in_collection_set(obj) && (heap->heap_region_containing(obj)->forwarding_table_start() == nullptr)) {
-    print_failure(_safe_all, obj, interior_loc, nullptr, "Shenandoah assert_not_in_cset failed",
-                  "Object should not be in collection set",
-                  file, line);
+  if (heap->in_collection_set(obj)) {
+    ShenandoahHeapRegion* r = heap->heap_region_containing(obj);
+    if (r->forwarding_table_start() == nullptr) {
+      print_failure(_safe_all, obj, interior_loc, nullptr, "Shenandoah assert_not_in_cset failed",
+                    "Object should not be in collection set",
+                    file, line);
+    } else {
+      HeapWord* obj_addr = cast_from_oop<HeapWord*>(obj);
+      HeapWord* fwt_start = r->forwarding_table_start();
+      if (obj_addr >= fwt_start) {
+        print_failure(_safe_all, obj, interior_loc, nullptr, "Shenandoah assert_not_in_cset failed",
+                      "Object points into FWT area",
+                      file, line);
+      }
+    }
   }
 }
 
