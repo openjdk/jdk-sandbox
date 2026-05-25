@@ -70,10 +70,9 @@ bool ShenandoahForwardingTable::initialize(size_t num_entries) {
   HeapWord* limit = top;
   while (last_table_start < limit) {
     HeapWord* live = ctx->get_last_marked_addr(last_table_start, limit);
-    if (live < limit && different_entries(live, limit, entry_size_in_words)) {
+    if (live >= limit) break;  // No more live objects in range
+    if (different_entries(live, limit, entry_size_in_words)) {
       unusable_entries++;
-    } else {
-      break;
     }
     limit = live;
   }

@@ -87,22 +87,19 @@ HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
 
  HeapWord* const region_base = _region->bottom();
 
- // New allocations in early-recycled regions are not forwarded and are returned as is.
  ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
  while (table[index].is_used() || table[index].is_marked(ctx)) {
-  if (table[index].is_used() && table[index].is_original(region_base, original)) {
+  // Real forwarding entries are always at unmarked slots (enter_forwarding asserts this).
+  if (table[index].is_used() && !table[index].is_marked(ctx) && table[index].is_original(region_base, original)) {
    assert(table[index].forwardee() != nullptr, "must have found a forwarding");
-   assert(!table[index].is_marked(ShenandoahHeap::heap()->marking_context()), "must have found unmarked slot");
    return table[index].forwardee();
   }
   log_develop_trace(gc)("Collision on " UINT64_FORMAT ": " PTR_FORMAT ": is_marked: %s, original: " PTR_FORMAT ", forwardee: " PTR_FORMAT, index, p2i(&table[index]), BOOL_TO_STR(table[index].is_marked(ShenandoahHeap::heap()->marking_context())), p2i(table[index].original(region_base)), p2i(table[index].forwardee()));
   index = (index + 1) % _num_entries;
   if (index == hash_val % _num_entries) {
-   // Full wrap-around -> new allocation.
    return original;
   }
  }
- // Empty clean slot -> new allocation.
  return original;
 }
 
