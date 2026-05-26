@@ -66,6 +66,7 @@ bool CollectedHeap::_is_shutting_down = false;
 
 size_t CollectedHeap::_lab_alignment_reserve = SIZE_MAX;
 uintptr_t CollectedHeap::in_fwt_addr_filler_word_0 = 0;
+uintptr_t CollectedHeap::in_fwt_addr_filler_word_1 = 0;
 Klass* CollectedHeap::_filler_object_klass = nullptr;
 size_t CollectedHeap::_filler_array_max_size = 0;
 size_t CollectedHeap::_stack_chunk_max_size = 0;

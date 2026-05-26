@@ -123,10 +123,11 @@ HeapWord* ShenandoahHeapRegion::allocate(size_t size, const ShenandoahAllocReque
 
   // Don't allocate at adresses that are in the FWT.
   if (fwt_start != nullptr) {
-    const uintptr_t fwt_sentinel = CollectedHeap::in_fwt_addr_filler_word_0;
+    const uintptr_t fwt_sentinel      = CollectedHeap::in_fwt_addr_filler_word_0;
+    const size_t    fwt_sentinel_step = align_up(2, (size_t)MinObjAlignment);
     while (obj < alloc_limit
            && *reinterpret_cast<uintptr_t*>(obj) == fwt_sentinel) {
-      obj += MinObjAlignment;
+      obj += fwt_sentinel_step;
     }
     if (obj >= alloc_limit) return nullptr;
   }

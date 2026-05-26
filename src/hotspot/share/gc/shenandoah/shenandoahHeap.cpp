@@ -85,6 +85,7 @@
 #include "memory/universe.hpp"
 #include "nmt/mallocTracker.hpp"
 #include "nmt/memTracker.hpp"
+#include "oops/compressedKlass.inline.hpp"
 #include "oops/compressedOops.inline.hpp"
 #include "prims/jvmtiTagMap.hpp"
 #include "runtime/atomic.hpp"
@@ -697,12 +698,28 @@ public:
   }
 };
 
+void ShenandoahHeap::initialize_fwt_sentinels() {
+  // word_0 must not look like any valid mark word on a freshly-allocated object.
+  // word_1 carries the klass for non-COH.
+  Klass* fk = filler_object_klass();
+  if (UseCompactObjectHeaders) {
+    in_fwt_addr_filler_word_0 = fk->prototype_header().value();
+    in_fwt_addr_filler_word_1 = 0;
+  } else {
+    // is_marked() == is_forwarded() == false.
+    in_fwt_addr_filler_word_0 = 0x0202020202020202ULL;
+    in_fwt_addr_filler_word_1 = UseCompressedClassPointers
+        ? (uintptr_t) CompressedKlassPointers::encode_not_null(fk)
+        : (uintptr_t) fk;
+  }
+  log_debug(gc)("FWT sentinel initialized: word_0=" PTR_FORMAT " word_1=" PTR_FORMAT,
+                in_fwt_addr_filler_word_0, in_fwt_addr_filler_word_1);
+}
+
 void ShenandoahHeap::post_initialize() {
   CollectedHeap::post_initialize();
 
-  // is_marked() == is_forwarded() == false.
-  in_fwt_addr_filler_word_0 = 0x0202020202020202ULL;
-  log_debug(gc)("FWT sentinel initialized: " PTR_FORMAT, in_fwt_addr_filler_word_0);
+  initialize_fwt_sentinels();
 
   check_soft_max_changed();
 

@@ -316,8 +316,10 @@ protected:
     return oopDesc::header_size();
   }
 
-  // Sentinel value preventing allocations at table-forwarded object addresses.
+  // Sentinel words preventing allocations at table-forwarded object addresses.
+  // The pair looks like a parseable filler object.
   static uintptr_t in_fwt_addr_filler_word_0;
+  static uintptr_t in_fwt_addr_filler_word_1;
 
   static size_t lab_alignment_reserve() {
     assert(_lab_alignment_reserve != SIZE_MAX, "uninitialized");
