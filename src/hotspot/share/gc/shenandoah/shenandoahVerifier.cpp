@@ -1170,6 +1170,44 @@ void ShenandoahVerifier::verify_before_evacuation(ShenandoahGeneration* generati
   );
 }
 
+#ifndef PRODUCT
+void ShenandoahVerifier::verify_no_fwt_sentinel_refs() {
+  class Closure : public BasicOopIterateClosure, public ObjectClosure {
+    ShenandoahHeap* const _heap;
+    ShenandoahCollectionSet* const _cset;
+    oop _host;
+
+    void check(oop obj, void* p) {
+      if (_cset->use_forward_table(obj)) {
+        HeapWord* fwt_start = _heap->heap_region_containing(obj)->forwarding_table_start();
+        if (cast_from_oop<HeapWord*>(obj) >= fwt_start) {
+          ShenandoahAsserts::print_failure(ShenandoahAsserts::_safe_all, obj, p, _host,
+                                           "Before Update Refs",
+                                           "Reference points into FWT area",
+                                           __FILE__, __LINE__);
+        }
+      }
+    }
+    template<class T>
+    void do_oop_work(T* p) {
+      oop obj = RawAccess<>::oop_load(p);
+      if (obj != nullptr) check(obj, p);
+    }
+  public:
+    Closure(ShenandoahHeap* heap) : _heap(heap), _cset(heap->collection_set()), _host(nullptr) {}
+    void do_object(oop obj) override { _host = obj; obj->oop_iterate(this); }
+    void do_oop(oop* p)       override { do_oop_work(p); }
+    void do_oop(narrowOop* p) override { do_oop_work(p); }
+  } cl(_heap);
+
+  for (size_t i = 0; i < _heap->num_regions(); i++) {
+    ShenandoahHeapRegion* r = _heap->get_region(i);
+    if (r->is_cset() || r->is_trash() || !r->is_active()) continue;
+    _heap->marked_object_iterate(r, &cl);
+  }
+}
+#endif
+
 void ShenandoahVerifier::verify_before_update_refs(ShenandoahGeneration* generation) {
   VerifyRememberedSet verify_remembered_set = _verify_remembered_before_updating_references;
   if (_heap->mode()->is_generational() &&

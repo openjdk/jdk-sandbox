@@ -1109,6 +1109,7 @@ void ShenandoahConcurrentGC::op_evacuate() {
 }
 
 void ShenandoahConcurrentGC::op_init_update_refs() {
+  NOT_PRODUCT(ShenandoahHeap::heap()->verifier()->verify_no_fwt_sentinel_refs();)
   if (ShenandoahVerify) {
     ShenandoahHeap* const heap = ShenandoahHeap::heap();
     ShenandoahTimingsTracker v(ShenandoahPhaseTimings::init_update_refs_verify);

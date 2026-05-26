@@ -28,6 +28,12 @@
 
 #include "gc/shenandoah/shenandoahMarkingContext.inline.hpp"
 #include "utilities/fastHash.hpp"
+#ifndef PRODUCT
+#include "gc/shared/collectedHeap.hpp"
+#include "memory/metaspace.hpp"
+#include "oops/klass.hpp"
+#include "oops/markWord.hpp"
+#endif
 
 inline bool FwdTableEntry::is_marked(ShenandoahMarkingContext* ctx) const {
  return ctx->is_marked_ignore_tams(cast_from_oop<HeapWord*>(cast_to_oop(&_original))) ||
@@ -72,6 +78,30 @@ inline bool CompactFwdTableEntry::is_marked(ShenandoahMarkingContext* ctx) const
  return ctx->is_marked_ignore_tams(reinterpret_cast<HeapWord*>(const_cast<uint64_t*>(&_encoded)));
 }
 
+#ifndef PRODUCT
+static void log_fwt_probe_miss(HeapWord* const original, size_t region_idx,
+                               const char* kind, ShenandoahMarkingContext* ctx) {
+ uintptr_t mark_raw = *reinterpret_cast<const uintptr_t*>(original);
+ auto mw = cast_to_oop(original)->mark();
+ bool bm_marked = ctx->is_marked_ignore_tams(original);
+ Klass* k = cast_to_oop(original)->klass_or_null();
+ log_trace(gc)("FWT probe-miss (%s) obj " PTR_FORMAT " region=%zu: "
+               "mark=" PTR_FORMAT " (forwarded=%s bm_marked=%s) klass=" PTR_FORMAT,
+               kind, p2i(original), region_idx,
+               mark_raw, BOOL_TO_STR(mw.is_forwarded()), BOOL_TO_STR(bm_marked),
+               p2i(k));
+ if (mw.is_forwarded()) {
+  log_trace(gc)("  -> forwarded to " PTR_FORMAT, p2i(cast_from_oop<HeapWord*>(mw.forwardee())));
+ }
+ if (k != nullptr && Metaspace::contains(k)) {
+  ResourceMark rm;
+  size_t obj_size = cast_to_oop(original)->size();
+  log_trace(gc)("  class: %s size=%zu range=[" PTR_FORMAT ", " PTR_FORMAT ")",
+                k->external_name(), obj_size, p2i(original), p2i(original + obj_size));
+ }
+}
+#endif
+
 inline uint64_t ShenandoahForwardingTable::hash(HeapWord* original, void* table) {
  return FastHash::get_hash64(reinterpret_cast<uint64_t>(original), reinterpret_cast<uint64_t>(table));
 }
@@ -97,9 +127,12 @@ HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
   log_develop_trace(gc)("Collision on " UINT64_FORMAT ": " PTR_FORMAT ": is_marked: %s, original: " PTR_FORMAT ", forwardee: " PTR_FORMAT, index, p2i(&table[index]), BOOL_TO_STR(table[index].is_marked(ShenandoahHeap::heap()->marking_context())), p2i(table[index].original(region_base)), p2i(table[index].forwardee()));
   index = (index + 1) % _num_entries;
   if (index == hash_val % _num_entries) {
+   NOT_PRODUCT(log_fwt_probe_miss(original, _region->index(), "full-wrap", ctx);)
    return original;
   }
  }
+
+ NOT_PRODUCT(log_fwt_probe_miss(original, _region->index(), "empty-slot", ctx);)
  return original;
 }
 

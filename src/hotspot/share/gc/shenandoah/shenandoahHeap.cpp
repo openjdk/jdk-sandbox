@@ -706,17 +706,17 @@ void ShenandoahHeap::initialize_fwt_sentinels() {
   // word_1 carries the klass for non-COH.
   Klass* fk = filler_object_klass();
   if (UseCompactObjectHeaders) {
-    in_fwt_addr_filler_word_0 = fk->prototype_header().value();
-    in_fwt_addr_filler_word_1 = 0;
+    ShenandoahHeap::in_fwt_addr_filler_word_0 = fk->prototype_header().value();
+    ShenandoahHeap::in_fwt_addr_filler_word_1 = 0;
   } else {
     // is_marked() == is_forwarded() == false.
-    in_fwt_addr_filler_word_0 = 0x0202020202020202ULL;
-    in_fwt_addr_filler_word_1 = UseCompressedClassPointers
+    ShenandoahHeap::in_fwt_addr_filler_word_0 = 0x0202020202020202ULL;
+    ShenandoahHeap::in_fwt_addr_filler_word_1 = UseCompressedClassPointers
         ? (uintptr_t) CompressedKlassPointers::encode_not_null(fk)
         : (uintptr_t) fk;
   }
   log_debug(gc)("FWT sentinel initialized: word_0=" PTR_FORMAT " word_1=" PTR_FORMAT,
-                in_fwt_addr_filler_word_0, in_fwt_addr_filler_word_1);
+                ShenandoahHeap::in_fwt_addr_filler_word_0, ShenandoahHeap::in_fwt_addr_filler_word_1);
 }
 
 void ShenandoahHeap::post_initialize() {
