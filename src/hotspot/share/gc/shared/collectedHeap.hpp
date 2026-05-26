@@ -317,8 +317,7 @@ protected:
   }
 
   // Sentinel value preventing allocations at table-forwarded object addresses.
-  // is_marked() == is_forwarded() == false.
-  static constexpr uintptr_t in_fwt_addr_filler_word = 0x0202020202020202ULL;
+  static uintptr_t in_fwt_addr_filler_word;
 
   static size_t lab_alignment_reserve() {
     assert(_lab_alignment_reserve != SIZE_MAX, "uninitialized");

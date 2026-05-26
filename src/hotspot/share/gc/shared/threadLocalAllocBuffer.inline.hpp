@@ -40,8 +40,9 @@ inline HeapWord* ThreadLocalAllocBuffer::allocate(size_t size) {
   HeapWord* obj = top();
 
   // Don't allocate at adresses that are in the FWT.
+  const uintptr_t fwt_sentinel = CollectedHeap::in_fwt_addr_filler_word;
   while (obj < end()
-         && *reinterpret_cast<uintptr_t*>(obj) == CollectedHeap::in_fwt_addr_filler_word) {
+         && *reinterpret_cast<uintptr_t*>(obj) == fwt_sentinel) {
     obj += MinObjAlignment;
   }
   if (obj >= end()) return nullptr;
