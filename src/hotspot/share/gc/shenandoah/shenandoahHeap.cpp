@@ -701,8 +701,8 @@ void ShenandoahHeap::post_initialize() {
   CollectedHeap::post_initialize();
 
   // is_marked() == is_forwarded() == false.
-  in_fwt_addr_filler_word = 0x0202020202020202ULL;
-  log_debug(gc)("FWT sentinel initialized: " PTR_FORMAT, in_fwt_addr_filler_word);
+  in_fwt_addr_filler_word_0 = 0x0202020202020202ULL;
+  log_debug(gc)("FWT sentinel initialized: " PTR_FORMAT, in_fwt_addr_filler_word_0);
 
   check_soft_max_changed();
 

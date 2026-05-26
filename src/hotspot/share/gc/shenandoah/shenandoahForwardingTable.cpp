@@ -263,9 +263,9 @@ void ShenandoahForwardingTable::write_at_originals(uintptr_t value, HeapWord* fr
 void ShenandoahForwardingTable::install_sentinels() {
   HeapWord* fwt_start = reinterpret_cast<HeapWord*>(_table);
   if (_compact) {
-    write_at_originals<CompactFwdTableEntry>(CollectedHeap::in_fwt_addr_filler_word, _region->bottom(), fwt_start);
+    write_at_originals<CompactFwdTableEntry>(CollectedHeap::in_fwt_addr_filler_word_0, _region->bottom(), fwt_start);
   } else {
-    write_at_originals<FwdTableEntry>(CollectedHeap::in_fwt_addr_filler_word, _region->bottom(), fwt_start);
+    write_at_originals<FwdTableEntry>(CollectedHeap::in_fwt_addr_filler_word_0, _region->bottom(), fwt_start);
   }
 }
 
