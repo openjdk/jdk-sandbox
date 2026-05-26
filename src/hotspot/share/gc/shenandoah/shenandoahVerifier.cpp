@@ -1188,16 +1188,17 @@ void ShenandoahVerifier::verify_no_fwt_sentinel_refs() {
         }
       }
     }
-    template<class T>
-    void do_oop_work(T* p) {
-      oop obj = RawAccess<>::oop_load(p);
-      if (obj != nullptr) check(obj, p);
-    }
   public:
     Closure(ShenandoahHeap* heap) : _heap(heap), _cset(heap->collection_set()), _host(nullptr) {}
     void do_object(oop obj) override { _host = obj; obj->oop_iterate(this); }
-    void do_oop(oop* p)       override { do_oop_work(p); }
-    void do_oop(narrowOop* p) override { do_oop_work(p); }
+    void do_oop(oop* p) override {
+      oop obj = RawAccess<>::oop_load(p);
+      if (obj != nullptr) check(obj, p);
+    }
+    void do_oop(narrowOop* p) override {
+      oop obj = RawAccess<>::oop_load(p);
+      if (obj != nullptr) check(obj, p);
+    }
   } cl(_heap);
 
   for (size_t i = 0; i < _heap->num_regions(); i++) {
