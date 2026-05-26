@@ -108,6 +108,9 @@
 #include "gc/shenandoah/shenandoahJfrSupport.hpp"
 #endif
 
+uintptr_t ShenandoahHeap::in_fwt_addr_filler_word_0 = 0;
+uintptr_t ShenandoahHeap::in_fwt_addr_filler_word_1 = 0;
+
 class ShenandoahPretouchHeapTask : public WorkerTask {
 private:
   ShenandoahRegionIterator _regions;
