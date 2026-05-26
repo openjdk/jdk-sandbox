@@ -2875,7 +2875,7 @@ void ShenandoahFreeSet::recycle_collection_set() {
 #ifdef KELVIN_FWT
   dump_used("At end of recycle_collection_set", &_partitions);
 #endif
-  log_info(gc, ergo)("Recycled %zu FWT cset regions (below-FWT space),"
+  log_info(gc)("Recycled %zu FWT cset regions (below-FWT space),"
                      " added %zu%s to Mutator free set",
                      recycled_regions,
                      byte_size_in_proper_unit(recycled_bytes), proper_unit_for_byte_size(recycled_bytes));

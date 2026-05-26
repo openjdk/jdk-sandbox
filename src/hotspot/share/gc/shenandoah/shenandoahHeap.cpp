@@ -1495,7 +1495,7 @@ void ShenandoahHeap::trash_cset_regions() {
       r->make_trash();
     }
   }
-  log_info(gc, ergo)("Released FWT tails for %zu regions, adding %zu%s to free set",
+  log_info(gc)("Released FWT tails for %zu regions, adding %zu%s to free set",
                      released_regions,
                      byte_size_in_proper_unit(released_bytes), proper_unit_for_byte_size(released_bytes));
   cset->clear();
