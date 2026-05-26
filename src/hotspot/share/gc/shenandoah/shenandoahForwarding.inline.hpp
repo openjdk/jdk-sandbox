@@ -43,7 +43,11 @@ inline oop ShenandoahForwarding::get_forwardee_raw_unchecked(oop obj) {
   // On this path, we can encounter the "marked" object, but with null
   // fwdptr. That object is still not forwarded, and we need to return
   // the object itself.
-  assert(!ShenandoahHeap::heap()->collection_set()->use_forward_table(obj), "Must not call with forwarding table");
+  // We cannot assert the below here, because that region forwarding state might
+  // be switched to FWD_TABLE concurrently. However, that is fine, we don't overwrite
+  // the header-based forwarding until we've seen a handshake, at which point the
+  // region forwarding state is stable (and we should not get here).
+  // assert(!ShenandoahHeap::heap()->collection_set()->use_forward_table(obj), "Must not call with forwarding table");
   markWord mark = obj->mark();
   if (mark.is_marked()) {
     HeapWord* fwdptr = (HeapWord*) mark.clear_lock_bits().to_pointer();
