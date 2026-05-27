@@ -145,7 +145,7 @@ public:
   }
 
   void install_sentinels();
-  void zap_sentinels();
+  void remove_sentinels();
 
   template<class Entry>
   HeapWord* forwardee(HeapWord* orginal) const;

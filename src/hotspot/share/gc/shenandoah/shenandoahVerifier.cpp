@@ -44,6 +44,7 @@
 #include "oops/compressedOops.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/orderAccess.hpp"
+#include "runtime/threadSMR.hpp"
 #include "runtime/threads.hpp"
 #include "utilities/align.hpp"
 
@@ -1172,6 +1173,12 @@ void ShenandoahVerifier::verify_before_evacuation(ShenandoahGeneration* generati
 
 #ifndef PRODUCT
 void ShenandoahVerifier::verify_no_fwt_sentinel_refs() {
+  if (UseTLAB) {
+    for (JavaThreadIteratorWithHandle jtiwh; JavaThread* t = jtiwh.next(); ) {
+      t->tlab().make_parsable();
+    }
+  }
+
   class Closure : public BasicOopIterateClosure, public ObjectClosure {
     ShenandoahHeap* const _heap;
     ShenandoahCollectionSet* const _cset;
