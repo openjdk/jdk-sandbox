@@ -1179,12 +1179,25 @@ void ShenandoahVerifier::verify_no_fwt_sentinel_refs() {
 
     void check(oop obj, void* p) {
       if (_cset->use_forward_table(obj)) {
-        HeapWord* fwt_start = _heap->heap_region_containing(obj)->forwarding_table_start();
-        if (cast_from_oop<HeapWord*>(obj) >= fwt_start) {
-          ShenandoahAsserts::print_failure(ShenandoahAsserts::_safe_all, obj, p, _host,
-                                           "Before Update Refs",
-                                           "Reference points into FWT area",
-                                           __FILE__, __LINE__);
+        ShenandoahMarkingContext* ctx = _heap->marking_context();
+        ShenandoahHeapRegion* region = _heap->heap_region_containing(obj);
+        oop forwardee = ShenandoahForwardingTable::use_compact()
+            ? region->forwardee_compact(obj)
+            : region->forwardee_wide(obj);
+        if (ctx->is_marked(obj)) {
+          if (forwardee == obj) {
+            ShenandoahAsserts::print_failure(ShenandoahAsserts::_safe_all, obj, p, _host,
+                                             "Before Update Refs",
+                                             "FWT lookup miss: marked object has no forwarding",
+                                             __FILE__, __LINE__);
+          }
+        } else {
+          if (forwardee != obj) {
+            ShenandoahAsserts::print_failure(ShenandoahAsserts::_safe_all, obj, p, _host,
+                                             "Before Update Refs",
+                                             "FWT spurious forwarding for unmarked object",
+                                             __FILE__, __LINE__);
+          }
         }
       }
     }
