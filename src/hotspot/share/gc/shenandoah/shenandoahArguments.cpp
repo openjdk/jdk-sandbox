@@ -169,6 +169,11 @@ void ShenandoahArguments::initialize() {
     warning("Hot code heap is not supported with hotpatching yet");
     FLAG_SET_DEFAULT(HotCodeHeap, false);
   }
+
+  if (HotCodeHeapSize) {
+    warning("Hot code heap is not supported with hotpatching yet");
+    FLAG_SET_DEFAULT(HotCodeHeapSize, 0);
+  }
 #endif // COMPILER2
 
   // Record more information about previous cycles for improved debugging pleasure
