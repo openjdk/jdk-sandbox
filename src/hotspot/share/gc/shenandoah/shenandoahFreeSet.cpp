@@ -2896,12 +2896,14 @@ void ShenandoahFreeSet::release_fwt_tails() {
 
     ShenandoahFreeSetPartitionId p = _partitions.membership(idx);
     size_t tail = r->fwt_tail_bytes();
+    size_t available = r->capacity() - tail;
+    size_t min_size = PLAB::min_size() * HeapWordSize;
     if (tail > 0) {
       if (p != ShenandoahFreeSetPartitionId::NotFree) {
         _partitions.decrease_used(p, tail);
         released_regions++;
         released_bytes += tail;
-      } else if (r->capacity() - tail >= PLAB::min_size() * HeapWordSize) {
+      } else if (available >= min_size && tail >= min_size) {
         _partitions.decrease_used(ShenandoahFreeSetPartitionId::Mutator, tail);
         released_regions++;
         released_bytes += tail;
