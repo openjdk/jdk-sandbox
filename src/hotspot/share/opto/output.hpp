@@ -93,6 +93,10 @@ private:
   int                    _orig_pc_slot;
   int                    _orig_pc_slot_offset_in_bytes;
 
+  // For GC barriers
+  int                    _gc_barrier_save_slots;
+  int                    _gc_barrier_save_slots_offset_in_bytes;
+
   ConstantTable          _constant_table;        // The constant table for this compilation unit.
 
   BufferSizingData       _buf_sizes;
@@ -193,6 +197,8 @@ public:
   int               frame_size_in_bytes() const { return _frame_slots << LogBytesPerInt; }
 
   int               bang_size_in_bytes() const;
+
+  int               gc_barrier_save_slots_offset_in_bytes() { return _gc_barrier_save_slots_offset_in_bytes; }
 
   void          set_node_bundling_limit(uint n) { _node_bundling_limit = n; }
   void          set_node_bundling_base(Bundle* b) { _node_bundling_base = b; }

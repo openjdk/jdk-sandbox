@@ -855,6 +855,7 @@ void ShenandoahBarrierSetC2::emit_stubs(CodeBuffer& cb) const {
   assert(masm.offset() <= output->buffer_sizing_data()->_code,
          "Stubs are assumed to be emitted directly after code and code_size is a hard limit on where it can start");
   barrier_set_state()->set_stubs_start_offset(masm.offset());
+  barrier_set_state()->set_save_slots_stack_offset(output->gc_barrier_save_slots_offset_in_bytes());
 
   // Stub generation counts all stubs as skipped for the sake of inlining policy.
   // This is critical for performance, check it.
@@ -988,39 +989,19 @@ Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Regi
   return tmp;
 }
 
-address ShenandoahBarrierStubC2::keepalive_runtime_entry_addr() {
-  if (_narrow) {
-    return CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre_narrow);
-  } else {
-    return CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre);
-  }
+int ShenandoahBarrierStubC2::fast_save_slots_available() {
+   return MIN2(ShenandoahFastSaveSlots, (ShenandoahBarrierSetC2::bsc2()->reserved_slots() - _save_slots_idx));
 }
 
-address ShenandoahBarrierStubC2::lrb_runtime_entry_addr() {
-  bool is_strong  = (_node->barrier_data() & ShenandoahBitStrong)  != 0;
-  bool is_weak    = (_node->barrier_data() & ShenandoahBitWeak)    != 0;
-  bool is_phantom = (_node->barrier_data() & ShenandoahBitPhantom) != 0;
+int ShenandoahBarrierStubC2::push_save_slot() {
+  assert(_save_slots_idx < ShenandoahBarrierSetC2::bsc2()->reserved_slots(), "Enough slots are reserved: %d, %d",
+         _save_slots_idx, ShenandoahBarrierSetC2::bsc2()->reserved_slots());
+  return barrier_set_state()->save_slots_stack_offset() + (_save_slots_idx++) * sizeof(address);
+}
 
-  if (_narrow) {
-    if (is_strong) {
-      return CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow_narrow);
-    } else if (is_weak) {
-      return CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow_narrow);
-    } else if (is_phantom) {
-      return CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow_narrow);
-    }
-  } else {
-    if (is_strong) {
-      return CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong);
-    } else if (is_weak) {
-      return CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak);
-    } else if (is_phantom) {
-      return CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom);
-    }
-  }
-
-  ShouldNotReachHere();
-  return nullptr;
+int ShenandoahBarrierStubC2::pop_save_slot() {
+  assert(_save_slots_idx > 0, "About to underflow");
+  return barrier_set_state()->save_slots_stack_offset() + (--_save_slots_idx) * sizeof(address);
 }
 
 bool ShenandoahBarrierSetC2State::needs_liveness_data(const MachNode* mach) const {
@@ -1030,4 +1011,91 @@ bool ShenandoahBarrierSetC2State::needs_liveness_data(const MachNode* mach) cons
 
 bool ShenandoahBarrierSetC2State::needs_livein_data() const {
   return true;
+}
+
+address ShenandoahBarrierStubC2::keepalive_runtime_entry_addr(SaveMode save_mode) {
+  switch (save_mode) {
+    case SaveMode::Nothing:
+      return SharedRuntime::shenandoah_keepalive_none();
+    case SaveMode::GP:
+      return SharedRuntime::shenandoah_keepalive_gp();
+    case SaveMode::All:
+      return SharedRuntime::shenandoah_keepalive_all();
+  }
+  ShouldNotReachHere();
+  return nullptr;
+}
+
+address ShenandoahBarrierStubC2::lrb_runtime_entry_addr(SaveMode save_mode) {
+  bool is_strong  = (_node->barrier_data() & ShenandoahBitStrong)  != 0;
+  bool is_weak    = (_node->barrier_data() & ShenandoahBitWeak)    != 0;
+  bool is_phantom = (_node->barrier_data() & ShenandoahBitPhantom) != 0;
+
+  switch (save_mode) {
+    case SaveMode::Nothing: {
+      if (_narrow) {
+        if (is_strong) {
+          return SharedRuntime::shenandoah_lrb_strong_narrow_none();
+        } else if (is_weak) {
+          return SharedRuntime::shenandoah_lrb_weak_narrow_none();
+        } else if (is_phantom) {
+          return SharedRuntime::shenandoah_lrb_phantom_narrow_none();
+        }
+      } else {
+        if (is_strong) {
+          return SharedRuntime::shenandoah_lrb_strong_none();
+        } else if (is_weak) {
+          return SharedRuntime::shenandoah_lrb_weak_none();
+        } else if (is_phantom) {
+          return SharedRuntime::shenandoah_lrb_phantom_none();
+        }
+      }
+      break;
+    }
+
+    case SaveMode::GP: {
+      if (_narrow) {
+        if (is_strong) {
+          return SharedRuntime::shenandoah_lrb_strong_narrow_gp();
+        } else if (is_weak) {
+          return SharedRuntime::shenandoah_lrb_weak_narrow_gp();
+        } else if (is_phantom) {
+          return SharedRuntime::shenandoah_lrb_phantom_narrow_gp();
+        }
+      } else {
+        if (is_strong) {
+          return SharedRuntime::shenandoah_lrb_strong_gp();
+        } else if (is_weak) {
+          return SharedRuntime::shenandoah_lrb_weak_gp();
+        } else if (is_phantom) {
+          return SharedRuntime::shenandoah_lrb_phantom_gp();
+        }
+      }
+      break;
+    }
+
+    case SaveMode::All: {
+      if (_narrow) {
+        if (is_strong) {
+          return SharedRuntime::shenandoah_lrb_strong_narrow_all();
+        } else if (is_weak) {
+          return SharedRuntime::shenandoah_lrb_weak_narrow_all();
+        } else if (is_phantom) {
+          return SharedRuntime::shenandoah_lrb_phantom_narrow_all();
+        }
+      } else {
+        if (is_strong) {
+          return SharedRuntime::shenandoah_lrb_strong_all();
+        } else if (is_weak) {
+          return SharedRuntime::shenandoah_lrb_weak_all();
+        } else if (is_phantom) {
+          return SharedRuntime::shenandoah_lrb_phantom_all();
+        }
+      }
+      break;
+    }
+  }
+
+  ShouldNotReachHere();
+  return nullptr;
 }

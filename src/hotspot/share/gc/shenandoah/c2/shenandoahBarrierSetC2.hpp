@@ -49,6 +49,7 @@ class ShenandoahBarrierSetC2State : public BarrierSetC2State {
   int _trampoline_stubs_count;
   int _stubs_start_offset;
   int _stubs_current_total_size;
+  int _save_slots_offset;
 
 public:
   explicit ShenandoahBarrierSetC2State(Arena* comp_arena);
@@ -84,6 +85,15 @@ public:
 
   int stubs_current_total_size() {
     return _stubs_current_total_size;
+  }
+
+  void set_save_slots_stack_offset(int offset) {
+    _save_slots_offset = offset;
+  }
+
+  int save_slots_stack_offset() {
+    assert(_save_slots_offset >= 0, "should be set");
+    return _save_slots_offset;
   }
 };
 
@@ -135,6 +145,8 @@ public:
   static void verify_gc_barrier_assert(bool cond, const char* msg, uint8_t bd, Node* n);
 #endif
 
+  virtual int reserved_slots() const { return ShenandoahReservedStackSlots; }
+
   virtual int estimate_stub_size() const;
   virtual void emit_stubs(CodeBuffer& cb) const;
   virtual void late_barrier_analysis() const {
@@ -162,9 +174,25 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   const bool _needs_load_ref_weak_barrier;
   const bool _needs_keep_alive_barrier;
   bool _needs_far_jump;
+  int  _save_slots_idx;
+
+  GrowableArray<Register> _live_gp;
+  bool _has_live_vector_registers;
 
   static void register_stub(ShenandoahBarrierStubC2* stub);
 
+  // Manage save slots on stack. We cannot move SP freely when in statically-sized
+  // C2 frame. These methods emulate the stack where a stub can save registers temporarily
+  // without moving SP.
+  void push_save_register(MacroAssembler& masm, Register reg);
+  void pop_save_register(MacroAssembler& masm, Register reg);
+  bool push_save_register_if_live(MacroAssembler& masm, Register reg);
+  int push_save_slot();
+  int pop_save_slot();
+  int fast_save_slots_available();
+
+  bool has_save_space_for_live_gp_registers(bool skip_crarg0, bool skip_crarg1, bool skip_rax);
+  bool has_live_vector_registers();
   int available_gp_registers();
   bool is_live_register(Register reg);
   bool is_special_register(Register reg);
@@ -179,8 +207,17 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
 
   static void cardtable(MacroAssembler& masm, Address addr, Register tmp1, Register tmp2);
 
-  address keepalive_runtime_entry_addr();
-  address lrb_runtime_entry_addr();
+  void save_live_gp_regs(MacroAssembler& masm, bool skip_crarg0, bool skip_crarg1, bool skip_rax);
+  void restore_live_gp_regs(MacroAssembler& masm, bool skip_crarg0, bool skip_crarg1, bool skip_rax);
+
+  enum SaveMode {
+    Nothing,
+    GP,
+    All
+  };
+
+  address keepalive_runtime_entry_addr(SaveMode mode = SaveMode::All);
+  address lrb_runtime_entry_addr(SaveMode mode = SaveMode::All);
 
   static ShenandoahBarrierStubC2* create(const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load);
   void post_init();
@@ -196,7 +233,9 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
     _needs_load_ref_barrier(needs_load_ref_barrier(node)),
     _needs_load_ref_weak_barrier(needs_load_ref_barrier_weak(node)),
     _needs_keep_alive_barrier(needs_keep_alive_barrier(node)),
-    _needs_far_jump() {
+    _needs_far_jump(),
+    _save_slots_idx(0),
+    _has_live_vector_registers() {
     assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
     if (_tmp1 != noreg && _tmp2 != noreg) {
       assert_different_registers(_tmp1, _tmp2, _obj, _addr.base(), _addr.index());

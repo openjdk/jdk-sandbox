@@ -61,6 +61,9 @@
 #include "adfiles/ad_aarch64.hpp"
 #include "opto/runtime.hpp"
 #endif
+#if INCLUDE_SHENANDOAHGC
+#include "gc/shenandoah/shenandoahRuntime.hpp"
+#endif
 
 #define __ masm->
 
@@ -2822,3 +2825,75 @@ RuntimeStub* SharedRuntime::generate_jfr_return_lease() {
 }
 
 #endif // INCLUDE_JFR
+
+RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address stub_addr, bool has_return, bool save_registers, bool save_vectors) {
+  const char* name = SharedRuntime::stub_name(stub_id);
+
+  CodeBuffer code(name, 2048, 64);
+  MacroAssembler* masm = new MacroAssembler(&code);
+  address start = __ pc();
+
+  RegisterSaver reg_save(save_vectors);
+
+  // Set up the frame and optionally save the registers.
+  // Arch-specific calling convention allows us to skip callee-saved registers.
+  // At this level, we do not know which registers are callee-saved anymore, so
+  // we save/restore all registers. We have already filtered easy cases of small
+  // number of callee-saved registers before calling this stub.
+  int frame_size_in_words = 0;
+  OopMap* map = nullptr;
+  if (save_registers) {
+    map = reg_save.save_live_registers(masm, 0, &frame_size_in_words);
+  } else {
+    frame_size_in_words = 2; // link and return address
+    map = new OopMap(frame_size_in_words, 0);
+    __ enter();
+  }
+  address frame_complete_pc = __ pc();
+
+  // Call the runtime. This is what MacroAssember::call_VM_leaf does,
+  // but we also want to have exact post-call PC for oop map location.
+  #ifdef _WIN64
+    // Windows always allocates space for it's register args
+    __ subptr(rsp, frame::arg_reg_save_area_bytes);
+  #endif
+
+  // Stacks on aarch64 are always aligned, no need to worry about that here
+  __ lea(rscratch1, RuntimeAddress(stub_addr));
+  __ blr(rscratch1);
+  address post_call_pc = __ pc();
+
+  #ifdef _WIN64
+    __ addptr(rsp, frame::arg_reg_save_area_bytes);
+  #endif
+
+  if (save_registers && has_return) {
+    // RegisterSaver would clobber the call result when restoring.
+    // Carry the result out of this stub by overwriting saved register.
+    __ str(r0, Address(sp, reg_save.reg_offset_in_bytes(r0)));
+  }
+
+  OopMapSet* oop_maps = new OopMapSet();
+  oop_maps->add_gc_map(post_call_pc - start, map);
+
+  if (save_registers) {
+    reg_save.restore_live_registers(masm);
+  } else {
+    __ leave();
+  }
+
+  // Runtime call could have clobbered PTRUE register. Vector saving code
+  // restored it already. We need to take care of non-vector path.
+  if (!save_vectors) {
+    __ reinitialize_ptrue();
+  }
+
+  __ ret(lr);
+
+  return RuntimeStub::new_runtime_stub(name,
+                                       &code,
+                                       frame_complete_pc - start,
+                                       frame_size_in_words,
+                                       oop_maps,
+                                       true);
+}

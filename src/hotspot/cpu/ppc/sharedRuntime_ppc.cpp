@@ -55,6 +55,9 @@
 #include "opto/ad.hpp"
 #include "opto/runtime.hpp"
 #endif
+#if INCLUDE_SHENANDOAHGC
+#include "gc/shenandoah/shenandoahRuntime.hpp"
+#endif
 
 #include <alloca.h>
 
@@ -3794,3 +3797,71 @@ RuntimeStub* SharedRuntime::generate_jfr_return_lease() {
 }
 
 #endif // INCLUDE_JFR
+
+RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address stub_addr, bool has_return, bool save_registers, bool save_vectors) {
+  const char* name = SharedRuntime::stub_name(stub_id);
+
+  CodeBuffer code(name, 2048, 64);
+  MacroAssembler* masm = new MacroAssembler(&code);
+  address start = __ pc();
+
+  int frame_size_in_bytes = 0;
+  OopMap* map = nullptr;
+  if (save_registers) {
+    map = RegisterSaver::push_frame_reg_args_and_save_live_registers(masm,
+                                                                     &frame_size_in_bytes,
+                                                                     /*generate_oop_map=*/true,
+                                                                     RegisterSaver::return_pc_is_lr,
+                                                                     save_vectors);
+  } else {
+    frame_size_in_bytes = frame::native_abi_reg_args_size / VMRegImpl::stack_slot_size;
+    map = new OopMap(frame_size_in_bytes, 0);
+    // FIXME: enter frame
+  }
+  address frame_complete_pc = __ pc();
+
+  // Exact post-call PC for the oop map.
+  __ call_c(stub_addr);
+  address post_call_pc = __ pc();
+
+  if (save_registers && has_return) {
+    // restore_live_registers_and_pop_frame() restores the saved R3 slot,
+    // which would clobber the runtime return value in R3_RET.
+    //
+    // RegisterSaver_LiveRegs[] defines the save layout, and its order matches
+    // the stack layout:
+    //   F0..F31, then R2, R3, R4, ...
+    //
+    // So the saved R3 slot is:
+    //   register_save_offset + (32 * reg_size) + (1 * reg_size)
+    // where the +1 skips over saved R2.
+    const int regstosave_num = sizeof(RegisterSaver_LiveRegs) / sizeof(RegisterSaver::LiveRegType);
+    const int vecregs_num = sizeof(RegisterSaver_LiveVecRegs) / sizeof(RegisterSaver::LiveRegType);
+
+    const int vecregstosave_num = save_vectors ? vecregs_num : 0;
+    const int register_save_size = regstosave_num * RegisterSaver::reg_size + vecregstosave_num * RegisterSaver::vec_reg_size;
+    const int register_save_offset = frame_size_in_bytes - register_save_size;
+    const int r3_ret_offset = register_save_offset + (32 * RegisterSaver::reg_size) + (1 * RegisterSaver::reg_size);
+
+    __ std(R3_RET, r3_ret_offset, R1_SP);
+  }
+
+  OopMapSet* oop_maps = new OopMapSet();
+  oop_maps->add_gc_map(post_call_pc - start, map);
+
+  if (save_registers) {
+    RegisterSaver::restore_live_registers_and_pop_frame(masm, frame_size_in_bytes, /* restore_ctr: */ true, save_vectors);
+  } else {
+    // FIXME: leave frame
+  }
+  __ blr();
+
+  masm->flush();
+
+  return RuntimeStub::new_runtime_stub(name,
+                                       &code,
+                                       frame_complete_pc - start,
+                                       frame_size_in_bytes / wordSize,
+                                       oop_maps,
+                                       true);
+}

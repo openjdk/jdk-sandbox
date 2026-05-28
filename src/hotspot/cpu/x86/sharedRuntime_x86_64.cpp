@@ -65,6 +65,9 @@
 #ifdef COMPILER2
 #include "opto/runtime.hpp"
 #endif
+#if INCLUDE_SHENANDOAHGC
+#include "gc/shenandoah/shenandoahRuntime.hpp"
+#endif
 
 #define __ masm->
 
@@ -156,6 +159,8 @@ class RegisterSaver {
     reg_save_size             // size in compiler stack slots
   };
 
+  static void adjust_wide_vectors_support(bool& wide_vectors);
+
  public:
   static OopMap* save_live_registers(MacroAssembler* masm, int additional_frame_words, int* total_frame_words, bool save_wide_vectors);
   static void restore_live_registers(MacroAssembler* masm, bool restore_wide_vectors = false);
@@ -176,17 +181,24 @@ class RegisterSaver {
   static void restore_result_registers(MacroAssembler* masm);
 };
 
+
+// TODO: Should be upstreamed separately.
+void RegisterSaver::adjust_wide_vectors_support(bool& wide_vectors) {
+#if COMPILER2
+  if (wide_vectors && UseAVX == 0) {
+    wide_vectors = false; // vectors larger than 16 byte long are supported only with AVX
+  }
+  assert(!wide_vectors || MaxVectorSize <= 64, "Only up to 64 byte long vectors are supported");
+#else
+  wide_vectors = false; // vectors are generated only by C2
+#endif
+}
+
 OopMap* RegisterSaver::save_live_registers(MacroAssembler* masm, int additional_frame_words, int* total_frame_words, bool save_wide_vectors) {
   int off = 0;
   int num_xmm_regs = XMMRegister::available_xmm_registers();
-#ifdef COMPILER2
-  if (save_wide_vectors && UseAVX == 0) {
-    save_wide_vectors = false; // vectors larger than 16 byte long are supported only with AVX
-  }
-  assert(!save_wide_vectors || MaxVectorSize <= 64, "Only up to 64 byte long vectors are supported");
-#else
-  save_wide_vectors = false; // vectors are generated only by C2
-#endif // COMPILER2
+
+  adjust_wide_vectors_support(save_wide_vectors);
 
   // Always make the frame size 16-byte aligned, both vector and non vector stacks are always allocated
   int frame_size_in_bytes = align_up(reg_save_size*BytesPerInt, num_xmm_regs);
@@ -428,14 +440,7 @@ void RegisterSaver::restore_live_registers(MacroAssembler* masm, bool restore_wi
     __ addptr(rsp, frame::arg_reg_save_area_bytes);
   }
 
-#ifdef COMPILER2
-  if (restore_wide_vectors) {
-    assert(UseAVX > 0, "Vectors larger than 16 byte long are supported only with AVX");
-    assert(MaxVectorSize <= 64, "Only up to 64 byte long vectors are supported");
-  }
-#else
-  assert(!restore_wide_vectors, "vectors are generated only by C2");
-#endif // COMPILER2
+  adjust_wide_vectors_support(restore_wide_vectors);
 
   __ vzeroupper();
 
@@ -3529,3 +3534,74 @@ RuntimeStub* SharedRuntime::generate_jfr_return_lease() {
 }
 
 #endif // INCLUDE_JFR
+
+RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address stub_addr, bool has_return, bool save_registers, bool save_vectors) {
+  const char* name = SharedRuntime::stub_name(stub_id);
+
+  CodeBuffer code(name, 2048, 64);
+  MacroAssembler* masm = new MacroAssembler(&code);
+  address start = __ pc();
+
+  // Set up the frame and optionally save the registers.
+  // Arch-specific calling convention allows us to skip callee-saved registers.
+  // At this level, we do not know which registers are callee-saved anymore, so
+  // we save/restore all registers. We have already filtered easy cases of small
+  // number of callee-saved registers before calling this stub.
+  int frame_size_in_words = 0;
+  OopMap* map = nullptr;
+  if (save_registers) {
+    map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words, save_vectors);
+  } else {
+    frame_size_in_words = 2; // link and return address
+    map = new OopMap(frame_size_in_words, 0);
+    __ enter();
+  }
+  address frame_complete_pc = __ pc();
+
+  // Call the runtime. This is what MacroAssember::call_VM_leaf does,
+  // but we are sure about stack alignment at this point. We also want
+  // to the exact post-call PC for oop map location.
+
+#ifdef _WIN64
+  // Windows always allocates space for it's register args
+  __ subptr(rsp, frame::arg_reg_save_area_bytes);
+#endif
+
+#ifdef ASSERT
+  Label L_done;
+  __ testptr(rsp, 15);
+  __ jccb(Assembler::zero, L_done);
+    __ stop("Unaligned stack");
+  __ bind(L_done);
+#endif
+
+  __ call(RuntimeAddress(stub_addr));
+  address post_call_pc = __ pc();
+
+#ifdef _WIN64
+  __ addptr(rsp, frame::arg_reg_save_area_bytes);
+#endif
+
+  if (save_registers && has_return) {
+    // RegisterSaver would clobber the call result when restoring.
+    // Carry the result out of this stub by overwriting saved register.
+    __ movptr(Address(rsp, RegisterSaver::rax_offset_in_bytes()), rax);
+  }
+
+  OopMapSet* oop_maps = new OopMapSet();
+  oop_maps->add_gc_map(post_call_pc - start, map);
+
+  if (save_registers) {
+    RegisterSaver::restore_live_registers(masm, save_vectors);
+  } else {
+    __ leave();
+  }
+  __ ret(0);
+
+  return RuntimeStub::new_runtime_stub(name,
+                                       &code,
+                                       frame_complete_pc - start,
+                                       frame_size_in_words,
+                                       oop_maps,
+                                       true);
+}
