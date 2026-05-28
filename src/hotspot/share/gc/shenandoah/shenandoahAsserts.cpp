@@ -234,9 +234,12 @@ void ShenandoahAsserts::assert_correct(void* interior_loc, oop obj, const char* 
     ShenandoahHeapRegion* fwt_r = heap->heap_region_containing(obj);
     HeapWord* obj_addr = cast_from_oop<HeapWord*>(obj);
     if (obj_addr >= fwt_r->forwarding_table_start()) {
-      print_failure(_safe_oop, obj, interior_loc, nullptr, "Shenandoah assert_correct failed",
-                    "Object points into FWT area",
-                    file, line);
+      oop fwd_check = ShenandoahBarrierSet::resolve_forwarded_not_null(obj);
+      if (fwd_check == obj) {
+        print_failure(_safe_oop, obj, interior_loc, nullptr, "Shenandoah assert_correct failed",
+                      "Object in FWT tail has not been evacuated",
+                      file, line);
+      }
     }
   }
 

@@ -1350,8 +1350,12 @@ private:
       }
 
       if (heap->in_collection_set(obj)) {
-        ShenandoahAsserts::print_failure(ShenandoahAsserts::_safe_all, obj, p, nullptr,
-                "Verify Roots In To-Space", "Should not be in collection set", __FILE__, __LINE__);
+        bool fwt_new_alloc = heap->collection_set()->use_forward_table(obj) &&
+                             ShenandoahForwarding::get_forwardee_raw_unchecked(obj) == obj;
+        if (!fwt_new_alloc) {
+          ShenandoahAsserts::print_failure(ShenandoahAsserts::_safe_all, obj, p, nullptr,
+                  "Verify Roots In To-Space", "Should not be in collection set", __FILE__, __LINE__);
+        }
       }
 
       oop fwd = ShenandoahForwarding::get_forwardee_raw_unchecked(obj);
