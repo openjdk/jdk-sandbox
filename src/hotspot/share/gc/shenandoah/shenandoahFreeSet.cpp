@@ -2898,15 +2898,16 @@ void ShenandoahFreeSet::release_fwt_tails() {
     size_t tail = r->fwt_tail_bytes();
     size_t available = r->capacity() - tail;
     size_t min_size = PLAB::min_size() * HeapWordSize;
+    size_t region_free = r->free();
     if (tail > 0) {
       if (p != ShenandoahFreeSetPartitionId::NotFree) {
         _partitions.decrease_used(p, tail);
         released_regions++;
         released_bytes += tail;
-      } else if (available >= min_size && tail >= min_size) {
-        _partitions.decrease_used(ShenandoahFreeSetPartitionId::Mutator, tail);
+      } else if (available >= min_size && region_free >= min_size) {
+        _partitions.decrease_used(ShenandoahFreeSetPartitionId::Mutator, region_free);
         released_regions++;
-        released_bytes += tail;
+        released_bytes += region_free;
       }
     }
     r->reset_forwarding_table();
