@@ -1454,6 +1454,10 @@ oop ShenandoahHeap::try_evacuate_object(oop p, Thread* thread, ShenandoahHeapReg
 
 bool ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t num_forwardings, bool concurrent) {
   assert(ShenandoahHeap::heap()->marking_context()->top_at_mark_start(r) == r->top(), "TAMS must be set to top");
+  // There shoud be no live objects.
+  if (r->is_pinned() || r->was_promoted_in_place()) {
+    return false;
+  }
   bool use_fwd_table = r->build_forwarding_table(num_forwardings);
   if (use_fwd_table) {
     // Got to make sure that everybody sees the table before

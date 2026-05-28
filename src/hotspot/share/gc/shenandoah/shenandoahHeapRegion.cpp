@@ -325,6 +325,9 @@ void ShenandoahHeapRegion::make_regular_from_cset() {
     case _cset:
       set_state(_regular);
       return;
+    case _pinned_cset:
+      set_state(_pinned);
+      return;
     default:
       report_illegal_transition("Should be cset");
   }
@@ -353,6 +356,9 @@ void ShenandoahHeapRegion::make_trash() {
     case _regular:
       // Immediate region reclaim
       set_state(_trash);
+      return;
+    case _pinned_cset:
+      set_state(_pinned);
       return;
     default:
       report_illegal_transition("trashing");

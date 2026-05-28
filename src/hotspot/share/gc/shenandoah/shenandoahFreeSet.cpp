@@ -2838,7 +2838,7 @@ void ShenandoahFreeSet::recycle_collection_set() {
   ShenandoahCollectionSet* cset = _heap->collection_set();
   for (size_t i = 0; i < _heap->num_regions(); i++) {
     ShenandoahHeapRegion* r = _heap->get_region(i);
-    if (cset->use_forward_table(r)) {
+    if (cset->use_forward_table(r) && !r->is_pinned()) {
       recycle_fwt_region(r, mutator_low_idx, mutator_high_idx, recycled_bytes, recycled_regions, young_recycled_regions);
     }
   }
