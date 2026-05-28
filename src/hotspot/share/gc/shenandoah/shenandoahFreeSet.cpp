@@ -2867,7 +2867,7 @@ void ShenandoahFreeSet::recycle_collection_set() {
                          /* UsedByCollectorChanged */ false, /* UsedByOldCollectorChanged */ true>();
     recompute_total_affiliated</* MutatorEmptiesChanged */ true, /* CollectorEmptiesChanged */ false,
                                /* OldCollectorEmptiesChanged */ false, /* MutatorSizeChanged */ true,
-                               /* CollectorSizeChanged */ false, /* OldCollectorSizeChanged */ false,
+                               /* CollectorSizeChanged */ false, /* OldCollectorSizeChanged */ true,
                                /* AffiliatedChangesAreYoungNeutral */ false, /* AffiliatedChangesAreGlobalNeutral */ false,
                                /* UnaffiliatedChangesAreYoungNeutral */ false>();
     _partitions.assert_bounds();
