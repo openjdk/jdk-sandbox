@@ -769,15 +769,16 @@ public:
     HeapWord* tams = ctx->top_at_mark_start(r);
 
     // Bitmaps, before TAMS
-    if (tams > r->bottom()) {
+    HeapWord* bitmap_limit = MIN2(tams, r->top());
+    if (bitmap_limit > r->bottom()) {
       HeapWord* start = r->bottom();
-      HeapWord* addr = ctx->get_next_marked_addr(start, tams);
+      HeapWord* addr = ctx->get_next_marked_addr(start, bitmap_limit);
 
-      while (addr < tams) {
+      while (addr < bitmap_limit) {
         verify_and_follow(addr, stack, cl, &processed);
         addr += 1;
-        if (addr < tams) {
-          addr = ctx->get_next_marked_addr(addr, tams);
+        if (addr < bitmap_limit) {
+          addr = ctx->get_next_marked_addr(addr, bitmap_limit);
         }
       }
     }
