@@ -2886,6 +2886,7 @@ void ShenandoahFreeSet::release_fwt_tails() {
   ShenandoahCollectionSet* cset = _heap->collection_set();
   size_t released_regions = 0;
   size_t released_bytes   = 0;
+  size_t emptied_regions  = 0;
   size_t num_regions = _heap->num_regions();
   for (size_t idx = 0; idx < num_regions; idx++) {
     if (!cset->is_in(idx)) continue;
@@ -2893,13 +2894,18 @@ void ShenandoahFreeSet::release_fwt_tails() {
     ShenandoahHeapRegion* r = _heap->get_region(idx);
     if (!cset->use_forward_table(r)) continue;
 
+    ShenandoahFreeSetPartitionId p = _partitions.membership(idx);
     size_t tail = r->fwt_tail_bytes();
-    if (tail > 0 && _partitions.membership(idx) != ShenandoahFreeSetPartitionId::NotFree) {
-      _partitions.decrease_used(_partitions.membership(idx), tail);
+    if (tail > 0 && p != ShenandoahFreeSetPartitionId::NotFree) {
+      _partitions.decrease_used(p, tail);
       released_regions++;
       released_bytes += tail;
     }
     r->reset_forwarding_table();
+    if (p != ShenandoahFreeSetPartitionId::NotFree && r->is_empty()) {
+      _partitions.increase_empty_region_counts(p, 1);
+      emptied_regions++;
+    }
   }
   log_info(gc)("Released FWT tails for %zu regions, freeing %zu%s",
                released_regions,
@@ -2907,6 +2913,14 @@ void ShenandoahFreeSet::release_fwt_tails() {
   recompute_total_used</* UsedByMutatorChanged */ true,
                        /* UsedByCollectorChanged */ false,
                        /* UsedByOldCollectorChanged */ true>();
+  if (emptied_regions > 0) {
+    recompute_total_affiliated</* MutatorEmptiesChanged */ true, /* CollectorEmptiesChanged */ false,
+                               /* OldCollectorEmptiesChanged */ false, /* MutatorSizeChanged */ false,
+                               /* CollectorSizeChanged */ false, /* OldCollectorSizeChanged */ false,
+                               /* AffiliatedChangesAreYoungNeutral */ false,
+                               /* AffiliatedChangesAreGlobalNeutral */ false,
+                               /* UnaffiliatedChangesAreYoungNeutral */ false>();
+  }
 }
 
 // Overwrite arguments to represent the amount of memory in each generation that is about to be recycled
