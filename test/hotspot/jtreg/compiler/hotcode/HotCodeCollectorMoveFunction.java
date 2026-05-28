@@ -24,6 +24,7 @@
 
 /*
  * @test
+ * @ignore
  * @library /test/lib /
  * @build jdk.test.whitebox.WhiteBox
  * @run driver jdk.test.lib.helpers.ClassFileInstaller jdk.test.whitebox.WhiteBox

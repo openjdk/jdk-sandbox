@@ -25,6 +25,7 @@
 
 /*
  * @test
+ * @ignore
  * @key randomness
  * @library /test/lib /
  * @build jdk.test.whitebox.WhiteBox

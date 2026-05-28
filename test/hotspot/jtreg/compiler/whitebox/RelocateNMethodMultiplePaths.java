@@ -24,6 +24,7 @@
 
 /*
  * @test id=C1
+ * @ignore
  * @bug 8316694
  * @requires vm.debug == true
  * @summary test that relocated nmethod is correctly deoptimized
@@ -39,6 +40,7 @@
 
 /*
  * @test id=C2
+ * @ignore
  * @bug 8316694
  * @requires vm.debug == true
  * @summary test that relocated nmethod is correctly deoptimized

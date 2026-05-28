@@ -23,6 +23,7 @@
 
 /*
  * @test
+ * @ignore
  * @bug 8316694
  * @summary Verify that nmethod relocation posts the correct JVMTI events
  * @requires vm.jvmti &

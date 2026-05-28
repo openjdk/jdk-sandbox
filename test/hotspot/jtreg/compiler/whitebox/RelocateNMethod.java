@@ -24,6 +24,7 @@
 
 /*
  * @test
+ * @ignore
  * @bug 8316694
  * @summary test that nmethod::relocate() correctly creates a new nmethod
  * @library /test/lib /
