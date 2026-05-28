@@ -526,6 +526,9 @@ public:
     }
     if (r->is_cset()) {
       // Leave affiliation unchanged
+      if (r->forwarding_table_start() != nullptr) {
+        r->reset_forwarding_table();
+      }
       r->make_regular_bypass();
     }
     if (r->is_empty_uncommitted()) {
