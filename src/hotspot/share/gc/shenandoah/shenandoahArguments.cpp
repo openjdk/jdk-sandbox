@@ -159,6 +159,11 @@ void ShenandoahArguments::initialize() {
       FLAG_SET_DEFAULT(LoopStripMiningIter, 1000);
     }
   }
+
+  if (NMethodRelocation) {
+    warning("NMethod relocation is not supported with hotpatching yet");
+    FLAG_SET_DEFAULT(NMethodRelocation, false);
+  }
 #endif // COMPILER2
 
   // Record more information about previous cycles for improved debugging pleasure

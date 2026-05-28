@@ -1636,6 +1636,11 @@ WB_ENTRY(void, WB_RelocateNMethodFromMethod(JNIEnv* env, jobject o, jobject meth
   ResourceMark rm(THREAD);
   jmethodID jmid = reflected_method_to_jmid(thread, env, method);
   CHECK_JNI_EXCEPTION(env);
+
+  if (!NMethodRelocation) {
+    return;
+  }
+
   methodHandle mh(THREAD, Method::checked_resolve_jmethod_id(jmid));
   nmethod* code = mh->code();
   if (code != nullptr) {
@@ -1652,6 +1657,10 @@ WB_ENTRY(void, WB_RelocateNMethodFromAddr(JNIEnv* env, jobject o, jlong addr, ji
   void* address = (void*) addr;
 
   if (address == nullptr) {
+    return;
+  }
+
+  if (!NMethodRelocation) {
     return;
   }
 
