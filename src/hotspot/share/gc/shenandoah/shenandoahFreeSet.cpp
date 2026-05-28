@@ -2864,7 +2864,7 @@ void ShenandoahFreeSet::recycle_collection_set() {
     log_info(gc)("  wondering if we ever decreased young_regions and old_regions for cset regions");
 #endif
     recompute_total_used</* UsedByMutatorChanged */ true,
-                         /* UsedByCollectorChanged */ false, /* UsedByOldCollectorChanged */ false>();
+                         /* UsedByCollectorChanged */ false, /* UsedByOldCollectorChanged */ true>();
     recompute_total_affiliated</* MutatorEmptiesChanged */ true, /* CollectorEmptiesChanged */ false,
                                /* OldCollectorEmptiesChanged */ false, /* MutatorSizeChanged */ true,
                                /* CollectorSizeChanged */ false, /* OldCollectorSizeChanged */ false,
@@ -2881,15 +2881,32 @@ void ShenandoahFreeSet::recycle_collection_set() {
                      byte_size_in_proper_unit(recycled_bytes), proper_unit_for_byte_size(recycled_bytes));
 }
 
-void ShenandoahFreeSet::release_fwt_tail(ShenandoahHeapRegion* r, size_t& released_regions, size_t& released_bytes) {
+void ShenandoahFreeSet::release_fwt_tails() {
   shenandoah_assert_heaplocked();
-  size_t tail = r->fwt_tail_bytes();
-  if (tail == 0) return;
-  ShenandoahFreeSetPartitionId p = _partitions.membership(r->index());
-  if (p == ShenandoahFreeSetPartitionId::NotFree) return;
-  _partitions.decrease_used(p, tail);
-  released_regions++;
-  released_bytes += tail;
+  ShenandoahCollectionSet* cset = _heap->collection_set();
+  size_t released_regions = 0;
+  size_t released_bytes   = 0;
+  size_t num_regions = _heap->num_regions();
+  for (size_t idx = 0; idx < num_regions; idx++) {
+    if (!cset->is_in(idx)) continue;
+
+    ShenandoahHeapRegion* r = _heap->get_region(idx);
+    if (!cset->use_forward_table(r)) continue;
+
+    size_t tail = r->fwt_tail_bytes();
+    if (tail > 0 && _partitions.membership(idx) != ShenandoahFreeSetPartitionId::NotFree) {
+      _partitions.decrease_used(_partitions.membership(idx), tail);
+      released_regions++;
+      released_bytes += tail;
+    }
+    r->reset_forwarding_table();
+  }
+  log_info(gc)("Released FWT tails for %zu regions, freeing %zu%s",
+               released_regions,
+               byte_size_in_proper_unit(released_bytes), proper_unit_for_byte_size(released_bytes));
+  recompute_total_used</* UsedByMutatorChanged */ true,
+                       /* UsedByCollectorChanged */ false,
+                       /* UsedByOldCollectorChanged */ true>();
 }
 
 // Overwrite arguments to represent the amount of memory in each generation that is about to be recycled
