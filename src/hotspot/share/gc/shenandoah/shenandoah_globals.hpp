@@ -509,6 +509,14 @@
   product(bool, ShenandoahCloneRuntime, false, DIAGNOSTIC,                  \
           "Handle clone in runtime instead of in copy stubs.")              \
                                                                             \
+  product(int, ShenandoahReservedStackSlots, 4, EXPERIMENTAL,               \
+          "How many stack slots to reserve in C2 frame for stub use.")      \
+          range(4, 32)                                                      \
+                                                                            \
+  product(int, ShenandoahFastSaveSlots, 4, EXPERIMENTAL,                    \
+          "How many stack slots to use to save/restore before slow call.")  \
+          range(0, 32)                                                      \
+                                                                            \
   product(bool, ShenandoahElideIdealBarriers, true, DIAGNOSTIC,             \
           "Elide redundant Shenandoah barriers on C2 Ideal level.")         \
                                                                             \

@@ -899,12 +899,30 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   __ bind(L_slowpath);
 
   {
-    SaveLiveRegisters slr(&masm, this);
+    bool clobbered_c_rarg0 = false;
+    if (c_rarg0 != _obj) {
+      clobbered_c_rarg0 = push_save_register_if_live(masm, c_rarg0);
+      __ mov(c_rarg0, _obj);
+    }
 
-    // Go to runtime and handle the rest there.
-    __ mov(c_rarg0, _obj);
-    __ lea(lr, RuntimeAddress(keepalive_runtime_entry_addr()));
-    __ blr(lr);
+    // Go to runtime stub and handle the rest there.
+    if (has_live_vector_registers()) {
+      __ lea(lr, RuntimeAddress(keepalive_runtime_entry_addr(SaveMode::All)));
+      __ blr(lr);
+    } else if (has_save_space_for_live_gp_registers(clobbered_c_rarg0, false, false)) {
+      save_live_gp_regs(masm, clobbered_c_rarg0, false, false);
+      __ lea(lr, RuntimeAddress(keepalive_runtime_entry_addr(SaveMode::Nothing)));
+      __ blr(lr);
+      restore_live_gp_regs(masm, clobbered_c_rarg0, false, false);
+    } else {
+      __ lea(lr, RuntimeAddress(keepalive_runtime_entry_addr(SaveMode::GP)));
+      __ blr(lr);
+    }
+
+    // Restore the clobbered registers.
+    if (clobbered_c_rarg0) {
+      pop_save_register(masm, c_rarg0);
+    }
   }
   if (L_done != nullptr) {
     __ b(*L_done);
@@ -968,36 +986,73 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
     dont_preserve(_obj);
   }
   {
-    SaveLiveRegisters slr(&masm, this);
-
     // Shuffle in the arguments. The end result should be:
     //   c_rarg0 <-- obj
     //   c_rarg1 <-- lea(addr)
+    //
+    // Save clobbered registers before overwriting them, unless they
+    // carry obj, which would be overwritten on return.
+    bool clobbered_c_rarg0 = false;
+    bool clobbered_c_rarg1 = false;
+    bool clobbered_r0 = false;
+
     if (c_rarg0 == _obj) {
+      clobbered_c_rarg1 = push_save_register_if_live(masm, c_rarg1);
       __ lea(c_rarg1, _addr);
     } else if (c_rarg1 == _obj) {
       // Set up arguments in reverse, and then flip them
+      clobbered_c_rarg0 = push_save_register_if_live(masm, c_rarg0);
       __ lea(c_rarg0, _addr);
-      // flip them
       __ mov(_tmp1, c_rarg0);
       __ mov(c_rarg0, c_rarg1);
       __ mov(c_rarg1, _tmp1);
     } else {
       assert_different_registers(c_rarg1, _obj);
+      clobbered_c_rarg0 = push_save_register_if_live(masm, c_rarg0);
+      clobbered_c_rarg1 = push_save_register_if_live(masm, c_rarg1);
       __ lea(c_rarg1, _addr);
       __ mov(c_rarg0, _obj);
     }
 
+<<<<<<< HEAD
     // Go to runtime and handle the rest there.
     __ lea(lr, RuntimeAddress(lrb_runtime_entry_addr()));
     __ blr(lr);
+=======
+    // The runtime call will clobber r0 at return. If obj isn't r0 then we need
+    // to save obj.
+    if (_obj != r0) {
+      clobbered_r0 = push_save_register_if_live(masm, r0);
+    }
+>>>>>>> 51a223e7ea8 (Initial version from Shenandoah LBE)
 
-    // Save the result where needed. Narrow entries return narrowOop (32 bits)
-    // and AAPCS does not guarantee the upper 32 bits of x0 are zero.
+    // Go to runtime stub and handle the rest there.
+    if (has_live_vector_registers()) {
+      __ far_call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::All)));
+    } else if (has_save_space_for_live_gp_registers(clobbered_c_rarg0, clobbered_c_rarg1, true)) {
+      save_live_gp_regs(masm, clobbered_c_rarg0, clobbered_c_rarg1, true);
+      __ far_call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::Nothing)));
+      restore_live_gp_regs(masm, clobbered_c_rarg0, clobbered_c_rarg1, true);
+    } else {
+      __ far_call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::GP)));
+    }
+
+    // Save the result where needed and restore the clobbered registers.
+    // Narrow entries return narrowOop (32 bits) and AAPCS does not guarantee
+    // the upper 32 bits of x0 are zero.
     if (_narrow) {
       __ movw(_obj, r0);
     } else if (_obj != r0) {
       __ mov(_obj, r0);
+    }
+    if (clobbered_r0) {
+      pop_save_register(masm, r0);
+    }
+    if (clobbered_c_rarg1) {
+      pop_save_register(masm, c_rarg1);
+    }
+    if (clobbered_c_rarg0) {
+      pop_save_register(masm, c_rarg0);
     }
   }
   if (is_obj_preserved) {
@@ -1016,6 +1071,60 @@ bool ShenandoahBarrierStubC2::is_special_register(Register r) {
   Unimplemented(); // Not used
   return true;
 }
+
+bool ShenandoahBarrierStubC2::push_save_register_if_live(MacroAssembler& masm, Register reg) {
+  if (is_live_register(reg)) {
+    push_save_register(masm, reg);
+    return true;
+  } else {
+    return false;
+  }
+}
+
+void ShenandoahBarrierStubC2::push_save_register(MacroAssembler& masm, Register reg) {
+  __ str(reg, Address(sp, push_save_slot()));
+}
+
+void ShenandoahBarrierStubC2::pop_save_register(MacroAssembler& masm, Register reg) {
+  __ ldr(reg, Address(sp, pop_save_slot()));
+}
+
+bool ShenandoahBarrierStubC2::has_live_vector_registers() {
+  return _has_live_vector_registers;
+}
+
+bool ShenandoahBarrierStubC2::has_save_space_for_live_gp_registers(bool skip_crarg0, bool skip_crarg1, bool skip_r0) {
+  int c = 0;
+  for (int i = 0; i < _live_gp.length(); i++) {
+    Register r = _live_gp.at(i);
+    if (skip_r0     && (r == r0))      continue;
+    if (skip_crarg0 && (r == c_rarg0)) continue;
+    if (skip_crarg1 && (r == c_rarg1)) continue;
+    c++;
+  }
+  return c <= fast_save_slots_available();
+}
+
+void ShenandoahBarrierStubC2::save_live_gp_regs(MacroAssembler& masm, bool skip_crarg0, bool skip_crarg1, bool skip_r0) {
+  for (int i = 0; i < _live_gp.length(); i++) {
+    Register r = _live_gp.at(i);
+    if (skip_r0     && (r == r0))      continue;
+    if (skip_crarg0 && (r == c_rarg0)) continue;
+    if (skip_crarg1 && (r == c_rarg1)) continue;
+    push_save_register(masm, r);
+  }
+}
+
+void ShenandoahBarrierStubC2::restore_live_gp_regs(MacroAssembler& masm, bool skip_crarg0, bool skip_crarg1, bool skip_r0) {
+  for (int i = _live_gp.length() - 1; i >= 0; i--) {
+    Register r = _live_gp.at(i);
+    if (skip_r0     && (r == r0))      continue;
+    if (skip_crarg0 && (r == c_rarg0)) continue;
+    if (skip_crarg1 && (r == c_rarg1)) continue;
+    pop_save_register(masm, r);
+  }
+}
+
 
 static ShenandoahBarrierSetC2State* barrier_set_state() {
   return reinterpret_cast<ShenandoahBarrierSetC2State*>(Compile::current()->barrier_set_state());
@@ -1054,6 +1163,25 @@ void ShenandoahBarrierStubC2::post_init() {
   // Subtract 2K to be ultra conservative.
   const int cond_branch_max_reach = (int)(1*M - 2*K);
   _needs_far_jump = code_size >= cond_branch_max_reach;
+
+  // Precompute live registers.
+  assert(_live_gp.is_empty(), "sanity: initial state");
+  assert(!_has_live_vector_registers, "sanity: initial state");
+  RegMaskIterator rmi(preserve_set());
+  while (rmi.has_next()) {
+    const OptoReg::Name opto_reg = rmi.next();
+    const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
+    if (vm_reg->is_Register()) {
+      Register r = vm_reg->as_Register();
+      _live_gp.append_if_missing(r);
+    } else if (vm_reg->is_FloatRegister()) {
+      _has_live_vector_registers = true;
+    } else if (vm_reg->is_PRegister()) {
+      _has_live_vector_registers = true;
+    } else {
+      fatal("Unexpected register type");
+    }
+  }
 }
 
 #endif // COMPILER2

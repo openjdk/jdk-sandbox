@@ -59,6 +59,9 @@
 #include "adfiles/ad_riscv.hpp"
 #include "opto/runtime.hpp"
 #endif
+#if INCLUDE_SHENANDOAHGC
+#include "gc/shenandoah/shenandoahRuntime.hpp"
+#endif
 
 #define __ masm->
 
@@ -2705,3 +2708,58 @@ RuntimeStub* SharedRuntime::generate_jfr_return_lease() {
 }
 
 #endif // INCLUDE_JFR
+
+RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address stub_addr, bool has_return, bool save_registers, bool save_vectors) {
+  const char* name = SharedRuntime::stub_name(stub_id);
+
+  CodeBuffer code(name, 2048, 64);
+  MacroAssembler* masm = new MacroAssembler(&code);
+  address start = __ pc();
+
+  RegisterSaver reg_save(save_vectors);
+
+  // Set up the frame and optionally save the registers.
+  // Arch-specific calling convention allows us to skip callee-saved registers.
+  // At this level, we do not know which registers are callee-saved anymore, so
+  // we save/restore all registers. We have already filtered easy cases of small
+  // number of callee-saved registers before calling this stub.
+  int frame_size_in_words = 0;
+  OopMap* map = nullptr;
+  if (save_registers) {
+    map = reg_save.save_live_registers(masm, 0, &frame_size_in_words);
+  } else {
+    frame_size_in_words = 2; // link and return address
+    map = new OopMap(frame_size_in_words, 0);
+    __ enter();
+  }
+  address frame_complete_pc = __ pc();
+
+  // Call the runtime, but keep exact post-call PC for the oop map.
+  int32_t offset = 0;
+  __ movptr(t1, stub_addr, offset, t0);
+  __ jalr(t1, offset);
+  address post_call_pc = __ pc();
+
+  if (save_registers && has_return) {
+    // RegisterSaver would clobber the call result when restoring.
+    // Carry the result out of this stub by overwriting saved x10/a0.
+    __ sd(x10, Address(sp, reg_save.reg_offset_in_bytes(x10)));
+  }
+
+  OopMapSet* oop_maps = new OopMapSet();
+  oop_maps->add_gc_map(post_call_pc - start, map);
+
+  if (save_registers) {
+    reg_save.restore_live_registers(masm);
+  } else {
+    __ leave();
+  }
+  __ ret();
+
+  return RuntimeStub::new_runtime_stub(name,
+                                       &code,
+                                       frame_complete_pc - start,
+                                       frame_size_in_words,
+                                       oop_maps,
+                                       true);
+}

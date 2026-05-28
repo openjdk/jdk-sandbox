@@ -107,6 +107,28 @@
   do_blob(throw_NullPointerException_at_call, RuntimeStub)             \
   do_blob(throw_StackOverflowError, RuntimeStub)                       \
   do_blob(throw_delayed_StackOverflowError, RuntimeStub)               \
+  /* shenandoah stubs */                                               \
+  do_blob(shenandoah_keepalive_none, RuntimeStub)                      \
+  do_blob(shenandoah_lrb_strong_narrow_none, RuntimeStub)              \
+  do_blob(shenandoah_lrb_weak_narrow_none, RuntimeStub)                \
+  do_blob(shenandoah_lrb_phantom_narrow_none, RuntimeStub)             \
+  do_blob(shenandoah_lrb_strong_none, RuntimeStub)                     \
+  do_blob(shenandoah_lrb_weak_none, RuntimeStub)                       \
+  do_blob(shenandoah_lrb_phantom_none, RuntimeStub)                    \
+  do_blob(shenandoah_keepalive_gp, RuntimeStub)                        \
+  do_blob(shenandoah_lrb_strong_narrow_gp, RuntimeStub)                \
+  do_blob(shenandoah_lrb_weak_narrow_gp, RuntimeStub)                  \
+  do_blob(shenandoah_lrb_phantom_narrow_gp, RuntimeStub)               \
+  do_blob(shenandoah_lrb_strong_gp, RuntimeStub)                       \
+  do_blob(shenandoah_lrb_weak_gp, RuntimeStub)                         \
+  do_blob(shenandoah_lrb_phantom_gp, RuntimeStub)                      \
+  do_blob(shenandoah_keepalive_all, RuntimeStub)                       \
+  do_blob(shenandoah_lrb_strong_narrow_all, RuntimeStub)               \
+  do_blob(shenandoah_lrb_weak_narrow_all, RuntimeStub)                 \
+  do_blob(shenandoah_lrb_phantom_narrow_all, RuntimeStub)              \
+  do_blob(shenandoah_lrb_strong_all, RuntimeStub)                      \
+  do_blob(shenandoah_lrb_weak_all, RuntimeStub)                        \
+  do_blob(shenandoah_lrb_phantom_all, RuntimeStub)                     \
   /* other stubs */                                                    \
   SHARED_JFR_STUBS_DO(do_blob)                                         \
 

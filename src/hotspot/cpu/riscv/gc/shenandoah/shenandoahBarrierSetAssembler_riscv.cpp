@@ -953,6 +953,11 @@ bool ShenandoahBarrierStubC2::is_special_register(Register r) {
   return true;
 }
 
+bool ShenandoahBarrierStubC2::has_live_vector_registers() {
+  // TODO: Implement; currently assumes vector registers.
+  return true;
+}
+
 void ShenandoahBarrierStubC2::post_init() {
   // Do nothing.
 }

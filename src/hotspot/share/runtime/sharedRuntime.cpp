@@ -96,6 +96,9 @@
 #if INCLUDE_JFR
 #include "jfr/jfr.inline.hpp"
 #endif
+#if INCLUDE_SHENANDOAHGC
+#include "gc/shenandoah/shenandoahRuntime.hpp"
+#endif
 
 // Shared runtime stub routines reside in their own unique blob with a
 // single entry point
@@ -177,6 +180,102 @@ void SharedRuntime::generate_stubs() {
                           CAST_FROM_FN_PTR(address, SafepointSynchronize::handle_polling_page_exception));
 
   generate_deopt_blob();
+
+#if INCLUDE_SHENANDOAHGC
+  if (UseShenandoahGC) {
+    ResourceMark rm;
+    _shenandoah_keepalive_none_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_keepalive_none_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre),
+                                 /* has_return = */ false, /* save_registers = */ false, /* save_vectors = */ false);
+    _shenandoah_keepalive_gp_blob = 
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_keepalive_gp_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre),
+                                 /* has_return = */ false, /* save_registers = */ true, /* save_vectors = */ false);
+    _shenandoah_keepalive_all_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_keepalive_all_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre),
+                                 /* has_return = */ false, /* save_registers = */ true, /* save_vectors = */ true);
+
+    _shenandoah_lrb_strong_none_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_strong_none_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong),
+                                 /* has_return = */ true, /* save_registers = */ false, /* save_vectors = */ false);
+    _shenandoah_lrb_strong_gp_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_strong_gp_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong),
+                                 /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ false);
+    _shenandoah_lrb_strong_all_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_strong_all_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong),
+                                 /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ true);
+
+    _shenandoah_lrb_strong_narrow_none_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_strong_narrow_none_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow),
+                                 /* has_return = */ true, /* save_registers = */ false, /* save_vectors = */ false);
+    _shenandoah_lrb_strong_narrow_gp_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_strong_narrow_gp_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow),
+                                 /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ false);
+    _shenandoah_lrb_strong_narrow_all_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_strong_narrow_all_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow),
+                                 /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ true);
+
+    _shenandoah_lrb_weak_none_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_weak_none_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak),
+                                 /* has_return = */ true, /* save_registers = */ false, /* save_vectors = */ false);
+    _shenandoah_lrb_weak_gp_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_weak_gp_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak),
+                                 /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ false);
+    _shenandoah_lrb_weak_all_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_weak_all_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak),
+                                 /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ true);
+
+    _shenandoah_lrb_weak_narrow_none_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_weak_narrow_none_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow),
+                                 /* has_return = */ true, /* save_registers = */ false, /* save_vectors = */ false);
+    _shenandoah_lrb_weak_narrow_gp_blob  =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_weak_narrow_gp_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow),
+                                 /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ false);
+    _shenandoah_lrb_weak_narrow_all_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_weak_narrow_all_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow),
+                                 /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ true);
+
+    _shenandoah_lrb_phantom_none_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_phantom_none_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom),
+                                 /* has_return = */ true, /* save_registers = */ false, /* save_vectors = */ false);
+    _shenandoah_lrb_phantom_gp_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_phantom_gp_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom),
+                                 /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ false);
+    _shenandoah_lrb_phantom_all_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_phantom_all_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom),
+                                 /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ true);
+
+    _shenandoah_lrb_phantom_narrow_none_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_phantom_narrow_none_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow),
+                                 /* has_return = */ true, /* save_registers = */ false, /* save_vectors = */ false);
+    _shenandoah_lrb_phantom_narrow_gp_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_phantom_narrow_gp_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow),
+                                 /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ false);
+    _shenandoah_lrb_phantom_narrow_all_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_phantom_narrow_all_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow),
+                                 /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ true);
+  }
+#endif
 
 #if INCLUDE_CDS
   // disallow any further generation of runtime stubs
