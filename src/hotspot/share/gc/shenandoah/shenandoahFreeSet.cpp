@@ -2896,10 +2896,16 @@ void ShenandoahFreeSet::release_fwt_tails() {
 
     ShenandoahFreeSetPartitionId p = _partitions.membership(idx);
     size_t tail = r->fwt_tail_bytes();
-    if (tail > 0 && p != ShenandoahFreeSetPartitionId::NotFree) {
-      _partitions.decrease_used(p, tail);
-      released_regions++;
-      released_bytes += tail;
+    if (tail > 0) {
+      if (p != ShenandoahFreeSetPartitionId::NotFree) {
+        _partitions.decrease_used(p, tail);
+        released_regions++;
+        released_bytes += tail;
+      } else if (r->capacity() - tail >= PLAB::min_size() * HeapWordSize) {
+        _partitions.decrease_used(ShenandoahFreeSetPartitionId::Mutator, tail);
+        released_regions++;
+        released_bytes += tail;
+      }
     }
     r->reset_forwarding_table();
     if (p != ShenandoahFreeSetPartitionId::NotFree && r->is_empty()) {
