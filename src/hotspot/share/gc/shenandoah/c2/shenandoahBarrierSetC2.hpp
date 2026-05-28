@@ -170,7 +170,7 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   bool is_special_register(Register reg);
   Register select_temp_register(bool& selected_live, Register skip_reg1 = noreg, Register skip_reg2 = noreg);
 
-  void maybe_far_jump_if_zero(MacroAssembler& masm, Register reg);
+  void maybe_far_jump_if_zero(MacroAssembler& masm, Register reg, Label* L_target);
 
   void enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp);
 

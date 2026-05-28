@@ -973,18 +973,28 @@ void ShenandoahBarrierStubC2::cardtable(MacroAssembler& masm, Address address, R
 
 void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
+  PhaseOutput* const output = Compile::current()->output();
 
   // Emit the unconditional branch in the first version of the method.
   // Let the rest of runtime figure out how to manage it.
-  __ relocate(barrier_Relocation::spec());
-  __ b(*entry());
+  if (output->in_scratch_emit_size()) {
+    // We piggyback on scratch_emit_size mode to compute the slowpath stub size.
+    // We'll use that information to decide whether we need a far jump to the
+    // stub entry point or not. In scratch_emit_size mode we don't bind entry()
+    // because otherwise it will be rebound when we later emit the instructions
+    // for real.
+    __ nop();
+  } else {
+    __ relocate(barrier_Relocation::spec());
+    __ b(*entry());
 
-#ifdef ASSERT
-  Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(test_state)));
-  __ ldrb(rscratch1, gc_state_fast);
-  __ cbz(rscratch1, *continuation());
-  __ hlt(0); // Correctness bug: barrier is NOP-ed, but heap is NOT IDLE
-#endif
+// #ifdef ASSERT
+//     Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(test_state)));
+//     __ ldrb(rscratch1, gc_state_fast);
+//     __ cbz(rscratch1, *continuation());
+//     __ hlt(0); // Correctness bug: barrier is NOP-ed, but heap is NOT IDLE
+// #endif
+  }
 
   // This is were the slowpath stub will return to or the code above will
   // jump to if the checks are false
@@ -1062,7 +1072,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
 
   // If the object is null, there is no point in applying barriers.
-  maybe_far_jump_if_zero(masm, _obj);
+  maybe_far_jump_if_zero(masm, _obj, continuation());
 
   // We need to make sure that loads done by callers survive across slow-path calls.
   // For self-loads, we need to care about the case when both KA and LRB are enabled (rare).
@@ -1096,14 +1106,14 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
 }
 
-void ShenandoahBarrierStubC2::maybe_far_jump_if_zero(MacroAssembler& masm, Register reg) {
+void ShenandoahBarrierStubC2::maybe_far_jump_if_zero(MacroAssembler& masm, Register reg, Label* L_target) {
   if (_needs_far_jump) {
     Label L_short_jump;
     __ cbnz(reg, L_short_jump);
-    __ b(*continuation());
+    __ b(*L_target);
     __ bind(L_short_jump);
   } else {
-    __ cbz(reg, *continuation());
+    __ cbz(reg, *L_target);
   }
 }
 
@@ -1113,10 +1123,11 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
   Label L_through, L_slowpath;
 
-  // If another barrier is enabled as well, do a runtime check for a specific barrier.
-  if (_needs_load_ref_barrier) {
-    assert(L_done == nullptr, "L_done is always null when _needs_load_ref_barrier is true");
-    __ ldrb(_tmp1, gcstate);
+  // Hotpatched GC checks only care about idle/non-idle state, so we need to check again here.
+  __ ldrb(_tmp1, gcstate);
+  if (L_done != nullptr) {
+    maybe_far_jump_if_zero(masm, _tmp1, L_done);
+  } else {
     __ cbz(_tmp1, L_through);
   }
 
@@ -1167,13 +1178,11 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
 void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   Label L_slow;
 
-  // If another barrier is enabled as well, do a runtime check for a specific barrier.
-  if (_needs_keep_alive_barrier) {
-    char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
-    Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(state_to_check)));
-    __ ldrb(_tmp1, gc_state_fast);
-    maybe_far_jump_if_zero(masm, _tmp1);
-  }
+  // Hotpatched GC checks only care about idle/non-idle state, so we need to check again here.
+  char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
+  Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(state_to_check)));
+  __ ldrb(_tmp1, gc_state_fast);
+  maybe_far_jump_if_zero(masm, _tmp1, continuation());
 
   // If weak references are being processed, weak/phantom loads need to go slow,
   // regardless of their cset status.
@@ -1208,7 +1217,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
     __ add(_tmp1, _tmp1, _tmp2);
   }
   __ ldrb(_tmp1, Address(_tmp1, 0));
-  maybe_far_jump_if_zero(masm, _tmp1);
+  maybe_far_jump_if_zero(masm, _tmp1, continuation());
 
   // Slow path
   __ bind(L_slow);
