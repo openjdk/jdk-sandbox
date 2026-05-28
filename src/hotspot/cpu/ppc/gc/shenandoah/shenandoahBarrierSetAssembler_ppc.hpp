@@ -129,30 +129,26 @@ public:
   virtual void try_resolve_jobject_in_native(MacroAssembler* masm, Register dst, Register jni_env,
                                              Register obj, Register tmp, Label& slowpath);
 
-  virtual void try_resolve_weak_handle(MacroAssembler* masm, Register obj, Register tmp, Label& slow_path);
+  virtual void try_peek_weak_handle_in_nmethod(MacroAssembler* masm, Register weak_handle, Register obj,
+                                               Register tmp, Label& slow_path);
 
 #ifdef COMPILER2
-  // Barriers hotpatching
-  static address parse_stub_address(address pc);
-  static void patch_branch_to_nop(address pc);
-  static void patch_nop_to_branch(address pc, address stub_addr);
+  // Barrier hotpatching
+  static address parse_stub_address(address pc) { Unimplemented(); }
+  static void patch_branch_to_nop(address pc) { Unimplemented(); }
+  static void patch_nop_to_branch(address pc, address stub_addr) { Unimplemented(); }
 
   // Entry points from Matcher
-  void load_c2(const MachNode* node, MacroAssembler* masm,
-               Register dst, Address addr);
+  void load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Register addr, int disp, Register tmp1, Register tmp2, bool narrow, bool acquire);
 
   void store_c2(const MachNode* node, MacroAssembler* masm,
-                Address dst, bool dst_narrow, Register src, bool src_narrow);
+                Register dst, int disp, bool dst_narrow, Register src, bool src_narrow, Register tmp1, Register tmp2, Register tmp3);
 
-  void compare_and_set_c2(const MachNode* node, MacroAssembler* masm,
-                          Register res, Register addr, Register oldval,
-                          Register newval, bool exchange, bool narrow, bool weak);
+  void compare_and_set_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval,
+      Register newval, Register tmp1, Register tmp2, Register tmp3, bool exchange, bool narrow, bool weak, bool acquire);
 
   void get_and_set_c2(const MachNode* node, MacroAssembler* masm,
-                      Register preval, Register newval, Register addr);
-
-  void card_barrier_c2(const MachNode* node, MacroAssembler* masm,
-                       Address addr);
+                      Register preval, Register newval, Register addr, Register tmp1, Register tmp2, Register tmp3);
 #endif // COMPILER2
 };
 

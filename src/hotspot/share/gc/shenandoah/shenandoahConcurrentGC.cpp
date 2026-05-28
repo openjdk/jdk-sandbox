@@ -762,9 +762,6 @@ void ShenandoahConcurrentGC::op_mark_roots() {
 
 void ShenandoahConcurrentGC::op_mark() {
   _mark.concurrent_mark();
-  if (ShenandoahDelayGC > 0) {
-    os::naked_sleep(ShenandoahDelayGC);
-  }
 }
 
 void ShenandoahConcurrentGC::op_final_mark() {
@@ -859,8 +856,6 @@ public:
   }
 
   void work(uint worker_id) override {
-    // ShenandoahEvacOOMScope has to be setup by ShenandoahContextEvacuateUpdateRootsClosure.
-    // Otherwise, may deadlock with watermark lock
     ShenandoahContextEvacuateUpdateRootsClosure oops_cl;
     ShenandoahConcurrentEvacThreadClosure thr_cl(&oops_cl);
     _java_threads.threads_do(&thr_cl, worker_id);
@@ -974,9 +969,8 @@ public:
 
   void work(uint worker_id) override {
     ShenandoahConcurrentWorkerSession worker_session(worker_id);
-    ShenandoahSuspendibleThreadSetJoiner sts_join;
+    SuspendibleThreadSetJoiner sts_join;
     {
-      ShenandoahEvacOOMScope oom;
       // jni_roots and weak_roots are OopStorage backed roots, concurrent iteration
       // may race against OopStorage::release() calls.
       ShenandoahEvacUpdateCleanupOopStorageRootsClosure cl(_generation);
@@ -1049,9 +1043,6 @@ public:
   void do_nmethod(nmethod* n) {
     ShenandoahNMethod* data = ShenandoahNMethod::gc_data(n);
     ShenandoahNMethodLocker locker(data->lock());
-    // Setup EvacOOM scope below reentrant lock to avoid deadlock with
-    // nmethod_entry_barrier
-    ShenandoahEvacOOMScope oom;
     data->oops_do(&_cl, /* fix_relocations = */ true);
     ShenandoahNMethod::disarm_nmethod_unlocked(n);
   }
@@ -1076,7 +1067,6 @@ public:
   void work(uint worker_id) {
     ShenandoahConcurrentWorkerSession worker_session(worker_id);
     {
-      ShenandoahEvacOOMScope oom;
       {
         // vm_roots and weak_roots are OopStorage backed roots, concurrent iteration
         // may race against OopStorage::release() calls.
@@ -1091,7 +1081,6 @@ public:
       }
     }
 
-    // Cannot setup ShenandoahEvacOOMScope here, due to potential deadlock with nmethod_entry_barrier.
     if (!ShenandoahHeap::heap()->unload_classes()) {
       ShenandoahWorkerTimingsTracker timer(_phase, ShenandoahPhaseTimings::CodeCacheRoots, worker_id);
       ShenandoahEvacUpdateCodeCacheClosure cl;
@@ -1117,9 +1106,6 @@ void ShenandoahConcurrentGC::op_cleanup_early() {
 
 void ShenandoahConcurrentGC::op_evacuate() {
   ShenandoahHeap::heap()->evacuate_collection_set(_generation, true /*concurrent*/);
-  if (ShenandoahDelayGC > 0) {
-    os::naked_sleep(ShenandoahDelayGC);
-  }
 }
 
 void ShenandoahConcurrentGC::op_init_update_refs() {
@@ -1132,9 +1118,6 @@ void ShenandoahConcurrentGC::op_init_update_refs() {
 
 void ShenandoahConcurrentGC::op_update_refs() {
   ShenandoahHeap::heap()->update_heap_references(_generation, true /*concurrent*/);
-  if (ShenandoahDelayGC > 0) {
-    os::naked_sleep(ShenandoahDelayGC);
-  }
 }
 
 class ShenandoahUpdateThreadHandshakeClosure : public HandshakeClosure {

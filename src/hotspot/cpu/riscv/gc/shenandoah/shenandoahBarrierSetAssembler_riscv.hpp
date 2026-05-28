@@ -43,7 +43,6 @@ class MachNode;
 class StubCodeGenerator;
 
 class ShenandoahBarrierSetAssembler: public BarrierSetAssembler {
-  friend class ShenandoahCASBarrierSlowStub;
 private:
 
   void satb_barrier(MacroAssembler* masm,
@@ -51,9 +50,7 @@ private:
                     Register pre_val,
                     Register thread,
                     Register tmp1,
-                    Register tmp2,
-                    bool tosca_live,
-                    bool expand_call);
+                    Register tmp2);
 
   void card_barrier(MacroAssembler* masm, Register obj);
 
@@ -69,9 +66,6 @@ public:
 
   virtual NMethodPatchingType nmethod_patching_type() { return NMethodPatchingType::conc_instruction_and_data_patch; }
 
-  void cmpxchg_oop(MacroAssembler* masm, Register addr, Register expected, Register new_val,
-                   Assembler::Aqrl acquire, Assembler::Aqrl release, bool is_cae, Register result);
-
   virtual void arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, bool is_oop,
                                   Register src, Register dst, Register count, RegSet saved_regs);
 
@@ -85,6 +79,10 @@ public:
 
   virtual void try_resolve_jobject_in_native(MacroAssembler* masm, Register jni_env,
                                              Register obj, Register tmp, Label& slowpath);
+  virtual void try_peek_weak_handle_in_nmethod(MacroAssembler* masm, Register weak_handle, Register obj,
+                                               Register tmp, Label& slow_path);
+  void cmpxchg_oop(MacroAssembler* masm, Register addr, Register expected, Register new_val,
+                   Assembler::Aqrl acquire, Assembler::Aqrl release, bool is_cae, Register result);
 
 #ifdef COMPILER1
   void gen_pre_barrier_stub(LIR_Assembler* ce, ShenandoahPreBarrierStub* stub);
@@ -94,23 +92,19 @@ public:
 #endif
 
 #ifdef COMPILER2
-  // Barriers hotpatching
-  static address parse_stub_address(address pc);
-  static void patch_branch_to_nop(address pc);
-  static void patch_nop_to_branch(address pc, address stub_addr);
+  // Barrier hotpatching
+  static address parse_stub_address(address pc) { Unimplemented(); }
+  static void patch_branch_to_nop(address pc) { Unimplemented(); }
+  static void patch_nop_to_branch(address pc, address stub_addr) { Unimplemented(); }
 
   // Entry points from Matcher
-  void load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address addr, bool is_acquire);
+  void load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address addr, Register tmp1, Register tmp2, bool is_narrow);
   void store_c2(const MachNode* node, MacroAssembler* masm, Address dst, bool dst_narrow, Register src,
-      bool src_narrow, Register tmp, bool is_volatile);
+      bool src_narrow, Register tmp1, Register tmp2, Register tmp3);
   void compare_and_set_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval,
-      Register newval, Register tmp, bool exchange, bool maybe_null, bool narrow, bool weak, bool is_acquire);
+      Register newval, Register tmp1, Register tmp2, Register tmp3, bool exchange, bool narrow, bool is_acquire);
   void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval,
-      Register addr, Register tmp, bool is_acquire);
-
-  void gc_state_check_c2(MacroAssembler* masm, Register rscratch, const unsigned char test_state, BarrierStubC2* slow_stub);
-  void card_barrier_c2(const MachNode* node, MacroAssembler* masm, Address addr);
-  virtual void try_resolve_weak_handle_in_c2(MacroAssembler* masm, Register obj, Register tmp, Label& slow_path);
+      Register addr, Register tmp1, Register tmp2, Register tmp3, bool is_acquire);
 #endif
 };
 
