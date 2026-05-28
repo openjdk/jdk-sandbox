@@ -1478,26 +1478,24 @@ void ShenandoahHeap::trash_cset_regions() {
 
   ShenandoahCollectionSet* cset = collection_set();
   ShenandoahHeapRegion* r;
-  size_t released_regions = 0;
-  size_t released_bytes = 0;
   cset->clear_current_index();
   while ((r = cset->next()) != nullptr) {
     if (cset->use_forward_table(r)) {
-      cset->remove_region(r);
-      free_set()->release_fwt_tail(r, released_regions, released_bytes);
-      r->reset_forwarding_table();
-      if (r->top() == r->bottom()) {
+      bool has_live_objects = (r->top() != r->bottom());
+      if (has_live_objects) {
+        r->make_regular_from_cset();
+      } else if (free_set()->membership(r->index()) == ShenandoahFreeSetPartitionId::NotFree) {
         r->make_trash();
       } else {
-        r->make_regular_from_cset();
+        r->finish_recycle_early();
       }
     } else {
       r->make_trash();
     }
   }
-  log_info(gc)("Released FWT tails for %zu regions, adding %zu%s to free set",
-                     released_regions,
-                     byte_size_in_proper_unit(released_bytes), proper_unit_for_byte_size(released_bytes));
+
+  free_set()->release_fwt_tails();
+
   cset->clear();
 }
 

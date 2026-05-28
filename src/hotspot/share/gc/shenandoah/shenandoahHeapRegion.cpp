@@ -311,6 +311,14 @@ void ShenandoahHeapRegion::recycle_early() {
   }
 }
 
+void ShenandoahHeapRegion::finish_recycle_early() {
+  shenandoah_assert_heaplocked();
+  assert(top() == bottom(), "Only for early-recycled regions with no allocations");
+  make_trash();
+  make_empty();
+  set_affiliation(FREE);
+}
+
 void ShenandoahHeapRegion::make_regular_from_cset() {
   shenandoah_assert_heaplocked();
   switch (state()) {
