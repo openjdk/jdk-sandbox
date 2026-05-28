@@ -50,8 +50,6 @@ run_with() {
     echo -n " run $I: "
     $P $W 2>&1 | awk '/completed warmup|PASSED/ { printf "%s ", $(NF-2)} END { print "" }'
   done
-  echo -n " stats: "
-  $P -XX:+CITime $W 2>&1 | grep Tier4
 }
 
 echo

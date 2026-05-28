@@ -5,11 +5,11 @@
 set -euo pipefail
 
 # Look around for release JDK image
-J_LBE=
+J_HP=
 if [ -d build/linux-x86_64-server-release/images/jdk/ ]; then
-  J_LBE=build/linux-x86_64-server-release/images/jdk/bin/java
+  J_HP=build/linux-x86_64-server-release/images/jdk/bin/java
 elif [ -d build/linux-aarch64-server-release/images/jdk/ ]; then
-  J_LBE=build/linux-aarch64-server-release/images/jdk/bin/java
+  J_HP=build/linux-aarch64-server-release/images/jdk/bin/java
 else
   echo "Cannot find JDK"
   exit 1
@@ -44,28 +44,32 @@ run_with() {
   done
 }
 
+echo
+echo ------
+echo $*
+
 if [ "x" != "x$J_ML" ]; then
   echo
-  echo "Mainline: No barriers"
+  echo "Mainline: Concurrent"
   run_with $J_ML $OPTS
 
   echo
-  echo "Mainline: All barriers"
-  run_with $J_ML $OPTS_ALL
+  echo "Mainline: Passive, No barriers"
+  run_with $J_ML $OPTS_PASSIVE_NONE
+
+  echo
+  echo "Mainline: Passive, All barriers"
+  run_with $J_ML $OPTS_PASSIVE_ALL
 fi
 
 echo
-echo "LBE: No barriers"
-run_with $J_LBE $OPTS
+echo "HP: Concurrent"
+run_with $J_HP $OPTS
 
 echo
-echo "LBE: All barriers"
-run_with $J_LBE $OPTS_ALL
+echo "HP: Passive, No barriers"
+run_with $J_HP $OPTS_PASSIVE_NONE
 
 echo
-echo "LBE: All barriers, no dominated barrier elision"
-run_with $J_LBE $OPTS_ALL -XX:-ShenandoahElideDominatedBarriers
-
-echo
-echo "LBE: All barriers, no barrier elision at all"
-run_with $J_LBE $OPTS_ALL -XX:-ShenandoahElideDominatedBarriers -XX:-ShenandoahElideBarriers
+echo "HP: Passive, All barriers"
+run_with $J_HP $OPTS_PASSIVE_ALL
