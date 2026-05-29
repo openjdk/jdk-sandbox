@@ -62,23 +62,23 @@ if [ "x" != "x$J_ML" ]; then
   echo "Mainline: Concurrent"
   run_with $J_ML $OPTS
 
-  echo
-  echo "Mainline: Passive, No barriers"
-  run_with $J_ML $OPTS_PASSIVE_NONE
+#  echo
+#  echo "Mainline: Passive, No barriers"
+#  run_with $J_ML $OPTS_PASSIVE_NONE
 
-  echo
-  echo "Mainline: Passive, All barriers"
-  run_with $J_ML $OPTS_PASSIVE_ALL
+#  echo
+#  echo "Mainline: Passive, All barriers"
+#  run_with $J_ML $OPTS_PASSIVE_ALL
 fi
 
 echo
 echo "HP: Concurrent"
 run_with $J_HP $OPTS
 
-echo
-echo "HP: Passive, No barriers"
-run_with $J_HP $OPTS_PASSIVE_NONE
+#echo
+#echo "HP: Passive, No barriers"
+#run_with $J_HP $OPTS_PASSIVE_NONE
 
-echo
-echo "HP: Passive, All barriers"
-run_with $J_HP $OPTS_PASSIVE_ALL
+#echo
+#echo "HP: Passive, All barriers"
+#run_with $J_HP $OPTS_PASSIVE_ALL
