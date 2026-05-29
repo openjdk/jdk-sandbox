@@ -1775,8 +1775,10 @@ HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, Shenandoah
         assert(result != nullptr || r->forwarding_table_start() != nullptr,
                "Allocation must succeed: free %zu, actual %zu", free, adjusted_size);
         if (result != nullptr) {
-          req.set_actual_size(adjusted_size);
-          req.set_waste(req.waste() + pointer_delta(r->top(), old_top) - adjusted_size);
+          // actual may be < adjusted_size if a sentinel truncated the TLAB span.
+          size_t actual = pointer_delta(r->top(), result);
+          req.set_actual_size(actual);
+          req.set_waste(req.waste() + pointer_delta(result, old_top));
         }
       } else {
         log_trace(gc, free)("Failed to shrink TLAB or GCLAB request (%zu) in region %zu to %zu"

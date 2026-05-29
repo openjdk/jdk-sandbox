@@ -121,21 +121,58 @@ HeapWord* ShenandoahHeapRegion::allocate(size_t size, const ShenandoahAllocReque
   if (fwt_start != nullptr && req.is_gc_alloc() && req.is_lab_alloc()) {
     return nullptr;
   }
-  // Optionally disable mutator TLAB carving in cset regions.
-  if (!ShenandoahCSetRegionTLAB && is_cset() &&
-      req.is_mutator_alloc() && req.is_lab_alloc()) {
-    return nullptr;
-  }
 
-  // Don't allocate at adresses that are in the FWT.
-  if (fwt_start != nullptr) {
-    const uintptr_t fwt_sentinel      = ShenandoahHeap::in_fwt_addr_filler_word_0;
-    const size_t    fwt_sentinel_step = align_up(2, (size_t)MinObjAlignment);
-    while (obj < alloc_limit
-           && *reinterpret_cast<uintptr_t*>(obj) == fwt_sentinel) {
-      obj += fwt_sentinel_step;
+  if (req.is_mutator_alloc() && req.is_lab_alloc()) {
+    // Optionally disable mutator TLAB carving in cset regions.
+    if (!ShenandoahCSetRegionTLAB && is_cset()) {
+      return nullptr;
     }
-    if (obj >= alloc_limit) return nullptr;
+    // Sentinel-free span [min_size, size].
+    if (fwt_start != nullptr) {
+      const uintptr_t sentinel   = ShenandoahHeap::in_fwt_addr_filler_word_0;
+      const size_t    step       = align_up(2, (size_t)MinObjAlignment);
+      const size_t    min_sz     = req.min_size();
+      HeapWord*       span_start = obj;
+      bool            found      = false;
+
+      for (HeapWord* scan = obj; scan < alloc_limit; scan += step) {
+        if (*reinterpret_cast<uintptr_t*>(scan) == sentinel) {
+          size_t gap = pointer_delta(scan, span_start);
+          if (gap >= min_sz) {
+            size  = MIN2(gap, size);
+            obj   = span_start;
+            found = true;
+            break;
+          }
+          span_start = scan + step;
+        } else if (pointer_delta(scan + step, span_start) >= size) {
+          obj   = span_start;
+          found = true;
+          break;
+        }
+      }
+      if (!found) {
+        size_t gap = pointer_delta(alloc_limit, span_start);
+        if (gap >= min_sz) {
+          size = MIN2(gap, size);
+          obj  = span_start;
+        } else {
+          return nullptr;
+        }
+      }
+      if (obj >= alloc_limit) return nullptr;
+    }
+  } else { // object
+    // Don't allocate at adresses that are in the FWT.
+    if (fwt_start != nullptr) {
+      const uintptr_t fwt_sentinel      = ShenandoahHeap::in_fwt_addr_filler_word_0;
+      const size_t    fwt_sentinel_step = align_up(2, (size_t)MinObjAlignment);
+      while (obj < alloc_limit
+             && *reinterpret_cast<uintptr_t*>(obj) == fwt_sentinel) {
+        obj += fwt_sentinel_step;
+      }
+      if (obj >= alloc_limit) return nullptr;
+    }
   }
 
   if (pointer_delta(alloc_limit, obj) >= size) {
