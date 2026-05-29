@@ -697,7 +697,7 @@ void ShenandoahConcurrentGC::op_init_mark() {
   assert(!heap->has_forwarded_objects(), "No forwarded objects on this path");
 
   // First pause in cycle, check that barriers were not left enabled.
-  ShenandoahCodeRoots::check_barriers(false);
+  ShenandoahCodeRoots::check_barriers();
 
   if (heap->mode()->is_generational()) {
     if (_generation->is_global()) {
@@ -1292,7 +1292,7 @@ void ShenandoahConcurrentGC::op_reset_after_collect() {
   ShenandoahCodeRoots::disarm_nmethods();
 
   // Check that barriers were not left enabled.
-  ShenandoahCodeRoots::check_barriers(false);
+  ShenandoahCodeRoots::check_barriers();
 
   ShenandoahHeap* const heap = ShenandoahHeap::heap();
   if (heap->mode()->is_generational()) {

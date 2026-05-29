@@ -112,9 +112,9 @@ private:
   ShenandoahConcurrentNMethodIterator _iterator;
 
 public:
-  ShenandoahCheckNMethodsTask(bool armed) :
+  ShenandoahCheckNMethodsTask() :
     WorkerTask("Shenandoah Check NMethods"),
-    _cl(armed),
+    _cl(!ShenandoahHeap::heap()->is_idle()),
     _iterator(ShenandoahCodeRoots::table()) {}
 
   virtual void work(uint worker_id) {
@@ -122,8 +122,8 @@ public:
   }
 };
 
-void ShenandoahCodeRoots::check_barriers(bool armed) {
-  ShenandoahCheckNMethodsTask task(armed);
+void ShenandoahCodeRoots::check_barriers() {
+  ShenandoahCheckNMethodsTask task;
   ShenandoahHeap::heap()->workers()->run_task(&task);
 }
 #endif
