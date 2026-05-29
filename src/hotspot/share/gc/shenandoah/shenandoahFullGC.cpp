@@ -131,7 +131,7 @@ void ShenandoahFullGC::op_full(GCCause::Cause cause) {
 
   // Leaving full GC, we need to flip barriers back to idle.
   ShenandoahCodeRoots::arm_nmethods();
-  ShenandoahStackWatermark::change_epoch_id();
+  ShenandoahCodeRoots::disarm_nmethods();
 
   {
     ShenandoahTimingsTracker timing(ShenandoahPhaseTimings::full_gc_propagate_gc_state);

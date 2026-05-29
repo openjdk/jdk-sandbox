@@ -697,6 +697,9 @@ void ShenandoahConcurrentGC::op_init_mark() {
   assert(!_generation->is_mark_complete(), "should not be complete");
   assert(!heap->has_forwarded_objects(), "No forwarded objects on this path");
 
+  // First pause in cycle, check that barriers were not left enabled.
+  ShenandoahCodeRoots::check_barriers(false);
+
   if (heap->mode()->is_generational()) {
     if (_generation->is_global()) {
       heap->old_generation()->cancel_gc();
@@ -788,9 +791,7 @@ void ShenandoahConcurrentGC::op_final_mark() {
     // Has to be done after cset selection
     heap->prepare_concurrent_roots();
 
-    // We need full cycle to patch barriers back to idle.
-    // final-roots is pauseless, so there is no way to arm barriers.
-    if (true || !heap->collection_set()->is_empty()) {
+    if (!heap->collection_set()->is_empty()) {
       LogTarget(Debug, gc, cset) lt;
       if (lt.is_enabled()) {
         ResourceMark rm;
@@ -1295,8 +1296,12 @@ void ShenandoahConcurrentGC::op_reset_after_collect() {
     _generation->reset_mark_bitmap<false>();
   }
 
-  // Also go and disable all barriers in all current nmethods.
+  // Final concurrent phase: disable all barriers in all current nmethods.
+  // ShenandoahCodeRoots::arm_nmethods();
   ShenandoahCodeRoots::disarm_nmethods();
+
+  // Check that barriers were not left enabled.
+  ShenandoahCodeRoots::check_barriers(false);
 }
 
 bool ShenandoahConcurrentGC::check_cancellation_and_abort(ShenandoahDegenPoint point) {

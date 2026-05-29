@@ -96,6 +96,36 @@ void ShenandoahCodeRoots::disarm_nmethods() {
   ShenandoahHeap::heap()->workers()->run_task(&task);
 }
 
+class ShenandoahCheckNMethodClosure : public NMethodClosure {
+  bool const _armed;
+public:
+  ShenandoahCheckNMethodClosure(int armed) : _armed(armed) {}
+  virtual void do_nmethod(nmethod* nm) {
+    ShenandoahNMethod::assert_barriers(nm, _armed);
+  }
+};
+
+class ShenandoahCheckNMethodsTask : public WorkerTask {
+private:
+  ShenandoahCheckNMethodClosure      _cl;
+  ShenandoahConcurrentNMethodIterator _iterator;
+
+public:
+  ShenandoahCheckNMethodsTask(bool armed) :
+    WorkerTask("Shenandoah Check NMethods"),
+    _cl(armed),
+    _iterator(ShenandoahCodeRoots::table()) {}
+
+  virtual void work(uint worker_id) {
+    _iterator.nmethods_do(&_cl);
+  }
+};
+
+void ShenandoahCodeRoots::check_barriers(bool armed) {
+  ShenandoahCheckNMethodsTask task(armed);
+  ShenandoahHeap::heap()->workers()->run_task(&task);
+}
+
 class ShenandoahNMethodUnlinkClosure : public NMethodClosure {
 private:
   bool                      _unloading_occurred;

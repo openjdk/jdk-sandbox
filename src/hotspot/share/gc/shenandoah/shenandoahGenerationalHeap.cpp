@@ -187,7 +187,7 @@ bool ShenandoahGenerationalHeap::requires_barriers(stackChunkOop obj) const {
 
 void ShenandoahGenerationalHeap::evacuate_collection_set(ShenandoahGeneration* generation, bool concurrent) {
   ShenandoahRegionIterator regions;
-  ShenandoahGenerationalEvacuationTask task(this, generation, &regions, concurrent, collection_set()->is_empty() /* only promote regions */);
+  ShenandoahGenerationalEvacuationTask task(this, generation, &regions, concurrent, false /* only promote regions */);
   workers()->run_task(&task);
 }
 
