@@ -86,7 +86,6 @@ public:
     _iterator(ShenandoahCodeRoots::table()) {}
 
   virtual void work(uint worker_id) {
-    ShenandoahParallelWorkerSession worker_session(worker_id);
     _iterator.nmethods_do(&_cl);
   }
 };
