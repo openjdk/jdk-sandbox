@@ -21,6 +21,7 @@
  * questions.
  */
 
+#include "gc/shared/gc_globals.hpp"
 #include "gc/shenandoah/shenandoahForwardingTable.inline.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahHeapRegion.hpp"
@@ -32,6 +33,10 @@ HeapWord* CompactFwdTableEntry::_heap_base = nullptr;
 bool ShenandoahForwardingTable::_compact = false;
 
 void ShenandoahForwardingTable::initialize_globals() {
+  if (!ShenandoahCompactFWTEntries) {
+    _compact = false;
+    return;
+  }
   MemRegion heap = ShenandoahHeap::heap()->reserved_region();
   size_t heap_size_words = heap.word_size();
   if (ShenandoahHeapRegion::region_size_words() > CompactFwdTableEntry::max_region_size_words() ||

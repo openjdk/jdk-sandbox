@@ -27,6 +27,7 @@
 #ifndef SHARE_GC_SHENANDOAH_SHENANDOAHHEAPREGION_INLINE_HPP
 #define SHARE_GC_SHENANDOAH_SHENANDOAHHEAPREGION_INLINE_HPP
 
+#include "gc/shared/gc_globals.hpp"
 #include "gc/shenandoah/shenandoahHeapRegion.hpp"
 #include "logging/log.hpp"
 
@@ -118,6 +119,11 @@ HeapWord* ShenandoahHeapRegion::allocate(size_t size, const ShenandoahAllocReque
 
   // Disable PLAB/GCLAB allocation in early-recycled FWT regions.
   if (fwt_start != nullptr && req.is_gc_alloc() && req.is_lab_alloc()) {
+    return nullptr;
+  }
+  // Optionally disable mutator TLAB carving in cset regions.
+  if (!ShenandoahCSetRegionTLAB && is_cset() &&
+      req.is_mutator_alloc() && req.is_lab_alloc()) {
     return nullptr;
   }
 

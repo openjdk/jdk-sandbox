@@ -423,6 +423,17 @@
           "by thread type (worker or mutator) and evacuation type (young, " \
           "old, or promotion.")                                             \
                                                                             \
+  product(bool, ShenandoahCompactFWTEntries, true, DIAGNOSTIC,              \
+          "Use compact (8-byte) forwarding table entries when heap and "    \
+          "region sizes allow it. Disabling this forces wide (16-byte) "   \
+          "entries unconditionally, which is useful for debugging.")        \
+                                                                            \
+  product(bool, ShenandoahCSetRegionTLAB, true, DIAGNOSTIC,                \
+          "Allow mutator TLAB carving in collection-set regions during "   \
+          "concurrent evacuation. Disabling this makes allocate() return " \
+          "nullptr for TLAB requests in cset regions, forcing the "        \
+          "allocator to pick a non-cset region instead.")                  \
+                                                                            \
   product(uintx, ShenandoahCriticalFreeThreshold, 1, EXPERIMENTAL,          \
           "How much of the heap needs to be free after recovery cycles, "   \
           "either Degenerated or Full GC to be claimed successful. If this "\
