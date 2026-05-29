@@ -257,9 +257,8 @@ bool ShenandoahConcurrentGC::collect(GCCause::Cause cause) {
 
     // In normal cycle, final-update-refs would verify at the end of the cycle.
     // In abbreviated cycle, we need to verify separately.
-    if (ShenandoahVerify) {
-      vmop_entry_final_verify();
-    }
+    // TODO: This is now also puts the barriers down at the end of the cycle. Refine.
+    vmop_entry_final_verify();
   }
 
   // We defer generation resizing actions until after cset regions have been recycled.  We do this even following an
@@ -1267,9 +1266,14 @@ bool ShenandoahConcurrentGC::entry_final_roots() {
 }
 
 void ShenandoahConcurrentGC::op_verify_final() {
-  assert(ShenandoahVerify, "Should have been checked before");
   ShenandoahHeap* const heap = ShenandoahHeap::heap();
-  heap->verifier()->verify_after_gc(_generation);
+  if (ShenandoahVerify) {
+    heap->verifier()->verify_after_gc(_generation);
+  }
+
+  // Final pause, arm the nmethods to put barriers down.
+  ShenandoahCodeRoots::arm_nmethods();
+  ShenandoahStackWatermark::change_epoch_id();
 }
 
 void ShenandoahConcurrentGC::op_cleanup_complete() {
@@ -1284,6 +1288,12 @@ void ShenandoahConcurrentGC::op_reset_after_collect() {
                           ShenandoahWorkerPolicy::calc_workers_for_conc_reset(),
                           "reset after collection.");
 
+  // Final concurrent phase: complete disabling all barriers.
+  ShenandoahCodeRoots::disarm_nmethods();
+
+  // Check that barriers were not left enabled.
+  ShenandoahCodeRoots::check_barriers(false);
+
   ShenandoahHeap* const heap = ShenandoahHeap::heap();
   if (heap->mode()->is_generational()) {
     // If we are in the midst of an old gc bootstrap or an old marking, we want to leave the mark bit map of
@@ -1295,13 +1305,6 @@ void ShenandoahConcurrentGC::op_reset_after_collect() {
   } else {
     _generation->reset_mark_bitmap<false>();
   }
-
-  // Final concurrent phase: disable all barriers in all current nmethods.
-  // ShenandoahCodeRoots::arm_nmethods();
-  ShenandoahCodeRoots::disarm_nmethods();
-
-  // Check that barriers were not left enabled.
-  ShenandoahCodeRoots::check_barriers(false);
 }
 
 bool ShenandoahConcurrentGC::check_cancellation_and_abort(ShenandoahDegenPoint point) {

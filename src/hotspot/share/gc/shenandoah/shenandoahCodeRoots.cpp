@@ -96,6 +96,7 @@ void ShenandoahCodeRoots::disarm_nmethods() {
   ShenandoahHeap::heap()->workers()->run_task(&task);
 }
 
+#ifdef ASSERT
 class ShenandoahCheckNMethodClosure : public NMethodClosure {
   bool const _armed;
 public:
@@ -125,6 +126,7 @@ void ShenandoahCodeRoots::check_barriers(bool armed) {
   ShenandoahCheckNMethodsTask task(armed);
   ShenandoahHeap::heap()->workers()->run_task(&task);
 }
+#endif
 
 class ShenandoahNMethodUnlinkClosure : public NMethodClosure {
 private:
