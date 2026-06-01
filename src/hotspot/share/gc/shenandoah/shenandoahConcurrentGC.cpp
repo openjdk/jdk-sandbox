@@ -806,11 +806,6 @@ void ShenandoahConcurrentGC::op_final_mark() {
       heap->set_evacuation_in_progress(true);
       // From here on, we need to update references.
       heap->set_has_forwarded_objects(true);
-
-      // Arm nmethods/stack for concurrent processing
-      ShenandoahCodeRoots::arm_nmethods();
-      ShenandoahStackWatermark::change_epoch_id();
-
     } else {
       if (ShenandoahVerify) {
         ShenandoahTimingsTracker v(ShenandoahPhaseTimings::final_mark_verify);
@@ -822,6 +817,10 @@ void ShenandoahConcurrentGC::op_final_mark() {
       }
     }
   }
+
+  // Arm nmethods/stack for concurrent processing
+  ShenandoahCodeRoots::arm_nmethods();
+  ShenandoahStackWatermark::change_epoch_id();
 
   {
     ShenandoahTimingsTracker timing(ShenandoahPhaseTimings::final_mark_propagate_gc_state);

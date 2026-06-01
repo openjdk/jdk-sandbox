@@ -301,10 +301,6 @@ void ShenandoahDegenGC::op_degenerated() {
         assert(!heap->cancelled_gc(), "STW reference update can not OOM");
       }
 
-      // Leaving degenerated GC, we need to flip barriers back to idle.
-      ShenandoahCodeRoots::arm_nmethods();
-      ShenandoahCodeRoots::disarm_nmethods();
-
       op_cleanup_complete();
 
       if (heap->mode()->is_generational()) {
@@ -317,6 +313,10 @@ void ShenandoahDegenGC::op_degenerated() {
   }
 
   DEBUG_ONLY(heap->assert_no_self_forwards());
+
+  // Leaving degenerated GC, we need to flip barriers back to idle.
+  ShenandoahCodeRoots::arm_nmethods();
+  ShenandoahCodeRoots::disarm_nmethods();
 
   if (ShenandoahVerify) {
     heap->verifier()->verify_after_degenerated(_generation);
