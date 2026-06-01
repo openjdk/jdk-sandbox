@@ -1129,10 +1129,12 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   Address buffer(rthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
   Label L_through, L_slowpath;
 
-  // If another barrier is enabled as well, do a runtime check for a specific barrier.
-  if (_needs_load_ref_barrier) {
-    assert(L_done == nullptr, "L_done is always null when _needs_load_ref_barrier is true");
-    __ ldrb(_tmp1, gcstate);
+  // Hotpatched GC checks are racy: we can turn off GC state before we patch the barriers.
+  // Therefore, alas we need a separate check here. TODO: Figure this out.
+  __ ldrb(_tmp1, gcstate);
+  if (L_done != nullptr) {
+    maybe_far_jump_if_zero(masm, _tmp1, L_done);
+  } else {
     __ cbz(_tmp1, L_through);
   }
 
@@ -1183,13 +1185,12 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
 void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   Label L_slow;
 
-  // If another barrier is enabled as well, do a runtime check for a specific barrier.
-  if (_needs_keep_alive_barrier) {
-    char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
-    Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(state_to_check)));
-    __ ldrb(_tmp1, gc_state_fast);
-    maybe_far_jump_if_zero(masm, _tmp1, continuation());
-  }
+  // Hotpatched GC checks are racy: we can turn off GC state before we patch the barriers.
+  // Therefore, alas we need a separate check here. TODO: Figure this out.
+  char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
+  Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(state_to_check)));
+  __ ldrb(_tmp1, gc_state_fast);
+  maybe_far_jump_if_zero(masm, _tmp1, continuation());
 
   // If weak references are being processed, weak/phantom loads need to go slow,
   // regardless of their cset status.
