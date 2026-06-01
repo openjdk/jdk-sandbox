@@ -185,11 +185,15 @@ void ShenandoahNMethod::update_barriers() {
 }
 
 #ifdef ASSERT
-void ShenandoahNMethod::assert_barriers(nmethod* nm, bool expected) {
+void ShenandoahNMethod::assert_barriers(nmethod* nm, bool global_expected) {
 #ifdef COMPILER2
+  ShenandoahHeap* heap = ShenandoahHeap::heap();
+
   ShenandoahNMethod* snm = gc_data(nm);
   for (int c = 0; c < snm->_barriers_count; c++) {
     address pc = snm->_barriers[c]._pc;
+    char trigger_state = ShenandoahThreadLocalData::fast_array_index_to_gc_state(snm->_barriers[c]._gc_state_fast_index);
+    bool expected = global_expected && ((heap->gc_state() & trigger_state) != 0);
     bool actual = ShenandoahBarrierSetAssembler::is_active(pc);
     assert(expected == actual, "armed expected: %s, actual: %s", BOOL_TO_STR(expected), BOOL_TO_STR(actual));
   }
