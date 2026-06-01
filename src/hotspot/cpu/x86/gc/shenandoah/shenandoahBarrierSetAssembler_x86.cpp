@@ -1142,11 +1142,10 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
 
   Label L_through, L_pop_and_slow;
 
-  // Hotpatched GC checks only care about idle/non-idle state, so we need to check again here.
-  __ cmpb(gc_state_fast, 0);
-  if (L_done != nullptr) {
-    __ jcc(Assembler::equal, *L_done);
-  } else {
+  // If another barrier is enabled as well, do a runtime check for a specific barrier.
+  if (_needs_load_ref_barrier) {
+    assert(L_done == nullptr, "L_done is always null when _needs_load_ref_barrier is true");
+    __ cmpb(gc_state_fast, 0);
     __ jcc(Assembler::equal, L_through);
   }
 
@@ -1216,11 +1215,13 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
 void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   Label L_pop_and_slow, L_slow;
 
-  // Hotpatched GC checks only care about idle/non-idle state, so we need to check again here.
-  char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
-  Address gc_state_fast(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(state_to_check)));
-  __ cmpb(gc_state_fast, 0);
-  __ jcc(Assembler::equal, *continuation());
+  // If another barrier is enabled as well, do a runtime check for a specific barrier.
+  if (_needs_keep_alive_barrier) {
+    char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
+    Address gc_state_fast(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(state_to_check)));
+    __ cmpb(gc_state_fast, 0);
+    __ jcc(Assembler::equal, *continuation());
+  }
 
   // If weak references are being processed, weak/phantom loads need to go slow,
   // regardless of their cset status.
@@ -1355,12 +1356,13 @@ void ShenandoahBarrierStubC2::post_init() {
 }
 
 void ShenandoahBarrierStubC2::maybe_far_jump_if_zero(MacroAssembler& masm, Register reg, Label* L_target) {
+  assert(L_target == continuation(), "Should always be");
   if (_narrow) {
     __ testl(reg, reg);
   } else {
     __ testq(reg, reg);
   }
-  __ jcc(Assembler::zero, *L_target);
+  __ jcc(Assembler::zero, *continuation());
 }
 
 #endif // COMPILER2
