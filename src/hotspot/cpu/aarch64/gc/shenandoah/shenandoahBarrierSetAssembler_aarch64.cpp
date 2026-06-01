@@ -1112,6 +1112,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
 }
 
 void ShenandoahBarrierStubC2::maybe_far_jump_if_zero(MacroAssembler& masm, Register reg, Label* L_target) {
+  assert(L_target == continuation(), "Should be");
   if (_needs_far_jump) {
     Label L_short_jump;
     __ cbnz(reg, L_short_jump);
@@ -1187,7 +1188,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
     char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
     Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(state_to_check)));
     __ ldrb(_tmp1, gc_state_fast);
-    maybe_far_jump_if_zero(masm, _tmp1);
+    maybe_far_jump_if_zero(masm, _tmp1, continuation());
   }
 
   // If weak references are being processed, weak/phantom loads need to go slow,
