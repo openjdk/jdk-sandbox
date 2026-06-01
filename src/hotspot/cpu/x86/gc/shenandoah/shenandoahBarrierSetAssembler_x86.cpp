@@ -1024,7 +1024,7 @@ void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char
 
   // Emit the unconditional branch in the first version of the method.
   // Let the rest of runtime figure out how to manage it.
-  __ relocate(barrier_Relocation::spec());
+  __ relocate(barrier_Relocation::spec(), ShenandoahThreadLocalData::gc_state_to_fast_array_index(test_state));
   __ jmp(*entry(), /* maybe_short = */ false);
 
 #ifdef ASSERT

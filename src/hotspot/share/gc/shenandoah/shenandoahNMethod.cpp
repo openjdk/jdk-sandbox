@@ -126,8 +126,7 @@ void ShenandoahNMethod::parse(nmethod* nm, GrowableArray<oop*>& oops, bool& has_
         // TODO: Parsing the stub address from generated code is kludgy. It also does not work
         // with nmethod relocation, that can copy the nmethod body with barriers already nop-ped out.
         b._stub_addr = ShenandoahBarrierSetAssembler::parse_stub_address(b._pc);
-        // TODO next step: Figure out which GC state we care about in at this fastpath check:
-        // b._gc_state_fast_bit = r->format();
+        b._gc_state_fast_index = r->format();
         barriers.push(b);
         break;
       }
@@ -175,10 +174,11 @@ void ShenandoahNMethod::update_barriers() {
   for (int c = 0; c < _barriers_count; c++) {
     address pc = _barriers[c]._pc;
     address stub_addr = _barriers[c]._stub_addr;
-    if (heap->is_idle()) {
-      ShenandoahBarrierSetAssembler::patch_branch_to_nop(pc);
-    } else {
+    char trigger_state = ShenandoahThreadLocalData::fast_array_index_to_gc_state(_barriers[c]._gc_state_fast_index);
+    if ((heap->gc_state() & trigger_state) != 0) {
       ShenandoahBarrierSetAssembler::patch_nop_to_branch(pc, stub_addr);
+    } else {
+      ShenandoahBarrierSetAssembler::patch_branch_to_nop(pc);
     }
   }
 #endif

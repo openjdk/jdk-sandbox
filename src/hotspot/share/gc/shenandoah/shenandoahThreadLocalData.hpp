@@ -130,6 +130,18 @@ public:
     return 0;
   }
 
+  static char fast_array_index_to_gc_state(int index) {
+    if (index == POS_FORWARDED)              return FORWARDED;
+    if (index == POS_MARKING)                return MARKING;
+    if (index == POS_WEAK)                   return WEAK;
+    if (index == POS_FORWARDED_MARKING)      return FORWARDED_MARKING;
+    if (index == POS_FORWARDED_WEAK)         return FORWARDED_WEAK;
+    if (index == POS_MARKING_WEAK)           return MARKING_WEAK;
+    if (index == POS_FORWARDED_MARKING_WEAK) return FORWARDED_MARKING_WEAK;
+    ShouldNotReachHere();
+    return 0;
+  }
+
   static void set_gc_state(Thread* thread, char gc_state) {
     ShenandoahThreadLocalData* d = data(thread);
     d->_gc_state = gc_state;

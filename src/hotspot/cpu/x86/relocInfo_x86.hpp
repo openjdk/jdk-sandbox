@@ -32,7 +32,7 @@
     offset_unit        =  1,
 
     // Encodes Assembler::disp32_operand vs. Assembler::imm32_operand.
-    // vs Assembler::narrow_oop_operand and ZGC barrier encodings.
+    // vs Assembler::narrow_oop_operand, ZGC and Shenandoah GC barrier encodings.
     format_width       =  3
   };
 

@@ -40,6 +40,7 @@ typedef ShenandoahLocker<ShenandoahNMethodLock>       ShenandoahNMethodLocker;
 struct ShenandoahNMethodBarrier {
   address _pc;
   address _stub_addr;
+  int _gc_state_fast_index;
 };
 
 // ShenandoahNMethod tuple records the internal locations of oop slots within reclocation stream in

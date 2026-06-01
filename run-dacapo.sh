@@ -33,7 +33,7 @@ OPTS="-XX:+UnlockDiagnosticVMOptions -XX:+UnlockExperimentalVMOptions"
 OPTS="$OPTS -XX:-TieredCompilation -XX:+UseCompactObjectHeaders -XX:+UseCompressedOops"
 
 # Heap config
-OPTS="$OPTS -Xmx10g -Xms10g -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch"
+OPTS="$OPTS -Xmx4g -Xms4g -XX:+UseTransparentHugePages -XX:+AlwaysPreTouch"
 
 # GC config
 OPTS="$OPTS -XX:+UseShenandoahGC"
