@@ -348,7 +348,7 @@ void ShenandoahDegenGC::op_reset() {
 
 void ShenandoahDegenGC::op_mark() {
   assert(!_generation->is_concurrent_mark_in_progress(), "Should be reset");
-  ShenandoahGCPhase phase(ShenandoahPhaseTimings::degen_gc_stw_mark);
+  ShenandoahGCPhase phase(ShenandoahPhaseTimings::degen_gc_mark);
   ShenandoahSTWMark mark(_generation, false /*full gc*/);
   mark.mark();
 }
@@ -411,7 +411,7 @@ void ShenandoahDegenGC::op_cleanup_early() {
 }
 
 void ShenandoahDegenGC::op_evacuate() {
-  ShenandoahGCPhase phase(ShenandoahPhaseTimings::degen_gc_stw_evac);
+  ShenandoahGCPhase phase(ShenandoahPhaseTimings::degen_gc_evac);
   ShenandoahHeap::heap()->evacuate_collection_set(_generation, false /* concurrent*/);
 }
 
