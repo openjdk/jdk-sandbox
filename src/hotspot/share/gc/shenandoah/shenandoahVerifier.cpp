@@ -783,8 +783,9 @@ public:
       }
     }
 
-    // Size-based, after TAMS
-    {
+    // Size-based, after TAMS.
+    // recycle_early() resets TAMS to bottom, leaving non-parseable memory between allocations.
+    if (tams > r->bottom()) {
       HeapWord* limit = r->top();
       HeapWord* addr = tams;
 
