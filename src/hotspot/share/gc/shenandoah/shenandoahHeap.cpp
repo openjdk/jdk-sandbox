@@ -1434,6 +1434,10 @@ bool ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t nu
   if (!ShenandoahForwardingTables) {
     return false;
   }
+  // STW GC uses mark-word forwarding.
+  if (!concurrent) {
+    return false;
+  }
   // There shoud be no live objects.
   if (r->is_pinned() || r->was_promoted_in_place()) {
     return false;
