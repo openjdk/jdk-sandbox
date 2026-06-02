@@ -1431,6 +1431,9 @@ oop ShenandoahHeap::try_evacuate_object(oop p, Thread* thread, ShenandoahHeapReg
 
 bool ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t num_forwardings, bool concurrent) {
   assert(ShenandoahHeap::heap()->marking_context()->top_at_mark_start(r) == r->top(), "TAMS must be set to top");
+  if (!ShenandoahForwardingTables) {
+    return false;
+  }
   // There shoud be no live objects.
   if (r->is_pinned() || r->was_promoted_in_place()) {
     return false;

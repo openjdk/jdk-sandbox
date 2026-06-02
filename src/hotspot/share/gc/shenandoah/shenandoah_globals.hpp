@@ -423,6 +423,10 @@
           "by thread type (worker or mutator) and evacuation type (young, " \
           "old, or promotion.")                                             \
                                                                             \
+  product(bool, ShenandoahForwardingTables, true, DIAGNOSTIC,              \
+          "Allow evacuated cset regions to be switched to address-based "  \
+          "forwarding tables.")                                            \
+                                                                            \
   product(bool, ShenandoahCompactFWTEntries, true, DIAGNOSTIC,              \
           "Use compact (8-byte) forwarding table entries when heap and "    \
           "region sizes allow it. Disabling this forces wide (16-byte) "   \
