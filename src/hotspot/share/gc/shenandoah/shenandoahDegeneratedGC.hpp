@@ -53,6 +53,7 @@ private:
 
   void op_evacuate();
   void op_init_update_refs();
+  void op_recycle_collection_set();
   void op_update_refs();
   void op_update_roots();
   void op_cleanup_complete();

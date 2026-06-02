@@ -28,6 +28,7 @@
 #include "gc/shenandoah/shenandoahCollectorPolicy.hpp"
 #include "gc/shenandoah/shenandoahConcurrentMark.hpp"
 #include "gc/shenandoah/shenandoahDegeneratedGC.hpp"
+#include "gc/shenandoah/shenandoahFreeSet.hpp"
 #include "gc/shenandoah/shenandoahFullGC.hpp"
 #include "gc/shenandoah/shenandoahGeneration.hpp"
 #include "gc/shenandoah/shenandoahGenerationalHeap.hpp"
@@ -273,6 +274,7 @@ void ShenandoahDegenGC::op_degenerated() {
       if (heap->has_forwarded_objects()) {
         op_init_update_refs();
         assert(!heap->cancelled_gc(), "STW reference update can not OOM");
+        op_recycle_collection_set();
       } else {
         _abbreviated = true;
       }
@@ -400,6 +402,12 @@ void ShenandoahDegenGC::op_init_update_refs() {
   ShenandoahHeap* const heap = ShenandoahHeap::heap();
   heap->prepare_update_heap_references();
   heap->set_update_refs_in_progress(true);
+}
+
+void ShenandoahDegenGC::op_recycle_collection_set() {
+  ShenandoahHeap* const heap = ShenandoahHeap::heap();
+  ShenandoahHeapLocker locker(heap->lock());
+  heap->free_set()->recycle_collection_set();
 }
 
 void ShenandoahDegenGC::op_update_refs() {
