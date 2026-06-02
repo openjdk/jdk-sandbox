@@ -422,8 +422,6 @@ void Compile::remove_useless_node(Node* dead) {
       remove_unstable_if_trap(dead->as_CallStaticJava(), false);
     }
   }
-  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-  bs->unregister_potential_barrier_node(dead);
 }
 
 // Disconnect all useless nodes by disconnecting those at the boundary.
@@ -474,8 +472,6 @@ void Compile::disconnect_useless_nodes(Unique_Node_List& useful, Unique_Node_Lis
   }
 #endif
 
-  BarrierSetC2* bs = BarrierSet::barrier_set()->barrier_set_c2();
-  bs->eliminate_useless_gc_barriers(useful, this);
   // clean up the late inline lists
   remove_useless_late_inlines(                &_late_inlines, useful);
   remove_useless_late_inlines(         &_string_late_inlines, useful);
@@ -3246,10 +3242,7 @@ void Compile::final_graph_reshaping_impl(Node *n, Final_Reshape_Counts& frc, Uni
            "unused CallLeafPureNode should have been removed before final graph reshaping");
   }
 #endif
-  bool gc_handled = BarrierSet::barrier_set()->barrier_set_c2()->final_graph_reshaping(this, n, nop, dead_nodes);
-  if (!gc_handled) {
-    final_graph_reshaping_main_switch(n, frc, nop, dead_nodes);
-  }
+  final_graph_reshaping_main_switch(n, frc, nop, dead_nodes);
 
   // Collect CFG split points
   if (n->is_MultiBranch() && !n->is_RangeCheck()) {
