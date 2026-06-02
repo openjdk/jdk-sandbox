@@ -31,6 +31,7 @@
 #include "gc/shenandoah/shenandoahMonitoringSupport.hpp"
 #include "gc/shenandoah/shenandoahOldGC.hpp"
 #include "gc/shenandoah/shenandoahOldGeneration.hpp"
+#include "gc/shenandoah/shenandoahStackWatermark.hpp"
 #include "gc/shenandoah/shenandoahYoungGeneration.hpp"
 #include "prims/jvmtiTagMap.hpp"
 #include "utilities/events.hpp"
@@ -72,6 +73,10 @@ void ShenandoahOldGC::op_final_mark() {
     if (VerifyAfterGC) {
       Universe::verify();
     }
+
+    // Arm nmethods/stack for concurrent processing
+    ShenandoahCodeRoots::arm_nmethods();
+    ShenandoahStackWatermark::change_epoch_id();
 
     {
       ShenandoahTimingsTracker timing(ShenandoahPhaseTimings::final_mark_propagate_gc_state);
