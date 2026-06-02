@@ -139,10 +139,8 @@ bool ShenandoahOldGC::collect(GCCause::Cause cause) {
   // return from here with weak roots in progress. This is not a valid gc state
   // for any young collections (or allocation failures) that interrupt the old
   // collection.
-  heap->concurrent_final_roots();
-
   // Arm the nmethods to possibly flip the barriers to idle.
-  vmop_entry_final_verify();
+  vmop_entry_final_roots();
 
   // Now we are back at concurrent phase, process nmethods to fix their barriers.
   // TODO: Is this really safe to do when we overlap with young GC?

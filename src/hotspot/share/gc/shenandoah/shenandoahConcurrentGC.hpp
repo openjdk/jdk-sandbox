@@ -43,7 +43,7 @@ class ShenandoahConcurrentGC : public ShenandoahGC {
   friend class VM_ShenandoahFinalMarkStartEvac;
   friend class VM_ShenandoahInitUpdateRefs;
   friend class VM_ShenandoahFinalUpdateRefs;
-  friend class VM_ShenandoahFinalVerify;
+  friend class VM_ShenandoahFinalRoots;
 
 protected:
   ShenandoahConcurrentMark    _mark;
@@ -69,7 +69,7 @@ protected:
   void vmop_entry_final_mark();
   void vmop_entry_init_update_refs();
   void vmop_entry_final_update_refs();
-  void vmop_entry_final_verify();
+  void vmop_entry_final_roots();
 
   // Entry methods to normally STW GC operations. These set up logging, monitoring
   // and workers for next VM operation
@@ -77,7 +77,7 @@ protected:
   void entry_final_mark();
   void entry_init_update_refs();
   void entry_final_update_refs();
-  void entry_final_verify();
+  void entry_final_roots();
 
   // Entry methods to normally concurrent GC operations. These set up logging, monitoring
   // for concurrent operation.
@@ -97,9 +97,6 @@ protected:
   void entry_concurrent_update_refs_prepare(ShenandoahHeap* heap);
   void entry_update_refs();
   void entry_cleanup_complete();
-
-  // This is the last phase of a cycle which performs no evacuations
-  bool entry_final_roots();
 
   // Called when the collection set is empty, but the generational mode has regions to promote in place
   void entry_promote_in_place() const;
@@ -122,7 +119,6 @@ protected:
   void op_update_thread_roots();
   void op_final_update_refs();
 
-  void op_verify_final();
   void op_cleanup_complete();
   void op_reset_after_collect();
 
@@ -143,8 +139,7 @@ private:
   // passing around the logging/tracing systems
   const char* init_mark_event_message() const;
   const char* final_mark_event_message() const;
-  const char* verify_final_event_message() const;
-  const char* conc_final_roots_event_message() const;
+  const char* final_roots_event_message() const;
   const char* conc_mark_event_message() const;
   const char* conc_reset_event_message() const;
   const char* conc_reset_after_collect_event_message() const;

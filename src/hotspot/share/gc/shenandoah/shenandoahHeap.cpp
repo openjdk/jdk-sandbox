@@ -71,6 +71,7 @@
 #include "gc/shenandoah/shenandoahReferenceProcessor.hpp"
 #include "gc/shenandoah/shenandoahRootProcessor.inline.hpp"
 #include "gc/shenandoah/shenandoahScanRemembered.inline.hpp"
+#include "gc/shenandoah/shenandoahStackWatermark.hpp"
 #include "gc/shenandoah/shenandoahSTWMark.hpp"
 #include "gc/shenandoah/shenandoahUncommitThread.hpp"
 #include "gc/shenandoah/shenandoahUtils.hpp"
@@ -1254,35 +1255,18 @@ void ShenandoahHeap::concurrent_prepare_for_update_refs() {
   _update_refs_iterator.reset();
 }
 
-class ShenandoahCompositeHandshakeClosure : public HandshakeClosure {
-  HandshakeClosure* _handshake_1;
-  HandshakeClosure* _handshake_2;
-  public:
-    ShenandoahCompositeHandshakeClosure(HandshakeClosure* handshake_1, HandshakeClosure* handshake_2) :
-      HandshakeClosure(handshake_2->name()),
-      _handshake_1(handshake_1), _handshake_2(handshake_2) {}
+void ShenandoahHeap::op_final_roots() {
+  assert(!is_evacuation_in_progress(), "Should not evacuate for abbreviated or old cycles");
+  set_gc_state_at_safepoint(WEAK_ROOTS, false);
+  propagate_gc_state_to_all_threads();
 
-  void do_thread(Thread* thread) override {
-      _handshake_1->do_thread(thread);
-      _handshake_2->do_thread(thread);
-    }
-};
-
-void ShenandoahHeap::concurrent_final_roots(HandshakeClosure* handshake_closure) {
-  {
-    assert(!is_evacuation_in_progress(), "Should not evacuate for abbreviated or old cycles");
-    MutexLocker lock(Threads_lock);
-    set_gc_state_concurrent(WEAK_ROOTS, false);
+  if (ShenandoahVerify) {
+    verifier()->verify_after_gc(active_generation());
   }
 
-  ShenandoahGCStatePropagatorHandshakeClosure propagator(_gc_state.raw_value());
-  Threads::non_java_threads_do(&propagator);
-  if (handshake_closure == nullptr) {
-    Handshake::execute(&propagator);
-  } else {
-    ShenandoahCompositeHandshakeClosure composite(&propagator, handshake_closure);
-    Handshake::execute(&composite);
-  }
+  // Final pause, arm the nmethods to put barriers down.
+  ShenandoahCodeRoots::arm_nmethods();
+  ShenandoahStackWatermark::change_epoch_id();
 }
 
 oop ShenandoahHeap::evacuate_object(oop p, Thread* thread) {
