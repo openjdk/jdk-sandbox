@@ -2753,6 +2753,10 @@ bool ShenandoahFreeSet::recycle_fwt_region(ShenandoahHeapRegion* r,
 
   r->recycle_early();
 
+  if (!ShenandoahRecycleFWTBodies) {
+    return false;
+  }
+
   size_t available = r->capacity() - r->fwt_tail_bytes();
   if (available < PLAB::min_size() * HeapWordSize) {
 #ifdef KELVIN_FWT
@@ -2903,13 +2907,17 @@ void ShenandoahFreeSet::release_fwt_tails() {
     size_t region_free = r->free();
     if (tail > 0) {
       if (p != ShenandoahFreeSetPartitionId::NotFree) {
-        _partitions.decrease_used(p, tail);
-        released_regions++;
-        released_bytes += tail;
+        if (ShenandoahRecycleFWTBodies) {
+          _partitions.decrease_used(p, tail);
+          released_regions++;
+          released_bytes += tail;
+        }
       } else if (available >= min_size && region_free >= min_size) {
-        _partitions.decrease_used(ShenandoahFreeSetPartitionId::Mutator, region_free);
-        released_regions++;
-        released_bytes += region_free;
+        if (ShenandoahRecycleFWTBodies) {
+          _partitions.decrease_used(ShenandoahFreeSetPartitionId::Mutator, region_free);
+          released_regions++;
+          released_bytes += region_free;
+        }
       }
     }
     r->reset_forwarding_table();

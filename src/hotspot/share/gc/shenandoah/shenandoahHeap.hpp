@@ -185,12 +185,10 @@ public:
   void post_initialize() override;
   void initialize_mode();
   virtual void initialize_heuristics();
-  static void initialize_fwt_sentinels();
 
-  // Sentinel words written at evacuated-object locations during FWT-based evacuation.
-  // The pair looks like a parseable filler object.
-  static uintptr_t in_fwt_addr_filler_word_0;
-  static uintptr_t in_fwt_addr_filler_word_1;
+  // Sentinel marker stamped at each evacuated-object location during FWT-based evacuation,
+  // written across min_fill_size() words (see write_at_originals); allocator skips it word by word.
+  static constexpr uintptr_t in_fwt_sentinel = 0x0202020202020202ULL;
   virtual void post_initialize_heuristics();
   virtual void print_init_logger() const;
   void initialize_serviceability() override;

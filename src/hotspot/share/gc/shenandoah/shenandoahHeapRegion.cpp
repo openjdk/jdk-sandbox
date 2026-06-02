@@ -302,8 +302,6 @@ void ShenandoahHeapRegion::recycle_early() {
       _empty_time = os::elapsedTime();
 
       reset();
-      // Make gaps between sentinels parseable.
-      Copy::fill_to_aligned_words(bottom(), pointer_delta(alloc_end(), bottom()), 0);
       _fwd_table.install_sentinels();
       return;
     default:
@@ -335,8 +333,9 @@ void ShenandoahHeapRegion::make_regular_from_cset() {
 
 void ShenandoahHeapRegion::reset_forwarding_table() {
   _fwd_table.remove_sentinels();
-  Copy::fill_to_aligned_words(forwarding_table_start(),
-                               pointer_delta(end(), forwarding_table_start()), 0);
+  if (ZapUnusedHeapArea) {
+    SpaceMangler::mangle_region(MemRegion(forwarding_table_start(), end()));
+  }
   _fwd_table.reset();
 }
 
@@ -624,14 +623,15 @@ void ShenandoahHeapRegion::reset() {
   reset_alloc_metadata();
   heap->marking_context()->reset_top_at_mark_start(this);
   set_update_watermark(bottom());
+
+  if (ZapUnusedHeapArea) {
+    SpaceMangler::mangle_region(MemRegion(bottom(), alloc_end()));
+  }
 }
 
 void ShenandoahHeapRegion::recycle_internal() {
   assert(_recycling.is_set() && is_trash(), "Wrong state");
   reset();
-  if (ZapUnusedHeapArea) {
-    SpaceMangler::mangle_region(MemRegion(bottom(), alloc_end()));
-  }
   make_empty();
   set_affiliation(FREE);
 }

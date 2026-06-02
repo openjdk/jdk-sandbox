@@ -197,14 +197,27 @@ template<class Entry>
 void ShenandoahForwardingTable::fill_forwardings() {
   class FillForwardingsClosure {
     ShenandoahForwardingTable& _table;
+    HeapWord* const _fwt_start;
+    size_t    const _region_idx;
   public:
-    explicit FillForwardingsClosure(ShenandoahForwardingTable& t) : _table(t) {}
+    FillForwardingsClosure(ShenandoahForwardingTable& t, HeapWord* fwt_start, size_t region_idx)
+      : _table(t), _fwt_start(fwt_start), _region_idx(region_idx) {}
     void do_object(oop obj) {
       HeapWord* original = cast_from_oop<HeapWord*>(obj);
       HeapWord* forwardee = cast_from_oop<HeapWord*>(ShenandoahForwarding::get_forwardee_raw(obj));
+#ifndef PRODUCT
+      if (forwardee != original) {
+        assert(ShenandoahHeap::heap()->is_in(cast_to_oop(forwardee)),
+               "FWT fill: forwardee " PTR_FORMAT " for original " PTR_FORMAT " region=%zu is outside heap",
+               p2i(forwardee), p2i(original), _region_idx);
+      } else if (_fwt_start != nullptr && original < _fwt_start) {
+        log_warning(gc)("FWT fill: body object " PTR_FORMAT " region=%zu is self-forwarded (not evacuated)",
+                        p2i(original), _region_idx);
+      }
+#endif
       _table.enter_forwarding<Entry>(original, forwardee);
     }
-  } cl(*this);
+  } cl(*this, start(), _region->index());
 
   ShenandoahHeap::heap()->marked_object_iterate(_region, &cl);
   assert(_num_actual_forwardings == _num_expected_forwardings, "must enter exact number of forwardings, actual: %lu, expected: %lu", _num_actual_forwardings, _num_expected_forwardings);
@@ -224,6 +237,13 @@ void ShenandoahForwardingTable::verify_forwardings() {
       HeapWord* expected_forwardee = cast_from_oop<HeapWord*>(ShenandoahForwarding::get_forwardee_raw(cast_to_oop(original)));
       HeapWord* actual_forwardee = forwardee<Entry>(original);
       guarantee(actual_forwardee == expected_forwardee, "Forwardees in mark-word and table must match: original: " PTR_FORMAT ", mark-forwardee: " PTR_FORMAT ", found forwardee: " PTR_FORMAT, p2i(original), p2i(expected_forwardee), p2i(actual_forwardee));
+
+      if (expected_forwardee != original) {
+        // Evacuation copies must land outside the CSet.
+        guarantee(!ShenandoahHeap::heap()->in_collection_set(cast_to_oop(expected_forwardee)),
+                  "forwardee " PTR_FORMAT " for original " PTR_FORMAT " is in CSet (region=%zu)",
+                  p2i(expected_forwardee), p2i(original), _region->index());
+      }
     }
     start = original + 1;
   }
@@ -250,43 +270,55 @@ bool ShenandoahForwardingTable::build(size_t num_entries) {
 }
 
 template<class Entry>
-void ShenandoahForwardingTable::write_at_originals(uintptr_t word0, uintptr_t word1, HeapWord* from, HeapWord* to) {
+void ShenandoahForwardingTable::write_at_originals(uintptr_t word, HeapWord* from, HeapWord* to) {
   assert(_table != nullptr, "FWT must be built before writing sentinels");
   Entry* table = reinterpret_cast<Entry*>(_table);
   HeapWord* region_base = _region->bottom();
+  // Footprint == min_fill_size so the hole left between reused allocations is always a fillable
+  // object; the original's object is >= min_fill_size, so these words never reach the next one.
+  const size_t fill_words = ShenandoahHeap::min_fill_size();
   for (size_t i = 0; i < _num_entries; i++) {
     if (table[i].is_used()) {
       HeapWord* original = table[i].original(region_base);
       if (original >= from && original < to) {
-        *reinterpret_cast<uintptr_t*>(original) = word0;
-        if (original + 1 < to) {
-          *(reinterpret_cast<uintptr_t*>(original) + 1) = word1;
+        for (size_t w = 0; w < fill_words && original + w < to; w++) {
+          *reinterpret_cast<uintptr_t*>(original + w) = word;
         }
       }
     }
   }
+#ifndef PRODUCT
+  for (size_t i = 0; i < _num_entries; i++) {
+    if (table[i].is_used()) {
+      HeapWord* original = table[i].original(region_base);
+      if (original >= from && original < to) {
+        uintptr_t got = *reinterpret_cast<uintptr_t*>(original);
+        guarantee(got == word,
+                  "readback mismatch at " PTR_FORMAT " region=%zu slot=%zu: expected " PTR_FORMAT ", got " PTR_FORMAT,
+                  p2i(original), _region->index(), i, word, got);
+      }
+    }
+  }
+#endif
 }
 
 void ShenandoahForwardingTable::install_sentinels() {
   HeapWord* fwt_start = reinterpret_cast<HeapWord*>(_table);
   HeapWord* bottom    = _region->bottom();
   if (_compact) {
-    write_at_originals<CompactFwdTableEntry>(ShenandoahHeap::in_fwt_addr_filler_word_0,
-                                             ShenandoahHeap::in_fwt_addr_filler_word_1,
-                                             bottom, fwt_start);
+    write_at_originals<CompactFwdTableEntry>(ShenandoahHeap::in_fwt_sentinel, bottom, fwt_start);
   } else {
-    write_at_originals<FwdTableEntry>(ShenandoahHeap::in_fwt_addr_filler_word_0,
-                                      ShenandoahHeap::in_fwt_addr_filler_word_1,
-                                      bottom, fwt_start);
+    write_at_originals<FwdTableEntry>(ShenandoahHeap::in_fwt_sentinel, bottom, fwt_start);
   }
 }
 
 void ShenandoahForwardingTable::remove_sentinels() {
   HeapWord* fwt_start = reinterpret_cast<HeapWord*>(_table);
+  const uintptr_t poison = ((uintptr_t)(juint)badHeapWordVal << 32) | (juint)badHeapWordVal;
   if (_compact) {
-    write_at_originals<CompactFwdTableEntry>(0, 0, _region->top(), fwt_start);
+    write_at_originals<CompactFwdTableEntry>(poison, _region->top(), fwt_start);
   } else {
-    write_at_originals<FwdTableEntry>(0, 0, _region->top(), fwt_start);
+    write_at_originals<FwdTableEntry>(poison, _region->top(), fwt_start);
   }
 }
 

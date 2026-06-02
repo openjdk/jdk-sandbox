@@ -434,6 +434,11 @@
           "nullptr for TLAB requests in cset regions, forcing the "        \
           "allocator to pick a non-cset region instead.")                  \
                                                                             \
+  product(bool, ShenandoahRecycleFWTBodies, true, DIAGNOSTIC,              \
+          "Early-recycle FWT cset regions into the Mutator free set: the " \
+          "below-FWT body at the start of update-refs and the former tail "\
+          "once the table is torn down.")                                  \
+                                                                            \
   product(uintx, ShenandoahCriticalFreeThreshold, 1, EXPERIMENTAL,          \
           "How much of the heap needs to be free after recovery cycles, "   \
           "either Degenerated or Full GC to be claimed successful. If this "\
