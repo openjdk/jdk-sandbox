@@ -60,7 +60,7 @@ private:
   ShenandoahNMethodLock   _ic_lock;
 
 public:
-  ShenandoahNMethod(nmethod *nm, GrowableArray<oop*>& oops, bool has_non_immed_oops, GrowableArray<ShenandoahNMethodBarrier>& barriers);
+  ShenandoahNMethod(nmethod *nm);
   ~ShenandoahNMethod();
 
   inline nmethod* nm() const;
@@ -91,6 +91,7 @@ public:
   void assert_same_oops() NOT_DEBUG_RETURN;
 
 private:
+  void init_from(nmethod* nm);
   static void parse(nmethod* nm, GrowableArray<oop*>& oops, bool& _has_non_immed_oops, GrowableArray<ShenandoahNMethodBarrier>& barriers);
 };
 

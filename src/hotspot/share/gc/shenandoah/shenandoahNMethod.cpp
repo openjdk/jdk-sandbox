@@ -32,27 +32,9 @@
 #include "runtime/continuation.hpp"
 #include "runtime/safepointVerifiers.hpp"
 
-ShenandoahNMethod::ShenandoahNMethod(nmethod* nm, GrowableArray<oop*>& oops, bool non_immediate_oops, GrowableArray<ShenandoahNMethodBarrier>& barriers) :
+ShenandoahNMethod::ShenandoahNMethod(nmethod* nm) :
   _nm(nm), _oops(nullptr), _oops_count(0), _barriers(nullptr), _barriers_count(0), _unregistered(false), _lock(), _ic_lock() {
-
-  if (!oops.is_empty()) {
-    _oops_count = oops.length();
-    _oops = NEW_C_HEAP_ARRAY(oop*, _oops_count, mtGC);
-    for (int c = 0; c < _oops_count; c++) {
-      _oops[c] = oops.at(c);
-    }
-  }
-  _has_non_immed_oops = non_immediate_oops;
-
-  assert_same_oops();
-
-  if (!barriers.is_empty()) {
-    _barriers_count = barriers.length();
-    _barriers = NEW_C_HEAP_ARRAY(ShenandoahNMethodBarrier, _barriers_count, mtGC);
-    for (int c = 0; c < _barriers_count; c++) {
-      _barriers[c] = barriers.at(c);
-    }
-  }
+  init_from(nm);
 }
 
 ShenandoahNMethod::~ShenandoahNMethod() {
@@ -65,42 +47,42 @@ ShenandoahNMethod::~ShenandoahNMethod() {
 }
 
 void ShenandoahNMethod::update() {
+  init_from(nm());
+}
+
+void ShenandoahNMethod::init_from(nmethod* nm) {
   ResourceMark rm;
   bool non_immediate_oops = false;
   GrowableArray<oop*> oops;
   GrowableArray<ShenandoahNMethodBarrier> barriers;
 
-  parse(nm(), oops, non_immediate_oops, barriers);
-  if (oops.length() != _oops_count) {
+  parse(nm, oops, non_immediate_oops, barriers);
+
+  _oops_count = oops.length();
+  if (_oops_count > 0) {
     if (_oops != nullptr) {
       FREE_C_HEAP_ARRAY(_oops);
-      _oops = nullptr;
     }
-
-    _oops_count = oops.length();
-    if (_oops_count > 0) {
-      _oops = NEW_C_HEAP_ARRAY(oop*, _oops_count, mtGC);
+    _oops = NEW_C_HEAP_ARRAY(oop*, _oops_count, mtGC);
+    for (int c = 0; c < _oops_count; c++) {
+      _oops[c] = oops.at(c);
     }
   }
-
-  for (int index = 0; index < _oops_count; index ++) {
-    _oops[index] = oops.at(index);
-  }
-  _has_non_immed_oops = non_immediate_oops;
 
   assert_same_oops();
 
-  if (!barriers.is_empty()) {
+  _barriers_count = barriers.length();
+  if (_barriers_count > 0) {
     if (_barriers != nullptr) {
       FREE_C_HEAP_ARRAY(_barriers);
-      _barriers = nullptr;
     }
-    _barriers_count = barriers.length();
     _barriers = NEW_C_HEAP_ARRAY(ShenandoahNMethodBarrier, _barriers_count, mtGC);
     for (int c = 0; c < _barriers_count; c++) {
       _barriers[c] = barriers.at(c);
     }
   }
+
+  _has_non_immed_oops = non_immediate_oops;
 }
 
 void ShenandoahNMethod::parse(nmethod* nm, GrowableArray<oop*>& oops, bool& has_non_immed_oops, GrowableArray<ShenandoahNMethodBarrier>& barriers) {
@@ -151,13 +133,7 @@ void ShenandoahNMethod::parse(nmethod* nm, GrowableArray<oop*>& oops, bool& has_
 }
 
 ShenandoahNMethod* ShenandoahNMethod::for_nmethod(nmethod* nm) {
-  ResourceMark rm;
-  bool non_immediate_oops = false;
-  GrowableArray<oop*> oops;
-  GrowableArray<ShenandoahNMethodBarrier> barriers;
-
-  parse(nm, oops, non_immediate_oops, barriers);
-  return new ShenandoahNMethod(nm, oops, non_immediate_oops, barriers);
+  return new ShenandoahNMethod(nm);
 }
 
 void ShenandoahNMethod::heal_nmethod(nmethod* nm) {
