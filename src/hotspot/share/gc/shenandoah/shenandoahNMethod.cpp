@@ -89,6 +89,18 @@ void ShenandoahNMethod::update() {
   _has_non_immed_oops = non_immediate_oops;
 
   assert_same_oops();
+
+  if (!barriers.is_empty()) {
+    if (_barriers != nullptr) {
+      FREE_C_HEAP_ARRAY(_barriers);
+      _barriers = nullptr;
+    }
+    _barriers_count = barriers.length();
+    _barriers = NEW_C_HEAP_ARRAY(ShenandoahNMethodBarrier, _barriers_count, mtGC);
+    for (int c = 0; c < _barriers_count; c++) {
+      _barriers[c] = barriers.at(c);
+    }
+  }
 }
 
 void ShenandoahNMethod::parse(nmethod* nm, GrowableArray<oop*>& oops, bool& has_non_immed_oops, GrowableArray<ShenandoahNMethodBarrier>& barriers) {
