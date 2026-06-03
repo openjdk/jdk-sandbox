@@ -72,7 +72,7 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
     }
 
     @Override
-    void encodeAlert(byte level, byte description) throws IOException {
+    void encodeAlert(byte level, byte description) {
         // do nothing; the alert is delivered directly by the TransportContext
     }
 
@@ -104,7 +104,7 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
     }
 
     @Override
-    void encodeChangeCipherSpec() throws IOException {
+    void encodeChangeCipherSpec() {
         throw new UnsupportedOperationException();
     }
 
@@ -128,7 +128,7 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
     }
 
     @Override
-    void changeWriteCiphers(SSLWriteCipher writeCipher, boolean useChangeCipherSpec) throws IOException {
+    void changeWriteCiphers(SSLWriteCipher writeCipher, boolean useChangeCipherSpec) {
         recordLock.lock();
         try {
             fragmenter.changePacketSpace(writeCipher.baseSecret);
@@ -138,7 +138,7 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
     }
 
     @Override
-    void changeWriteCiphers(SSLWriteCipher writeCipher, byte keyUpdateRequest) throws IOException {
+    void changeWriteCiphers(SSLWriteCipher writeCipher, byte keyUpdateRequest) {
         throw new UnsupportedOperationException("Should not call this");
     }
 
@@ -194,7 +194,7 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
             }
         }
 
-        Ciphertext acquireCiphertext(ByteBuffer dstBuf) throws IOException {
+        Ciphertext acquireCiphertext(ByteBuffer dstBuf) {
             HandshakeMemo hsMemo = handshakeMemos.pollFirst();
             if (hsMemo == null) {
                 return null;
