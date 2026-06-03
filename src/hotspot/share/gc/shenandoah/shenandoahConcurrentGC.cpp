@@ -1241,7 +1241,7 @@ void ShenandoahConcurrentGC::entry_final_roots() {
   TraceCollectorStats tcs(heap->monitoring_support()->concurrent_collection_counters());
 
   const char* msg = final_roots_event_message();
-  ShenandoahConcurrentPhase gc_phase(msg, ShenandoahPhaseTimings::final_roots);
+  ShenandoahPausePhase gc_phase(msg, ShenandoahPhaseTimings::final_roots);
   EventMark em("%s", msg);
   ShenandoahWorkerScope scope(heap->workers(),
                               ParallelGCThreads,
