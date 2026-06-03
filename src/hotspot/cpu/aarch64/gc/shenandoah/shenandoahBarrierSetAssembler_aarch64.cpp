@@ -1008,20 +1008,18 @@ address ShenandoahBarrierSetAssembler::parse_stub_address(address pc) {
   return jmp->jump_destination();
 }
 
-void insert_nop(address pc) {
-  *(pc + 0) = 0x1F;
-  *(pc + 1) = 0x20;
-  *(pc + 2) = 0x03;
-  *(pc + 3) = 0xD5;
-  ICache::invalidate_range(pc, 4);
-}
-
 bool is_nop(address pc) {
   if (*(pc + 0) != 0x1F) return false;
   if (*(pc + 1) != 0x20) return false;
   if (*(pc + 2) != 0x03) return false;
   if (*(pc + 3) != 0xD5) return false;
   return true;
+}
+
+void insert_nop(address pc) {
+  *reinterpret_cast<int32_t*>(pc) = 0xD503201F;
+  assert(is_nop(pc), "Should be");
+  ICache::invalidate_range(pc, 4);
 }
 
 void check_at(bool cond, address pc, const char* msg) {
