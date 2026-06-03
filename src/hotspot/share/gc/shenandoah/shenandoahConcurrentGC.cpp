@@ -283,6 +283,13 @@ bool ShenandoahConcurrentGC::complete_abbreviated_cycle() {
 
   ShenandoahGenerationalHeap* const heap = ShenandoahGenerationalHeap::heap();
 
+  static const char* msg = "Concurrent complete abbreviated cycle";
+  ShenandoahConcurrentPhase gc_phase(msg, ShenandoahPhaseTimings::complete_abbreviated);
+  EventMark em("%s", msg);
+  ShenandoahWorkerScope scope(heap->workers(),
+                              ShenandoahWorkerPolicy::calc_workers_for_conc_evac(),
+                             "complete abbreviated");
+
   // We chose not to evacuate because we found sufficient immediate garbage.
   // However, there may still be regions to promote in place, so do that now.
   if (heap->old_generation()->has_in_place_promotions()) {

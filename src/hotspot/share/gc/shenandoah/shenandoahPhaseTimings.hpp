@@ -104,6 +104,7 @@ class outputStream;
   SHENANDOAH_WORKER_PHASE_DEF(f, conc_evac,                                       "Concurrent Evacuation",           \
                                                                                   "  CE: ")                          \
   SHENANDOAH_SIMPLE_PHASE_DEF(f, conc_update_card_table,                          "Concurrent Update Cards")         \
+  SHENANDOAH_SIMPLE_PHASE_DEF(f, complete_abbreviated,                            "Complete Abbreviated Cycle")      \
   SHENANDOAH_SIMPLE_PHASE_DEF(f, final_roots_gross,                               "Pause Final Roots (G)")           \
   SHENANDOAH_SIMPLE_PHASE_DEF(f, final_roots,                                     "Pause Final Roots (N)")           \
   SHENANDOAH_WORKER_PHASE_DEF(f, promote_in_place,                                "  Promote Regions",               \
