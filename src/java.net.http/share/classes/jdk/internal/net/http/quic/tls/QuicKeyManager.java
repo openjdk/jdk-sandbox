@@ -509,7 +509,13 @@ sealed abstract class QuicKeyManager
 
         @Override
         protected boolean keysAvailable() {
-            return this.keySeries != null && !this.keysDiscarded;
+            KeySeries ks = this.keySeries;
+            // the read cipher may be available before the write cipher,
+            // but should not be used until both are available
+            return ks != null &&
+                    ks.current.writeCipher != null &&
+                    ks.current.readCipher != null &&
+                    !this.keysDiscarded;
         }
 
         @Override
