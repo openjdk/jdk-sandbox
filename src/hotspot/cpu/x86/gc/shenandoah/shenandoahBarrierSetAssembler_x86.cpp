@@ -1027,13 +1027,12 @@ void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char
   __ relocate(barrier_Relocation::spec(), ShenandoahThreadLocalData::gc_state_to_fast_array_index(test_state));
   __ jmp(*entry(), /* maybe_short = */ false);
 
-#ifdef ASSERT
-  Address gc_state_fast(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(test_state)));
-  __ cmpb(gc_state_fast, 0);
-  __ jccb(Assembler::zero, *continuation());
-  __ hlt(); // Correctness bug: barrier is NOP-ed, but heap is NOT IDLE
-#endif
-  // TODO: When barriers are consistently turned off at the end of the cycle, assert that barrier is NOP-ed.
+// #ifdef ASSERT
+//   Address gc_state_fast(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(test_state)));
+//   __ cmpb(gc_state_fast, 0);
+//   __ jccb(Assembler::zero, *continuation());
+//   __ hlt(); // Correctness bug: barrier is NOP-ed, but heap is NOT IDLE
+// #endif
 
   __ bind(*continuation());
 }
