@@ -68,9 +68,6 @@ ShenandoahStackWatermark::ShenandoahStackWatermark(JavaThread* jt) :
 
 OopClosure* ShenandoahStackWatermark::closure_from_context(void* context) {
   if (context != nullptr) {
-    assert(_heap->is_concurrent_weak_root_in_progress() ||
-           _heap->is_concurrent_mark_in_progress(),
-           "Only these two phases");
     assert(Thread::current()->is_Worker_thread(), "Unexpected thread passing in context: " PTR_FORMAT, p2i(context));
     return reinterpret_cast<OopClosure*>(context);
   } else {
@@ -87,19 +84,26 @@ OopClosure* ShenandoahStackWatermark::closure_from_context(void* context) {
 void ShenandoahStackWatermark::start_processing_impl(void* context) {
   NoSafepointVerifier nsv;
 
-  ShenandoahHeap* const heap = ShenandoahHeap::heap();
-  if (_heap->is_concurrent_weak_root_in_progress() && heap->is_evacuation_in_progress()) {
+  if (_heap->is_concurrent_mark_in_progress() || _heap->is_evacuation_in_progress()) {
     // Retire the TLABs, which will force threads to reacquire their TLABs.
-    // This is needed for two reasons. Strong one: new allocations would be with new freeset,
-    // which would be outside the collection set, so no cset writes would happen there.
-    // Weaker one: new allocations would happen past update watermark, and so less work would
-    // be needed for reference updates (would update the large filler instead).
-    retire_tlab();
-  } else if (heap->is_concurrent_mark_in_progress()) {
+
+    // For marking:
     // We need to reset all TLABs because they might be below the TAMS, and we need to mark
     // the objects in them. Do not let mutators allocate any new objects in their current TLABs.
     // It is also a good place to resize the TLAB sizes for future allocations.
-    retire_tlab();
+
+    // For evacuation:
+    // New allocations would be with new freeset, which would be outside the collection set,
+    // so no cset writes would happen there. Also, new allocations would happen past update watermark,
+    // and so less work would be needed for reference updates (would update the large filler instead).
+
+    if (UseTLAB) {
+      _stats.reset();
+      _jt->retire_tlab(&_stats);
+      if (ResizeTLAB) {
+        _jt->tlab().resize();
+      }
+    }
   } else {
     // Can be here for updating barriers. No TLAB retirement is needed.
   }
@@ -111,20 +115,8 @@ void ShenandoahStackWatermark::start_processing_impl(void* context) {
   StackWatermark::start_processing_impl(context);
 }
 
-void ShenandoahStackWatermark::retire_tlab() {
-  // Retire TLAB
-  if (UseTLAB) {
-    _stats.reset();
-    _jt->retire_tlab(&_stats);
-    if (ResizeTLAB) {
-      _jt->tlab().resize();
-    }
-  }
-}
-
 void ShenandoahStackWatermark::process(const frame& fr, RegisterMap& register_map, void* context) {
   OopClosure* oops = closure_from_context(context);
   assert(oops != nullptr, "Should not get to here");
-  ShenandoahHeap* const heap = ShenandoahHeap::heap();
   fr.oops_do(oops, &_nm_cl, &register_map, DerivedPointerIterationMode::_directly);
 }

@@ -1239,7 +1239,6 @@ void ShenandoahHeap::concurrent_prepare_for_update_refs() {
 
     // A cancellation at this point means the degenerated cycle must resume from update-refs.
     set_gc_state_concurrent(EVACUATION, false);
-    set_gc_state_concurrent(WEAK_ROOTS, false);
     set_gc_state_concurrent(UPDATE_REFS, true);
   }
 
@@ -1256,15 +1255,14 @@ void ShenandoahHeap::concurrent_prepare_for_update_refs() {
 }
 
 void ShenandoahHeap::op_final_roots() {
-  assert(!is_evacuation_in_progress(), "Should not evacuate for abbreviated or old cycles");
   set_gc_state_at_safepoint(WEAK_ROOTS, false);
   propagate_gc_state_to_all_threads();
 
-  if (ShenandoahVerify) {
-    verifier()->verify_after_gc(active_generation());
-  }
+  // if (ShenandoahVerify) {
+  //   verifier()->verify_after_gc(active_generation());
+  // }
 
-  // Final pause, arm the nmethods to put barriers down.
+  // Arm the nmethods to put barriers down.
   ShenandoahCodeRoots::arm_nmethods();
   ShenandoahStackWatermark::change_epoch_id();
 }

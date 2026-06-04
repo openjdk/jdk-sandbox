@@ -216,6 +216,9 @@ bool ShenandoahConcurrentGC::collect(GCCause::Cause cause) {
   // This may be skipped if there is nothing to evacuate.
   // If so, evac_in_progress would be unset by collection set preparation code.
   if (heap->is_evacuation_in_progress()) {
+    // Roots processing is complete, put the weak roots/ref flags down.
+    vmop_entry_final_roots();
+
     // Concurrently evacuate
     entry_evacuate();
     if (check_cancellation_and_abort(ShenandoahDegenPoint::_degenerated_evac)) {
@@ -252,8 +255,14 @@ bool ShenandoahConcurrentGC::collect(GCCause::Cause cause) {
     _abbreviated = true;
 
     if (heap->mode()->is_generational()) {
-      if (!complete_abbreviated_cycle()) {
-        assert(_degen_point != _degenerated_unset, "Need to know where to start degenerated cycle");
+      entry_complete_abbreviated_cycle();
+
+      // If the promote-in-place operation was cancelled, we can have the degenerated
+      // cycle complete the operation. It will see that no evacuations are in progress,
+      // and that there are regions wanting promotion. The risk with not handling the
+      // cancellation would be failing to restore top for these regions and leaving
+      // them unable to serve allocations for the old generation.
+      if (check_cancellation_and_abort(ShenandoahDegenPoint::_degenerated_evac)) {
         return false;
       }
     }
@@ -278,7 +287,7 @@ bool ShenandoahConcurrentGC::collect(GCCause::Cause cause) {
   return true;
 }
 
-bool ShenandoahConcurrentGC::complete_abbreviated_cycle() {
+void ShenandoahConcurrentGC::entry_complete_abbreviated_cycle() {
   shenandoah_assert_generational();
 
   ShenandoahGenerationalHeap* const heap = ShenandoahGenerationalHeap::heap();
@@ -293,26 +302,17 @@ bool ShenandoahConcurrentGC::complete_abbreviated_cycle() {
   // We chose not to evacuate because we found sufficient immediate garbage.
   // However, there may still be regions to promote in place, so do that now.
   if (heap->old_generation()->has_in_place_promotions()) {
-    entry_promote_in_place();
-
-    // If the promote-in-place operation was cancelled, we can have the degenerated
-    // cycle complete the operation. It will see that no evacuations are in progress,
-    // and that there are regions wanting promotion. The risk with not handling the
-    // cancellation would be failing to restore top for these regions and leaving
-    // them unable to serve allocations for the old generation.This will leave the weak
-    // roots flag set (the degenerated cycle will unset it).
-    if (check_cancellation_and_abort(ShenandoahDegenPoint::_degenerated_evac)) {
-      return false;
-    }
+    ShenandoahTimingsTracker timing(ShenandoahPhaseTimings::complete_abbreviated_promote_in_place);
+    ShenandoahGCWorkerPhase worker_phase(ShenandoahPhaseTimings::complete_abbreviated_promote_in_place);
+    heap->promote_regions_in_place(_generation, true);
   }
 
   // At this point, the cycle is effectively complete. If the cycle has been cancelled here,
   // the control thread will detect it on its next iteration and run a degenerated young cycle.
-  if (!_generation->is_old()) {
+  if (!heap->cancelled_gc() && !_generation->is_old()) {
+    ShenandoahTimingsTracker tracker(ShenandoahPhaseTimings::complete_abbreviated_update_region_ages);
     heap->update_region_ages(_generation->complete_marking_context());
   }
-
-  return true;
 }
 
 void ShenandoahConcurrentGC::vmop_entry_init_mark() {
@@ -582,16 +582,6 @@ void ShenandoahConcurrentGC::entry_evacuate() {
 
   heap->try_inject_alloc_failure();
   op_evacuate();
-}
-
-void ShenandoahConcurrentGC::entry_promote_in_place() const {
-  shenandoah_assert_generational();
-
-  ShenandoahTimingsTracker timing(ShenandoahPhaseTimings::promote_in_place);
-  ShenandoahGCWorkerPhase worker_phase(ShenandoahPhaseTimings::promote_in_place);
-  EventMark em("%s", "Promote in place");
-
-  ShenandoahGenerationalHeap::heap()->promote_regions_in_place(_generation, true);
 }
 
 void ShenandoahConcurrentGC::entry_update_thread_roots() {
