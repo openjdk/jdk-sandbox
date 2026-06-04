@@ -989,19 +989,30 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
 }
 
 void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
-  Address gc_state_fast(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(ShenandoahHeap::MARKING)));
   Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
 
   Label L_through, L_pop_and_slow;
 
-  // Hotpatched GC checks are racy: we can turn off GC state before we patch the barriers.
-  // Therefore, alas we need a separate check here. TODO: Figure this out.
-  __ cmpb(gc_state_fast, 0);
-  if (L_done != nullptr) {
-    __ jcc(Assembler::equal, *L_done);
-  } else {
-    __ jcc(Assembler::equal, L_through);
+  // If another barrier is enabled as well, do a runtime check for a specific barrier.
+  if (_needs_load_ref_barrier) {
+    // Emit the unconditional branch in the first version of the method.
+    // Let the rest of runtime figure out how to manage it.
+    Address gc_state_fast(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(ShenandoahHeap::MARKING)));
+    __ cmpb(gc_state_fast, 0);
+    if (L_done != nullptr) {
+      __ jcc(Assembler::equal, *L_done);
+    } else {
+      __ jcc(Assembler::equal, L_through);
+    }
+
+    // This needs to check the inverse...
+    // __ relocate(barrier_Relocation::spec(), ShenandoahThreadLocalData::gc_state_to_fast_array_index(ShenandoahHeap::MARKING));
+    // if (L_done != nullptr) {
+    //   __ jmp(*L_done, /* maybe_short = */ false);
+    // } else {
+    //   __ jmp(L_through, /* maybe_short = */ false);
+    // }
   }
 
   // Need temp to work, allocate one now.
@@ -1070,19 +1081,25 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
 void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   Label L_pop_and_slow, L_slow;
 
-  // Hotpatched GC checks are racy: we can turn off GC state before we patch the barriers.
-  // Therefore, alas we need a separate check here. TODO: Figure this out.
-  char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
-  Address gc_state_fast(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(state_to_check)));
-  __ cmpb(gc_state_fast, 0);
-  __ jcc(Assembler::equal, *continuation());
+  // If another barrier is enabled as well, do a runtime check for a specific barrier.
+  if (_needs_keep_alive_barrier) {
+    // Emit the unconditional branch in the first version of the method.
+    // Let the rest of runtime figure out how to manage it.
+    char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
+    Address gc_state_fast(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(state_to_check)));
+    __ cmpb(gc_state_fast, 0);
+    __ jcc(Assembler::equal, *continuation());
+
+    // This needs to check the inverse...
+    // __ relocate(barrier_Relocation::spec(), ShenandoahThreadLocalData::gc_state_to_fast_array_index(state_to_check));
+    // __ jmp(*continuation(), /* maybe_short = */ false);
+  }
 
   // If weak references are being processed, weak/phantom loads need to go slow,
   // regardless of their cset status.
   if (_needs_load_ref_weak_barrier) {
-    Address gc_state_fast(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(ShenandoahHeap::WEAK_ROOTS)));
-    __ cmpb(gc_state_fast, 0);
-    __ jccb(Assembler::notEqual, L_slow);
+    __ relocate(barrier_Relocation::spec(), ShenandoahThreadLocalData::gc_state_to_fast_array_index(ShenandoahHeap::WEAK_ROOTS));
+    __ jmp(L_slow, /* maybe_short = */ false);
   }
 
   bool is_aot = AOTCodeCache::is_on_for_dump();
