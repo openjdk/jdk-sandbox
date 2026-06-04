@@ -43,7 +43,7 @@ OPTS="$OPTS -XX:+UseShenandoahGC"
 OPTS="$OPTS -XX:ReservedCodeCacheSize=256M"
 
 OPTS_PASSIVE_NONE="$OPTS -XX:ShenandoahGCMode=passive"
-OPTS_PASSIVE_ALL="$OPTS_PASSIVE_NONE -XX:+ShenandoahLoadRefBarrier -XX:+ShenandoahSATBBarrier -XX:+ShenandoahCASBarrier -XX:+ShenandoahCloneBarrier"
+OPTS_PASSIVE_ALL="$OPTS_PASSIVE_NONE -XX:+ShenandoahLoadRefBarrier -XX:+ShenandoahSATBBarrier -XX:+ShenandoahCloneBarrier"
 
 run_with() {
   P=$*
