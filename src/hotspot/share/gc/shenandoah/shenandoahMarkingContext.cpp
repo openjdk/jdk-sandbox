@@ -85,6 +85,11 @@ void ShenandoahMarkingContext::clear_bitmap(ShenandoahHeapRegion* r) {
   HeapWord* bottom = r->bottom();
   HeapWord* top_bitmap = _top_bitmaps[r->index()];
 
+  // FWT evacuation marks objects beyond TAMS.
+  if (r->is_cset()) {
+    top_bitmap = MAX2(top_bitmap, r->top());
+  }
+
   log_debug(gc, mark)("SMC:clear_bitmap for %s Region %zu, top_bitmap: " PTR_FORMAT,
                       r->affiliation_name(), r->index(), p2i(top_bitmap));
 
