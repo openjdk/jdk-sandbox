@@ -28,12 +28,6 @@
 
 #include "gc/shenandoah/shenandoahMarkingContext.inline.hpp"
 #include "utilities/fastHash.hpp"
-#ifndef PRODUCT
-#include "gc/shared/collectedHeap.hpp"
-#include "memory/metaspace.hpp"
-#include "oops/klass.hpp"
-#include "oops/markWord.hpp"
-#endif
 
 inline bool FwdTableEntry::is_marked(ShenandoahMarkingContext* ctx) const {
  return ctx->is_marked_ignore_tams(cast_from_oop<HeapWord*>(cast_to_oop(&_original))) ||
@@ -78,36 +72,6 @@ inline bool CompactFwdTableEntry::is_marked(ShenandoahMarkingContext* ctx) const
  return ctx->is_marked_ignore_tams(reinterpret_cast<HeapWord*>(const_cast<uint64_t*>(&_encoded)));
 }
 
-#ifndef PRODUCT
-static void log_fwt_probe_miss(HeapWord* const original, size_t region_idx,
-                               const char* kind, ShenandoahMarkingContext* ctx) {
- uintptr_t mark_raw = *reinterpret_cast<const uintptr_t*>(original);
- auto mw = cast_to_oop(original)->mark();
- bool bm_marked = ctx->is_marked_ignore_tams(original);
- Klass* k = cast_to_oop(original)->klass_or_null();
- if (bm_marked) {
-  log_warning(gc)("FWT probe-miss (%s) for MARKED obj " PTR_FORMAT " region=%zu: "
-                  "mark=" PTR_FORMAT " (forwarded=%s) klass=" PTR_FORMAT,
-                  kind, p2i(original), region_idx,
-                  mark_raw, BOOL_TO_STR(mw.is_forwarded()), p2i(k));
- } else {
-  log_trace(gc)("FWT probe-miss (%s) obj " PTR_FORMAT " region=%zu: "
-                "mark=" PTR_FORMAT " (forwarded=%s bm_marked=false) klass=" PTR_FORMAT,
-                kind, p2i(original), region_idx,
-                mark_raw, BOOL_TO_STR(mw.is_forwarded()), p2i(k));
- }
- if (mw.is_forwarded()) {
-  log_trace(gc)("  -> forwarded to " PTR_FORMAT, p2i(cast_from_oop<HeapWord*>(mw.forwardee())));
- }
- if (k != nullptr && Metaspace::contains(k)) {
-  ResourceMark rm;
-  size_t obj_size = cast_to_oop(original)->size();
-  log_trace(gc)("  class: %s size=%zu range=[" PTR_FORMAT ", " PTR_FORMAT ")",
-                k->external_name(), obj_size, p2i(original), p2i(original + obj_size));
- }
-}
-#endif
-
 inline uint64_t ShenandoahForwardingTable::hash(HeapWord* original, void* table) {
  return FastHash::get_hash64(reinterpret_cast<uint64_t>(original), reinterpret_cast<uint64_t>(table));
 }
@@ -117,72 +81,27 @@ HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
  Entry* table = reinterpret_cast<Entry*>(_table);
  uint64_t hash_val = hash(original, table);
  uint64_t index = hash_val % _num_entries;
- log_develop_trace(gc)("Finding slot, start at index: " UINT64_FORMAT ", for original: " PTR_FORMAT, index, p2i(original));
-
- assert(table != nullptr, "FWT table race");
 
  HeapWord* const region_base = _region->bottom();
 
- ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
- while (table[index].is_used() || table[index].is_marked(ctx)) {
-  // Real forwarding entries are always at unmarked slots (enter_forwarding asserts this).
-  if (table[index].is_used() && !table[index].is_marked(ctx) && table[index].is_original(region_base, original)) {
-   assert(table[index].forwardee() != nullptr, "must have found a forwarding");
+ while (table[index].is_used()) {
+  if (table[index].is_original(region_base, original)) {
    HeapWord* result = table[index].forwardee();
-#ifndef PRODUCT
-   if (result != original) {
-    assert(ShenandoahHeap::heap()->is_in(cast_to_oop(result)),
-           "FWT forwardee " PTR_FORMAT " for original " PTR_FORMAT " region=%zu is outside heap",
-           p2i(result), p2i(original), _region->index());
-   }
-#endif
+   assert(result == original || ShenandoahHeap::heap()->is_in(cast_to_oop(result)),
+          "FWT forwardee " PTR_FORMAT " for original " PTR_FORMAT " region=%zu is outside heap",
+          p2i(result), p2i(original), _region->index());
    return result;
   }
-  log_develop_trace(gc)("Collision on " UINT64_FORMAT ": " PTR_FORMAT ": is_marked: %s, original: " PTR_FORMAT ", forwardee: " PTR_FORMAT, index, p2i(&table[index]), BOOL_TO_STR(table[index].is_marked(ShenandoahHeap::heap()->marking_context())), p2i(table[index].original(region_base)), p2i(table[index].forwardee()));
   index = (index + 1) % _num_entries;
   if (index == hash_val % _num_entries) {
-#ifndef PRODUCT
-   log_fwt_probe_miss(original, _region->index(), "full-wrap", ctx);
-   if (ctx->is_marked_ignore_tams(original) && !ShenandoahHeap::heap()->is_full_gc_in_progress()) {
-    uint64_t si = hash_val % _num_entries;
-    for (uint64_t d = 0; d < MIN2((uint64_t)_num_entries, (uint64_t)8); d++) {
-     uint64_t i = (si + d) % _num_entries;
-     log_error(gc)("  fwt[" UINT64_FORMAT "]: is_used=%s is_marked=%s"
-                   " original=" PTR_FORMAT " forwardee=" PTR_FORMAT,
-                   i, BOOL_TO_STR(table[i].is_used()), BOOL_TO_STR(table[i].is_marked(ctx)),
-                   p2i(table[i].original(region_base)), p2i(table[i].forwardee()));
-    }
-    fatal("FWT full-wrap probe miss for MARKED obj " PTR_FORMAT
-          " region=%zu num_entries=%zu hash_slot=" UINT64_FORMAT,
-          p2i(original), _region->index(), _num_entries, si);
-   }
-#endif
-   return original;
+   break;
   }
  }
 
-#ifndef PRODUCT
- log_fwt_probe_miss(original, _region->index(), "empty-slot", ctx);
- if (ctx->is_marked_ignore_tams(original) && !ShenandoahHeap::heap()->is_full_gc_in_progress()) {
-  uint64_t si = hash_val % _num_entries;
-  for (uint64_t d = 0; d < MIN2((uint64_t)_num_entries, (uint64_t)8); d++) {
-   uint64_t i = (si + d) % _num_entries;
-   log_error(gc)("  fwt[" UINT64_FORMAT "]: is_used=%s is_marked=%s"
-                 " original=" PTR_FORMAT " forwardee=" PTR_FORMAT,
-                 i, BOOL_TO_STR(table[i].is_used()), BOOL_TO_STR(table[i].is_marked(ctx)),
-                 p2i(table[i].original(region_base)), p2i(table[i].forwardee()));
-  }
-  fatal("FWT empty-slot probe miss for MARKED obj " PTR_FORMAT
-        " region=%zu num_entries=%zu hash_slot=" UINT64_FORMAT,
-        p2i(original), _region->index(), _num_entries, si);
- }
-#else
- if (ctx->is_marked_ignore_tams(original) && !ShenandoahHeap::heap()->is_full_gc_in_progress()) {
-  log_warning(gc)("FWT empty-slot probe miss for MARKED obj " PTR_FORMAT " region=%zu"
-                  " num_entries=%zu hash_slot=" UINT64_FORMAT,
-                  p2i(original), _region->index(), _num_entries, hash_val % _num_entries);
- }
-#endif
+ // Full GC resets the marking bitmap.
+ assert(ShenandoahHeap::heap()->is_full_gc_in_progress()
+        || !ShenandoahHeap::heap()->marking_context()->is_marked_ignore_tams(original),
+        "FWT probe miss for marked obj " PTR_FORMAT " region=%zu", p2i(original), _region->index());
  return original;
 }
 

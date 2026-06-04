@@ -39,7 +39,7 @@ public:
   HeapWord* original(HeapWord* region_base) const { return _original; }
   HeapWord* forwardee() const { return _forwardee; }
   bool is_marked(ShenandoahMarkingContext* ctx) const;
-  bool is_used() const { return _original != nullptr; }
+  bool is_used() const { return _original != nullptr || _forwardee != nullptr; }
   bool is_original(HeapWord* region_base, HeapWord* original);
 };
 

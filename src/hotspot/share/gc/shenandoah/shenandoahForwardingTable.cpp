@@ -146,6 +146,7 @@ void ShenandoahForwardingTable::clear() {
       if (_last != current) {
         Copy::fill_to_aligned_words(_last, current - _last);
       }
+      assert(*reinterpret_cast<uintptr_t*>(current) != 0, "preserved mark word must be non-zero at " PTR_FORMAT, p2i(current));
       _last = current + 1;
     }
   } cl(_region->bottom());
@@ -164,21 +165,12 @@ void ShenandoahForwardingTable::enter_forwarding(HeapWord* original, HeapWord* f
   Entry* table = reinterpret_cast<Entry*>(_table);
   uint64_t hash = FastHash::get_hash64(reinterpret_cast<uint64_t>(original), reinterpret_cast<uint64_t>(table));
   uint64_t index = hash % _num_entries;
-  log_develop_trace(gc)("Finding slot, start at index: " UINT64_FORMAT ", for original: " PTR_FORMAT ", forwardee: " PTR_FORMAT, index, p2i(original), p2i(forwardee));
   HeapWord* region_base = _region->bottom();
-  ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
-  while (table[index].is_used() || table[index].is_marked(ctx)) {
-#ifndef PRODUCT
-    if (table[index].is_marked(ShenandoahHeap::heap()->marking_context())) {
-      assert(!table[index].is_original(region_base, original), "marked location must not look like the original entry");
-    }
-    log_develop_trace(gc)("Collision on" UINT64_FORMAT ": is_marked: %s, original: " PTR_FORMAT ", forwardee: " PTR_FORMAT, index, BOOL_TO_STR(table[index].is_marked(ctx)), p2i(table[index].original(region_base)), p2i(table[index].forwardee()));
-#endif
+  while (table[index].is_used()) {
+    assert(!table[index].is_original(region_base, original), "occupied slot must not match the original being entered");
     index = (index + 1) % _num_entries;
     assert(index != hash % _num_entries, "must find a usable slot, _num_entries: %lu, actual forwardings: %lu, live_words: %lu", _num_entries, _num_actual_forwardings, _num_live_words);
   }
-  assert(!table[index].is_used(), "must have found empty slot");
-  assert(!table[index].is_marked(ShenandoahHeap::heap()->marking_context()), "must have found unmarked slot");
   new (&table[index]) Entry(region_base, original, forwardee);
   _num_actual_forwardings++;
   assert(_num_actual_forwardings <= _num_expected_forwardings, "must not exceed number of forwardings");
@@ -228,9 +220,15 @@ void ShenandoahForwardingTable::fill_forwardings() {
 
 template<class Entry>
 void ShenandoahForwardingTable::verify_forwardings() {
+  if (!ShenandoahVerify) {
+    return;
+  }
   ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
-  HeapWord* start = _region->bottom();
+  HeapWord* const region_base = _region->bottom();
   HeapWord* end = _region->top();
+
+  // Every marked object is resolved.
+  HeapWord* start = region_base;
   while (start < end) {
     HeapWord* original = ctx->get_next_marked_addr(start, end);
     if (original < end) {
@@ -239,13 +237,24 @@ void ShenandoahForwardingTable::verify_forwardings() {
       guarantee(actual_forwardee == expected_forwardee, "Forwardees in mark-word and table must match: original: " PTR_FORMAT ", mark-forwardee: " PTR_FORMAT ", found forwardee: " PTR_FORMAT, p2i(original), p2i(expected_forwardee), p2i(actual_forwardee));
 
       if (expected_forwardee != original) {
-        // Evacuation copies must land outside the CSet.
         guarantee(!ShenandoahHeap::heap()->in_collection_set(cast_to_oop(expected_forwardee)),
                   "forwardee " PTR_FORMAT " for original " PTR_FORMAT " is in CSet (region=%zu)",
                   p2i(expected_forwardee), p2i(original), _region->index());
       }
     }
     start = original + 1;
+  }
+
+  // Every used slot is either a preserved mark word or a real entry with marked original.
+  Entry* table = reinterpret_cast<Entry*>(_table);
+  for (size_t i = 0; i < _num_entries; i++) {
+    if (!table[i].is_used() || table[i].is_marked(ctx)) {
+      continue;
+    }
+    HeapWord* orig = table[i].original(region_base);
+    guarantee(ctx->is_marked_ignore_tams(orig),
+              "FWT entry %zu in region %zu has original " PTR_FORMAT " that is not a marked object",
+              i, _region->index(), p2i(orig));
   }
 }
 #endif
@@ -288,14 +297,16 @@ void ShenandoahForwardingTable::write_at_originals(uintptr_t word, HeapWord* fro
     }
   }
 #ifndef PRODUCT
-  for (size_t i = 0; i < _num_entries; i++) {
-    if (table[i].is_used()) {
-      HeapWord* original = table[i].original(region_base);
-      if (original >= from && original < to) {
-        uintptr_t got = *reinterpret_cast<uintptr_t*>(original);
-        guarantee(got == word,
-                  "readback mismatch at " PTR_FORMAT " region=%zu slot=%zu: expected " PTR_FORMAT ", got " PTR_FORMAT,
-                  p2i(original), _region->index(), i, word, got);
+  if (ShenandoahVerify) {
+    for (size_t i = 0; i < _num_entries; i++) {
+      if (table[i].is_used()) {
+        HeapWord* original = table[i].original(region_base);
+        if (original >= from && original < to) {
+          uintptr_t got = *reinterpret_cast<uintptr_t*>(original);
+          guarantee(got == word,
+                    "readback mismatch at " PTR_FORMAT " region=%zu slot=%zu: expected " PTR_FORMAT ", got " PTR_FORMAT,
+                    p2i(original), _region->index(), i, word, got);
+        }
       }
     }
   }

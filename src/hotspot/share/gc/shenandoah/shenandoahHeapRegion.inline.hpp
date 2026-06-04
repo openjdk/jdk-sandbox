@@ -186,13 +186,11 @@ HeapWord* ShenandoahHeapRegion::allocate(size_t size, const ShenandoahAllocReque
 
     if (fwt_start != nullptr) {
       if (req.is_lab_alloc() && req.is_mutator_alloc()) {
-#ifndef PRODUCT
         log_debug(gc, alloc)("TLAB allocated %zu words at " PTR_FORMAT " in FWT region %zu"
                              " [" PTR_FORMAT ", " PTR_FORMAT ")"
                              " region=[" PTR_FORMAT ", " PTR_FORMAT ") fwt_start=" PTR_FORMAT,
                              size, p2i(obj), index(), p2i(obj), p2i(obj + size),
                              p2i(bottom()), p2i(_end), p2i(fwt_start));
-#endif
       } else {
         log_debug(gc, alloc)("Allocated %zu words at " PTR_FORMAT " in early-recycled FWT region %zu"
                              " (alloc_end: " PTR_FORMAT ", end: " PTR_FORMAT ")",
