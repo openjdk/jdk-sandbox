@@ -1074,6 +1074,14 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
 void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   Label L_pop_and_slow, L_slow;
 
+  // If weak references are being processed, weak/phantom loads need to go slow,
+  // regardless of their cset status.
+  if (_needs_load_ref_weak_barrier) {
+    char state_to_check = ShenandoahHeap::WEAK_ROOTS;
+    __ relocate(barrier_Relocation::spec(), ShenandoahThreadLocalData::gc_state_to_fast_array_index(state_to_check));
+    __ jmp(L_slow, /* maybe_short = */ false);
+  }
+
   if (_needs_keep_alive_barrier) {
     // Emit the unconditional branch in the first version of the method.
     // Let the rest of runtime figure out how to manage it.
@@ -1084,14 +1092,6 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
     __ jmp(L_over, /* maybe_short = */ false);
     __ jmp(*continuation());
     __ bind(L_over);
-  }
-
-  // If weak references are being processed, weak/phantom loads need to go slow,
-  // regardless of their cset status.
-  if (_needs_load_ref_weak_barrier) {
-    char state_to_check = ShenandoahHeap::WEAK_ROOTS;
-    __ relocate(barrier_Relocation::spec(), ShenandoahThreadLocalData::gc_state_to_fast_array_index(state_to_check));
-    __ jmp(L_slow, /* maybe_short = */ false);
   }
 
   bool is_aot = AOTCodeCache::is_on_for_dump();
