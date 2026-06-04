@@ -996,23 +996,16 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
 
   // If another barrier is enabled as well, do a runtime check for a specific barrier.
   if (_needs_load_ref_barrier) {
+    assert(L_done == nullptr, "Should be");
     // Emit the unconditional branch in the first version of the method.
     // Let the rest of runtime figure out how to manage it.
-    Address gc_state_fast(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(ShenandoahHeap::MARKING)));
-    __ cmpb(gc_state_fast, 0);
-    if (L_done != nullptr) {
-      __ jcc(Assembler::equal, *L_done);
-    } else {
-      __ jcc(Assembler::equal, L_through);
-    }
-
-    // This needs to check the inverse...
-    // __ relocate(barrier_Relocation::spec(), ShenandoahThreadLocalData::gc_state_to_fast_array_index(ShenandoahHeap::MARKING));
-    // if (L_done != nullptr) {
-    //   __ jmp(*L_done, /* maybe_short = */ false);
-    // } else {
-    //   __ jmp(L_through, /* maybe_short = */ false);
-    // }
+    // TODO: We could have spared the over-jump if patching knew we need the inverse branch.
+    char state_to_check = ShenandoahHeap::MARKING;
+    Label L_over;
+    __ relocate(barrier_Relocation::spec(), ShenandoahThreadLocalData::gc_state_to_fast_array_index(state_to_check));
+    __ jmp(L_over, /* maybe_short = */ false);
+    __ jmp(L_through);
+    __ bind(L_over);
   }
 
   // Need temp to work, allocate one now.
@@ -1081,24 +1074,23 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
 void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   Label L_pop_and_slow, L_slow;
 
-  // If another barrier is enabled as well, do a runtime check for a specific barrier.
   if (_needs_keep_alive_barrier) {
     // Emit the unconditional branch in the first version of the method.
     // Let the rest of runtime figure out how to manage it.
+    // TODO: We could have spared the over-jump if patching knew we need the inverse branch.
     char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
-    Address gc_state_fast(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(state_to_check)));
-    __ cmpb(gc_state_fast, 0);
-    __ jcc(Assembler::equal, *continuation());
-
-    // This needs to check the inverse...
-    // __ relocate(barrier_Relocation::spec(), ShenandoahThreadLocalData::gc_state_to_fast_array_index(state_to_check));
-    // __ jmp(*continuation(), /* maybe_short = */ false);
+    Label L_over;
+    __ relocate(barrier_Relocation::spec(), ShenandoahThreadLocalData::gc_state_to_fast_array_index(state_to_check));
+    __ jmp(L_over, /* maybe_short = */ false);
+    __ jmp(*continuation());
+    __ bind(L_over);
   }
 
   // If weak references are being processed, weak/phantom loads need to go slow,
   // regardless of their cset status.
   if (_needs_load_ref_weak_barrier) {
-    __ relocate(barrier_Relocation::spec(), ShenandoahThreadLocalData::gc_state_to_fast_array_index(ShenandoahHeap::WEAK_ROOTS));
+    char state_to_check = ShenandoahHeap::WEAK_ROOTS;
+    __ relocate(barrier_Relocation::spec(), ShenandoahThreadLocalData::gc_state_to_fast_array_index(state_to_check));
     __ jmp(L_slow, /* maybe_short = */ false);
   }
 
