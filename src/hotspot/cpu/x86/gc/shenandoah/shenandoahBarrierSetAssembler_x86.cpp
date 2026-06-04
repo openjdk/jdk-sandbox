@@ -994,7 +994,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
 
   Label L_through, L_pop_and_slow;
 
-  // If another barrier is enabled as well, do a runtime check for a specific barrier.
+  // If another barrier is enabled as well, do a check for a specific barrier.
   if (_needs_load_ref_barrier) {
     assert(L_done == nullptr, "Should be");
     // Emit the unconditional branch in the first version of the method.
