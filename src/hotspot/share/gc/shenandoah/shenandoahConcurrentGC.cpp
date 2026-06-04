@@ -217,7 +217,7 @@ bool ShenandoahConcurrentGC::collect(GCCause::Cause cause) {
   // If so, evac_in_progress would be unset by collection set preparation code.
   if (heap->is_evacuation_in_progress()) {
     // Roots processing is complete, put the weak roots/ref flags down.
-    vmop_entry_final_roots();
+    vmop_entry_final_roots(false);
 
     // Concurrently evacuate
     entry_evacuate();
@@ -270,7 +270,7 @@ bool ShenandoahConcurrentGC::collect(GCCause::Cause cause) {
     // In normal cycle, final-update-refs would verify at the end of the cycle.
     // In abbreviated cycle, we need to verify separately.
     // This is now also puts the barriers down at the end of the cycle. TODO: Refine.
-    vmop_entry_final_roots();
+    vmop_entry_final_roots(true);
   }
 
   // We defer generation resizing actions until after cset regions have been recycled.  We do this even following an
@@ -355,14 +355,14 @@ void ShenandoahConcurrentGC::vmop_entry_final_update_refs() {
   VMThread::execute(&op);
 }
 
-void ShenandoahConcurrentGC::vmop_entry_final_roots() {
+void ShenandoahConcurrentGC::vmop_entry_final_roots(bool at_gc_end) {
   ShenandoahHeap* const heap = ShenandoahHeap::heap();
   TraceCollectorStats tcs(heap->monitoring_support()->stw_collection_counters());
   ShenandoahTimingsTracker timing(ShenandoahPhaseTimings::final_roots_gross);
 
   // This phase does not use workers, no need for setup
   heap->try_inject_alloc_failure();
-  VM_ShenandoahFinalRoots op(this);
+  VM_ShenandoahFinalRoots op(this, at_gc_end);
   VMThread::execute(&op);
 }
 
@@ -1233,7 +1233,7 @@ void ShenandoahConcurrentGC::op_final_update_refs() {
   }
 }
 
-void ShenandoahConcurrentGC::entry_final_roots() {
+void ShenandoahConcurrentGC::entry_final_roots(bool at_gc_end) {
   ShenandoahHeap* const heap = ShenandoahHeap::heap();
   TraceCollectorStats tcs(heap->monitoring_support()->concurrent_collection_counters());
 
@@ -1244,7 +1244,7 @@ void ShenandoahConcurrentGC::entry_final_roots() {
                               ParallelGCThreads,
                               msg);
 
-  heap->op_final_roots();
+  heap->op_final_roots(at_gc_end);
 }
 
 void ShenandoahConcurrentGC::op_cleanup_complete() {

@@ -494,7 +494,7 @@ private:
   void concurrent_prepare_for_update_refs();
 
   // Turn off weak roots flag, purge old satb buffers in generational mode
-  void op_final_roots();
+  void op_final_roots(bool at_gc_end);
 
   virtual void update_heap_references(ShenandoahGeneration* generation, bool concurrent);
   // Final update region states

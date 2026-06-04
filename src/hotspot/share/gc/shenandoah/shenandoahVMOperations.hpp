@@ -129,8 +129,9 @@ public:
 
 class VM_ShenandoahFinalRoots: public VM_ShenandoahOperation {
   ShenandoahConcurrentGC* const _gc;
+  bool const _at_gc_end;
 public:
-  explicit VM_ShenandoahFinalRoots(ShenandoahConcurrentGC* gc);
+  explicit VM_ShenandoahFinalRoots(ShenandoahConcurrentGC* gc, bool at_gc_end);
   VM_Operation::VMOp_Type type() const override { return VMOp_ShenandoahFinalRoots; }
   const char* name()             const override { return "Shenandoah Final Roots"; }
   void doit() override;

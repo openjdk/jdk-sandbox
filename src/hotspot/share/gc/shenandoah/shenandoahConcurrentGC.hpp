@@ -69,7 +69,7 @@ protected:
   void vmop_entry_final_mark();
   void vmop_entry_init_update_refs();
   void vmop_entry_final_update_refs();
-  void vmop_entry_final_roots();
+  void vmop_entry_final_roots(bool at_gc_end);
 
   // Entry methods to normally STW GC operations. These set up logging, monitoring
   // and workers for next VM operation
@@ -77,7 +77,7 @@ protected:
   void entry_final_mark();
   void entry_init_update_refs();
   void entry_final_update_refs();
-  void entry_final_roots();
+  void entry_final_roots(bool at_gc_end);
 
   // Entry methods to normally concurrent GC operations. These set up logging, monitoring
   // for concurrent operation.

@@ -1254,13 +1254,13 @@ void ShenandoahHeap::concurrent_prepare_for_update_refs() {
   _update_refs_iterator.reset();
 }
 
-void ShenandoahHeap::op_final_roots() {
+void ShenandoahHeap::op_final_roots(bool at_gc_end) {
   set_gc_state_at_safepoint(WEAK_ROOTS, false);
   propagate_gc_state_to_all_threads();
 
-  // if (ShenandoahVerify) {
-  //   verifier()->verify_after_gc(active_generation());
-  // }
+  if (ShenandoahVerify && at_gc_end) {
+    verifier()->verify_after_gc(active_generation());
+  }
 
   // Arm the nmethods to put barriers down.
   ShenandoahCodeRoots::arm_nmethods();
