@@ -85,6 +85,10 @@ inline HeapWord* ShenandoahMarkingContext::get_next_marked_addr(const HeapWord* 
   return _mark_bit_map.get_next_marked_addr(start, limit);
 }
 
+inline HeapWord* ShenandoahMarkingContext::get_next_marked_addr_ignore_tams(const HeapWord* start, const HeapWord* limit) const {
+  return _mark_bit_map.get_next_marked_addr_ignore_tams(start, limit);
+}
+
 inline HeapWord* ShenandoahMarkingContext::get_last_marked_addr(const HeapWord* start, const HeapWord* limit) const {
   return _mark_bit_map.get_last_marked_addr(start, limit);
 }

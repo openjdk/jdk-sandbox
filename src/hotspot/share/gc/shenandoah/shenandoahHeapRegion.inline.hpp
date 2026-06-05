@@ -128,38 +128,47 @@ HeapWord* ShenandoahHeapRegion::allocate(size_t size, const ShenandoahAllocReque
       return nullptr;
     }
     if (fwt_start != nullptr) {
-      const uintptr_t sentinel   = ShenandoahHeap::in_fwt_sentinel;
-      const size_t    step       = (size_t)MinObjAlignment;
-      const size_t    min_sz     = req.min_size();
-      HeapWord*       span_start = obj;
-      bool            found      = false;
+      // Use marking context to avoid full scan.
+      ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
+      const size_t sentinel_words = ShenandoahHeap::min_fill_size();
+      const size_t min_sz         = req.min_size();
+      const size_t max_size       = size;
+      HeapWord*    span_start     = obj;
+      bool         found          = false;
+      size_t       gap            = 0;
 
-      for (HeapWord* scan = obj; scan < alloc_limit; scan += step) {
-        if (*reinterpret_cast<uintptr_t*>(scan) == sentinel) {
-          size_t gap = pointer_delta(scan, span_start);
-          if (gap >= min_sz) {
-            size  = MIN2(gap, size);
-            obj   = span_start;
-            found = true;
-            break;
-          }
-          span_start = scan + step;
-        } else if (pointer_delta(scan + step, span_start) >= size) {
+      // top may land inside [marked, marked+min_fill_size)
+      // when min_fill_size > 1 (-UseCompactObjectHeaders).
+      HeapWord* prev_marked_addr = ctx->get_last_marked_addr(bottom(), obj);
+      if (prev_marked_addr < obj && pointer_delta(obj, prev_marked_addr) < sentinel_words) {
+        span_start = prev_marked_addr + sentinel_words;
+      }
+
+      while (span_start < alloc_limit) {
+        HeapWord* next_orig = ctx->get_next_marked_addr_ignore_tams(span_start, alloc_limit);
+        gap                 = pointer_delta(next_orig, span_start);
+        if (gap >= min_sz) {
+          // First span large enough for a (possibly truncated) TLAB.
+          size  = MIN2(gap, max_size);
           obj   = span_start;
           found = true;
           break;
         }
+        span_start = next_orig + sentinel_words;
       }
-      if (!found) {
-        size_t gap = pointer_delta(alloc_limit, span_start);
-        if (gap >= min_sz) {
-          size = MIN2(gap, size);
-          obj  = span_start;
-        } else {
-          return nullptr;
-        }
-      }
-      if (obj >= alloc_limit) return nullptr;
+      if (!found) return nullptr;
+
+#ifndef PRODUCT
+      HeapWord* const mark = ctx->get_next_marked_addr_ignore_tams(obj, obj + gap);
+      guarantee(mark == obj + gap,
+                "carved TLAB gap overlaps marked original at " PTR_FORMAT
+                " region=%zu obj=" PTR_FORMAT " gap=%zu fwt_start=" PTR_FORMAT,
+                p2i(mark), index(), p2i(obj), gap, p2i(fwt_start));
+      guarantee(min_sz <= size && size <= gap && size <= max_size,
+                "carve size out of bounds: region=%zu obj=" PTR_FORMAT
+                " min=%zu size=%zu gap=%zu max=%zu",
+                index(), p2i(obj), min_sz, size, gap, max_size);
+#endif
     }
   } else { // object
     // Don't allocate at addresses that are in the FWT.

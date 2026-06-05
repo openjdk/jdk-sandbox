@@ -73,6 +73,7 @@ public:
 
   // Return address of the first marked address in the range [addr,limit), or limit if no marked object found
   inline HeapWord* get_next_marked_addr(const HeapWord* addr, const HeapWord* limit) const;
+  inline HeapWord* get_next_marked_addr_ignore_tams(const HeapWord* addr, const HeapWord* limit) const;
   // Finds last marked address between in interval [addr, limit), return limit, if not found.
   inline HeapWord* get_last_marked_addr(const HeapWord* addr, const HeapWord* limit) const;
 
