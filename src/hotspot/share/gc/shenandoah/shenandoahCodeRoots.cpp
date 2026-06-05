@@ -162,7 +162,7 @@ public:
       return;
     }
 
-    {
+    if (_heap->is_evacuation_in_progress()) {
       ShenandoahNMethodLocker locker(nm_data->lock());
 
       // Heal oops
