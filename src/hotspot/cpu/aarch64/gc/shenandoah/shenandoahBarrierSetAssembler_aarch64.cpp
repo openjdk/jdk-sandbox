@@ -779,13 +779,6 @@ void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char
   } else {
     __ relocate(barrier_Relocation::spec(), ShenandoahThreadLocalData::gc_state_to_fast_array_index(test_state));
     __ b(*entry());
-
-// #ifdef ASSERT
-//     Address gc_state_fast(rthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(test_state)));
-//     __ ldrb(rscratch1, gc_state_fast);
-//     __ cbz(rscratch1, *continuation());
-//     __ hlt(0); // Correctness bug: barrier is NOP-ed, but heap is NOT IDLE
-// #endif
   }
 
   // This is were the slowpath stub will return to or the code above will
