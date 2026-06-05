@@ -1229,7 +1229,23 @@ void ShenandoahHeap::evacuate_collection_set(ShenandoahGeneration* generation, b
   workers()->run_task(&task);
 }
 
+class ShenandoahCompleteStackwatermarkHandshakeClosure : public HandshakeClosure {
+public:
+  ShenandoahCompleteStackwatermarkHandshakeClosure() : HandshakeClosure("Shenandoah Complete stacks handshake") {}
+  void do_thread(Thread* thread) override {
+    if (thread->is_Java_thread()) {
+      JavaThread* jt = JavaThread::cast(thread);
+      StackWatermarkSet::finish_processing(jt, nullptr, StackWatermarkKind::gc);
+    }
+  }
+};
+
 void ShenandoahHeap::concurrent_prepare_for_update_refs() {
+  // Make sure the current stack watermark machinery has completed before we drop evac flags.
+  // Otherwise the stack processing on stack unwinding may enter evac closure concurrently.
+  ShenandoahCompleteStackwatermarkHandshakeClosure cl;
+  Handshake::execute(&cl);
+
   {
     // Java threads take this lock while they are being attached and added to the list of threads.
     // If another thread holds this lock before we update the gc state, it will receive a stale
