@@ -58,7 +58,7 @@ public final class JsonParseException extends RuntimeException {
      * @param line the line of the error on parsing the document. Non-negative.
      * @param pos the position of the error on parsing the document. Non-negative.
      * @throws IllegalArgumentException if either {@code line} or {@code pos} are
-     *      non-negative
+     *      negative
      */
     public JsonParseException(String message, int line, int pos) {
         super(message);
