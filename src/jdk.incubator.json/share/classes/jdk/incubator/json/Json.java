@@ -28,6 +28,7 @@ import java.util.Arrays;
 import java.util.Objects;
 
 import jdk.incubator.json.impl.JsonParser;
+import jdk.incubator.json.impl.Utils;
 
 /**
  * This class provides static methods for parsing and generating JSON documents
@@ -146,7 +147,7 @@ public final class Json {
                 s.append(prefix)
                         .append(" ".repeat(indent))
                         .append("\"")
-                        .append(name)
+                        .append(Utils.escape(name))
                         .append("\":");
                 Json.toDisplayString(val, s, col + indent, indent, true);
                 s.append(",\n");
