@@ -28,7 +28,6 @@
  * a service loader, properties, random number generation, string parsing
  * and scanning classes, base64 encoding and decoding, a bit array and
  * several miscellaneous utility classes. This package also contains
- * several miscellaneous utility classes. This package also contains
  * legacy collection classes and legacy date and time classes.
  *
  * <h2><a id="CollectionsFramework"></a>{@index "Java Collections Framework"}</h2>
