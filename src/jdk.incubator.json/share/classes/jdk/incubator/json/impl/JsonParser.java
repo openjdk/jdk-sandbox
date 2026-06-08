@@ -302,7 +302,7 @@ public final class JsonParser {
             var c = doc[offset];
             switch (c) {
                 case '-' -> {
-                    if (offset != start && expOff == -1 || sawSign) {
+                    if ((offset != start && expOff == -1) || havePart || sawSign) {
                         throw failure(INVALID_POSITION_IN_NUMBER.formatted(c));
                     }
                     sawSign = true;
