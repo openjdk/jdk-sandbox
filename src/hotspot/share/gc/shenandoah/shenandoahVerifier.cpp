@@ -111,16 +111,18 @@ private:
   void do_oop_work(T* p) {
     T o = RawAccess<>::oop_load(p);
     if (!CompressedOops::is_null(o)) {
+      oop obj = CompressedOops::decode_raw_not_null(o);
+
+      if (_heap->is_in_reserved(obj) && _heap->collection_set()->use_forward_table(obj)) {
+        obj = ShenandoahBarrierSet::resolve_forwarded_not_null(obj);
+      }
+
       // Basic verification should happen before we touch anything else.
       // For performance reasons, only fully verify non-marked field values.
       // We are here when the host object for *p is already marked.
-      oop obj = CompressedOops::decode_raw_not_null(o);
       verify_oop_at_basic(p, obj);
 
       assert(Universe::is_in_heap(obj), "ref: " PTR_FORMAT ", obj: " PTR_FORMAT ", use_fwd_table: %s, obj-mark: " INTPTR_FORMAT, p2i(p), p2i(obj), BOOL_TO_STR(_heap->collection_set()->use_forward_table(obj)), obj->mark().value());
-      if (_heap->collection_set()->use_forward_table(obj)) {
-        obj = ShenandoahBarrierSet::resolve_forwarded_not_null(obj);
-      }
 
       if (is_instance_ref_klass(ShenandoahForwarding::klass(obj))) {
         obj = ShenandoahBarrierSet::resolve_forwarded_not_null(obj);
