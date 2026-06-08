@@ -161,4 +161,16 @@ public class TestGenerate {
         assertEquals(expected, Json.toDisplayString(Json.parse(SRC), indent));
     }
 
+    @Test
+    void testEscapesMemberNames() {
+        var json = Json.parse("{ \"a\\\"b\" : null }");
+        var display = Json.toDisplayString(json, 2);
+
+        assertEquals("""
+        {
+          "a\\\"b": null
+        }""", display);
+
+        assertDoesNotThrow(() -> Json.parse(display));
+    }
 }
