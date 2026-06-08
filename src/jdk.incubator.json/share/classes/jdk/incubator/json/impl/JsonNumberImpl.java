@@ -113,6 +113,7 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
                 if (exponentOffset != -1) {
                     // Exponent exists
                     // Calculate exponent value
+                    boolean positiveExp = doc[exponentOffset + 1] != '-';
                     int exp = Math.abs(Integer.parseInt(new String(doc,
                             exponentOffset + 1, endOffset - exponentOffset - 1), 10));
                     long sig;
@@ -120,7 +121,7 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
                     if (decimalOffset == -1) {
                         // Exponent with no decimal
                         sig = Long.parseLong(new String(doc, startOffset, exponentOffset - startOffset));
-                    } else {
+                    } else if (positiveExp) {
                         // Exponent with decimal
                         for (int i = decimalOffset + exp + 1; i < exponentOffset; i++) {
                             if (doc[i] != '0') {
@@ -130,9 +131,15 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
                         var shiftedFractionPart = new String(doc, decimalOffset + 1, Math.min(exp, exponentOffset - decimalOffset - 1));
                         exp = exp - shiftedFractionPart.length();
                         sig = Long.parseLong(new String(doc, startOffset, decimalOffset - startOffset) + shiftedFractionPart);
+                    } else {
+                        // Negative exponent with decimal
+                        int fractionLength = exponentOffset - decimalOffset - 1;
+                        sig = Long.parseLong(new String(doc, startOffset, decimalOffset - startOffset)
+                            + new String(doc, decimalOffset + 1, fractionLength));
+                        exp = Math.addExact(exp, fractionLength);
                     }
                     scale = Math.powExact(10L, exp);
-                    if (doc[exponentOffset + 1] != '-') {
+                    if (positiveExp) {
                         return Optional.of(Math.multiplyExact(sig, scale));
                     } else {
                         if (sig % scale == 0) {
