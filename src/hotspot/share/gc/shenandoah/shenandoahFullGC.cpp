@@ -734,6 +734,11 @@ void ShenandoahFullGC::phase2_calculate_target_addresses(ShenandoahHeapRegionSet
     // This is needed because we are potentially sliding the data through them.
     ShenandoahEnsureHeapActiveClosure ecl;
     heap->heap_region_iterate(&ecl);
+
+    // Clear the CSet map before compaction. CSet regions are already regular.
+    // Early-recycled FWT regions can hold live objects,
+    // let them be iterated by marked_object_iterate().
+    heap->collection_set()->clear();
   }
 
   // Compute the new addresses for regular objects
