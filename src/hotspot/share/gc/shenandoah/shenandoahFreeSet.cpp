@@ -2917,6 +2917,9 @@ void ShenandoahFreeSet::release_fwt_tails() {
           _partitions.decrease_used(ShenandoahFreeSetPartitionId::Mutator, region_free);
           released_regions++;
           released_bytes += region_free;
+
+          // No unretire_to_partition() here. reset_forwarding_table() releases the tail,
+          // rebuild_free_set() re-inserts the region into Mutator with recomputed accounting.
         }
       }
     }
