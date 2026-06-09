@@ -34,6 +34,7 @@
 #include "gc/shenandoah/shenandoahThreadLocalData.hpp"
 #include "interpreter/interp_masm.hpp"
 #include "interpreter/interpreter.hpp"
+#include "nativeInst_riscv.hpp"
 #include "runtime/javaThread.hpp"
 #include "runtime/sharedRuntime.hpp"
 #ifdef COMPILER1
@@ -751,14 +752,64 @@ void ShenandoahBarrierStubC2::cardtable(MacroAssembler& masm, Address address, R
 void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
-  Address gc_state_fast(xthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(test_state)));
-  __ lbu(tmp, gc_state_fast);
-  __ beqz(tmp, *continuation());
+  // Emit the unconditional branch in the first version of the method.
+  // Let the rest of runtime figure out how to manage it.
+  __ relocate(barrier_Relocation::spec(), (int)ShenandoahThreadLocalData::gc_state_to_fast_array_index(test_state));
   __ j(*entry());
 
   // This is were the slowpath stub will return to or the code above will
   // jump to if the checks are false
   __ bind(*continuation());
+}
+
+address ShenandoahBarrierSetAssembler::parse_stub_address(address pc) {
+  NativeInstruction* ni = nativeInstruction_at(pc);
+  assert(ni->is_jump(), "Initial code version: GC barrier fastpath must be a jump");
+  NativeJump* jmp = nativeJump_at(pc);
+  return jmp->jump_destination();
+}
+
+bool is_nop(address pc) {
+  if (*(pc + 0) != 0x00) return false;
+  if (*(pc + 1) != 0x00) return false;
+  if (*(pc + 2) != 0x00) return false;
+  if (*(pc + 3) != 0x13) return false;
+  return true;
+}
+
+void insert_nop(address pc) {
+  *reinterpret_cast<int32_t*>(pc) = 0x13000000;
+  assert(is_nop(pc), "Should be");
+  ICache::invalidate_range(pc, 4);
+}
+
+void check_at(bool cond, address pc, const char* msg) {
+  assert(cond, "%s: at PC " PTR_FORMAT ": %02x%02x%02x%02x%02x",
+         msg, p2i(pc), *(pc + 0), *(pc + 1), *(pc + 2), *(pc + 3), *(pc + 4));
+}
+
+bool ShenandoahBarrierSetAssembler::is_active(address pc) {
+  NativeInstruction* ni = nativeInstruction_at(pc);
+  return ni->is_jump();
+}
+
+void ShenandoahBarrierSetAssembler::patch_branch_to_nop(address pc) {
+  NativeInstruction* ni = nativeInstruction_at(pc);
+  if (ni->is_jump()) {
+    insert_nop(pc);
+  } else {
+    check_at(is_nop(pc), pc, "Should already be nop");
+  }
+}
+
+void ShenandoahBarrierSetAssembler::patch_nop_to_branch(address pc, address stub_addr) {
+  NativeInstruction* ni = nativeInstruction_at(pc);
+  if (is_nop(pc)) {
+    NativeJump::insert(pc, stub_addr);
+  } else {
+    check_at(ni->is_jump(), pc, "Should already be jump");
+    check_at(nativeJump_at(pc)->jump_destination() == stub_addr, pc, "Jump should be to the same address");
+  }
 }
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
@@ -812,13 +863,18 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   Address buffer(xthread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
   Label L_through, L_slowpath;
 
-  // Hotpatched GC checks only care about idle/non-idle state, so we need to check again here.
-  Address gc_state_fast(xthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(ShenandoahHeap::MARKING)));
-  __ lbu(_tmp1, gc_state_fast);
-  if (L_done != nullptr) {
-    maybe_far_jump_if_zero(masm, _tmp1, L_done);
-  } else {
-    __ beqz(_tmp1, L_through);
+  // If another barrier is enabled as well, do a check for a specific barrier.
+  if (_needs_load_ref_barrier) {
+    assert(L_done == nullptr, "Should be");
+    // Emit the unconditional branch in the first version of the method.
+    // Let the rest of runtime figure out how to manage it.
+    // TODO: We could have spared the over-jump if patching knew we need the inverse branch.
+    char state_to_check = ShenandoahHeap::MARKING;
+    Label L_over;
+    __ relocate(barrier_Relocation::spec(), (int)ShenandoahThreadLocalData::gc_state_to_fast_array_index(state_to_check));
+    __ j(L_over);
+    __ j(L_through);
+    __ bind(L_over);
   }
 
   // Fast-path: put object into buffer.
@@ -867,11 +923,25 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
 void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   Label L_slow;
 
-  // Hotpatched GC checks only care about idle/non-idle state, so we need to check again here.
-  char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
-  Address gc_state_fast(xthread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(state_to_check)));
-  __ lbu(_tmp1, gc_state_fast);
-  maybe_far_jump_if_zero(masm, _tmp1, continuation());
+  // If weak references are being processed, weak/phantom loads need to go slow,
+  // regardless of their cset status.
+  if (_needs_load_ref_weak_barrier) {
+    char state_to_check = ShenandoahHeap::WEAK_ROOTS;
+    __ relocate(barrier_Relocation::spec(), (int)ShenandoahThreadLocalData::gc_state_to_fast_array_index(state_to_check));
+    __ j(L_slow);
+  }
+
+  if (_needs_keep_alive_barrier) {
+    // Emit the unconditional branch in the first version of the method.
+    // Let the rest of runtime figure out how to manage it.
+    // TODO: We could have spared the over-jump if patching knew we need the inverse branch.
+    char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
+    Label L_over;
+    __ relocate(barrier_Relocation::spec(), (int)ShenandoahThreadLocalData::gc_state_to_fast_array_index(state_to_check));
+    __ j(L_over);
+    __ j(*continuation());
+    __ bind(L_over);
+  }
 
   // If weak references are being processed, weak/phantom loads need to go slow,
   // regardless of their cset status.

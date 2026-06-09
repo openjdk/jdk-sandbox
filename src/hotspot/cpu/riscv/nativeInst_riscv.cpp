@@ -279,6 +279,23 @@ void NativeMovConstReg::print() {
 
 void NativeJump::verify() { }
 
+void NativeJump::insert(address code_pos, address entry) {
+  // Dispacement is relative to the jump instruction PC
+  intptr_t disp = (intptr_t)entry - ((intptr_t)code_pos);
+
+  // The jump immediate is 26 bits and it will at execution time be scaled by 4
+  int64_t imm26 = disp >> 2;
+
+  // The farthest that we can jump is +/- 128MiB
+  guarantee(Assembler::is_simm(imm26, 26), "maximum offset is 128MiB, you asking for %ld", imm26);
+
+  // Patch with opcode | offset
+  *((int32_t*)code_pos) = 0x6F000000 | imm26;
+
+  // Tell hardware to invalidate icache line containing code_pos
+  ICache::invalidate_range(code_pos, instruction_size);
+}
+
 address NativeJump::jump_destination() const {
   address dest = MacroAssembler::target_addr_for_insn(instruction_address());
 
