@@ -356,24 +356,34 @@ public class TestJsonNumber {
         @Test
         void testRoundTrip() {
             // factories
+
+            // int
             assertEquals(42, JsonNumber.of((byte)42).asInt());
             assertEquals(42, JsonNumber.of((short)42).asInt());
             assertEquals(42, JsonNumber.of(42).asInt());
             assertEquals(42, JsonNumber.of(42L).asInt());
+            assertEquals(42, JsonNumber.of(42.0d).asInt());
+            assertEquals(42, JsonNumber.of(420e-1).asInt());
+            assertEquals(42, JsonNumber.of("42").asInt());
+            assertEquals(Integer.MAX_VALUE, JsonNumber.of(Integer.MAX_VALUE).asInt());
+            assertEquals(Integer.MAX_VALUE, JsonNumber.of("2147483647").asInt());
+
+            // long
             assertEquals(42L, JsonNumber.of((byte)42).asLong());
             assertEquals(42L, JsonNumber.of((short)42).asLong());
             assertEquals(42L, JsonNumber.of(42).asLong());
             assertEquals(42L, JsonNumber.of(42L).asLong());
-            assertEquals(Integer.MAX_VALUE, JsonNumber.of(Integer.MAX_VALUE).asInt());
+            assertEquals(42L, JsonNumber.of(42.0d).asLong());
+            assertEquals(42L, JsonNumber.of(420e-1).asLong());
+            assertEquals(42L, JsonNumber.of("42").asLong());
+            assertEquals(Long.MAX_VALUE, JsonNumber.of("9223372036854775807").asLong());
             assertEquals(Long.MAX_VALUE, JsonNumber.of(Long.MAX_VALUE).asLong());
+
+            // double
             assertEquals((double)0.1f, JsonNumber.of(0.1f).asDouble());
             assertEquals(0.1d, JsonNumber.of(0.1d).asDouble());
             assertEquals(1d, JsonNumber.of(1e0).asDouble());
             assertEquals(Double.MAX_VALUE, JsonNumber.of(Double.MAX_VALUE).asDouble());
-            assertEquals(42, JsonNumber.of("42").asInt());
-            assertEquals(42L, JsonNumber.of("42").asLong());
-            assertEquals(Integer.MAX_VALUE, JsonNumber.of("2147483647").asInt());
-            assertEquals(Long.MAX_VALUE, JsonNumber.of("9223372036854775807").asLong());
             assertEquals(0.1d, JsonNumber.of("0.1").asDouble());
             assertEquals(1d, JsonNumber.of("1e0").asDouble());
             assertEquals(Double.MAX_VALUE, JsonNumber.of("1.7976931348623157E308").asDouble());

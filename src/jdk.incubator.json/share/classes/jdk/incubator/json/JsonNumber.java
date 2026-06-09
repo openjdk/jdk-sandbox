@@ -25,8 +25,6 @@
 
 package jdk.incubator.json;
 
-import jdk.incubator.json.impl.JsonNumberImpl;
-
 /**
  * The interface that represents JSON number, an arbitrary-precision
  * number represented in base 10 using decimal digits.
@@ -111,8 +109,11 @@ public non-sealed interface JsonNumber extends JsonValue {
 
     /**
      * Creates a JSON number from the given {@code double} value.
-     * The string representation of the JSON number created is produced by applying
-     * {@link Double#toString(double)} on {@code num}.
+     * This is equivalent to calling
+     * {@snippet lang=java:
+     * of(Double.toString(num))
+     * }
+     * after checking that {@code num} is finite.
      *
      * @param num the given {@code double} value.
      * @return a JSON number created from the {@code double} value
@@ -125,34 +126,35 @@ public non-sealed interface JsonNumber extends JsonValue {
         if (!Double.isFinite(num)) {
             throw new IllegalArgumentException("Not a valid JSON number");
         }
-        var str = Double.toString(num);
-        return new JsonNumberImpl(str.toCharArray(), 0, str.length(), 0, 0);
+        return of(Double.toString(num));
     }
 
     /**
      * Creates a JSON number from the given {@code int} value.
-     * The string representation of the JSON number created is produced by applying
-     * {@link Integer#toString(int)} on {@code num}.
+     * This is equivalent to calling
+     * {@snippet lang=java:
+     * of(Integer.toString(num))
+     * }
      *
      * @param num the given {@code int} value.
      * @return a JSON number created from the {@code int} value
      */
     static JsonNumber of(int num) {
-        var str = Integer.toString(num);
-        return new JsonNumberImpl(str.toCharArray(), 0, str.length(), -1, -1);
+        return of(Integer.toString(num));
     }
 
     /**
      * Creates a JSON number from the given {@code long} value.
-     * The string representation of the JSON number created is produced by applying
-     * {@link Long#toString(long)} on {@code num}.
+     * This is equivalent to calling
+     * {@snippet lang=java:
+     * of(Long.toString(num))
+     * }
      *
      * @param num the given {@code long} value.
      * @return a JSON number created from the {@code long} value
      */
     static JsonNumber of(long num) {
-        var str = Long.toString(num);
-        return new JsonNumberImpl(str.toCharArray(), 0, str.length(), -1, -1);
+        return of(Long.toString(num));
     }
 
     /**
