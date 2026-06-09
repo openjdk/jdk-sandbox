@@ -171,10 +171,14 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
 
     /**
      * {@return the String representation of this {@code JsonValue} that conforms
-     * to the JSON syntax} If this {@code JsonValue} is created by parsing a
-     * JSON document, it preserves the text representation of the corresponding
-     * JSON value, except that the returned string does not contain any white
-     * spaces or newlines to produce a compact representation.
+     * to the JSON syntax}
+     *
+     * The returned string represents the same JSON value as this object and
+     * does not contain insignificant whitespace or line separators. It is not
+     * specified to preserve the exact lexical form of the input JSON document.
+     * Subinterfaces may specify stronger preservation behavior for their
+     * corresponding JSON type.
+     * <p>
      * For a String representation suitable for display, use
      * {@link Json#toDisplayString(JsonValue, int)}.
      *

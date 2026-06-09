@@ -47,11 +47,11 @@ package jdk.incubator.json;
  * use {@link #toString()} to create arbitrary-precision Java objects, for
  * example,
  * {@snippet lang="java" :
- * new BigDecimal(JsonNumber.toString())
+ * new BigDecimal(jsonNumber.toString())
  * // or if an integral number is preferred
- * new BigInteger(JsonNumber.toString())
+ * new BigInteger(jsonNumber.toString())
  * // for cases with an exponent or zero fractional part
- * new BigDecimal(JsonNumber.toString()).toBigIntegerExact()
+ * new BigDecimal(jsonNumber.toString()).toBigIntegerExact()
  * }
  *
  * @spec https://datatracker.ietf.org/doc/html/rfc8259#section-6 RFC 8259:
@@ -160,7 +160,7 @@ public non-sealed interface JsonNumber extends JsonValue {
     /**
      * Creates a JSON number from the given {@code String} value.
      * The string representation of the JSON number created is equivalent to
-     * {@code num}.
+     * {@code num} with any leading or trailing JSON whitespace removed.
      *
      * @implNote The value returned is equivalent to calling:
      * {@snippet lang = "java":
@@ -172,6 +172,7 @@ public non-sealed interface JsonNumber extends JsonValue {
      * @param num the given {@code String} value.
      * @throws IllegalArgumentException if {@code num} is not a valid string
      *      representation of a JSON number.
+     * @throws NullPointerException if {@code num} is {@code null}
      * @return a JSON number created from the {@code String} value
      */
     static JsonNumber of(String num) {

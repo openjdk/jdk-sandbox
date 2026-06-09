@@ -43,9 +43,12 @@ import java.io.Serial;
  *     {@code get(int)} for an out-of-bounds index in a {@code JsonArray}.
  *   </li>
  *   <li>
- *     {@code asInt()}, {@code asLong()}, or {@code asDouble()} is invoked on
- *     a {@code JsonNumber} that cannot be represented without loss of
- *     information by the target type.
+ *     {@code asInt()} or {@code asLong()} is invoked on a {@code JsonNumber}
+ *     that cannot be represented without loss of information by the target type.
+ *   </li>
+ *   <li>
+ *     {@code asDouble()} is invoked on a {@code JsonNumber} whose string
+ *     representation cannot be converted to a finite {@code double}.
  *   </li>
  * </ul>
  * @since 99
