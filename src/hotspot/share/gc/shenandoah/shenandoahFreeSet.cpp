@@ -2728,12 +2728,13 @@ void ShenandoahFreeSet::move_regions_from_collector_to_mutator(size_t max_xfer_r
 }
 
 // Admit a fwt cset region's below-FWT space into the Mutator free set.
-bool ShenandoahFreeSet::recycle_fwt_region(ShenandoahHeapRegion* r,
+bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* r,
                                            idx_t& mutator_low_idx, idx_t& mutator_high_idx,
                                            size_t& recycled_bytes, size_t& recycled_regions, size_t& young_recycled_regions) {
   shenandoah_assert_heaplocked();
 
-  assert(_heap->collection_set()->use_forward_table(r), "precondition: region must have a forwarding table");
+  // Today a region is reusable iff it has a forwarding table.
+  assert(_heap->collection_set()->is_reusable(r), "precondition: region must be reusable");
   size_t i = r->index();
   assert(_partitions.membership(i) == ShenandoahFreeSetPartitionId::NotFree,
          "Cset region must not already be in a free partition");
@@ -2844,8 +2845,8 @@ void ShenandoahFreeSet::recycle_collection_set() {
   ShenandoahCollectionSet* cset = _heap->collection_set();
   for (size_t i = 0; i < _heap->num_regions(); i++) {
     ShenandoahHeapRegion* r = _heap->get_region(i);
-    if (cset->use_forward_table(r) && !r->is_pinned()) {
-      recycle_fwt_region(r, mutator_low_idx, mutator_high_idx, recycled_bytes, recycled_regions, young_recycled_regions);
+    if (cset->is_reusable(r) && !r->is_pinned()) {
+      recycle_cset_region_before_update(r, mutator_low_idx, mutator_high_idx, recycled_bytes, recycled_regions, young_recycled_regions);
     }
   }
 
@@ -2887,7 +2888,7 @@ void ShenandoahFreeSet::recycle_collection_set() {
                      byte_size_in_proper_unit(recycled_bytes), proper_unit_for_byte_size(recycled_bytes));
 }
 
-void ShenandoahFreeSet::release_fwt_tails() {
+void ShenandoahFreeSet::finish_cset_region_recycling() {
   shenandoah_assert_heaplocked();
   ShenandoahCollectionSet* cset = _heap->collection_set();
   size_t released_regions = 0;
@@ -2912,14 +2913,13 @@ void ShenandoahFreeSet::release_fwt_tails() {
           released_regions++;
           released_bytes += tail;
         }
-      } else if (available >= min_size && region_free >= min_size) {
+      } else if (r->was_early_recycled() && available >= min_size && region_free >= min_size) {
+        // Skip a NotFree region that wasn't early recycled (e.g. pinned).
         if (ShenandoahRecycleFWTBodies) {
           _partitions.decrease_used(ShenandoahFreeSetPartitionId::Mutator, region_free);
           released_regions++;
           released_bytes += region_free;
-
-          // No unretire_to_partition() here. reset_forwarding_table() releases the tail,
-          // rebuild_free_set() re-inserts the region into Mutator with recomputed accounting.
+          // No unretire_to_partition() here. The following rebuild_free_set() re-inserts the region into Mutator.
         }
       }
     }

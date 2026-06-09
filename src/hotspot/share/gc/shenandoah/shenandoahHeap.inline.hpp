@@ -538,8 +538,8 @@ template<class T>
 inline void ShenandoahHeap::marked_object_iterate(ShenandoahHeapRegion* region, T* cl, HeapWord* limit) {
   assert(! region->is_humongous_continuation(), "no humongous continuation regions here");
 
-  // FWT region has fillers instead of real marked originals.
-  if (collection_set()->use_forward_table(region)) return;
+  // A reusable region has fillers instead of real marked originals.
+  if (collection_set()->is_reusable(region)) return;
 
   ShenandoahMarkingContext* const ctx = marking_context();
 

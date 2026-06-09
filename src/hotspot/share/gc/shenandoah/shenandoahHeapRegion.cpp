@@ -82,6 +82,7 @@ ShenandoahHeapRegion::ShenandoahHeapRegion(HeapWord* start, size_t index, bool c
   _youth(0),
 #endif // SHENANDOAH_CENSUS_NOISE
   _needs_bitmap_reset(false),
+  _early_recycled(false),
   _fwd_table(this)
   {
 
@@ -303,6 +304,7 @@ void ShenandoahHeapRegion::recycle_early() {
 
       reset();
       _fwd_table.install_sentinels();
+      _early_recycled = true;
       return;
     default:
       report_illegal_transition("Should be cset");
@@ -336,6 +338,7 @@ void ShenandoahHeapRegion::reset_forwarding_table() {
   // Wipe table structure and stale mark words.
   SpaceMangler::mangle_region(MemRegion(forwarding_table_start(), end()));
   _fwd_table.reset();
+  _early_recycled = false;
 }
 
 void ShenandoahHeapRegion::make_trash() {

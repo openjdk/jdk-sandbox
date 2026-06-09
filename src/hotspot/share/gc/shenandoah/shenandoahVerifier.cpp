@@ -735,7 +735,7 @@ public:
         if (!in_generation(r)) {
           continue;
         }
-        if (_heap->collection_set()->use_forward_table(r)) {
+        if (_heap->collection_set()->is_reusable(r)) {
           // That region has no parsable objects anymore.
           // TODO: We could probably still parse marked locations and verify
           // the forwardees from the forwarding table.

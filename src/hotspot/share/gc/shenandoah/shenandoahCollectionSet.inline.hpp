@@ -68,6 +68,10 @@ bool ShenandoahCollectionSet::use_forward_table(ShenandoahHeapRegion* r) const {
   return _cset_map.use_forward_table(r);
 }
 
+bool ShenandoahCollectionSet::is_reusable(ShenandoahHeapRegion* r) const {
+  return _cset_map.use_forward_table(r);
+}
+
 size_t ShenandoahCollectionSet::get_live_bytes_in_old_regions() const {
   return _old_bytes_to_evacuate;
 }

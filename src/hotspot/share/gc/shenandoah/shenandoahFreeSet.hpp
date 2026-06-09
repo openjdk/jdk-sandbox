@@ -641,11 +641,10 @@ private:
   // log status, assuming lock has already been acquired by the caller.
   void log_status();
 
-  // Admit a cset region with a forwarding table into the Mutator free set and update the counters.
-  // Returns true if the region was admitted, false if it is too small to be useful.
-  bool recycle_fwt_region(ShenandoahHeapRegion* r,
-                          idx_t& mutator_low_idx, idx_t& mutator_high_idx,
-                          size_t& recycled_bytes, size_t& recycled_regions, size_t& young_recycled_regions);
+  // Admit a reusable CSet region's freed body into the Mutator free set; returns false if too small.
+  bool recycle_cset_region_before_update(ShenandoahHeapRegion* r,
+                                         idx_t& mutator_low_idx, idx_t& mutator_high_idx,
+                                         size_t& recycled_bytes, size_t& recycled_regions, size_t& young_recycled_regions);
 
 public:
   ShenandoahFreeSet(ShenandoahHeap* heap, size_t max_regions);
@@ -777,9 +776,10 @@ public:
   // for evacuation, invoke this to make regions available for mutator allocations.
   void move_regions_from_collector_to_mutator(size_t cset_regions);
 
-  // Add cset regions that have a forwarding table to the Mutator free set.
+  // Admit reusable CSet regions' freed bodies into the Mutator free set, before update-refs.
   void recycle_collection_set();
-  void release_fwt_tails();
+  // Release the reserved FWT tails of reusable CSet regions, after update-refs.
+  void finish_cset_region_recycling();
 
   void transfer_humongous_regions_from_mutator_to_old_collector(size_t xfer_regions, size_t humongous_waste_words);
 

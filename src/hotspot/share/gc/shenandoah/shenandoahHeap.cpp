@@ -792,10 +792,10 @@ bool ShenandoahHeap::is_in(const void* p) const {
   // Now check if we point to a live section in active region.
   ShenandoahHeapRegion* r = heap_region_containing(p);
   if (p >= r->top()) {
-    if (!_collection_set->use_forward_table(r)) {
+    if (!_collection_set->is_reusable(r)) {
       return false;
     }
-    // Partially recycled FWT region.
+    // Partially recycled region whose body was freed for reuse.
     return true;
   }
 
@@ -1468,7 +1468,7 @@ void ShenandoahHeap::trash_cset_regions() {
   ShenandoahHeapRegion* r;
   cset->clear_current_index();
   while ((r = cset->next()) != nullptr) {
-    if (cset->use_forward_table(r)) {
+    if (cset->is_reusable(r)) {
       bool has_live_objects = (r->top() != r->bottom());
       if (has_live_objects) {
         r->make_regular_from_cset();
@@ -1482,7 +1482,7 @@ void ShenandoahHeap::trash_cset_regions() {
     }
   }
 
-  free_set()->release_fwt_tails();
+  free_set()->finish_cset_region_recycling();
 
   cset->clear();
 }

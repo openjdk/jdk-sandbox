@@ -279,6 +279,9 @@ private:
 
   bool _needs_bitmap_reset;
 
+  // Not every reusable region is early recycled.
+  bool _early_recycled;
+
   ShenandoahForwardingTable _fwd_table;
 
 public:
@@ -536,6 +539,10 @@ public:
 
   inline void unset_needs_bitmap_reset() {
     _needs_bitmap_reset = false;
+  }
+
+  inline bool was_early_recycled() const {
+    return _early_recycled;
   }
 
   bool build_forwarding_table(size_t num_forwardings) {
