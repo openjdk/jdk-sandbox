@@ -314,6 +314,11 @@ class SharedRuntime: AllStatic {
     return      _shenandoah_keepalive_none_blob->entry_point();
   }
 
+  static address shenandoah_keepalive_narrow_none() {
+    assert(     _shenandoah_keepalive_narrow_none_blob != nullptr, "");
+    return      _shenandoah_keepalive_narrow_none_blob->entry_point();
+  }
+
   static address shenandoah_lrb_strong_none() {
     assert(     _shenandoah_lrb_strong_none_blob != nullptr, "");
     return      _shenandoah_lrb_strong_none_blob->entry_point();
@@ -349,6 +354,11 @@ class SharedRuntime: AllStatic {
     return      _shenandoah_keepalive_gp_blob->entry_point();
   }
 
+  static address shenandoah_keepalive_narrow_gp() {
+    assert(     _shenandoah_keepalive_narrow_gp_blob != nullptr, "");
+    return      _shenandoah_keepalive_narrow_gp_blob->entry_point();
+  }
+
   static address shenandoah_lrb_strong_gp() {
     assert(     _shenandoah_lrb_strong_gp_blob != nullptr, "");
     return      _shenandoah_lrb_strong_gp_blob->entry_point();
@@ -382,6 +392,10 @@ class SharedRuntime: AllStatic {
   static address shenandoah_keepalive_all() {
     assert(     _shenandoah_keepalive_all_blob != nullptr, "");
     return      _shenandoah_keepalive_all_blob->entry_point();
+  }
+  static address shenandoah_keepalive_narrow_all() {
+    assert(     _shenandoah_keepalive_narrow_all_blob != nullptr, "");
+    return      _shenandoah_keepalive_narrow_all_blob->entry_point();
   }
 
   static address shenandoah_lrb_strong_all() {

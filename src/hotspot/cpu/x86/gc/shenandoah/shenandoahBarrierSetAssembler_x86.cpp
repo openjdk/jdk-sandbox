@@ -992,19 +992,24 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
       __ mov(c_rarg0, _obj);
     }
 
+    bool clobbered_rax = push_save_register_if_live(masm, rax);
+
     // Go to runtime and handle the rest there.
-    // Use rax as scratch, as it will be saved if live. TODO: Really?
+    // Use rax as scratch, as it will be saved if live.
     if (has_live_vector_registers()) {
       __ call(RuntimeAddress(keepalive_runtime_entry_addr(SaveMode::All)), rax);
-    } else if (has_save_space_for_live_gp_registers(clobbered_c_rarg0, false, false)) {
-      save_live_gp_regs(masm, clobbered_c_rarg0, false, false);
+    } else if (has_save_space_for_live_gp_registers(clobbered_c_rarg0, false, true)) {
+      save_live_gp_regs(masm, clobbered_c_rarg0, false, true);
       __ call(RuntimeAddress(keepalive_runtime_entry_addr(SaveMode::Nothing)), rax);
-      restore_live_gp_regs(masm, clobbered_c_rarg0, false, false);
+      restore_live_gp_regs(masm, clobbered_c_rarg0, false, true);
     } else {
       __ call(RuntimeAddress(keepalive_runtime_entry_addr(SaveMode::GP)), rax);
     }
 
     // Restore the clobbered registers.
+    if (clobbered_rax) {
+      pop_save_register(masm, rax);
+    }
     if (clobbered_c_rarg0) {
       pop_save_register(masm, c_rarg0);
     }
@@ -1141,26 +1146,15 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
       clobbered_rax = push_save_register_if_live(masm, rax);
     }
 
-<<<<<<< HEAD
-    // Go to runtime and handle the rest there.
-    // Use rax as scratch, as it will be clobbered by result anyway.
-    __ call(RuntimeAddress(lrb_runtime_entry_addr()), rax);
-=======
-    // Decode if needed.
-    if (_narrow) {
-      __ decode_heap_oop_not_null(c_rarg0);
-    }
->>>>>>> 51a223e7ea8 (Initial version from Shenandoah LBE)
-
     // Go to runtime stub and handle the rest there.
     if (has_live_vector_registers()) {
-      __ call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::All)));
+      __ call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::All)), rax);
     } else if (has_save_space_for_live_gp_registers(clobbered_c_rarg0, clobbered_c_rarg1, true)) {
       save_live_gp_regs(masm, clobbered_c_rarg0, clobbered_c_rarg1, true);
-      __ call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::Nothing)));
+      __ call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::Nothing)), rax);
       restore_live_gp_regs(masm, clobbered_c_rarg0, clobbered_c_rarg1, true);
     } else {
-      __ call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::GP)));
+      __ call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::GP)), rax);
     }
 
     // Save the result where needed and restore the clobbered registers.

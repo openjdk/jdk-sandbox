@@ -1014,27 +1014,24 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
       __ mov(c_rarg0, _obj);
     }
 
-<<<<<<< HEAD
-    // Go to runtime and handle the rest there.
-    __ lea(lr, RuntimeAddress(lrb_runtime_entry_addr()));
-    __ blr(lr);
-=======
     // The runtime call will clobber r0 at return. If obj isn't r0 then we need
     // to save obj.
     if (_obj != r0) {
       clobbered_r0 = push_save_register_if_live(masm, r0);
     }
->>>>>>> 51a223e7ea8 (Initial version from Shenandoah LBE)
 
     // Go to runtime stub and handle the rest there.
     if (has_live_vector_registers()) {
-      __ far_call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::All)));
-    } else if (has_save_space_for_live_gp_registers(clobbered_c_rarg0, clobbered_c_rarg1, true)) {
-      save_live_gp_regs(masm, clobbered_c_rarg0, clobbered_c_rarg1, true);
-      __ far_call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::Nothing)));
-      restore_live_gp_regs(masm, clobbered_c_rarg0, clobbered_c_rarg1, true);
+      __ lea(lr, RuntimeAddress(lrb_runtime_entry_addr(SaveMode::All)));
+      __ blr(lr);
+    } else if (has_save_space_for_live_gp_registers(clobbered_c_rarg0, clobbered_c_rarg1, clobbered_r0)) {
+      save_live_gp_regs(masm, clobbered_c_rarg0, clobbered_c_rarg1, clobbered_r0);
+      __ lea(lr, RuntimeAddress(lrb_runtime_entry_addr(SaveMode::Nothing)));
+      __ blr(lr);
+      restore_live_gp_regs(masm, clobbered_c_rarg0, clobbered_c_rarg1, clobbered_r0);
     } else {
-      __ far_call(RuntimeAddress(lrb_runtime_entry_addr(SaveMode::GP)));
+      __ lea(lr, RuntimeAddress(lrb_runtime_entry_addr(SaveMode::GP)));
+      __ blr(lr);
     }
 
     // Save the result where needed and restore the clobbered registers.
@@ -1147,6 +1144,7 @@ void ShenandoahBarrierStubC2::post_init() {
   ShenandoahBarrierSetC2State* state = barrier_set_state();
   if (output->in_scratch_emit_size()) {
     state->inc_stubs_current_total_size(get_stub_size(this));
+    state->set_save_slots_stack_offset(output->gc_barrier_save_slots_offset_in_bytes());
     _needs_far_jump = true;
     return;
   }

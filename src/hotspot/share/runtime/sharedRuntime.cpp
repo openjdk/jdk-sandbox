@@ -188,13 +188,26 @@ void SharedRuntime::generate_stubs() {
       generate_gc_slow_call_blob(StubId::shared_shenandoah_keepalive_none_id,
                                  CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre),
                                  /* has_return = */ false, /* save_registers = */ false, /* save_vectors = */ false);
-    _shenandoah_keepalive_gp_blob = 
+    _shenandoah_keepalive_gp_blob =
       generate_gc_slow_call_blob(StubId::shared_shenandoah_keepalive_gp_id,
                                  CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre),
                                  /* has_return = */ false, /* save_registers = */ true, /* save_vectors = */ false);
     _shenandoah_keepalive_all_blob =
       generate_gc_slow_call_blob(StubId::shared_shenandoah_keepalive_all_id,
                                  CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre),
+                                 /* has_return = */ false, /* save_registers = */ true, /* save_vectors = */ true);
+
+    _shenandoah_keepalive_narrow_none_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_keepalive_narrow_none_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre_narrow),
+                                 /* has_return = */ false, /* save_registers = */ false, /* save_vectors = */ false);
+    _shenandoah_keepalive_narrow_gp_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_keepalive_narrow_gp_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre_narrow),
+                                 /* has_return = */ false, /* save_registers = */ true, /* save_vectors = */ false);
+    _shenandoah_keepalive_narrow_all_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_keepalive_narrow_all_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre_narrow),
                                  /* has_return = */ false, /* save_registers = */ true, /* save_vectors = */ true);
 
     _shenandoah_lrb_strong_none_blob =
@@ -212,15 +225,15 @@ void SharedRuntime::generate_stubs() {
 
     _shenandoah_lrb_strong_narrow_none_blob =
       generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_strong_narrow_none_id,
-                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow),
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow_narrow),
                                  /* has_return = */ true, /* save_registers = */ false, /* save_vectors = */ false);
     _shenandoah_lrb_strong_narrow_gp_blob =
       generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_strong_narrow_gp_id,
-                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow),
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow_narrow),
                                  /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ false);
     _shenandoah_lrb_strong_narrow_all_blob =
       generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_strong_narrow_all_id,
-                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow),
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow_narrow),
                                  /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ true);
 
     _shenandoah_lrb_weak_none_blob =
@@ -238,15 +251,15 @@ void SharedRuntime::generate_stubs() {
 
     _shenandoah_lrb_weak_narrow_none_blob =
       generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_weak_narrow_none_id,
-                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow),
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow_narrow),
                                  /* has_return = */ true, /* save_registers = */ false, /* save_vectors = */ false);
     _shenandoah_lrb_weak_narrow_gp_blob  =
       generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_weak_narrow_gp_id,
-                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow),
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow_narrow),
                                  /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ false);
     _shenandoah_lrb_weak_narrow_all_blob =
       generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_weak_narrow_all_id,
-                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow),
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow_narrow),
                                  /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ true);
 
     _shenandoah_lrb_phantom_none_blob =
@@ -264,15 +277,15 @@ void SharedRuntime::generate_stubs() {
 
     _shenandoah_lrb_phantom_narrow_none_blob =
       generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_phantom_narrow_none_id,
-                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow),
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow_narrow),
                                  /* has_return = */ true, /* save_registers = */ false, /* save_vectors = */ false);
     _shenandoah_lrb_phantom_narrow_gp_blob =
       generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_phantom_narrow_gp_id,
-                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow),
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow_narrow),
                                  /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ false);
     _shenandoah_lrb_phantom_narrow_all_blob =
       generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_phantom_narrow_all_id,
-                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow),
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow_narrow),
                                  /* has_return = */ true, /* save_registers = */ true, /* save_vectors = */ true);
   }
 #endif

@@ -1014,11 +1014,23 @@ bool ShenandoahBarrierSetC2State::needs_livein_data() const {
 address ShenandoahBarrierStubC2::keepalive_runtime_entry_addr(SaveMode save_mode) {
   switch (save_mode) {
     case SaveMode::Nothing:
-      return SharedRuntime::shenandoah_keepalive_none();
+      if (_narrow) {
+        return SharedRuntime::shenandoah_keepalive_narrow_none();
+      } else {
+        return SharedRuntime::shenandoah_keepalive_none();
+      }
     case SaveMode::GP:
-      return SharedRuntime::shenandoah_keepalive_gp();
+      if (_narrow) {
+        return SharedRuntime::shenandoah_keepalive_narrow_gp();
+      } else {
+        return SharedRuntime::shenandoah_keepalive_gp();
+      }
     case SaveMode::All:
-      return SharedRuntime::shenandoah_keepalive_all();
+      if (_narrow) {
+        return SharedRuntime::shenandoah_keepalive_narrow_all();
+      } else {
+        return SharedRuntime::shenandoah_keepalive_all();
+      }
   }
   ShouldNotReachHere();
   return nullptr;
