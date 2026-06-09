@@ -216,8 +216,8 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
     All
   };
 
-  address keepalive_runtime_entry_addr(SaveMode mode = SaveMode::All);
-  address lrb_runtime_entry_addr(SaveMode mode = SaveMode::All);
+  address keepalive_runtime_entry_addr(SaveMode mode);
+  address lrb_runtime_entry_addr(SaveMode mode);
 
   static ShenandoahBarrierStubC2* create(const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load);
   void post_init();

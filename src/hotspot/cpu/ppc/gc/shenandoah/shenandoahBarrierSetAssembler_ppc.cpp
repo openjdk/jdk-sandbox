@@ -1157,7 +1157,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
     SaveLiveRegisters slr(&masm, this);
 
     // Go to runtime and handle the rest there.
-    __ call_VM_leaf(keepalive_runtime_entry_addr(), _obj);
+    __ call_VM_leaf(keepalive_runtime_entry_addr(SaveMode::Nothing), _obj);
   }
 
   if (L_done != nullptr) {
@@ -1228,7 +1228,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
     }
 
     // Go to runtime and handle the rest there.
-    __ call_VM_leaf(lrb_runtime_entry_addr(), c_rarg0, c_rarg1);
+    __ call_VM_leaf(lrb_runtime_entry_addr(SaveMode::Nothing), c_rarg0, c_rarg1);
 
     // Save the result where needed.
     if (_obj != R3_RET) {

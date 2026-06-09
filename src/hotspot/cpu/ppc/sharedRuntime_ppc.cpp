@@ -3805,6 +3805,8 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
   MacroAssembler* masm = new MacroAssembler(&code);
   address start = __ pc();
 
+  Register tmp1 = R10_ARG8;
+
   int frame_size_in_bytes = 0;
   OopMap* map = nullptr;
   if (save_registers) {
@@ -3816,7 +3818,9 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
   } else {
     frame_size_in_bytes = frame::native_abi_reg_args_size / VMRegImpl::stack_slot_size;
     map = new OopMap(frame_size_in_bytes, 0);
-    // FIXME: enter frame
+    __ mflr(tmp1);
+    __ std(tmp1, _abi0(lr), R1_SP);  // save return pc
+    __ push_frame_reg_args(0, tmp1);
   }
   address frame_complete_pc = __ pc();
 
@@ -3852,7 +3856,9 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
   if (save_registers) {
     RegisterSaver::restore_live_registers_and_pop_frame(masm, frame_size_in_bytes, /* restore_ctr: */ true, save_vectors);
   } else {
-    // FIXME: leave frame
+    __ pop_frame();
+    __ ld(tmp1, _abi0(lr), R1_SP);
+    __ mtlr(tmp1);
   }
   __ blr();
 
