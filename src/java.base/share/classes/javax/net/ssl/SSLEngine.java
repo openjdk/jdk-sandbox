@@ -417,7 +417,7 @@ import java.util.function.BiFunction;
  * {@link SSLContext#createQUICEngine(String, int, QuicTransport)}
  * from an initialized {@code SSLContext}.
  * <P>
- * In this mode of operation, {@code wrap()} and {@code unwrap()} methods
+ * In this mode of operation, the {@code wrap()} and {@code unwrap()} methods
  * operate on handshake data only. They do not produce
  * or consume application data.
  * <P>
