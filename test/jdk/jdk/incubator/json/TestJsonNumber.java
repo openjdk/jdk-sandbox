@@ -346,6 +346,7 @@ public class TestJsonNumber {
             assertEquals("0.1", JsonNumber.of(0.1d).toString());
             assertEquals("42.0", JsonNumber.of(42.0d).toString());
             assertEquals("42.0", JsonNumber.of(420e-1).toString());
+            assertEquals("4.2E7", JsonNumber.of(42e6).toString());
             assertEquals(JsonNumber.of(Double.MAX_VALUE).toString(), Double.valueOf(Double.MAX_VALUE).toString());
             assertThrows(IllegalArgumentException.class, () -> JsonNumber.of("foo"));
             assertThrows(IllegalArgumentException.class, () -> JsonNumber.of("true"));
@@ -366,6 +367,7 @@ public class TestJsonNumber {
             assertEquals(42, JsonNumber.of(42L).asInt());
             assertEquals(42, JsonNumber.of(42.0d).asInt());
             assertEquals(42, JsonNumber.of(420e-1).asInt());
+            assertEquals(42_000_000, JsonNumber.of(42e6).asInt());
             assertEquals(42, JsonNumber.of("42").asInt());
             assertEquals(Integer.MAX_VALUE, JsonNumber.of(Integer.MAX_VALUE).asInt());
             assertEquals(Integer.MAX_VALUE, JsonNumber.of("2147483647").asInt());
@@ -377,6 +379,7 @@ public class TestJsonNumber {
             assertEquals(42L, JsonNumber.of(42L).asLong());
             assertEquals(42L, JsonNumber.of(42.0d).asLong());
             assertEquals(42L, JsonNumber.of(420e-1).asLong());
+            assertEquals(42_000_000L, JsonNumber.of(42e6).asLong());
             assertEquals(42L, JsonNumber.of("42").asLong());
             assertEquals(Long.MAX_VALUE, JsonNumber.of("9223372036854775807").asLong());
             assertEquals(Long.MAX_VALUE, JsonNumber.of(Long.MAX_VALUE).asLong());
