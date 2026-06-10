@@ -544,10 +544,6 @@ public abstract class SSLContextImpl extends SSLContextSpi {
         return availableProtocols;
     }
 
-    public boolean isUsableWithQuic() {
-        return trustManager instanceof X509TrustManagerImpl;
-    }
-
     /*
      * The SSLContext implementation for SSL/(D)TLS algorithm
      *
