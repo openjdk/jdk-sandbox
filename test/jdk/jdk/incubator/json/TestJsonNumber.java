@@ -344,6 +344,8 @@ public class TestJsonNumber {
             assertEquals(JsonNumber.of(Long.MAX_VALUE).toString(), Long.valueOf(Long.MAX_VALUE).toString());
             assertEquals(JsonNumber.of(0.1f).toString(), Double.valueOf(0.1f).toString());
             assertEquals("0.1", JsonNumber.of(0.1d).toString());
+            assertEquals("42.0", JsonNumber.of(42.0d).toString());
+            assertEquals("42.0", JsonNumber.of(420e-1).toString());
             assertEquals(JsonNumber.of(Double.MAX_VALUE).toString(), Double.valueOf(Double.MAX_VALUE).toString());
             assertThrows(IllegalArgumentException.class, () -> JsonNumber.of("foo"));
             assertThrows(IllegalArgumentException.class, () -> JsonNumber.of("true"));

@@ -113,10 +113,6 @@ public non-sealed interface JsonNumber extends JsonValue {
      * Creates a JSON number from the given {@code double} value.
      * The string representation of the JSON number created is produced by applying
      * {@link Double#toString(double)} on {@code num}.
-     * <p>
-     * If {@code num} represents an integral value despite having a fractional
-     * part syntactically (for example, {@code 1.0d}), the resulting JSON number's
-     * string representation omits the fractional part (for example, {@code "1"}).
      *
      * @param num the given {@code double} value.
      * @return a JSON number created from the {@code double} value
