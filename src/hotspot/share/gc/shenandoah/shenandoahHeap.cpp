@@ -1471,8 +1471,8 @@ void ShenandoahHeap::trash_cset_regions() {
     if (cset->is_reusable(r)) {
       bool has_live_objects = (r->top() != r->bottom());
       if (has_live_objects) {
-        marking_context()->clear_bitmap(r);
         r->make_regular_from_cset();
+        marking_context()->clear_bitmap(r);
       } else if (free_set()->membership(r->index()) == ShenandoahFreeSetPartitionId::NotFree) {
         r->make_trash();
       } else {
