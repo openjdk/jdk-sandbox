@@ -127,7 +127,7 @@ HeapWord* ShenandoahHeapRegion::allocate(size_t size, const ShenandoahAllocReque
     if (!ShenandoahCSetRegionTLAB && is_cset()) {
       return nullptr;
     }
-    if (fwt_start != nullptr) {
+    if (ShenandoahHeap::heap()->collection_set()->is_reusable(this)) {
       // Use marking context to avoid full scan.
       ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
       const size_t sentinel_words = ShenandoahHeap::min_fill_size();

@@ -1227,7 +1227,14 @@ void ShenandoahVerifier::verify_no_fwt_sentinel_refs() {
 
   for (size_t i = 0; i < _heap->num_regions(); i++) {
     ShenandoahHeapRegion* r = _heap->get_region(i);
-    if (r->is_cset() || r->is_trash() || !r->is_active()) continue;
+    const bool unparsable = r->is_cset() || r->is_trash() || !r->is_active() || r->is_humongous_continuation();
+    if (unparsable) continue;
+    if (r->is_humongous_start()) {
+      // marked_object_iterate handles regular regions only; scan the humongous object directly.
+      oop obj = cast_to_oop(r->bottom());
+      if (_heap->marking_context()->is_marked(obj)) cl.do_object(obj);
+      continue;
+    }
     _heap->marked_object_iterate(r, &cl);
   }
 }

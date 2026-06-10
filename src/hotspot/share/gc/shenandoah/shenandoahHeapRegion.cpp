@@ -336,7 +336,12 @@ void ShenandoahHeapRegion::make_regular_from_cset() {
 void ShenandoahHeapRegion::reset_forwarding_table() {
   _fwd_table.remove_sentinels();
   // Wipe table structure and stale mark words.
-  SpaceMangler::mangle_region(MemRegion(forwarding_table_start(), end()));
+  MemRegion tail(forwarding_table_start(), end());
+  if (ZapUnusedHeapArea) {
+    SpaceMangler::mangle_region(tail);
+  } else {
+    Copy::zero_to_words(tail.start(), tail.word_size());
+  }
   _fwd_table.reset();
   _early_recycled = false;
 }
