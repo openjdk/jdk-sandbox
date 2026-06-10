@@ -34,7 +34,7 @@ import java.util.Map;
 import java.util.Set;
 import javax.net.ssl.HandshakeCompletedEvent;
 import javax.net.ssl.HandshakeCompletedListener;
-import javax.net.ssl.QuicTransport;
+import javax.net.ssl.QuicTLSCallbacks;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLSocket;
@@ -44,7 +44,7 @@ import javax.net.ssl.SSLSocket;
  */
 final class TransportContext implements ConnectionContext {
     final SSLTransport              transport;
-    final QuicTransport             quicTransport;
+    final QuicTLSCallbacks          quicTLSCallbacks;
 
     // registered plaintext consumers
     final Map<Byte, SSLConsumer>    consumers;
@@ -103,9 +103,9 @@ final class TransportContext implements ConnectionContext {
     //
     // Called by SSLEngineImpl
     TransportContext(SSLContextImpl sslContext, SSLTransport transport,
-            QuicTransport quicTransport,
+            QuicTLSCallbacks quicTLSCallbacks,
             InputRecord inputRecord, OutputRecord outputRecord) {
-        this(sslContext, transport, quicTransport,
+        this(sslContext, transport, quicTLSCallbacks,
                 new SSLConfiguration(sslContext, false),
                 inputRecord, outputRecord, true);
     }
@@ -134,11 +134,11 @@ final class TransportContext implements ConnectionContext {
     }
 
     private TransportContext(SSLContextImpl sslContext, SSLTransport transport,
-            QuicTransport quicTransport,
+            QuicTLSCallbacks quicTLSCallbacks,
             SSLConfiguration sslConfig, InputRecord inputRecord,
             OutputRecord outputRecord, boolean isUnsureMode) {
         this.transport = transport;
-        this.quicTransport = quicTransport;
+        this.quicTLSCallbacks = quicTLSCallbacks;
         this.sslContext = sslContext;
         this.inputRecord = inputRecord;
         this.outputRecord = outputRecord;
@@ -455,8 +455,8 @@ final class TransportContext implements ConnectionContext {
         }
 
         // QUIC: send fatal alert along with the exception
-        if (quicTransport != null) {
-            quicTransport.cryptoError(alert.id, closeReason);
+        if (quicTLSCallbacks != null) {
+            quicTLSCallbacks.cryptoError(alert.id, closeReason);
         }
 
         if (closeReason instanceof SSLException) {

@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.BiFunction;
-import javax.net.ssl.QuicTransport;
+import javax.net.ssl.QuicTLSCallbacks;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
@@ -73,8 +73,8 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
      * This Engine will not be able to cache sessions, but must renegotiate
      * everything by hand.
      */
-    SSLEngineImpl(SSLContextImpl sslContext, QuicTransport quicTransport) {
-        this(sslContext, null, -1, quicTransport);
+    SSLEngineImpl(SSLContextImpl sslContext, QuicTLSCallbacks quicTLSCallbacks) {
+        this(sslContext, null, -1, quicTLSCallbacks);
     }
 
     /**
@@ -88,29 +88,29 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
      * Constructor for a QUIC SSLEngine from SSLContext.
      */
     SSLEngineImpl(SSLContextImpl sslContext,
-            String host, int port, QuicTransport quicTransport) {
+            String host, int port, QuicTLSCallbacks quicTLSCallbacks) {
         super(host, port);
         this.sslContext = sslContext;
         HandshakeHash handshakeHash = new HandshakeHash();
         if (sslContext.isDTLS()) {
-            if (quicTransport != null) {
+            if (quicTLSCallbacks != null) {
                 throw new IllegalArgumentException(
                         "DTLS context does not support QUIC");
             }
             this.conContext = new TransportContext(sslContext, this,
-                    (QuicTransport)null,
+                    (QuicTLSCallbacks)null,
                     new DTLSInputRecord(handshakeHash),
                     new DTLSOutputRecord(handshakeHash));
         } else {
-            if (quicTransport != null) {
+            if (quicTLSCallbacks != null) {
                 this.conContext = new TransportContext(sslContext, this,
-                        quicTransport,
-                        new QuicEngineInputRecord(handshakeHash, quicTransport),
-                        new QuicEngineOutputRecord(handshakeHash, quicTransport));
+                        quicTLSCallbacks,
+                        new QuicEngineInputRecord(handshakeHash, quicTLSCallbacks),
+                        new QuicEngineOutputRecord(handshakeHash, quicTLSCallbacks));
                 this.conContext.setQuic(true);
             } else {
                 this.conContext = new TransportContext(sslContext, this,
-                        (QuicTransport)null,
+                        (QuicTLSCallbacks)null,
                         new SSLEngineInputRecord(handshakeHash),
                         new SSLEngineOutputRecord(handshakeHash));
             }

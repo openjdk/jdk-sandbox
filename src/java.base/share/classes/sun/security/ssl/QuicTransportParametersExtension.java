@@ -31,7 +31,7 @@ import java.nio.ByteBuffer;
 import sun.security.ssl.SSLExtension.ExtensionConsumer;
 import sun.security.ssl.SSLHandshake.HandshakeMessage;
 
-import javax.net.ssl.QuicTransport;
+import javax.net.ssl.QuicTLSCallbacks;
 
 /**
  * Pack of the "quic_transport_parameters" extensions [RFC 9001].
@@ -65,9 +65,9 @@ final class QuicTransportParametersExtension {
             if (!chc.sslConfig.isQuic) {
                 return null;
             }
-            QuicTransport quicTransport =
-                    chc.conContext.quicTransport;
-            ByteBuffer buf = quicTransport.localQuicTransportParameters();
+            QuicTLSCallbacks quicTLSCallbacks =
+                    chc.conContext.quicTLSCallbacks;
+            ByteBuffer buf = quicTLSCallbacks.localQuicTransportParameters();
             if (buf == null) {
                 // the peer will likely fail the connection
                 return null;
@@ -95,10 +95,10 @@ final class QuicTransportParametersExtension {
                         "Client sent the quic_transport_parameters " +
                                 "extension in a non-QUIC context");
             }
-            QuicTransport quicTransport =
-                    shc.conContext.quicTransport;
+            QuicTLSCallbacks quicTLSCallbacks =
+                    shc.conContext.quicTLSCallbacks;
             try {
-                quicTransport.remoteQuicTransportParameters(buffer);
+                quicTLSCallbacks.remoteQuicTransportParameters(buffer);
             } catch (Exception e) {
                 throw shc.conContext.fatal(Alert.INTERNAL_ERROR, e);
             }
@@ -140,9 +140,9 @@ final class QuicTransportParametersExtension {
             if (!shc.sslConfig.isQuic) {
                 return null;
             }
-            QuicTransport quicTransport =
-                    shc.conContext.quicTransport;
-            ByteBuffer buf = quicTransport.localQuicTransportParameters();
+            QuicTLSCallbacks quicTLSCallbacks =
+                    shc.conContext.quicTLSCallbacks;
+            ByteBuffer buf = quicTLSCallbacks.localQuicTransportParameters();
             if (buf == null) {
                 // the peer will likely fail the connection
                 return null;
@@ -169,10 +169,10 @@ final class QuicTransportParametersExtension {
                         "Server sent the quic_transport_parameters " +
                                 "extension in a non-QUIC context");
             }
-            QuicTransport quicTransport =
-                    chc.conContext.quicTransport;
+            QuicTLSCallbacks quicTLSCallbacks =
+                    chc.conContext.quicTLSCallbacks;
             try {
-                quicTransport.remoteQuicTransportParameters(buffer);
+                quicTLSCallbacks.remoteQuicTransportParameters(buffer);
             } catch (Exception e) {
                 throw chc.conContext.fatal(Alert.INTERNAL_ERROR, e);
             }

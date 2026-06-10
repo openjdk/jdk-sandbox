@@ -33,7 +33,7 @@ import java.nio.ByteBuffer;
  * to communicate with a QUIC transport.
  * <P>
  * The set of cipher suites supported by the {@code SSLEngine} may be different
- * from the set supported by {@code QuicTransport}. The {@code SSLEngine} calls
+ * from the set supported by the QUIC transport. The {@code SSLEngine} calls
  * {@link #getSupportedCipherSuites()}, and then only negotiates cipher suites
  * that are both {@link SSLEngine#getEnabledCipherSuites() enabled}
  * and supported.
@@ -64,7 +64,7 @@ import java.nio.ByteBuffer;
  * @see SSLEngine
  * @since 27
  */
-public interface QuicTransport {
+public interface QuicTLSCallbacks {
     /**
      * Called when the read secrets associated
      * with the Handshake key space are available.
@@ -145,18 +145,19 @@ public interface QuicTransport {
     void deriveApplicationWriteSecrets(SecretKey secretKey);
 
     /**
-     * Called to retrieve the names of the cipher suites supported by this transport.
+     * Called to retrieve the names of the cipher suites supported by
+     * this QUIC transport.
      * <p>
-     * Only the cipher suites supported by the QuicTransport
+     * Only the cipher suites supported by the QUIC transport
      * and enabled by the {@link SSLEngine#getEnabledCipherSuites() SSLEngine}
      * will be offered.
-     * @return the names of the cipher suites supported by this transport
+     * @return the names of the cipher suites supported by this QUIC transport
      */
     String[] getSupportedCipherSuites();
 
     /**
      * Called to retrieve the contents of the QUIC transport parameters extension
-     * @return the QUIC transport parameters offered by this QuicTransport.
+     * @return the QUIC transport parameters offered by this transport.
      */
     ByteBuffer localQuicTransportParameters();
 

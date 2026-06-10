@@ -35,7 +35,7 @@ import java.util.*;
 import java.util.AbstractMap.SimpleImmutableEntry;
 import java.util.function.Function;
 import javax.crypto.SecretKey;
-import javax.net.ssl.QuicTransport;
+import javax.net.ssl.QuicTLSCallbacks;
 import javax.net.ssl.SNIServerName;
 import javax.net.ssl.SSLHandshakeException;
 import javax.security.auth.x500.X500Principal;
@@ -180,7 +180,7 @@ abstract class HandshakeContext implements ConnectionContext {
         }
         this.maximumActiveProtocol = maximumVersion;
         this.activeCipherSuites = getActiveCipherSuites(sslConfig,
-                conContext.quicTransport,
+                conContext.quicTLSCallbacks,
                 this.activeProtocols, algorithmConstraints);
         if (activeCipherSuites.isEmpty()) {
             throw new SSLHandshakeException("No appropriate cipher suite");
@@ -322,7 +322,7 @@ abstract class HandshakeContext implements ConnectionContext {
 
     private static List<CipherSuite> getActiveCipherSuites(
             SSLConfiguration sslConfig,
-            QuicTransport quicTransport,
+            QuicTLSCallbacks quicTLSCallbacks,
             List<ProtocolVersion> enabledProtocols,
             AlgorithmConstraints algorithmConstraints) {
 
@@ -356,9 +356,9 @@ abstract class HandshakeContext implements ConnectionContext {
                 }
             }
         }
-        if (quicTransport != null) {
+        if (quicTLSCallbacks != null) {
             Set<String> supportedByQuic
-                    = Set.of(quicTransport.getSupportedCipherSuites());
+                    = Set.of(quicTLSCallbacks.getSupportedCipherSuites());
             suites.removeIf(cs -> !supportedByQuic.contains(cs.name));
         }
 

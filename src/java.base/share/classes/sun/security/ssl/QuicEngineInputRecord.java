@@ -27,7 +27,7 @@ package sun.security.ssl;
 
 import sun.security.ssl.SSLCipher.SSLReadCipher;
 
-import javax.net.ssl.QuicTransport;
+import javax.net.ssl.QuicTLSCallbacks;
 import javax.net.ssl.SSLProtocolException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -40,13 +40,13 @@ final class QuicEngineInputRecord extends InputRecord implements SSLRecord {
 
     // Cache for incomplete handshake messages.
     private ByteBuffer handshakeBuffer = null;
-    final QuicTransport quicTransport;
+    final QuicTLSCallbacks quicTLSCallbacks;
     // 0 - initial, 1 - handshake, 2 - one-rtt
     int epoch;
 
-    QuicEngineInputRecord(HandshakeHash handshakeHash, QuicTransport quicTransport) {
+    QuicEngineInputRecord(HandshakeHash handshakeHash, QuicTLSCallbacks quicTLSCallbacks) {
         super(handshakeHash, SSLReadCipher.nullTlsReadCipher());
-        this.quicTransport = quicTransport;
+        this.quicTLSCallbacks = quicTLSCallbacks;
     }
 
     @Override
@@ -97,9 +97,9 @@ final class QuicEngineInputRecord extends InputRecord implements SSLRecord {
         epoch++;
         switch(epoch) {
             case 1->
-                    quicTransport.deriveHandshakeReadSecrets(readCipher.baseSecret);
+                    quicTLSCallbacks.deriveHandshakeReadSecrets(readCipher.baseSecret);
             case 2->
-                    quicTransport.deriveApplicationReadSecrets(readCipher.baseSecret);
+                    quicTLSCallbacks.deriveApplicationReadSecrets(readCipher.baseSecret);
             default ->
                 throw new AssertionError("Unexpected key epoch");
         }

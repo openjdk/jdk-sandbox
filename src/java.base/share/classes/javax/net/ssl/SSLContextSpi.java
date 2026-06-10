@@ -149,24 +149,24 @@ public abstract class SSLContextSpi {
      * <P>
      * Applications using this factory method are providing no hints
      * for an internal session reuse strategy. If hints are desired,
-     * {@link #engineCreateQUICEngine(String, int, QuicTransport)}
+     * {@link #engineCreateQUICEngine(String, int, QuicTLSCallbacks)}
      * should be used instead.
      *
      * @implSpec
      * The implementation in this class throws
      * {@code UnsupportedOperationException} and performs no other action.
      *
-     * @param   quicTransport the QUIC transport associated with this engine
+     * @param   quicTLSCallbacks the QUIC transport associated with this engine
      * @return  the {@code SSLEngine} object
      * @throws  UnsupportedOperationException if the underlying provider
      *          does not implement the operation.
      * @throws  IllegalStateException if the SSLContextImpl requires
      *          initialization and the {@code init()} has not been called
      *
-     * @see     SSLContext#createQUICEngine(QuicTransport)
+     * @see     SSLContext#createQUICEngine(QuicTLSCallbacks)
      * @since   27
      */
-    protected SSLEngine engineCreateQUICEngine(QuicTransport quicTransport) {
+    protected SSLEngine engineCreateQUICEngine(QuicTLSCallbacks quicTLSCallbacks) {
         throw new UnsupportedOperationException();
     }
 
@@ -182,7 +182,7 @@ public abstract class SSLContextSpi {
      *
      * @param host the non-authoritative name of the host
      * @param port the non-authoritative port
-     * @param quicTransport the QUIC transport associated with this engine
+     * @param quicTLSCallbacks the QUIC transport associated with this engine
      * @return  the {@code SSLEngine} Object
      * @throws IllegalStateException if the SSLContextImpl requires
      *         initialization and the {@code engineInit()}
@@ -190,10 +190,10 @@ public abstract class SSLContextSpi {
      * @throws UnsupportedOperationException if the underlying provider
      *         does not implement the operation.
      *
-     * @see     SSLContext#createQUICEngine(String, int, QuicTransport)
+     * @see     SSLContext#createQUICEngine(String, int, QuicTLSCallbacks)
      * @since   27
      */
-    protected SSLEngine engineCreateQUICEngine(String host, int port, QuicTransport quicTransport) {
+    protected SSLEngine engineCreateQUICEngine(String host, int port, QuicTLSCallbacks quicTLSCallbacks) {
         throw new UnsupportedOperationException();
     }
 

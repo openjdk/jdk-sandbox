@@ -24,7 +24,6 @@
  */
 package jdk.internal.net.http.quic.tls;
 
-import jdk.internal.net.http.common.Log;
 import jdk.internal.net.http.quic.QuicKeyUnavailableException;
 import jdk.internal.net.http.quic.QuicOneRttContext;
 import jdk.internal.net.http.quic.QuicTLSEngine;
@@ -40,7 +39,7 @@ import javax.crypto.AEADBadTagException;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.ShortBufferException;
-import javax.net.ssl.QuicTransport;
+import javax.net.ssl.QuicTLSCallbacks;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
@@ -64,7 +63,7 @@ import static jdk.internal.net.http.quic.QuicTLSEngine.KeySpace.*;
  * The implementation of this class uses the {@link QuicKeyManager} to maintain
  * all state relating to keys for each encryption levels.
  */
-public final class QuicTLSEngineImpl implements QuicTLSEngine, QuicTransport {
+public final class QuicTLSEngineImpl implements QuicTLSEngine, QuicTLSCallbacks {
 
     static final long BASE_CRYPTO_ERROR = 256;
 

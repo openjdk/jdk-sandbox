@@ -28,7 +28,7 @@ package sun.security.ssl;
 import sun.security.ssl.SSLCipher.SSLWriteCipher;
 
 import javax.crypto.SecretKey;
-import javax.net.ssl.QuicTransport;
+import javax.net.ssl.QuicTLSCallbacks;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.LinkedList;
@@ -39,13 +39,13 @@ import java.util.LinkedList;
 final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
 
     private final HandshakeFragment fragmenter = new HandshakeFragment();
-    private final QuicTransport quicTransport;
+    private final QuicTLSCallbacks quicTLSCallbacks;
 
     private volatile boolean isCloseWaiting;
 
-    QuicEngineOutputRecord(HandshakeHash handshakeHash, QuicTransport quicTransport) {
+    QuicEngineOutputRecord(HandshakeHash handshakeHash, QuicTLSCallbacks quicTLSCallbacks) {
         super(handshakeHash, SSLWriteCipher.nullTlsWriteCipher());
-        this.quicTransport = quicTransport;
+        this.quicTLSCallbacks = quicTLSCallbacks;
 
         this.packetSize = SSLRecord.maxRecordSize;
         this.protocolVersion = ProtocolVersion.NONE;
@@ -185,9 +185,9 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
                 currentPacketSpace++;
                 switch(currentPacketSpace) {
                     case 1->
-                            quicTransport.deriveHandshakeWriteSecrets(baseSecret);
+                            quicTLSCallbacks.deriveHandshakeWriteSecrets(baseSecret);
                     case 2->
-                            quicTransport.deriveApplicationWriteSecrets(baseSecret);
+                            quicTLSCallbacks.deriveApplicationWriteSecrets(baseSecret);
                     default ->
                             throw new AssertionError("Unexpected key epoch");
                 }
@@ -208,9 +208,9 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
                 currentPacketSpace++;
                 switch(currentPacketSpace) {
                     case 1->
-                            quicTransport.deriveHandshakeWriteSecrets(hsMemo.nextKey);
+                            quicTLSCallbacks.deriveHandshakeWriteSecrets(hsMemo.nextKey);
                     case 2->
-                            quicTransport.deriveApplicationWriteSecrets(hsMemo.nextKey);
+                            quicTLSCallbacks.deriveApplicationWriteSecrets(hsMemo.nextKey);
                     default ->
                             throw new AssertionError("Unexpected key epoch");
                 }

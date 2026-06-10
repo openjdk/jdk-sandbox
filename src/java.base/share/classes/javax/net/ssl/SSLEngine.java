@@ -411,10 +411,10 @@ import java.util.function.BiFunction;
  * In this mode of operation, QUIC is responsible for confidentiality
  * and integrity protection, and for reliable delivery of handshake data.
  * The {@code SSLEngine} sends and receives handshake messages,
- * and provides updates to QUIC through the {@link QuicTransport} interface.
+ * and provides updates to QUIC through the {@link QuicTLSCallbacks} interface.
  * <P>
  * A QUIC-supporting {@code SSLEngine} is created by calling
- * {@link SSLContext#createQUICEngine(String, int, QuicTransport)}
+ * {@link SSLContext#createQUICEngine(String, int, QuicTLSCallbacks)}
  * from an initialized {@code SSLContext}.
  * <P>
  * In this mode of operation, the {@code wrap()} and {@code unwrap()} methods
@@ -437,7 +437,7 @@ import java.util.function.BiFunction;
  * @see SSLServerSocket
  * @see SSLSession
  * @see java.net.Socket
- * @see QuicTransport
+ * @see QuicTLSCallbacks
  *
  * @since 1.5
  * @author Brad R. Wetmore
