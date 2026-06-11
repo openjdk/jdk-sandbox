@@ -208,7 +208,7 @@ public sealed interface JsonValue permits JsonString, JsonNumber, JsonObject, Js
     /**
      * {@return an {@code int} if this {@code JsonValue} is an instance of {@link JsonNumber}
      * and it can be converted from its string representation; otherwise, throws a
-     * {@code JsonValueException}}} That is, it can be
+     * {@code JsonValueException}} That is, it can be
      * expressed as a whole number and is within the range of
      * {@link Integer#MIN_VALUE} and {@link Integer#MAX_VALUE}. This occurs,
      * even if the string contains an exponent or a fractional part consisting of

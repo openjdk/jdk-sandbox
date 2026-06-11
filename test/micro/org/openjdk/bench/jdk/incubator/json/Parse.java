@@ -20,7 +20,7 @@
  * or visit www.oracle.com if you need additional information or have any
  * questions.
  */
-package micro.org.openjdk.bench.jdk.incubator.util.json;
+package org.openjdk.bench.jdk.incubator.json;
 
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
