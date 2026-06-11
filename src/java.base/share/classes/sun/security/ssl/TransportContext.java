@@ -178,15 +178,7 @@ final class TransportContext implements ConnectionContext {
                 byte type = HandshakeContext.getHandshakeType(this,
                         plaintext);
                 if (handshakeContext == null) {
-                    if (type == SSLHandshake.KEY_UPDATE.id ||
-                            type == SSLHandshake.NEW_SESSION_TICKET.id) {
-                        if (!isNegotiated) {
-                            throw fatal(Alert.UNEXPECTED_MESSAGE,
-                                    "Unexpected unnegotiated post-handshake" +
-                                            " message: " +
-                                            SSLHandshake.nameOf(type));
-                        }
-
+                    if (isNegotiated && protocolVersion.useTLS13PlusSpec()) {
                         if (!PostHandshakeContext.isConsumable(this, type)) {
                             throw fatal(Alert.UNEXPECTED_MESSAGE,
                                     "Unexpected post-handshake message: " +
