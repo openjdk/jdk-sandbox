@@ -295,23 +295,31 @@ public class QuicSSLEngineTemplate extends SSLContextTemplate {
 
     }
 
-    private static void logEngineStatus(SSLEngine engine) {
+    protected static void logEngineStatus(SSLEngine engine) {
         log("\tCurrent HS State: " + engine.getHandshakeStatus());
-        log("\tisInboundDone() : " + engine.isInboundDone());
-        log("\tisOutboundDone(): " + engine.isOutboundDone());
+        if (engine.isInboundDone()) {
+            log("\tisInboundDone() : " + engine.isInboundDone());
+        }
+        if (engine.isOutboundDone()) {
+            log("\tisOutboundDone(): " + engine.isOutboundDone());
+        }
     }
 
-    private static void logEngineStatus(
+    protected static void logEngineStatus(
             SSLEngine engine, SSLEngineResult result) {
-        log("\tResult Status    : " + result.getStatus());
-        log("\tResult HS Status : " + result.getHandshakeStatus());
-        log("\tEngine HS Status : " + engine.getHandshakeStatus());
-        log("\tisInboundDone()  : " + engine.isInboundDone());
-        log("\tisOutboundDone() : " + engine.isOutboundDone());
-        log("\tMore Result      : " + result);
+        log("\tResult           : " + result);
+        if (result.getHandshakeStatus() != engine.getHandshakeStatus()) {
+            log("\tEngine HS Status : " + engine.getHandshakeStatus());
+        }
+        if (engine.isInboundDone()) {
+            log("\tisInboundDone() : " + engine.isInboundDone());
+        }
+        if (engine.isOutboundDone()) {
+            log("\tisOutboundDone(): " + engine.isOutboundDone());
+        }
     }
 
-    private static void log(String message) {
+    protected static void log(String message) {
         System.err.println(message);
     }
 

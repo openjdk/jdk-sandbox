@@ -163,18 +163,4 @@ public class PostHandshakeProcessingTest extends QuicSSLEngineTemplate {
             sTOc.compact();
         }
     }
-
-    private static void logEngineStatus(
-            SSLEngine engine, SSLEngineResult result) {
-        log("\tResult Status    : " + result.getStatus());
-        log("\tResult HS Status : " + result.getHandshakeStatus());
-        log("\tEngine HS Status : " + engine.getHandshakeStatus());
-        log("\tisInboundDone()  : " + engine.isInboundDone());
-        log("\tisOutboundDone() : " + engine.isOutboundDone());
-        log("\tMore Result      : " + result);
-    }
-
-    private static void log(String message) {
-        System.err.println(message);
-    }
 }
