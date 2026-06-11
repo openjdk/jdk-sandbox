@@ -35,14 +35,11 @@ import java.util.*;
 import javax.crypto.KDF;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.HKDFParameterSpec;
-import javax.crypto.spec.IvParameterSpec;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLHandshakeException;
 import javax.net.ssl.SSLProtocolException;
 import sun.security.ssl.CipherSuite.KeyExchange;
 import sun.security.ssl.ClientHello.ClientHelloMessage;
-import sun.security.ssl.SSLCipher.SSLReadCipher;
-import sun.security.ssl.SSLCipher.SSLWriteCipher;
 import sun.security.ssl.SSLHandshake.HandshakeMessage;
 import sun.security.ssl.SupportedVersionsExtension.SHSupportedVersionsSpec;
 

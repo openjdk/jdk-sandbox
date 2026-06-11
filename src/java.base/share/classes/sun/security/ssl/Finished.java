@@ -39,7 +39,6 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.Mac;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.HKDFParameterSpec;
-import javax.crypto.spec.IvParameterSpec;
 import javax.net.ssl.SSLPeerUnverifiedException;
 
 import jdk.internal.event.EventHelper;
@@ -47,8 +46,6 @@ import jdk.internal.event.TLSHandshakeEvent;
 import sun.security.internal.spec.TlsPrfParameterSpec;
 import sun.security.ssl.CipherSuite.HashAlg;
 import static sun.security.ssl.CipherSuite.HashAlg.H_NONE;
-import sun.security.ssl.SSLCipher.SSLReadCipher;
-import sun.security.ssl.SSLCipher.SSLWriteCipher;
 import sun.security.ssl.SSLHandshake.HandshakeMessage;
 import sun.security.util.HexDumpEncoder;
 import sun.security.util.KeyUtil;
