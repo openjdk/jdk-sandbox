@@ -25,8 +25,6 @@
 
 package jdk.incubator.json.impl;
 
-import java.util.Locale;
-
 import java.util.Optional;
 import jdk.incubator.json.JsonNumber;
 import jdk.internal.ValueBased;
@@ -102,61 +100,40 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
         }
     }
 
-    // 4 cases: Fully integral, has decimal, has exponent, has decimal and exponent
     private Optional<Long> initNumLong() {
         try {
             if (decimalOffset == -1 && exponentOffset == -1) {
-                // Parseable Long format
+                // Fast-path immediate parseable Long format
                 return Optional.of(Long.parseLong(numString.get()));
             } else {
-                // Decimal or exponent exists, can't parse w/ Long::parseLong
-                if (exponentOffset != -1) {
-                    // Exponent exists
-                    // Calculate exponent value
-                    boolean positiveExp = doc[exponentOffset + 1] != '-';
-                    int exp = Math.abs(Integer.parseInt(new String(doc,
-                            exponentOffset + 1, endOffset - exponentOffset - 1), 10));
-                    long sig;
-                    long scale;
-                    if (decimalOffset == -1) {
-                        // Exponent with no decimal
-                        sig = Long.parseLong(new String(doc, startOffset, exponentOffset - startOffset));
-                    } else if (positiveExp) {
-                        // Exponent with decimal
-                        for (int i = decimalOffset + exp + 1; i < exponentOffset; i++) {
-                            if (doc[i] != '0') {
-                                return Optional.empty();
-                            }
-                        }
-                        var shiftedFractionPart = new String(doc, decimalOffset + 1, Math.min(exp, exponentOffset - decimalOffset - 1));
-                        exp = exp - shiftedFractionPart.length();
-                        sig = Long.parseLong(new String(doc, startOffset, decimalOffset - startOffset) + shiftedFractionPart);
-                    } else {
-                        // Negative exponent with decimal
-                        int fractionLength = exponentOffset - decimalOffset - 1;
-                        sig = Long.parseLong(new String(doc, startOffset, decimalOffset - startOffset)
-                            + new String(doc, decimalOffset + 1, fractionLength));
-                        exp = Math.addExact(exp, fractionLength);
-                    }
-                    scale = Math.powExact(10L, exp);
-                    if (positiveExp) {
-                        return Optional.of(Math.multiplyExact(sig, scale));
-                    } else {
-                        if (sig % scale == 0) {
-                            return Optional.of(Math.divideExact(sig, scale));
-                        } else {
-                            return Optional.empty();
-                        }
-                    }
+                // Decimal or exponent exists, derive value from
+                // following format -> sig * 10^power
+                // E.g. 54.32e1
+                // sE is 'e' index / fL is 2 / exp is 1 / pow is -1 / sig is 5432 / scale is 0.1
+                int sigEnd = exponentOffset == -1 ? endOffset : exponentOffset;
+                int fracLen = decimalOffset == -1 ? 0 : sigEnd - decimalOffset - 1;
+                int exp = exponentOffset == -1 ? 0 : Integer.parseInt(new String(doc,
+                        exponentOffset + 1, endOffset - exponentOffset - 1));
+                int power = Math.subtractExact(exp, fracLen);
+                // Remove trailing zeros from the coefficient and compensate in the power.
+                // We do this to avoid possible overflow when we parse the coefficient as a long
+                // E.g. 9223372036854775807.000000
+                while (sigEnd > startOffset + 1 && doc[sigEnd - 1] == '0') {
+                    sigEnd--;
+                    power = Math.addExact(power, 1);
+                }
+                // By here, sig end represents the new boundary, minus trailing zeroes
+                long sig = decimalOffset == -1 ? Long.parseLong(new String(doc, startOffset, sigEnd - startOffset)) :
+                        Long.parseLong(new String(doc, startOffset, decimalOffset - startOffset) +
+                                new String(doc, decimalOffset + 1, sigEnd - decimalOffset - 1));
+                if (power >= 0) {
+                    long scale = Math.powExact(10L, power);
+                    return Optional.of(Math.multiplyExact(sig, scale));
                 } else {
-                    // Decimal with no exponent
-                    for (int i = decimalOffset + 1; i < endOffset; i++) {
-                        if (doc[i] != '0') {
-                            return Optional.empty();
-                        }
-                    }
-                    return Optional.of(Long.parseLong(new String(doc,
-                            startOffset, decimalOffset - startOffset), 10));
+                    long scale = Math.powExact(10L, Math.negateExact(power));
+                    return sig % scale == 0
+                            ? Optional.of(Math.divideExact(sig, scale))
+                            : Optional.empty(); // fractional leftover, so not representable as long
                 }
             }
         } catch (NumberFormatException | ArithmeticException _) {}
