@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.security.Security;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -76,10 +77,7 @@ import org.junit.jupiter.api.Test;
  *        jdk.httpclient.test.lib.quic.ClientConnection
  *        jdk.httpclient.test.lib.common.TestUtil
  *        jdk.test.lib.net.SimpleSSLContext
- * @comment the test is run with -Djava.security.properties=<URL> to augment
- *          the master java.security file
- * @run junit/othervm -Djava.security.properties=${test.src}/quic-tls-keylimits-java.security
- *                     -Djdk.internal.httpclient.debug=true
+ * @run junit/othervm  -Djdk.internal.httpclient.debug=true
  *                     -Djavax.net.debug=all
  *                     ${test.main.class}
  */
@@ -94,6 +92,8 @@ public class KeyUpdateTest {
 
     @BeforeAll
     public static void beforeClass() throws Exception {
+        Security.setProperty("jdk.quic.tls.keyLimits",
+                "AES/GCM/NoPadding 10, ChaCha20-Poly1305 -1");
         executor = Executors.newCachedThreadPool();
         server = QuicStandaloneServer.newBuilder()
                 .availableVersions(new QuicVersion[]{QuicVersion.QUIC_V1})
