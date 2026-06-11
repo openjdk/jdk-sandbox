@@ -63,6 +63,11 @@ public class PostHandshakeProcessingTest extends QuicSSLEngineTemplate {
         }
         doHandshake();
         try {
+            // The byte buffer contains a degenerate handshake message:
+            // - 1 byte msg_type
+            // - 3 bytes length (zero)
+            // The test assumes that unexpected message types
+            // will be rejected without decoding.
             ByteBuffer buffer = ByteBuffer.allocate(4);
             buffer.putInt(message << 24).flip();
             clientEngine.unwrap(buffer, EMPTY);
@@ -74,6 +79,9 @@ public class PostHandshakeProcessingTest extends QuicSSLEngineTemplate {
         }
 
         assertTrue(clientTransport.errorReported, "Client accepted a message of type " + message);
+        if (clientTransport.errorCode != 10) {
+            clientTransport.errorCause.printStackTrace();
+        }
         assertEquals(10, clientTransport.errorCode, "Error code is not unexpected_message");
         log("Got expected exception: " + clientTransport.errorCause);
     }
@@ -83,6 +91,11 @@ public class PostHandshakeProcessingTest extends QuicSSLEngineTemplate {
     public void testServer(int message) throws Exception {
         doHandshake();
         try {
+            // The byte buffer contains a degenerate handshake message:
+            // - 1 byte msg_type
+            // - 3 bytes length (zero)
+            // The test assumes that unexpected message types
+            // will be rejected without decoding.
             ByteBuffer buffer = ByteBuffer.allocate(4);
             buffer.putInt(message << 24).flip();
             serverEngine.unwrap(buffer, EMPTY);
