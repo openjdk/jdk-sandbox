@@ -713,38 +713,13 @@ final class Finished {
                         chc.negotiatedProtocol);
             }
 
-            try {
-                // update the application traffic read keys.
-                SecretKey writeSecret =
-                        kd.deriveKey("TlsClientAppTrafficSecret");
+            // update the application traffic read keys.
+            SecretKey writeSecret =
+                    kd.deriveKey("TlsClientAppTrafficSecret");
 
-                SSLKeyDerivation writeKD =
-                        kdg.createKeyDerivation(chc, writeSecret);
-                SecretKey writeKey = writeKD.deriveKey("TlsKey");
-                IvParameterSpec writeIv =
-                        new IvParameterSpec(writeKD.deriveData("TlsIv"));
-                SSLWriteCipher writeCipher =
-                        chc.negotiatedCipherSuite.bulkCipher.createWriteCipher(
-                                Authenticator.valueOf(chc.negotiatedProtocol),
-                                chc.negotiatedProtocol, writeKey, writeIv,
-                                chc.sslContext.getSecureRandom());
-
-                if (writeCipher == null) {
-                    throw chc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
-                        "Illegal cipher suite (" + chc.negotiatedCipherSuite +
-                        ") and protocol version (" + chc.negotiatedProtocol +
-                        ")");
-                }
-
-                chc.baseWriteSecret = writeSecret;
-                writeCipher.baseSecret = writeSecret;
-                chc.conContext.outputRecord.changeWriteCiphers(
-                        writeCipher, false);
-
-            } catch (GeneralSecurityException gse) {
-                throw chc.conContext.fatal(Alert.INTERNAL_ERROR,
-                        "Failure to derive application secrets", gse);
-            }
+            chc.conContext.outputRecord.changeT13WriteCiphers(
+                    kdg, chc, writeSecret, false);
+            chc.baseWriteSecret = writeSecret;
 
             // Calculate/save the exporter_master_secret.  It uses
             // the same handshakeHash as the client/server app traffic.
@@ -823,28 +798,10 @@ final class Finished {
                 // update the handshake traffic write keys.
                 SecretKey writeSecret = secretKD.deriveKey(
                         "TlsServerAppTrafficSecret");
-                SSLKeyDerivation writeKD =
-                        kdg.createKeyDerivation(shc, writeSecret);
-                SecretKey writeKey = writeKD.deriveKey("TlsKey");
-                IvParameterSpec writeIv =
-                        new IvParameterSpec(writeKD.deriveData("TlsIv"));
-                SSLWriteCipher writeCipher =
-                        shc.negotiatedCipherSuite.bulkCipher.createWriteCipher(
-                                Authenticator.valueOf(shc.negotiatedProtocol),
-                                shc.negotiatedProtocol, writeKey, writeIv,
-                                shc.sslContext.getSecureRandom());
 
-                if (writeCipher == null) {
-                    throw shc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
-                        "Illegal cipher suite (" + shc.negotiatedCipherSuite +
-                        ") and protocol version (" + shc.negotiatedProtocol +
-                        ")");
-                }
-
+                shc.conContext.outputRecord.changeT13WriteCiphers(
+                        kdg, shc, writeSecret, false);
                 shc.baseWriteSecret = writeSecret;
-                writeCipher.baseSecret = writeSecret;
-                shc.conContext.outputRecord.changeWriteCiphers(
-                        writeCipher, false);
 
                 // update the context for the following key derivation
                 shc.handshakeKeyDerivation = secretKD;
@@ -989,27 +946,9 @@ final class Finished {
                 // update the handshake traffic read keys.
                 SecretKey readSecret = secretKD.deriveKey(
                         "TlsServerAppTrafficSecret");
-                SSLKeyDerivation writeKD =
-                        kdg.createKeyDerivation(chc, readSecret);
-                SecretKey readKey = writeKD.deriveKey("TlsKey");
-                IvParameterSpec readIv =
-                        new IvParameterSpec(writeKD.deriveData("TlsIv"));
-                SSLReadCipher readCipher =
-                        chc.negotiatedCipherSuite.bulkCipher.createReadCipher(
-                                Authenticator.valueOf(chc.negotiatedProtocol),
-                                chc.negotiatedProtocol, readKey, readIv,
-                                chc.sslContext.getSecureRandom());
-
-                if (readCipher == null) {
-                    throw chc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
-                        "Illegal cipher suite (" + chc.negotiatedCipherSuite +
-                        ") and protocol version (" + chc.negotiatedProtocol +
-                        ")");
-                }
-
+                chc.conContext.inputRecord.changeT13ReadCiphers(
+                        kdg, chc, readSecret);
                 chc.baseReadSecret = readSecret;
-                readCipher.baseSecret = readSecret;
-                chc.conContext.inputRecord.changeReadCiphers(readCipher);
 
                 // update the context for the following key derivation
                 chc.handshakeKeyDerivation = secretKD;
@@ -1090,52 +1029,28 @@ final class Finished {
                         shc.negotiatedProtocol);
             }
 
-            try {
-                // update the application traffic read keys.
-                SecretKey readSecret = kd.deriveKey(
-                        "TlsClientAppTrafficSecret");
+            // update the application traffic read keys.
+            SecretKey readSecret = kd.deriveKey(
+                    "TlsClientAppTrafficSecret");
+            shc.conContext.inputRecord.changeT13ReadCiphers(
+                    kdg, shc, readSecret);
+            shc.baseReadSecret = readSecret;
 
-                SSLKeyDerivation readKD =
-                        kdg.createKeyDerivation(shc, readSecret);
-                SecretKey readKey = readKD.deriveKey("TlsKey");
-                IvParameterSpec readIv =
-                        new IvParameterSpec(readKD.deriveData("TlsIv"));
-                SSLReadCipher readCipher =
-                        shc.negotiatedCipherSuite.bulkCipher.createReadCipher(
-                                Authenticator.valueOf(shc.negotiatedProtocol),
-                                shc.negotiatedProtocol, readKey, readIv,
-                                shc.sslContext.getSecureRandom());
+            // Calculate/save the exporter_master_secret.  It uses
+            // the same handshakeHash as the client/server app traffic.
+            SecretKey exporterSecret = kd.deriveKey(
+                    "TlsExporterMasterSecret");
+            shc.handshakeSession.setExporterMasterSecret(exporterSecret);
 
-                if (readCipher == null) {
-                    throw shc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
-                        "Illegal cipher suite (" + shc.negotiatedCipherSuite +
-                        ") and protocol version (" + shc.negotiatedProtocol +
-                        ")");
-                }
-
-                shc.baseReadSecret = readSecret;
-                readCipher.baseSecret = readSecret;
-                shc.conContext.inputRecord.changeReadCiphers(readCipher);
-
-                // Calculate/save the exporter_master_secret.  It uses
-                // the same handshakeHash as the client/server app traffic.
-                SecretKey exporterSecret = kd.deriveKey(
-                        "TlsExporterMasterSecret");
-                shc.handshakeSession.setExporterMasterSecret(exporterSecret);
-
-                // The resumption master secret is stored in the session so
-                // it can be used after the handshake is completed.
-                shc.handshakeHash.update();
-                SSLSecretDerivation sd =
-                        ((SSLSecretDerivation)kd).forContext(shc);
-                SecretKey resumptionMasterSecret =
-                        sd.deriveKey("TlsResumptionMasterSecret");
-                shc.handshakeSession.setResumptionMasterSecret(
-                        resumptionMasterSecret);
-            } catch (GeneralSecurityException gse) {
-                throw shc.conContext.fatal(Alert.INTERNAL_ERROR,
-                        "Failure to derive application secrets", gse);
-            }
+            // The resumption master secret is stored in the session so
+            // it can be used after the handshake is completed.
+            shc.handshakeHash.update();
+            SSLSecretDerivation sd =
+                    ((SSLSecretDerivation)kd).forContext(shc);
+            SecretKey resumptionMasterSecret =
+                    sd.deriveKey("TlsResumptionMasterSecret");
+            shc.handshakeSession.setResumptionMasterSecret(
+                    resumptionMasterSecret);
 
             //  update connection context
             shc.conContext.conSession = shc.handshakeSession.finish();

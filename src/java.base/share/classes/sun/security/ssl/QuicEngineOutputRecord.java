@@ -128,13 +128,19 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
     }
 
     @Override
-    void changeWriteCiphers(SSLWriteCipher writeCipher, boolean useChangeCipherSpec) {
+    void changeT13WriteCiphers(SSLTrafficKeyDerivation kdg, HandshakeContext hc,
+             SecretKey writeSecret, boolean useChangeCipherSpec) {
         recordLock.lock();
         try {
-            fragmenter.changePacketSpace(writeCipher.baseSecret);
+            fragmenter.changePacketSpace(writeSecret);
         } finally {
             recordLock.unlock();
         }
+    }
+
+    @Override
+    void changeWriteCiphers(SSLWriteCipher writeCipher, boolean useChangeCipherSpec) {
+        throw new UnsupportedOperationException("Should not call this");
     }
 
     @Override

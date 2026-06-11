@@ -656,67 +656,18 @@ final class ServerHello {
             // update the handshake traffic read keys.
             SecretKey readSecret = kd.deriveKey(
                     "TlsClientHandshakeTrafficSecret");
-            SSLKeyDerivation readKD =
-                    kdg.createKeyDerivation(shc, readSecret);
-            SecretKey readKey = readKD.deriveKey("TlsKey");
-            IvParameterSpec readIv =
-                    new IvParameterSpec(readKD.deriveData("TlsIv"));
-            SSLReadCipher readCipher;
-            try {
-                readCipher =
-                    shc.negotiatedCipherSuite.bulkCipher.createReadCipher(
-                        Authenticator.valueOf(shc.negotiatedProtocol),
-                        shc.negotiatedProtocol, readKey, readIv,
-                        shc.sslContext.getSecureRandom());
-            } catch (GeneralSecurityException gse) {
-                // unlikely
-                throw shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
-                        "Missing cipher algorithm", gse);
-            }
 
-            if (readCipher == null) {
-                throw shc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
-                    "Illegal cipher suite (" + shc.negotiatedCipherSuite +
-                    ") and protocol version (" + shc.negotiatedProtocol +
-                    ")");
-            }
-
+            shc.conContext.inputRecord.changeT13ReadCiphers(kdg, shc,
+                    readSecret);
             shc.baseReadSecret = readSecret;
-            readCipher.baseSecret = readSecret;
-            shc.conContext.inputRecord.changeReadCiphers(readCipher);
 
             // update the handshake traffic write secret.
             SecretKey writeSecret = kd.deriveKey(
                     "TlsServerHandshakeTrafficSecret");
-            SSLKeyDerivation writeKD =
-                    kdg.createKeyDerivation(shc, writeSecret);
-            SecretKey writeKey = writeKD.deriveKey("TlsKey");
-            IvParameterSpec writeIv =
-                    new IvParameterSpec(writeKD.deriveData("TlsIv"));
-            SSLWriteCipher writeCipher;
-            try {
-                writeCipher =
-                    shc.negotiatedCipherSuite.bulkCipher.createWriteCipher(
-                        Authenticator.valueOf(shc.negotiatedProtocol),
-                        shc.negotiatedProtocol, writeKey, writeIv,
-                        shc.sslContext.getSecureRandom());
-            } catch (GeneralSecurityException gse) {
-                // unlikely
-                throw shc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
-                        "Missing cipher algorithm", gse);
-            }
 
-            if (writeCipher == null) {
-                throw shc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
-                    "Illegal cipher suite (" + shc.negotiatedCipherSuite +
-                    ") and protocol version (" + shc.negotiatedProtocol +
-                    ")");
-            }
-
+            shc.conContext.outputRecord.changeT13WriteCiphers(kdg, shc,
+                    writeSecret, (clientHello.sessionId.length() != 0));
             shc.baseWriteSecret = writeSecret;
-            writeCipher.baseSecret = writeSecret;
-            shc.conContext.outputRecord.changeWriteCiphers(
-                    writeCipher, (clientHello.sessionId.length() != 0));
 
             // Update the context for master key derivation.
             shc.handshakeKeyDerivation = kd;
@@ -1358,67 +1309,16 @@ final class ServerHello {
             SecretKey readSecret = secretKD.deriveKey(
                     "TlsServerHandshakeTrafficSecret");
 
-            SSLKeyDerivation readKD =
-                    kdg.createKeyDerivation(chc, readSecret);
-            SecretKey readKey = readKD.deriveKey("TlsKey");
-            IvParameterSpec readIv =
-                    new IvParameterSpec(readKD.deriveData("TlsIv"));
-            SSLReadCipher readCipher;
-            try {
-                readCipher =
-                    chc.negotiatedCipherSuite.bulkCipher.createReadCipher(
-                        Authenticator.valueOf(chc.negotiatedProtocol),
-                        chc.negotiatedProtocol, readKey, readIv,
-                        chc.sslContext.getSecureRandom());
-            } catch (GeneralSecurityException gse) {
-                // unlikely
-                throw chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
-                        "Missing cipher algorithm", gse);
-            }
-
-            if (readCipher == null) {
-                throw chc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
-                    "Illegal cipher suite (" + chc.negotiatedCipherSuite +
-                    ") and protocol version (" + chc.negotiatedProtocol +
-                    ")");
-            }
-
+            chc.conContext.inputRecord.changeT13ReadCiphers(kdg, chc,
+                    readSecret);
             chc.baseReadSecret = readSecret;
-            readCipher.baseSecret = readSecret;
-            chc.conContext.inputRecord.changeReadCiphers(readCipher);
 
             // update the handshake traffic write keys.
             SecretKey writeSecret = secretKD.deriveKey(
                     "TlsClientHandshakeTrafficSecret");
-            SSLKeyDerivation writeKD =
-                    kdg.createKeyDerivation(chc, writeSecret);
-            SecretKey writeKey = writeKD.deriveKey("TlsKey");
-            IvParameterSpec writeIv =
-                    new IvParameterSpec(writeKD.deriveData("TlsIv"));
-            SSLWriteCipher writeCipher;
-            try {
-                writeCipher =
-                    chc.negotiatedCipherSuite.bulkCipher.createWriteCipher(
-                        Authenticator.valueOf(chc.negotiatedProtocol),
-                        chc.negotiatedProtocol, writeKey, writeIv,
-                        chc.sslContext.getSecureRandom());
-            } catch (GeneralSecurityException gse) {
-                // unlikely
-                throw chc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
-                        "Missing cipher algorithm", gse);
-            }
-
-            if (writeCipher == null) {
-                throw chc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
-                    "Illegal cipher suite (" + chc.negotiatedCipherSuite +
-                    ") and protocol version (" + chc.negotiatedProtocol +
-                    ")");
-            }
-
+            chc.conContext.outputRecord.changeT13WriteCiphers(kdg, chc,
+                    writeSecret, (serverHello.sessionId.length() != 0));
             chc.baseWriteSecret = writeSecret;
-            writeCipher.baseSecret = writeSecret;
-            chc.conContext.outputRecord.changeWriteCiphers(
-                    writeCipher, (serverHello.sessionId.length() != 0));
 
             // Should use resumption_master_secret for TLS 1.3.
             // chc.handshakeSession.setMasterSecret(masterSecret);

@@ -31,8 +31,12 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.BufferUnderflowException;
 import java.nio.ByteBuffer;
+import java.security.GeneralSecurityException;
 import java.util.concurrent.locks.ReentrantLock;
 import javax.crypto.BadPaddingException;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
+
 import sun.security.ssl.SSLCipher.SSLReadCipher;
 
 /**
@@ -125,6 +129,37 @@ abstract class InputRecord implements Record, Closeable {
         this.readCipher.dispose();
 
         this.readCipher = readCipher;
+    }
+
+    void changeT13ReadCiphers(SSLTrafficKeyDerivation kdg, HandshakeContext hc,
+                              SecretKey readSecret) throws IOException {
+        SSLKeyDerivation readKD =
+                kdg.createKeyDerivation(hc, readSecret);
+        SecretKey readKey = readKD.deriveKey("TlsKey");
+        IvParameterSpec readIv =
+                new IvParameterSpec(readKD.deriveData("TlsIv"));
+        SSLReadCipher readCipher;
+        try {
+            readCipher =
+                    hc.negotiatedCipherSuite.bulkCipher.createReadCipher(
+                            Authenticator.valueOf(hc.negotiatedProtocol),
+                            hc.negotiatedProtocol, readKey, readIv,
+                            hc.sslContext.getSecureRandom());
+        } catch (GeneralSecurityException gse) {
+            // unlikely
+            throw hc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                    "Missing cipher algorithm", gse);
+        }
+
+        if (readCipher == null) {
+            throw hc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                "Illegal cipher suite (" + hc.negotiatedCipherSuite +
+                ") and protocol version (" + hc.negotiatedProtocol +
+                ")");
+        }
+
+        readCipher.baseSecret = readSecret;
+        changeReadCiphers(readCipher);
     }
 
     // change fragment size

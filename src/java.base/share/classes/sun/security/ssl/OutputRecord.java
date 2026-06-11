@@ -30,9 +30,13 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.security.GeneralSecurityException;
 import java.util.concurrent.locks.ReentrantLock;
 
 import sun.security.ssl.SSLCipher.SSLWriteCipher;
+
+import javax.crypto.SecretKey;
+import javax.crypto.spec.IvParameterSpec;
 
 /**
  * {@code OutputRecord} takes care of the management of SSL/(D)TLS
@@ -203,6 +207,37 @@ abstract class OutputRecord
         } finally {
             recordLock.unlock();
         }
+    }
+
+    void changeT13WriteCiphers(SSLTrafficKeyDerivation kdg, HandshakeContext hc,
+            SecretKey writeSecret, boolean useChangeCipherSpec) throws IOException {
+        SSLKeyDerivation writeKD =
+                kdg.createKeyDerivation(hc, writeSecret);
+        SecretKey writeKey = writeKD.deriveKey("TlsKey");
+        IvParameterSpec writeIv =
+                new IvParameterSpec(writeKD.deriveData("TlsIv"));
+        SSLWriteCipher writeCipher;
+        try {
+            writeCipher =
+                    hc.negotiatedCipherSuite.bulkCipher.createWriteCipher(
+                            Authenticator.valueOf(hc.negotiatedProtocol),
+                            hc.negotiatedProtocol, writeKey, writeIv,
+                            hc.sslContext.getSecureRandom());
+        } catch (GeneralSecurityException gse) {
+            // unlikely
+            throw hc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                    "Missing cipher algorithm", gse);
+        }
+
+        if (writeCipher == null) {
+            throw hc.conContext.fatal(Alert.ILLEGAL_PARAMETER,
+                "Illegal cipher suite (" + hc.negotiatedCipherSuite +
+                ") and protocol version (" + hc.negotiatedProtocol +
+                ")");
+        }
+
+        writeCipher.baseSecret = writeSecret;
+        changeWriteCiphers(writeCipher, useChangeCipherSpec);
     }
 
     // Change write ciphers using key_update handshake message.

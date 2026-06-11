@@ -27,6 +27,7 @@ package sun.security.ssl;
 
 import sun.security.ssl.SSLCipher.SSLReadCipher;
 
+import javax.crypto.SecretKey;
 import javax.net.ssl.QuicTLSCallbacks;
 import javax.net.ssl.SSLProtocolException;
 import java.io.IOException;
@@ -92,17 +93,22 @@ final class QuicEngineInputRecord extends InputRecord implements SSLRecord {
     }
 
     @Override
-    void changeReadCiphers(SSLReadCipher readCipher) {
-        super.changeReadCiphers(readCipher);
+    void changeT13ReadCiphers(SSLTrafficKeyDerivation kdg, HandshakeContext hc,
+                              SecretKey readSecret) {
         epoch++;
         switch(epoch) {
             case 1->
-                    quicTLSCallbacks.deriveHandshakeReadSecrets(readCipher.baseSecret);
+                    quicTLSCallbacks.deriveHandshakeReadSecrets(readSecret);
             case 2->
-                    quicTLSCallbacks.deriveApplicationReadSecrets(readCipher.baseSecret);
+                    quicTLSCallbacks.deriveApplicationReadSecrets(readSecret);
             default ->
-                throw new AssertionError("Unexpected key epoch");
+                    throw new AssertionError("Unexpected key epoch");
         }
+    }
+
+    @Override
+    void changeReadCiphers(SSLReadCipher readCipher) {
+        throw new UnsupportedOperationException("Should not call this");
     }
 
     private Plaintext[] decodeInputRecord(ByteBuffer fragment)
