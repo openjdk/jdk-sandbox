@@ -296,7 +296,7 @@ final class SSLEngineInputRecord extends InputRecord implements SSLRecord {
                 byte handshakeType = handshakeFrag.get();
                 if (!SSLHandshake.isKnown(handshakeType)) {
                     throw new SSLProtocolException(
-                        "Unknown handshake type size, Handshake.msg_type = " +
+                        "Unknown handshake type, Handshake.msg_type = " +
                         (handshakeType & 0xFF));
                 }
 

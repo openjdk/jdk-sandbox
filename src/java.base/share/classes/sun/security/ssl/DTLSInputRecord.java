@@ -374,7 +374,7 @@ final class DTLSInputRecord extends InputRecord implements DTLSRecord {
         if (!SSLHandshake.isKnown(handshakeType)) {
             if (SSLLogger.isOn() && SSLLogger.isOn(SSLLogger.Opt.SSL)) {
                 SSLLogger.fine("Discard invalid record: " +
-                        "unknown handshake type size, Handshake.msg_type = " +
+                        "unknown handshake type, Handshake.msg_type = " +
                         (handshakeType & 0xFF));
             }
 

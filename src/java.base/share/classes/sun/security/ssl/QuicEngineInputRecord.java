@@ -138,7 +138,7 @@ final class QuicEngineInputRecord extends InputRecord implements SSLRecord {
             if (!SSLHandshake.isKnown(handshakeType)) {
                 // SSLTransport.decode will convert this to UNEXPECTED_MESSAGE
                 throw new SSLProtocolException(
-                        "Unknown handshake type size, Handshake.msg_type = " +
+                        "Unknown handshake type, Handshake.msg_type = " +
                                 (handshakeType & 0xFF));
             }
 
