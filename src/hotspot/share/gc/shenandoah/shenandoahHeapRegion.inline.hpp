@@ -175,9 +175,19 @@ HeapWord* ShenandoahHeapRegion::allocate(size_t size, const ShenandoahAllocReque
     if (fwt_start != nullptr) {
       const uintptr_t fwt_sentinel      = ShenandoahHeap::in_fwt_sentinel;
       const size_t    fwt_sentinel_step = (size_t)MinObjAlignment;
+      const size_t    min_fill          = ShenandoahHeap::min_fill_size();
+      size_t skipped = 0;
       while (obj < alloc_limit
              && *reinterpret_cast<uintptr_t*>(obj) == fwt_sentinel) {
-        obj += fwt_sentinel_step;
+        obj     += fwt_sentinel_step;
+        skipped += fwt_sentinel_step;
+      }
+      if (skipped != 0 && skipped < min_fill) {
+        obj += min_fill - skipped;
+        while (obj < alloc_limit
+               && *reinterpret_cast<uintptr_t*>(obj) == fwt_sentinel) {
+          obj += fwt_sentinel_step;
+        }
       }
       if (obj >= alloc_limit) return nullptr;
     }

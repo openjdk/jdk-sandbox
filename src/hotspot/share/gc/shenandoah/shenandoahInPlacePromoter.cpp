@@ -210,6 +210,8 @@ void ShenandoahInPlacePromoter::promote(ShenandoahHeapRegion* region) const {
     oop obj = cast_to_oop(obj_addr);
     if (marking_context->is_marked(obj)) {
       assert(obj->klass() != nullptr, "klass should not be null");
+      assert(*reinterpret_cast<uintptr_t*>(obj_addr) != ShenandoahHeap::in_fwt_sentinel,
+             "marked slot " PTR_FORMAT " is an FWT sentinel", p2i(obj_addr));
       // This thread is responsible for registering all objects in this region.  No need for lock.
       scanner->register_object_without_lock(obj_addr);
       obj_addr += obj->size();
