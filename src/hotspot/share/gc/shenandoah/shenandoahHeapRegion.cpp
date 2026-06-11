@@ -293,7 +293,7 @@ void ShenandoahHeapRegion::make_cset() {
 }
 
 // Use when a region with fwt is recycled back into the Mutator free set.
-void ShenandoahHeapRegion::recycle_early() {
+void ShenandoahHeapRegion::recycle_early(bool reuse_body) {
   shenandoah_assert_heaplocked();
   switch (state()) {
     case _cset:
@@ -303,8 +303,10 @@ void ShenandoahHeapRegion::recycle_early() {
       _empty_time = os::elapsedTime();
 
       reset();
-      _fwd_table.install_sentinels();
-      _early_recycled = true;
+      if (reuse_body) {
+        _fwd_table.install_sentinels();
+        _early_recycled = true;
+      }
       return;
     default:
       report_illegal_transition("Should be cset");

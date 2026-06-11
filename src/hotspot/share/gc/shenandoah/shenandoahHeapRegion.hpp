@@ -188,7 +188,7 @@ public:
   void make_pinned();
   void make_unpinned();
   void make_cset();
-  void recycle_early();
+  void recycle_early(bool reuse_body);
   void finish_recycle_early();
   void make_regular_from_cset();
   void make_trash();

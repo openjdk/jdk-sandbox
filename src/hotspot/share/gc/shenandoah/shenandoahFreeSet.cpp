@@ -2752,18 +2752,15 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
                  i, p2i(top), p2i(r->forwarding_table_start()));
   }
 
-  r->recycle_early();
-
-  if (!ShenandoahRecycleFWTBodies) {
-    return false;
-  }
-
   size_t available = r->capacity() - r->fwt_tail_bytes();
-  if (available < PLAB::min_size() * HeapWordSize) {
-#ifdef KELVIN_FWT
-    log_info(gc)(" region has only %zu available, so not going to make this free", available);
-#endif
-    // FWT fills nearly the whole region.
+  bool reuse_body = ShenandoahRecycleFWTBodies && (available >= PLAB::min_size() * HeapWordSize);
+
+  r->recycle_early(reuse_body);
+
+  if (!reuse_body) {
+    if (ShenandoahRecycleFWTBodies) {
+      log_info(gc)(" region has only %zu available, so not going to make this free", available);
+    }
     return false;
   }
 
