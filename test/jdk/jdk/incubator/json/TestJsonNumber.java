@@ -78,7 +78,9 @@ public class TestJsonNumber {
                     Arguments.of("50e-1", 50e-1, 5L, 5),
                     Arguments.of("50.0e-1", 50.0e-1, 5L, 5),
                     Arguments.of("555.5e5", 555.5e5, 55550000L, 55550000),
-                    Arguments.of("555.5e1", 555.5e1, 5555L, 5555)
+                    Arguments.of("555.5e1", 555.5e1, 5555L, 5555),
+                    Arguments.of("0e999999999999", 0d, 0L, 0),
+                    Arguments.of("0.0e-999999999999", 0d, 0L, 0)
             );
         }
 

@@ -111,6 +111,15 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
                 // E.g. 54.32e1
                 // sE is 'e' index / fL is 2 / exp is 1 / pow is -1 / sig is 5432 / scale is 0.1
                 int sigEnd = exponentOffset == -1 ? endOffset : exponentOffset;
+
+                // A zero significand represents zero regardless of exponent size.
+                // For non-zero significands, an exponent outside int range cannot be
+                // offset by fraction length or trailing zeros within a Java char[] input.
+                // This must be checked before calculating exp.
+                if (isZeroSignificand(sigEnd)) {
+                    return Optional.of(0L);
+                }
+
                 int fracLen = decimalOffset == -1 ? 0 : sigEnd - decimalOffset - 1;
                 int exp = exponentOffset == -1 ? 0 : Integer.parseInt(new String(doc,
                         exponentOffset + 1, endOffset - exponentOffset - 1));
@@ -146,5 +155,15 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
             return Optional.of(db);
         }
         return Optional.empty();
+    }
+
+    private boolean isZeroSignificand(int sigEnd) {
+        for (int i = startOffset; i < sigEnd; i++) {
+            switch (doc[i]) {
+                case '-', '.', '0' -> {}
+                default -> { return false; }
+            }
+        }
+        return true;
     }
 }
