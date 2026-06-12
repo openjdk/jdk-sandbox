@@ -111,29 +111,37 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
                 // E.g. 54.32e1
                 // sE is 'e' index / fL is 2 / exp is 1 / pow is -1 / sig is 5432 / scale is 0.1
                 int sigEnd = exponentOffset == -1 ? endOffset : exponentOffset;
+                int fracLen = decimalOffset == -1 ? 0 : sigEnd - decimalOffset - 1;
+                int strippedZeros = 0;
+
+                // Remove trailing zeros from the coefficient and compensate in the power.
+                // We do this to avoid possible overflow when we parse the coefficient as a long.
+                // E.g. 9223372036854775807.000000 or 922337203685477580700.0e-2
+                while (sigEnd > startOffset) {
+                    var c = doc[sigEnd - 1];
+                    if (c == '0') {
+                        sigEnd--;
+                        strippedZeros++;
+                    } else if (c == '.') {
+                        sigEnd--;
+                    } else {
+                        break;
+                    }
+                }
 
                 // A zero significand represents zero regardless of exponent size.
                 // For non-zero significands, an exponent outside int range cannot be
                 // offset by fraction length or trailing zeros within a Java char[] input.
                 // This must be checked before calculating exp.
-                if (isZeroSignificand(sigEnd)) {
+                if (sigEnd == startOffset || (doc[startOffset] == '-' && sigEnd == startOffset + 1)) {
                     return Optional.of(0L);
                 }
-
-                int fracLen = decimalOffset == -1 ? 0 : sigEnd - decimalOffset - 1;
                 int exp = exponentOffset == -1 ? 0 : Integer.parseInt(new String(doc,
                         exponentOffset + 1, endOffset - exponentOffset - 1));
-                int power = Math.subtractExact(exp, fracLen);
-                // Remove trailing zeros from the coefficient and compensate in the power.
-                // We do this to avoid possible overflow when we parse the coefficient as a long
-                // E.g. 9223372036854775807.000000
-                while (sigEnd > startOffset + 1 && doc[sigEnd - 1] == '0') {
-                    sigEnd--;
-                    power = Math.addExact(power, 1);
-                }
-                // By here, sig end represents the new boundary, minus trailing zeroes
-                long sig = decimalOffset == -1 ? Long.parseLong(new String(doc, startOffset, sigEnd - startOffset)) :
-                        Long.parseLong(new String(doc, startOffset, decimalOffset - startOffset) +
+                int power = Math.addExact(Math.subtractExact(exp, fracLen), strippedZeros);
+                long sig = decimalOffset == -1 || sigEnd <= decimalOffset
+                        ? Long.parseLong(new String(doc, startOffset, sigEnd - startOffset))
+                        : Long.parseLong(new String(doc, startOffset, decimalOffset - startOffset) +
                                 new String(doc, decimalOffset + 1, sigEnd - decimalOffset - 1));
                 if (power >= 0) {
                     long scale = Math.powExact(10L, power);
@@ -157,13 +165,4 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
         return Optional.empty();
     }
 
-    private boolean isZeroSignificand(int sigEnd) {
-        for (int i = startOffset; i < sigEnd; i++) {
-            switch (doc[i]) {
-                case '-', '.', '0' -> {}
-                default -> { return false; }
-            }
-        }
-        return true;
-    }
 }
