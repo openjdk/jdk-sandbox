@@ -154,14 +154,18 @@ void ShenandoahNMethod::heal_nmethod(nmethod* nm) {
   }
 }
 
-void ShenandoahNMethod::update_barriers() {
+void ShenandoahNMethod::update_barriers(nmethod* nm) {
 #ifdef COMPILER2
+  ShenandoahNMethod* data = gc_data(nm);
+  assert(data != nullptr, "Sanity");
+  assert(data->lock()->owned_by_self(), "Must hold the lock");
+
   ShenandoahHeap* heap = ShenandoahHeap::heap();
 
-  for (int c = 0; c < _barriers_count; c++) {
-    address pc = _barriers[c]._pc;
-    address stub_addr = _barriers[c]._stub_addr;
-    char trigger_state = ShenandoahThreadLocalData::fast_array_index_to_gc_state(_barriers[c]._gc_state_fast_index);
+  for (int c = 0; c < data->_barriers_count; c++) {
+    address pc = data->_barriers[c]._pc;
+    address stub_addr = data->_barriers[c]._stub_addr;
+    char trigger_state = ShenandoahThreadLocalData::fast_array_index_to_gc_state(data->_barriers[c]._gc_state_fast_index);
     if ((heap->gc_state() & trigger_state) != 0) {
       ShenandoahBarrierSetAssembler::patch_nop_to_branch(pc, stub_addr);
     } else {
@@ -292,7 +296,8 @@ void ShenandoahNMethodTable::register_nmethod(nmethod* nm) {
     wait_until_concurrent_iteration_done();
     ShenandoahNMethodLocker data_locker(data->lock());
     data->update();
-    data->update_barriers();
+    ShenandoahNMethod::update_barriers(nm);
+    ShenandoahNMethod::disarm_nmethod(nm);
   } else {
     // For a new nmethod, we can safely append it to the list, because
     // concurrent iteration will not touch it.
@@ -302,10 +307,11 @@ void ShenandoahNMethodTable::register_nmethod(nmethod* nm) {
     ShenandoahLocker locker(&_lock);
     log_register_nmethod(nm);
     append(data);
-    data->update_barriers();
+
+    ShenandoahNMethodLocker data_locker(data->lock());
+    ShenandoahNMethod::update_barriers(nm);
+    ShenandoahNMethod::disarm_nmethod(nm);
   }
-  // Disarm new nmethod
-  ShenandoahNMethod::disarm_nmethod(nm);
 }
 
 void ShenandoahNMethodTable::unregister_nmethod(nmethod* nm) {

@@ -1023,21 +1023,6 @@ void ShenandoahConcurrentGC::op_class_unloading() {
   heap->do_class_unloading();
 }
 
-class ShenandoahEvacUpdateCodeCacheClosure : public NMethodClosure {
-private:
-  ShenandoahEvacuateUpdateMetadataClosure   _cl;
-
-public:
-  ShenandoahEvacUpdateCodeCacheClosure() : _cl() {}
-
-  void do_nmethod(nmethod* n) {
-    ShenandoahNMethod* data = ShenandoahNMethod::gc_data(n);
-    ShenandoahNMethodLocker locker(data->lock());
-    data->oops_do(&_cl, /* fix_relocations = */ true);
-    ShenandoahNMethod::disarm_nmethod_unlocked(n);
-  }
-};
-
 class ShenandoahConcurrentRootsEvacUpdateTask : public WorkerTask {
 private:
   ShenandoahPhaseTimings::Phase                 _phase;
@@ -1073,7 +1058,7 @@ public:
 
     if (!ShenandoahHeap::heap()->unload_classes()) {
       ShenandoahWorkerTimingsTracker timer(_phase, ShenandoahPhaseTimings::CodeCache, worker_id);
-      ShenandoahEvacUpdateCodeCacheClosure cl;
+      ShenandoahRunNMethodBarrierClosure cl;
       _nmethod_itr.nmethods_do(&cl);
     }
   }

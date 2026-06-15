@@ -70,8 +70,6 @@ public:
   // Update oops when the nmethod is re-registered
   void update();
 
-  void update_barriers();
-
   inline bool is_unregistered() const;
 
   static ShenandoahNMethod* for_nmethod(nmethod* nm);
@@ -79,9 +77,9 @@ public:
   static inline ShenandoahNMethodLock* ic_lock_for_nmethod(nmethod* nm);
 
   static void heal_nmethod(nmethod* nm);
+  static void update_barriers(nmethod* nm);
   static inline void heal_nmethod_metadata(ShenandoahNMethod* nmethod_data);
   static inline void disarm_nmethod(nmethod* nm);
-  static inline void disarm_nmethod_unlocked(nmethod* nm);
 
   static inline ShenandoahNMethod* gc_data(nmethod* nm);
   static inline void attach_gc_data(nmethod* nm, ShenandoahNMethod* gc_data);

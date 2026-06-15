@@ -73,21 +73,10 @@ void ShenandoahNMethod::heal_nmethod_metadata(ShenandoahNMethod* nmethod_data) {
 void ShenandoahNMethod::disarm_nmethod(nmethod* nm) {
   ShenandoahNMethod* data = gc_data(nm);
   assert(data != nullptr, "Sanity");
-  ShenandoahNMethodLock* lock = data->lock();
-  assert(lock != nullptr, "Must be");
-  ShenandoahNMethodLocker locker(lock);
-
-  disarm_nmethod_unlocked(nm);
-}
-
-void ShenandoahNMethod::disarm_nmethod_unlocked(nmethod* nm) {
-  ShenandoahNMethod* data = gc_data(nm);
-  assert(data != nullptr, "Sanity");
   assert(data->lock()->owned_by_self(), "Must hold the lock");
 
   BarrierSetNMethod* const bs = BarrierSet::barrier_set()->barrier_set_nmethod();
   if (bs->is_armed(nm)) {
-    data->update_barriers();
     bs->disarm(nm);
   }
 }

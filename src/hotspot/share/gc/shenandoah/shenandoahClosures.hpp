@@ -179,13 +179,6 @@ public:
   inline void do_oop(narrowOop* p);
 };
 
-class ShenandoahNMethodAndDisarmClosure : public NMethodToOopClosure {
-public:
-  inline ShenandoahNMethodAndDisarmClosure(OopClosure* cl);
-  inline void do_nmethod(nmethod* nm);
-};
-
-
 //
 // ========= Update References
 //

@@ -784,8 +784,8 @@ void insert_nop(address pc) {
 }
 
 void check_at(bool cond, address pc, const char* msg) {
-  assert(cond, "%s: at PC " PTR_FORMAT ": %02x%02x%02x%02x%02x",
-         msg, p2i(pc), *(pc + 0), *(pc + 1), *(pc + 2), *(pc + 3), *(pc + 4));
+  assert(cond, "%s: at PC " PTR_FORMAT ": %02x%02x%02x%02x",
+         msg, p2i(pc), *(pc + 0), *(pc + 1), *(pc + 2), *(pc + 3));
 }
 
 bool ShenandoahBarrierSetAssembler::is_active(address pc) {

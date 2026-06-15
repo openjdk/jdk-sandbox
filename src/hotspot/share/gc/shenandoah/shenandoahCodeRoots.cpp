@@ -79,17 +79,9 @@ void ShenandoahCodeRoots::arm_nmethods() {
   BarrierSet::barrier_set()->barrier_set_nmethod()->arm_all_nmethods();
 }
 
-class ShenandoahDisarmNMethodClosure : public NMethodClosure {
-public:
-  virtual void do_nmethod(nmethod* nm) {
-    // Just run nmethod barrier, so it completes all related work and disarms.
-    nm->run_nmethod_entry_barrier();
-  }
-};
-
 class ShenandoahDisarmNMethodsTask : public WorkerTask {
 private:
-  ShenandoahDisarmNMethodClosure      _cl;
+  ShenandoahRunNMethodBarrierClosure  _cl;
   ShenandoahConcurrentNMethodIterator _iterator;
 
 public:
