@@ -3816,8 +3816,8 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
                                                                      RegisterSaver::return_pc_is_lr,
                                                                      save_vectors);
   } else {
-    frame_size_in_bytes = frame::native_abi_reg_args_size / VMRegImpl::stack_slot_size;
-    map = new OopMap(frame_size_in_bytes, 0);
+    frame_size_in_bytes = frame::native_abi_reg_args_size;
+    map = new OopMap(frame_size_in_bytes / VMRegImpl::stack_slot_size, 0);
     __ mflr(tmp1);
     __ std(tmp1, _abi0(lr), R1_SP);  // save return pc
     __ push_frame_reg_args(0, tmp1);
