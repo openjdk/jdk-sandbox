@@ -82,7 +82,8 @@ void ShenandoahCodeRoots::arm_nmethods() {
 class ShenandoahDisarmNMethodClosure : public NMethodClosure {
 public:
   virtual void do_nmethod(nmethod* nm) {
-    ShenandoahNMethod::disarm_nmethod(nm);
+    // Just run nmethod barrier, so it completes all related work and disarms.
+    nm->run_nmethod_entry_barrier();
   }
 };
 
@@ -102,8 +103,14 @@ public:
 };
 
 void ShenandoahCodeRoots::disarm_nmethods() {
+  Events::log(Thread::current(), "Disarming nmethods");
+  log_info(gc)("Disarming nmethods");
+
   ShenandoahDisarmNMethodsTask task;
   ShenandoahHeap::heap()->workers()->run_task(&task);
+
+  Events::log(Thread::current(), "Disarming nmethods complete");
+  log_info(gc)("Disarming nmethods complete");
 }
 
 #ifdef ASSERT
