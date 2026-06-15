@@ -1000,12 +1000,10 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
       clobbered_c_rarg1 = push_save_register_if_live(masm, c_rarg1);
       __ lea(c_rarg1, _addr);
     } else if (c_rarg1 == _obj) {
-      // Set up arguments in reverse, and then flip them
       clobbered_c_rarg0 = push_save_register_if_live(masm, c_rarg0);
-      __ lea(c_rarg0, _addr);
-      __ mov(_tmp1, c_rarg0);
-      __ mov(c_rarg0, c_rarg1);
-      __ mov(c_rarg1, _tmp1);
+      __ mov(_tmp1, c_rarg1);
+      __ lea(c_rarg1, _addr);
+      __ mov(c_rarg0, _tmp1);
     } else {
       assert_different_registers(c_rarg1, _obj);
       clobbered_c_rarg0 = push_save_register_if_live(masm, c_rarg0);
