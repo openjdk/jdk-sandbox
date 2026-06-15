@@ -49,8 +49,8 @@ ShenandoahBarrierSetC2State::ShenandoahBarrierSetC2State(Arena* comp_arena) :
     _stubs(new (comp_arena) GrowableArray<ShenandoahBarrierStubC2*>(comp_arena, 8,  0, nullptr)),
     _trampoline_stubs_count(0),
     _stubs_start_offset(0),
-    _stubs_current_total_size(0) {
-}
+    _stubs_current_total_size(0),
+    _save_slots_offset(-1) {}
 
 static void set_barrier_data(C2Access& access, bool load, bool store) {
   if (!access.is_oop()) {

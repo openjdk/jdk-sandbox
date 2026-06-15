@@ -1141,8 +1141,8 @@ void ShenandoahBarrierStubC2::post_init() {
   PhaseOutput* const output = Compile::current()->output();
   ShenandoahBarrierSetC2State* state = barrier_set_state();
   if (output->in_scratch_emit_size()) {
-    state->inc_stubs_current_total_size(get_stub_size(this));
     state->set_save_slots_stack_offset(output->gc_barrier_save_slots_offset_in_bytes());
+    state->inc_stubs_current_total_size(get_stub_size(this));
     _needs_far_jump = true;
     return;
   }
