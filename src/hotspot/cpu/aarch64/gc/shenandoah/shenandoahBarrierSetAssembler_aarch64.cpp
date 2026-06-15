@@ -991,7 +991,8 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
 
     // The runtime call will clobber r0 at return. If obj isn't r0 then we need
     // to save obj.
-    if (_obj != r0) {
+    assert(r0 == c_rarg0, "Assumption");
+    if (_obj != r0 && !clobbered_c_rarg0) {
       clobbered_r0 = push_save_register_if_live(masm, r0);
     }
 
