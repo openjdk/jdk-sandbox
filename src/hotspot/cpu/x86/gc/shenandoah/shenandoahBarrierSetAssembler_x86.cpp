@@ -903,16 +903,9 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   // If the object is null, there is no point in applying barriers.
   maybe_far_jump_if_zero(masm, _obj);
 
-  // We need to make sure that loads done by callers survive across slow-path calls.
-  // For self-loads, we need to care about the case when both KA and LRB are enabled (rare).
-  bool needs_both_barriers = _needs_keep_alive_barrier && _needs_load_ref_barrier;
-  if (!_do_load || needs_both_barriers) {
-    preserve(_obj);
-  }
-
   // Go for barriers. Barriers can return straight to continuation, as long
   // as another barrier is not needed.
-  if (needs_both_barriers) {
+  if (_needs_keep_alive_barrier && _needs_load_ref_barrier) {
     keepalive(masm, nullptr);
     lrb(masm);
   } else if (_needs_keep_alive_barrier) {
@@ -1109,11 +1102,6 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   }
   __ bind(L_slow);
 
-  // Obj is the result, need to temporarily stop preserving it.
-  bool is_obj_preserved = is_preserved(_obj);
-  if (is_obj_preserved) {
-    dont_preserve(_obj);
-  }
   {
     assert_different_registers(rax, c_rarg0, c_rarg1);
 
@@ -1173,9 +1161,6 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
       pop_save_register(masm, c_rarg0);
     }
   }
-  if (is_obj_preserved) {
-    preserve(_obj);
-  }
 
   __ jmp(*continuation());
 }
@@ -1189,6 +1174,13 @@ bool ShenandoahBarrierStubC2::is_special_register(Register r) {
 }
 
 void ShenandoahBarrierStubC2::post_init() {
+  // We need to make sure that loads done by callers survive across slow-path calls.
+  // For self-loads, we need to care about the case when both KA and LRB are enabled (rare).
+  bool needs_both_barriers = _needs_keep_alive_barrier && _needs_load_ref_barrier;
+  if (!_do_load || needs_both_barriers) {
+    preserve(_obj);
+  }
+
   // Precompute live registers.
   assert(_live_gp.is_empty(), "sanity: initial state");
   assert(!_has_live_vector_registers, "sanity: initial state");

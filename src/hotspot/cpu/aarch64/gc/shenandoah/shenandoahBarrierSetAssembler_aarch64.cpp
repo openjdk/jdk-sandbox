@@ -813,27 +813,9 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   // If the object is null, there is no point in applying barriers.
   maybe_far_jump_if_zero(masm, _obj);
 
-  // We need to make sure that loads done by callers survive across slow-path calls.
-  // For self-loads, we need to care about the case when both KA and LRB are enabled (rare).
-  bool needs_both_barriers = _needs_keep_alive_barrier && _needs_load_ref_barrier;
-  if (!_do_load || needs_both_barriers) {
-    preserve(_obj);
-  }
-
   // Go for barriers. Barriers can return straight to continuation, as long
   // as another barrier is not needed and we can reach the fastpath.
-  if (needs_both_barriers) {
-    // The Load match rule in the .ad file may have legitimized the load
-    // address using a TEMP register and in that case we need to explicitly
-    // preserve them here, because the RA does not consider TEMP as live-in,
-    // and the KA runtime call may clobber them and cause a crash on the
-    // subsequent LRB stub.
-    if (_addr.base() != noreg) {
-      preserve(_addr.base());
-    }
-    if (_addr.index() != noreg) {
-      preserve(_addr.index());
-    }
+  if (_needs_keep_alive_barrier && _needs_load_ref_barrier) {
     keepalive(masm, nullptr);
     lrb(masm);
   } else if (_needs_keep_alive_barrier) {
@@ -980,11 +962,6 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   // Slow path
   __ bind(L_slow);
 
-  // Obj is the result, need to temporarily stop preserving it.
-  bool is_obj_preserved = is_preserved(_obj);
-  if (is_obj_preserved) {
-    dont_preserve(_obj);
-  }
   {
     // Shuffle in the arguments. The end result should be:
     //   c_rarg0 <-- obj
@@ -1049,9 +1026,6 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
     if (clobbered_c_rarg0) {
       pop_save_register(masm, c_rarg0);
     }
-  }
-  if (is_obj_preserved) {
-    preserve(_obj);
   }
 
   __ b(*continuation());
@@ -1136,6 +1110,46 @@ static int get_stub_size(ShenandoahBarrierStubC2* stub) {
 }
 
 void ShenandoahBarrierStubC2::post_init() {
+  // We need to make sure that loads done by callers survive across slow-path calls.
+  // For self-loads, we need to care about the case when both KA and LRB are enabled (rare).
+  bool needs_both_barriers = _needs_keep_alive_barrier && _needs_load_ref_barrier;
+  if (!_do_load || needs_both_barriers) {
+    preserve(_obj);
+  }
+
+  if (needs_both_barriers) {
+    // The Load match rule in the .ad file may have legitimized the load
+    // address using a TEMP register and in that case we need to explicitly
+    // preserve them here, because the RA does not consider TEMP as live-in,
+    // and the KA runtime call may clobber them and cause a crash on the
+    // subsequent LRB stub.
+    if (_addr.base() != noreg) {
+      preserve(_addr.base());
+    }
+    if (_addr.index() != noreg) {
+      preserve(_addr.index());
+    }
+  }
+
+  // Precompute live registers.
+  assert(_live_gp.is_empty(), "sanity: initial state");
+  assert(!_has_live_vector_registers, "sanity: initial state");
+  RegMaskIterator rmi(preserve_set());
+  while (rmi.has_next()) {
+    const OptoReg::Name opto_reg = rmi.next();
+    const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
+    if (vm_reg->is_Register()) {
+      Register r = vm_reg->as_Register();
+      _live_gp.append_if_missing(r);
+    } else if (vm_reg->is_FloatRegister()) {
+      _has_live_vector_registers = true;
+    } else if (vm_reg->is_PRegister()) {
+      _has_live_vector_registers = true;
+    } else {
+      fatal("Unexpected register type");
+    }
+  }
+
   // If we are in scratch emit mode we assume worst case, and force the use of
   // far branches.
   PhaseOutput* const output = Compile::current()->output();
@@ -1159,25 +1173,6 @@ void ShenandoahBarrierStubC2::post_init() {
   // Subtract 2K to be ultra conservative.
   const int cond_branch_max_reach = (int)(1*M - 2*K);
   _needs_far_jump = code_size >= cond_branch_max_reach;
-
-  // Precompute live registers.
-  assert(_live_gp.is_empty(), "sanity: initial state");
-  assert(!_has_live_vector_registers, "sanity: initial state");
-  RegMaskIterator rmi(preserve_set());
-  while (rmi.has_next()) {
-    const OptoReg::Name opto_reg = rmi.next();
-    const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
-    if (vm_reg->is_Register()) {
-      Register r = vm_reg->as_Register();
-      _live_gp.append_if_missing(r);
-    } else if (vm_reg->is_FloatRegister()) {
-      _has_live_vector_registers = true;
-    } else if (vm_reg->is_PRegister()) {
-      _has_live_vector_registers = true;
-    } else {
-      fatal("Unexpected register type");
-    }
-  }
 }
 
 #endif // COMPILER2
