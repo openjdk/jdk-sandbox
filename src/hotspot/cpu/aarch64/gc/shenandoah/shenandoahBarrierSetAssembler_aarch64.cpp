@@ -1022,11 +1022,11 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
     if (has_live_vector_registers()) {
       __ lea(lr, RuntimeAddress(lrb_runtime_entry_addr(SaveMode::All)));
       __ blr(lr);
-    } else if (has_save_space_for_live_gp_registers(clobbered_c_rarg0, clobbered_c_rarg1, clobbered_r0)) {
-      save_live_gp_regs(masm, clobbered_c_rarg0, clobbered_c_rarg1, clobbered_r0);
+    } else if (has_save_space_for_live_gp_registers(clobbered_c_rarg0, clobbered_c_rarg1, true)) {
+      save_live_gp_regs(masm, clobbered_c_rarg0, clobbered_c_rarg1, true);
       __ lea(lr, RuntimeAddress(lrb_runtime_entry_addr(SaveMode::Nothing)));
       __ blr(lr);
-      restore_live_gp_regs(masm, clobbered_c_rarg0, clobbered_c_rarg1, clobbered_r0);
+      restore_live_gp_regs(masm, clobbered_c_rarg0, clobbered_c_rarg1, true);
     } else {
       __ lea(lr, RuntimeAddress(lrb_runtime_entry_addr(SaveMode::GP)));
       __ blr(lr);
