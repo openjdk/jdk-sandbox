@@ -2853,19 +2853,11 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
 
   // Call the runtime. This is what MacroAssember::call_VM_leaf does,
   // but we also want to have exact post-call PC for oop map location.
-  #ifdef _WIN64
-    // Windows always allocates space for it's register args
-    __ subptr(rsp, frame::arg_reg_save_area_bytes);
-  #endif
 
   // Stacks on aarch64 are always aligned, no need to worry about that here
   __ lea(rscratch1, RuntimeAddress(stub_addr));
   __ blr(rscratch1);
   address post_call_pc = __ pc();
-
-  #ifdef _WIN64
-    __ addptr(rsp, frame::arg_reg_save_area_bytes);
-  #endif
 
   if (save_registers && has_return) {
     // RegisterSaver would clobber the call result when restoring.
