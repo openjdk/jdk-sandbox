@@ -3834,18 +3834,17 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
     //
     // RegisterSaver_LiveRegs[] defines the save layout, and its order matches
     // the stack layout:
-    //   F0..F31, then R2, R3, R4, ...
+    //   SR_CTR, F0..F31, then R0, R2, R3, R4, ...
     //
     // So the saved R3 slot is:
-    //   register_save_offset + (32 * reg_size) + (1 * reg_size)
-    // where the +1 skips over saved R2.
+    //   register_save_offset + (35 * reg_size)
     const int regstosave_num = sizeof(RegisterSaver_LiveRegs) / sizeof(RegisterSaver::LiveRegType);
     const int vecregs_num = sizeof(RegisterSaver_LiveVecRegs) / sizeof(RegisterSaver::LiveRegType);
 
     const int vecregstosave_num = save_vectors ? vecregs_num : 0;
     const int register_save_size = regstosave_num * RegisterSaver::reg_size + vecregstosave_num * RegisterSaver::vec_reg_size;
     const int register_save_offset = frame_size_in_bytes - register_save_size;
-    const int r3_ret_offset = register_save_offset + (32 * RegisterSaver::reg_size) + (1 * RegisterSaver::reg_size);
+    const int r3_ret_offset = register_save_offset + (35 * RegisterSaver::reg_size);
 
     __ std(R3_RET, r3_ret_offset, R1_SP);
   }
