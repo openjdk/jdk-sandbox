@@ -1037,8 +1037,7 @@ int ShenandoahBarrierStubC2::available_gp_registers() {
 }
 
 bool ShenandoahBarrierStubC2::is_special_register(Register r) {
-  Unimplemented(); // Not used
-  return true;
+  return r == sp || r == rfp || r == rheapbase || r == rthread;
 }
 
 bool ShenandoahBarrierStubC2::push_save_register_if_live(MacroAssembler& masm, Register reg) {
@@ -1140,7 +1139,9 @@ void ShenandoahBarrierStubC2::post_init() {
     const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
     if (vm_reg->is_Register()) {
       Register r = vm_reg->as_Register();
-      _live_gp.append_if_missing(r);
+      if (!is_special_register(r)) {
+        _live_gp.append_if_missing(r);
+      }
     } else if (vm_reg->is_FloatRegister()) {
       _has_live_vector_registers = true;
     } else if (vm_reg->is_PRegister()) {

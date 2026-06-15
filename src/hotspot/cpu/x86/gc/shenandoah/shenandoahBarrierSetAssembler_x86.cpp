@@ -1190,8 +1190,9 @@ void ShenandoahBarrierStubC2::post_init() {
     const VMReg vm_reg = OptoReg::as_VMReg(opto_reg);
     if (vm_reg->is_Register()) {
       Register r = vm_reg->as_Register();
-      if (r == rsp) continue;
-      _live_gp.append_if_missing(r);
+      if (!is_special_register(r)) {
+        _live_gp.append_if_missing(r);
+      }
     } else if (vm_reg->is_KRegister()) {
       _has_live_vector_registers = true;
     } else if (vm_reg->is_XMMRegister()) {
