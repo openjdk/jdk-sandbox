@@ -770,15 +770,15 @@ address ShenandoahBarrierSetAssembler::parse_stub_address(address pc) {
 }
 
 bool is_nop(address pc) {
-  if (*(pc + 0) != 0x00) return false;
+  if (*(pc + 0) != 0x13) return false;
   if (*(pc + 1) != 0x00) return false;
   if (*(pc + 2) != 0x00) return false;
-  if (*(pc + 3) != 0x13) return false;
+  if (*(pc + 3) != 0x00) return false;
   return true;
 }
 
 void insert_nop(address pc) {
-  *reinterpret_cast<int32_t*>(pc) = 0x13000000;
+  *reinterpret_cast<int32_t*>(pc) = 0x00000013;
   assert(is_nop(pc), "Should be");
   ICache::invalidate_range(pc, 4);
 }
