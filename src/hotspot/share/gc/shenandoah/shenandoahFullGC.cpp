@@ -131,7 +131,11 @@ void ShenandoahFullGC::op_full(GCCause::Cause cause) {
 
   // Leaving full GC, we need to flip barriers back to idle.
   ShenandoahCodeRoots::arm_nmethods();
-  ShenandoahCodeRoots::disarm_nmethods();
+
+  // There is no operation that follows Full GC, so run all nmethod barriers now.
+  // We will take additional time during the safepoint, but we would also incur no
+  // additional latency on mutators once we return from here.
+  ShenandoahCodeRoots::run_nmethod_barriers();
 
   {
     ShenandoahTimingsTracker timing(ShenandoahPhaseTimings::full_gc_propagate_gc_state);

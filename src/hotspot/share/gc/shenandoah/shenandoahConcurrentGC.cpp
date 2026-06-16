@@ -1239,7 +1239,7 @@ void ShenandoahConcurrentGC::op_reset_after_collect() {
                           "reset after collection.");
 
   // Final concurrent phase: complete disabling all barriers.
-  ShenandoahCodeRoots::disarm_nmethods();
+  ShenandoahCodeRoots::run_nmethod_barriers();
 
   // Check that barriers were not left enabled.
   ShenandoahCodeRoots::check_barriers();

@@ -115,9 +115,6 @@ void ShenandoahSTWMark::mark() {
   _generation->set_mark_complete();
   end_mark();
 
-  // Mark is finished, can disarm the nmethods now.
-  ShenandoahCodeRoots::disarm_nmethods();
-
   assert(task_queues()->is_empty(), "Should be empty");
   TASKQUEUE_STATS_ONLY(task_queues()->print_and_reset_taskqueue_stats(""));
 }

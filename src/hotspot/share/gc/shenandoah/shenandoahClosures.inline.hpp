@@ -25,6 +25,7 @@
 #ifndef SHARE_GC_SHENANDOAH_SHENANDOAHCLOSURES_INLINE_HPP
 #define SHARE_GC_SHENANDOAH_SHENANDOAHCLOSURES_INLINE_HPP
 
+#include "shenandoahBarrierSetNMethod.hpp"
 #include "gc/shenandoah/shenandoahClosures.hpp"
 
 #include "gc/shared/barrierSetNMethod.hpp"
@@ -52,7 +53,7 @@ ShenandoahSuperClosure::ShenandoahSuperClosure(ShenandoahReferenceProcessor* rp)
   MetadataVisitingOopIterateClosure(rp), _heap(ShenandoahHeap::heap()) {}
 
 void ShenandoahSuperClosure::do_nmethod(nmethod* nm) {
-  nm->run_nmethod_entry_barrier();
+  ShenandoahBarrierSetNMethod::barrier_set()->nmethod_entry_barrier_gc(nm);
 }
 
 //
@@ -240,7 +241,7 @@ class ShenandoahAlsoRunNMethodBarrierClosure : public NMethodClosure {
 public:
   ShenandoahAlsoRunNMethodBarrierClosure(NMethodClosure* other_cl) : _other_cl(other_cl) {}
   virtual void do_nmethod(nmethod* nm) {
-    nm->run_nmethod_entry_barrier();
+    ShenandoahBarrierSetNMethod::barrier_set()->nmethod_entry_barrier_gc(nm);
     _other_cl->do_nmethod(nm);
   }
 };
@@ -248,7 +249,7 @@ public:
 class ShenandoahRunNMethodBarrierClosure : public NMethodClosure {
 public:
   virtual void do_nmethod(nmethod* nm) {
-    nm->run_nmethod_entry_barrier();
+    ShenandoahBarrierSetNMethod::barrier_set()->nmethod_entry_barrier_gc(nm);
   }
 };
 
