@@ -34,6 +34,7 @@
 #include "gc/shenandoah/shenandoahHeap.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahHeapRegion.hpp"
+#include "gc/shenandoah/shenandoahNMethod.inline.hpp"
 #include "gc/shenandoah/shenandoahRuntime.hpp"
 #include "gc/shenandoah/shenandoahThreadLocalData.hpp"
 #include "interpreter/interpreter.hpp"
@@ -1052,7 +1053,7 @@ void ShenandoahBarrierStubC2::cardtable(MacroAssembler& masm, Address address, R
 void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
-  __ relocate(barrier_Relocation::spec(), ShenandoahThreadLocalData::gc_state_to_fast_array_index(test_state));
+  __ relocate(barrier_Relocation::spec(), ShenandoahNMethod::gc_state_to_reloc(test_state));
   __ b(*entry());
 
   // This is were the slowpath stub will return to
@@ -1155,7 +1156,6 @@ void ShenandoahBarrierStubC2::maybe_far_jump_if_zero(MacroAssembler& masm, Regis
 }
 
 void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
-  const int gcstate_offset = in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(ShenandoahHeap::MARKING));
   const int index_offset = in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset());
   const int buffer_offset = in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset());
   Label L_through, L_slowpath;
@@ -1168,7 +1168,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
     // TODO: We could have spared the over-jump if patching knew we need the inverse branch.
     char state_to_check = ShenandoahHeap::MARKING;
     Label L_over;
-    __ relocate(barrier_Relocation::spec(), ShenandoahThreadLocalData::gc_state_to_fast_array_index(state_to_check));
+    __ relocate(barrier_Relocation::spec(), ShenandoahNMethod::gc_state_to_reloc(state_to_check));
     __ b(L_over);
     __ b(L_through);
     __ bind(L_over);
@@ -1224,7 +1224,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   // regardless of their cset status.
   if (_needs_load_ref_weak_barrier) {
     char state_to_check = ShenandoahHeap::WEAK_ROOTS;
-    __ relocate(barrier_Relocation::spec(), ShenandoahThreadLocalData::gc_state_to_fast_array_index(state_to_check));
+    __ relocate(barrier_Relocation::spec(), ShenandoahNMethod::gc_state_to_reloc(state_to_check));
     __ b(L_slow);
   }
 
@@ -1234,7 +1234,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
     // TODO: We could have spared the over-jump if patching knew we need the inverse branch.
     char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
     Label L_over;
-    __ relocate(barrier_Relocation::spec(), ShenandoahThreadLocalData::gc_state_to_fast_array_index(state_to_check));
+    __ relocate(barrier_Relocation::spec(), ShenandoahNMethod::gc_state_to_reloc(state_to_check));
     __ b(L_over);
     __ b(*continuation());
     __ bind(L_over);

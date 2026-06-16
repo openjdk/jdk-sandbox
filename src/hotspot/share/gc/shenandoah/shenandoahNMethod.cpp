@@ -120,7 +120,7 @@ void ShenandoahNMethod::parse(nmethod* nm, GrowableArray<oop*>& oops, bool& has_
         // TODO: Parsing the stub address from generated code is kludgy. It also does not work
         // with nmethod relocation, that can copy the nmethod body with barriers already nop-ped out.
         b._stub_addr = ShenandoahBarrierSetAssembler::parse_stub_address(b._pc);
-        b._gc_state_fast_index = r->format();
+        b._index = r->format();
         barriers.push(b);
         break;
       }
@@ -165,7 +165,7 @@ void ShenandoahNMethod::update_barriers(nmethod* nm) {
   for (int c = 0; c < data->_barriers_count; c++) {
     address pc = data->_barriers[c]._pc;
     address stub_addr = data->_barriers[c]._stub_addr;
-    char trigger_state = ShenandoahThreadLocalData::fast_array_index_to_gc_state(data->_barriers[c]._gc_state_fast_index);
+    char trigger_state = reloc_to_gc_state(data->_barriers[c]._index);
 
     if ((gc_state & trigger_state) != 0) {
       ShenandoahBarrierSetAssembler::patch_nop_to_branch(pc, stub_addr);
@@ -184,7 +184,7 @@ void ShenandoahNMethod::assert_barriers(nmethod* nm, bool global_expected) {
   ShenandoahNMethod* snm = gc_data(nm);
   for (int c = 0; c < snm->_barriers_count; c++) {
     address pc = snm->_barriers[c]._pc;
-    char trigger_state = ShenandoahThreadLocalData::fast_array_index_to_gc_state(snm->_barriers[c]._gc_state_fast_index);
+    char trigger_state = reloc_to_gc_state(snm->_barriers[c]._index);
     bool expected = global_expected && ((heap->gc_state() & trigger_state) != 0);
     bool actual = ShenandoahBarrierSetAssembler::is_active(pc);
     assert(expected == actual, "armed expected: %s, actual: %s", BOOL_TO_STR(expected), BOOL_TO_STR(actual));
