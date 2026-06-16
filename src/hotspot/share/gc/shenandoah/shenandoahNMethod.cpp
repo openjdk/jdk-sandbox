@@ -58,8 +58,8 @@ void ShenandoahNMethod::init_from(nmethod* nm) {
 
   parse(nm, oops, non_immediate_oops, barriers);
 
-  _oops_count = oops.length();
-  if (_oops_count > 0) {
+  if (_oops_count != oops.length()) {
+    _oops_count = oops.length();
     if (_oops != nullptr) {
       FREE_C_HEAP_ARRAY(_oops);
     }
@@ -71,8 +71,8 @@ void ShenandoahNMethod::init_from(nmethod* nm) {
 
   assert_same_oops();
 
-  _barriers_count = barriers.length();
-  if (_barriers_count > 0) {
+  if (_barriers_count != barriers.length()) {
+    _barriers_count = barriers.length();
     if (_barriers != nullptr) {
       FREE_C_HEAP_ARRAY(_barriers);
     }
@@ -160,13 +160,14 @@ void ShenandoahNMethod::update_barriers(nmethod* nm) {
   assert(data != nullptr, "Sanity");
   assert(data->lock()->owned_by_self(), "Must hold the lock");
 
-  ShenandoahHeap* heap = ShenandoahHeap::heap();
+  char gc_state = ShenandoahHeap::heap()->gc_state();
 
   for (int c = 0; c < data->_barriers_count; c++) {
     address pc = data->_barriers[c]._pc;
     address stub_addr = data->_barriers[c]._stub_addr;
     char trigger_state = ShenandoahThreadLocalData::fast_array_index_to_gc_state(data->_barriers[c]._gc_state_fast_index);
-    if ((heap->gc_state() & trigger_state) != 0) {
+
+    if ((gc_state & trigger_state) != 0) {
       ShenandoahBarrierSetAssembler::patch_nop_to_branch(pc, stub_addr);
     } else {
       ShenandoahBarrierSetAssembler::patch_branch_to_nop(pc);
