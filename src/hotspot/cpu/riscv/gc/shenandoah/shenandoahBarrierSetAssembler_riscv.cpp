@@ -769,7 +769,7 @@ address ShenandoahBarrierSetAssembler::parse_stub_address(address pc) {
   return jmp->jump_destination();
 }
 
-bool is_nop(address pc) {
+static bool is_nop(address pc) {
   if (*(pc + 0) != 0x13) return false;
   if (*(pc + 1) != 0x00) return false;
   if (*(pc + 2) != 0x00) return false;
@@ -777,13 +777,13 @@ bool is_nop(address pc) {
   return true;
 }
 
-void insert_nop(address pc) {
+static void insert_nop(address pc) {
   *reinterpret_cast<int32_t*>(pc) = 0x00000013;
   assert(is_nop(pc), "Should be");
   ICache::invalidate_range(pc, 4);
 }
 
-void check_at(bool cond, address pc, const char* msg) {
+static void check_at(bool cond, address pc, const char* msg) {
   assert(cond, "%s: at PC " PTR_FORMAT ": %02x%02x%02x%02x",
          msg, p2i(pc), *(pc + 0), *(pc + 1), *(pc + 2), *(pc + 3));
 }
