@@ -25,6 +25,7 @@
 
 package javax.net.ssl;
 
+import javax.crypto.SecretKey;
 import java.nio.ByteBuffer;
 import java.nio.ReadOnlyBufferException;
 import java.util.List;
@@ -408,25 +409,58 @@ import java.util.function.BiFunction;
  * <P><b>Using SSLEngine to secure QUIC</b></P>
  * <P>
  * An {@code SSLEngine} can be used to secure a QUIC transport.
- * In this mode of operation, QUIC is responsible for confidentiality
- * and integrity protection, and for reliable delivery of handshake data.
- * The {@code SSLEngine} sends and receives handshake messages,
+ * In this mode of operation, QUIC is responsible for cryptographic protection,
+ * and for reliable data delivery.
+ * The {@code SSLEngine} performs the initial handshake,
  * and provides updates to QUIC through the {@link QuicTLSCallbacks} interface.
  * <P>
  * A QUIC-supporting {@code SSLEngine} is created by calling
  * {@link SSLContext#createQUICEngine(String, int, QuicTLSCallbacks)}
  * from an initialized {@code SSLContext}.
  * <P>
- * In this mode of operation, the {@code wrap()} and {@code unwrap()} methods
- * operate on handshake data only. They do not produce
- * or consume application data.
+ * The QUIC transport replaces the TLS records that were used to describe
+ * the message type ("handshake", "alert", or "application data"),
+ * and were the units of encryption. As a result, the semantics of certain
+ * {@code SSLEngine} methods were changed.
  * <P>
- * Once the handshake is complete and the session tickets are sent,
- * the {@code SSLEngine} becomes passive. It can still receive data
- * from the peer, but it will not send data.
+ * The {@code wrap()} and {@code unwrap()} methods operate on raw unencrypted
+ * TLS "handshake" messages suitable for inclusion in QUIC {@code CRYPTO}
+ * frames. These methods do not process application data, that is,
+ * the {@code src} argument to {@code wrap()} and the {@code dst} argument
+ * to {@code unwrap()} are not used.
  * <P>
- * Connection state management is handled by QUIC.
- * Closing a QUIC {@code SSLEngine} is not required.
+ * QUIC transports the {@code CRYPTO} messages in packets encrypted with initial,
+ * handshake, and application (1-RTT) keys. The handshake and application keys
+ * are derived from secrets provided by the {@code SSLEngine} using
+ * {@link QuicTLSCallbacks#deriveHandshakeReadSecrets(SecretKey)},
+ * {@link QuicTLSCallbacks#deriveHandshakeWriteSecrets(SecretKey)},
+ * {@link QuicTLSCallbacks#deriveApplicationReadSecrets(SecretKey)}, and
+ * {@link QuicTLSCallbacks#deriveApplicationWriteSecrets(SecretKey)} callbacks.
+ * The callbacks may be called from {@code wrap()}, {@code unwrap()},
+ * or a delegated task. The read secrets are derived when or after
+ * the last expected message from the earlier key space is consumed,
+ * and the write secrets are derived when or after the last message
+ * from the earlier key space is produced. For example, the {@code wrap()} call
+ * that produces the last byte of the {@code Finished} TLS message (the last
+ * message protected using the handshake keys) may call the
+ * {@link QuicTLSCallbacks#deriveApplicationWriteSecrets(SecretKey)} callback.
+ * <P>
+ * The {@link SSLSession#getPacketBufferSize()} method has no meaning for QUIC.
+ * The {@code wrap()} method can work with any buffer size now.
+ * It is implementation-dependent if the {@code unwrap()} method buffers data
+ * internally or if it reports a {@link SSLEngineResult.Status#BUFFER_UNDERFLOW}
+ * status when it detects an incomplete message.
+ * <P>
+ * Handshake failures (alerts) are reported to the QUIC layer
+ * through the {@link QuicTLSCallbacks#cryptoError(byte, Exception)} callback.
+ * The QUIC implementation then delivers the alert to the peer
+ * in a {@code CONNECTION_CLOSE} QUIC frame.
+ * <P>
+ * After the initial handshake, a QUIC {@code SSLEngine} can still be used
+ * to process post-handshake messages, but it is not used
+ * for application data processing, rehandshaking, or closing the connection.
+ * The {@link #closeOutbound()} and {@link #closeInbound()} methods
+ * have no meaning and should not be used.
  *
  * @spec https://www.rfc-editor.org/info/rfc2246
  *      RFC 2246: The TLS Protocol Version 1.0
