@@ -219,7 +219,7 @@ void NativeJump::insert(address code_pos, address entry) {
   guarantee(Assembler::is_simm(imm26, 26), "maximum offset is 128MiB, you asking for %ld", imm26);
 
   // Patch with opcode | offset
-  *((int32_t*)code_pos) = 0x14000000 | imm26;
+  *((int32_t*)code_pos) = 0x14000000 | (imm26 & 0x03FFFFFF);
 
   // Tell hardware to invalidate icache line containing code_pos
   ICache::invalidate_range(code_pos, instruction_size);
