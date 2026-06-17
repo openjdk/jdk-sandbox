@@ -37,10 +37,14 @@ import jdk.incubator.json.impl.JsonObjectImpl;
  * The interface that represents JSON object.
  * <p>
  * A {@code JsonObject} can be produced by a {@link Json#parse(String)}.
- * <p> Alternatively, {@link #of(Map)} can be used to obtain a {@code JsonObject}.
+ * <p>
+ * Alternatively, {@link #of(Map)} can be used to obtain a {@code JsonObject}.
+ * <p>
  * Implementations of {@code JsonObject} cannot be created from sources that
- * contain duplicate member names. If duplicate names appear during
- * a {@link Json#parse(String)}, a {@code JsonParseException} is thrown.
+ * contain duplicate member names. If duplicate names appear while parsing with
+ * {@link Json#parse(String)}, a {@code JsonParseException} is thrown. If duplicate
+ * member names are detected while creating a {@code JsonObject} with {@link #of(Map)},
+ * an {@code IllegalArgumentException} is thrown.
  *
  * @spec https://datatracker.ietf.org/doc/html/rfc8259#section-4 RFC 8259:
  *      The JavaScript Object Notation (JSON) Data Interchange Format - Objects
