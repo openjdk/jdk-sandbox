@@ -26,12 +26,10 @@
 package jdk.incubator.json.impl;
 
 import jdk.incubator.json.JsonNull;
-import jdk.internal.ValueBased;
 
 /**
  * JsonNull implementation class
  */
-@ValueBased
 public final class JsonNullImpl implements JsonNull, JsonValueImpl {
 
     private final int offset;
@@ -39,7 +37,6 @@ public final class JsonNullImpl implements JsonNull, JsonValueImpl {
 
     public static final JsonNullImpl NULL = new JsonNullImpl(null, -1);
     private static final String VALUE = "null";
-    private static final int HASH = VALUE.hashCode();
 
     public JsonNullImpl(char[] doc, int offset) {
         this.doc = doc;

@@ -32,12 +32,10 @@ import java.util.Optional;
 
 import jdk.incubator.json.JsonObject;
 import jdk.incubator.json.JsonValue;
-import jdk.internal.ValueBased;
 
 /**
  * JsonObject implementation class
  */
-@ValueBased
 public final class JsonObjectImpl implements JsonObject, JsonValueImpl {
 
     private final Map<String, JsonValue> theMembers;
