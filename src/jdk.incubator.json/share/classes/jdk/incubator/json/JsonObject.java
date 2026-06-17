@@ -25,11 +25,11 @@
 
 package jdk.incubator.json;
 
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import jdk.incubator.json.impl.JsonObjectImpl;
 
@@ -93,14 +93,26 @@ public non-sealed interface JsonObject extends JsonValue {
      * map of {@code String} to {@code JsonValue}s}
      *
      * @param map the map of {@code JsonValue}s. Non-null.
+     * @throws IllegalArgumentException if duplicate member names are given in
+     *      {@code map}.
      * @throws NullPointerException if {@code map} is {@code null}, contains
      *      any keys that are {@code null}, or contains any values that are {@code null}.
      */
     static JsonObject of(Map<String, ? extends JsonValue> map) {
-        return new JsonObjectImpl(map.entrySet() // Implicit NPE on map
-                .stream()
-                .collect(Collectors.toMap(
-                        e -> Objects.requireNonNull(e.getKey()), Map.Entry::getValue, // Implicit NPE on val
-                        (_, v) -> v, LinkedHashMap::new)));
+        Objects.requireNonNull(map);
+
+        if (map.isEmpty()) {
+            return new JsonObjectImpl(Collections.emptyMap());
+        } else {
+            var m = new LinkedHashMap<String, JsonValue>();
+            for (var e : map.entrySet()) {
+                var key = Objects.requireNonNull(e.getKey());
+                var value = Objects.requireNonNull(e.getValue());
+                if (m.putIfAbsent(key, value) != null) {
+                    throw new IllegalArgumentException("Duplicate member name: " + key);
+                }
+            }
+            return new JsonObjectImpl(m);
+        }
     }
 }

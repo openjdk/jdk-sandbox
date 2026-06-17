@@ -36,6 +36,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.FieldSource;
 
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import jdk.incubator.json.Json;
@@ -358,6 +359,16 @@ public class TestJsonObject {
                 var jo = JsonObject.of(sequence).asMap();
                 JsonObject.of(jo);
             }
+        }
+
+        // Check IAE is thrown for duplicate map key names
+        @Test
+        void duplicateMapKeyTest() {
+            var map = new IdentityHashMap<String, JsonValue>();
+            map.put(new String("foo"), JsonString.of("foo"));
+            map.put(new String("foo"), JsonString.of("bar"));
+            var iae = assertThrows(IllegalArgumentException.class, () -> JsonObject.of(map));
+            assertEquals("Duplicate member name: foo", iae.getMessage());
         }
     }
 }
