@@ -31,6 +31,7 @@ import javax.crypto.SecretKey;
 import javax.net.ssl.QuicTLSCallbacks;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.LinkedList;
 
 /**
@@ -175,10 +176,7 @@ final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
                 int offset, int length) throws IOException {
             HandshakeMemo memo = new HandshakeMemo();
 
-            memo.fragment = new byte[length];
-            assert Record.getInt24(ByteBuffer.wrap(source, offset + 1, 3))
-                    == length - 4 : "Invalid handshake message length";
-            System.arraycopy(source, offset, memo.fragment, 0, length);
+            memo.fragment = Arrays.copyOfRange(source, offset, offset + length);
 
             handshakeMemos.add(memo);
         }
