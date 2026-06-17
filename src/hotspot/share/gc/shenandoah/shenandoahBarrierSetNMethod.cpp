@@ -34,21 +34,7 @@
 #include "memory/resourceArea.hpp"
 #include "runtime/threadWXSetters.inline.hpp"
 
-ShenandoahBarrierSetNMethod* ShenandoahBarrierSetNMethod::barrier_set() {
-  BarrierSetNMethod* bs_nm = BarrierSet::barrier_set()->barrier_set_nmethod();
-  assert(UseShenandoahGC, "Sanity"); // TODO: Type check instead
-  return static_cast<ShenandoahBarrierSetNMethod*>(bs_nm);
-}
-
 bool ShenandoahBarrierSetNMethod::nmethod_entry_barrier(nmethod* nm) {
-  return nmethod_entry_barrier_impl(nm, /* on_stack = */ true);
-}
-
-bool ShenandoahBarrierSetNMethod::nmethod_entry_barrier_gc(nmethod* nm) {
-  return nmethod_entry_barrier_impl(nm, /* on_stack = */ false);
-}
-
-bool ShenandoahBarrierSetNMethod::nmethod_entry_barrier_impl(nmethod* nm, bool on_stack) {
   if (!is_armed(nm)) {
     // Some other thread got here first and healed the oops
     // and disarmed the nmethod. No need to continue.
@@ -82,20 +68,10 @@ bool ShenandoahBarrierSetNMethod::nmethod_entry_barrier_impl(nmethod* nm, bool o
   // Heal oops
   ShenandoahNMethod::heal_nmethod(nm);
 
-  // Update barriers
-  ShenandoahNMethod::update_barriers(nm);
+  // CodeCache unloading support
+  nm->mark_as_maybe_on_stack();
 
-  // CodeCache unloading support. Only mark the nmethod on stack if we are calling
-  // the barrier from the stack processing, otherwise we would overestimate method
-  // liveness.
-  if (on_stack) {
-    nm->mark_as_maybe_on_stack();
-  }
-
-  // Disarm. Similarly, only disarm when the real stack processing reaches here,
-  // otherwise we can *miss* the mark_as_maybe_on_stack() notifications.
-  if (on_stack) {
-    ShenandoahNMethod::disarm_nmethod(nm);
-  }
+  // Disarm
+  ShenandoahNMethod::complete_and_disarm_nmethod_unlocked(nm);
   return true;
 }

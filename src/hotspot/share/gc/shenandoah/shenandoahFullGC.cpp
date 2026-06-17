@@ -135,7 +135,7 @@ void ShenandoahFullGC::op_full(GCCause::Cause cause) {
   // There is no operation that follows Full GC, so run all nmethod barriers now.
   // We will take additional time during the safepoint, but we would also incur no
   // additional latency on mutators once we return from here.
-  ShenandoahCodeRoots::run_nmethod_barriers();
+  ShenandoahCodeRoots::disarm_nmethods();
 
   {
     ShenandoahTimingsTracker timing(ShenandoahPhaseTimings::full_gc_propagate_gc_state);

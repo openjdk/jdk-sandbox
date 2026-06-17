@@ -79,30 +79,38 @@ void ShenandoahCodeRoots::arm_nmethods() {
   BarrierSet::barrier_set()->barrier_set_nmethod()->arm_all_nmethods();
 }
 
-class ShenandoahRunNMethodBarriersTask : public WorkerTask {
+class ShenandoahDisarmNMethodClosure : public NMethodClosure {
+public:
+  virtual void do_nmethod(nmethod* nm) {
+    ShenandoahNMethod::complete_and_disarm_nmethod(nm);
+  }
+};
+
+class ShenandoahDisarmNMethodsTask : public WorkerTask {
 private:
-  ShenandoahRunNMethodBarrierClosure  _cl;
+  ShenandoahDisarmNMethodClosure      _cl;
   ShenandoahConcurrentNMethodIterator _iterator;
 
 public:
-  ShenandoahRunNMethodBarriersTask() :
-    WorkerTask("Shenandoah Run NMethod Barriers"),
+  ShenandoahDisarmNMethodsTask() :
+    WorkerTask("Shenandoah Disarm NMethods"),
     _iterator(ShenandoahCodeRoots::table()) {}
 
   virtual void work(uint worker_id) {
+    ShenandoahParallelWorkerSession worker_session(worker_id);
     _iterator.nmethods_do(&_cl);
   }
 };
 
-void ShenandoahCodeRoots::run_nmethod_barriers() {
-  Events::log(Thread::current(), "Running nmethod barriers");
-  log_info(gc)("Running nmethod barriers");
+void ShenandoahCodeRoots::disarm_nmethods() {
+  Events::log(Thread::current(), "Disarming nmethod barriers");
+  log_info(gc)("Disarming nmethod barriers");
 
-  ShenandoahRunNMethodBarriersTask task;
+  ShenandoahDisarmNMethodsTask task;
   ShenandoahHeap::heap()->workers()->run_task(&task);
 
-  Events::log(Thread::current(), "Running nmethod barriers complete");
-  log_info(gc)("Running nmethod barriers complete");
+  Events::log(Thread::current(), "Disarming nmethod barriers complete");
+  log_info(gc)("Disarming nmethod barriers complete");
 }
 
 #ifdef ASSERT
@@ -161,7 +169,16 @@ public:
       return;
     }
 
-    ShenandoahBarrierSetNMethod::barrier_set()->nmethod_entry_barrier_gc(nm);
+    if (_heap->is_evacuation_in_progress()) {
+      ShenandoahNMethodLocker locker(nm_data->lock());
+
+      // Heal oops
+      if (_bs->is_armed(nm)) {
+        ShenandoahNMethod::heal_nmethod_metadata(nm_data);
+        // Must remain armed to complete remaining work in nmethod entry barrier
+        assert(_bs->is_armed(nm), "Should remain armed");
+      }
+    }
 
     // Clear compiled ICs and exception caches
     ShenandoahNMethodLocker locker(nm_data->ic_lock());

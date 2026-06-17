@@ -35,14 +35,11 @@ class ShenandoahBarrierSetNMethod : public BarrierSetNMethod {
 private:
   ShenandoahHeap* _heap;
 
-  bool nmethod_entry_barrier_impl(nmethod* nm, bool on_stack);
 public:
-  ShenandoahBarrierSetNMethod(ShenandoahHeap* heap) : _heap(heap) {}
-
-  static ShenandoahBarrierSetNMethod* barrier_set();
+  ShenandoahBarrierSetNMethod(ShenandoahHeap* heap) : _heap(heap) {
+  }
 
   virtual bool nmethod_entry_barrier(nmethod* nm);
-  bool nmethod_entry_barrier_gc(nmethod* nm);
 };
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHBARRIERSETNMETHOD_HPP

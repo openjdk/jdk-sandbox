@@ -25,7 +25,6 @@
 #ifndef SHARE_GC_SHENANDOAH_SHENANDOAHCLOSURES_INLINE_HPP
 #define SHARE_GC_SHENANDOAH_SHENANDOAHCLOSURES_INLINE_HPP
 
-#include "shenandoahBarrierSetNMethod.hpp"
 #include "gc/shenandoah/shenandoahClosures.hpp"
 
 #include "gc/shared/barrierSetNMethod.hpp"
@@ -53,7 +52,7 @@ ShenandoahSuperClosure::ShenandoahSuperClosure(ShenandoahReferenceProcessor* rp)
   MetadataVisitingOopIterateClosure(rp), _heap(ShenandoahHeap::heap()) {}
 
 void ShenandoahSuperClosure::do_nmethod(nmethod* nm) {
-  ShenandoahBarrierSetNMethod::barrier_set()->nmethod_entry_barrier_gc(nm);
+  nm->run_nmethod_entry_barrier();
 }
 
 //
@@ -195,6 +194,18 @@ void ShenandoahCleanUpdateWeakOopsClosure<CONCURRENT, IsAlive, KeepAlive>::do_oo
   ShouldNotReachHere();
 }
 
+ShenandoahNMethodAndDisarmClosure::ShenandoahNMethodAndDisarmClosure(OopClosure* cl) :
+  NMethodToOopClosure(cl, true /* fix_relocations */) {}
+
+void ShenandoahNMethodAndDisarmClosure::do_nmethod(nmethod* nm) {
+  assert(nm != nullptr, "Sanity");
+  ShenandoahNMethod* data = ShenandoahNMethod::gc_data(nm);
+  ShenandoahNMethodLocker locker(data->lock());
+  assert(!data->is_unregistered(), "Should not be here");
+  NMethodToOopClosure::do_nmethod(nm);
+  ShenandoahNMethod::complete_and_disarm_nmethod(nm);
+}
+
 //
 // ========= Update References
 //
@@ -235,23 +246,6 @@ inline void ShenandoahFlushSATB::do_thread(Thread* thread) {
 //
 // ========= Utilities
 //
-
-class ShenandoahAlsoRunNMethodBarrierClosure : public NMethodClosure {
-  NMethodClosure* const _other_cl;
-public:
-  ShenandoahAlsoRunNMethodBarrierClosure(NMethodClosure* other_cl) : _other_cl(other_cl) {}
-  virtual void do_nmethod(nmethod* nm) {
-    ShenandoahBarrierSetNMethod::barrier_set()->nmethod_entry_barrier_gc(nm);
-    _other_cl->do_nmethod(nm);
-  }
-};
-
-class ShenandoahRunNMethodBarrierClosure : public NMethodClosure {
-public:
-  virtual void do_nmethod(nmethod* nm) {
-    ShenandoahBarrierSetNMethod::barrier_set()->nmethod_entry_barrier_gc(nm);
-  }
-};
 
 #ifdef ASSERT
 template <class T>

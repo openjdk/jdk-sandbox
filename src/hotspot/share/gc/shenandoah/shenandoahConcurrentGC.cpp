@@ -1023,6 +1023,21 @@ void ShenandoahConcurrentGC::op_class_unloading() {
   heap->do_class_unloading();
 }
 
+class ShenandoahEvacUpdateCodeCacheClosure : public NMethodClosure {
+private:
+  ShenandoahEvacuateUpdateMetadataClosure   _cl;
+
+public:
+  ShenandoahEvacUpdateCodeCacheClosure() : _cl() {}
+
+  void do_nmethod(nmethod* n) {
+    ShenandoahNMethod* data = ShenandoahNMethod::gc_data(n);
+    ShenandoahNMethodLocker locker(data->lock());
+    data->oops_do(&_cl, /* fix_relocations = */ true);
+    ShenandoahNMethod::complete_and_disarm_nmethod_unlocked(n);
+  }
+};
+
 class ShenandoahConcurrentRootsEvacUpdateTask : public WorkerTask {
 private:
   ShenandoahPhaseTimings::Phase                 _phase;
@@ -1058,7 +1073,7 @@ public:
 
     if (!ShenandoahHeap::heap()->unload_classes()) {
       ShenandoahWorkerTimingsTracker timer(_phase, ShenandoahPhaseTimings::CodeCache, worker_id);
-      ShenandoahRunNMethodBarrierClosure cl;
+      ShenandoahEvacUpdateCodeCacheClosure cl;
       _nmethod_itr.nmethods_do(&cl);
     }
   }
@@ -1239,7 +1254,7 @@ void ShenandoahConcurrentGC::op_reset_after_collect() {
                           "reset after collection.");
 
   // Final concurrent phase: complete disabling all barriers.
-  ShenandoahCodeRoots::run_nmethod_barriers();
+  ShenandoahCodeRoots::disarm_nmethods();
 
   // Check that barriers were not left enabled.
   ShenandoahCodeRoots::check_barriers();

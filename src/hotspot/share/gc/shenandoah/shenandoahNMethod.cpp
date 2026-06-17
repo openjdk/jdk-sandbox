@@ -297,8 +297,7 @@ void ShenandoahNMethodTable::register_nmethod(nmethod* nm) {
     wait_until_concurrent_iteration_done();
     ShenandoahNMethodLocker data_locker(data->lock());
     data->update();
-    ShenandoahNMethod::update_barriers(nm);
-    ShenandoahNMethod::disarm_nmethod(nm);
+    ShenandoahNMethod::complete_and_disarm_nmethod_unlocked(nm);
   } else {
     // For a new nmethod, we can safely append it to the list, because
     // concurrent iteration will not touch it.
@@ -310,8 +309,7 @@ void ShenandoahNMethodTable::register_nmethod(nmethod* nm) {
     append(data);
 
     ShenandoahNMethodLocker data_locker(data->lock());
-    ShenandoahNMethod::update_barriers(nm);
-    ShenandoahNMethod::disarm_nmethod(nm);
+    ShenandoahNMethod::complete_and_disarm_nmethod_unlocked(nm);
   }
 }
 

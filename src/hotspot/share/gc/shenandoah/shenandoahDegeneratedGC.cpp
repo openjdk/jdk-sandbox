@@ -320,7 +320,7 @@ void ShenandoahDegenGC::op_degenerated() {
   // There is no operation that follows degenerated GC, so run all nmethod barriers now.
   // We will take additional time during the safepoint, but we would also incur no
   // additional latency on mutators once we return from here.
-  ShenandoahCodeRoots::run_nmethod_barriers();
+  ShenandoahCodeRoots::disarm_nmethods();
 
   if (ShenandoahVerify) {
     heap->verifier()->verify_after_degenerated(_generation);
