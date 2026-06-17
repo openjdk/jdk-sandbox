@@ -139,11 +139,12 @@ public final class Json {
         } else {
             s.append(prefix);
         }
-        if (jo.asMap().isEmpty()) {
+        var map = jo.asMap();
+        if (map.isEmpty()) {
             s.append("{}");
         } else {
             s.append("{\n");
-            jo.asMap().forEach((name, val) -> {
+            map.forEach((name, val) -> {
                 s.append(prefix)
                         .append(" ".repeat(indent))
                         .append("\"")
@@ -165,11 +166,12 @@ public final class Json {
         } else {
             s.append(prefix);
         }
-        if (ja.asList().isEmpty()) {
+        var list = ja.asList();
+        if (list.isEmpty()) {
             s.append("[]");
         } else {
             s.append("[\n");
-            for (JsonValue v : ja.asList()) {
+            for (JsonValue v : list) {
                 Json.toDisplayString(v, s, col + indent, indent, false);
                 s.append(",\n");
             }
