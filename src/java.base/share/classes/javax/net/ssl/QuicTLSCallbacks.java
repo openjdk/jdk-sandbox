@@ -36,7 +36,7 @@ import java.nio.ByteBuffer;
  * from the set supported by the QUIC transport. The {@code SSLEngine} calls
  * {@link #getSupportedCipherSuites()}, and then only negotiates cipher suites
  * that are both {@link SSLEngine#getEnabledCipherSuites() enabled}
- * and supported.
+ * and supported by QUIC.
  * <P>
  * Each QUIC endpoint offers QUIC transport parameters to the peer.
  * The {@code SSLEngine} calls {@link #localQuicTransportParameters()}
