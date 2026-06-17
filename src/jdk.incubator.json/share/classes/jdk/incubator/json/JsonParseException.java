@@ -41,13 +41,13 @@ public final class JsonParseException extends RuntimeException {
     private static final long serialVersionUID = 7022545379651073390L;
 
     /**
-     * Position of the error line in the document
+     * Zero-based line number of the error
      * @serial
      */
     private final int line;
 
     /**
-     * Position of the error position in the document
+     * Zero-based position of the error within the line
      * @serial
      */
     private final int pos;
@@ -55,8 +55,10 @@ public final class JsonParseException extends RuntimeException {
     /**
      * Constructs a JsonParseException with the specified detail message.
      * @param message the detail message
-     * @param line the line of the error on parsing the document. Non-negative.
-     * @param pos the position of the error on parsing the document. Non-negative.
+     * @param line the zero-based line number of the error, counted by
+     *         {@code LF (\n)} line terminators. Non-negative.
+     * @param pos the zero-based position of the error within the line, counted
+     *         in UTF-16 code units. Non-negative.
      * @throws IllegalArgumentException if either {@code line} or {@code pos} are
      *      negative
      */
@@ -71,14 +73,16 @@ public final class JsonParseException extends RuntimeException {
     }
 
     /**
-     * {@return the line of the error on parsing the document}
+     * {@return the zero-based line number of the error, counted by
+     * {@code LF (\n)} line terminators}
      */
     public int getErrorLine() {
         return line;
     }
 
     /**
-     * {@return the position of the error on parsing the document}
+     * {@return the zero-based position of the error within the line,
+     * counted in UTF-16 code units}
      */
     public int getErrorPosition() {
         return pos;
