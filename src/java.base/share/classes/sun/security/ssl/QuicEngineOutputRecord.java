@@ -35,7 +35,7 @@ import java.util.Arrays;
 import java.util.LinkedList;
 
 /**
- * {@code OutputRecord} implementation for {@code QuicTLSEngineImpl}.
+ * QUIC {@code OutputRecord} implementation for {@code SSLEngine}.
  */
 final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
 
