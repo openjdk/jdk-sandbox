@@ -58,18 +58,24 @@ public class TestJsonArray {
 
         // Some basic malformed JSON arrays and expected error message
         static List<Arguments> BASIC_FAIL = List.of(
-                Arguments.of("[ \"foo\"  ", "Array was not closed with ']'"),
-                Arguments.of("[ \"foo\",  ", "Missing JSON value"),
-                Arguments.of("[ ", "Array was not closed with ']'"),
-                Arguments.of("null ]", "Unexpected character(s)"));
+                Arguments.of("[ \"foo\"  ",
+                    "JSON Array is not closed with a bracket. Location: line 0, position 9."),
+                Arguments.of("[ \"foo\",  ",
+                    "Expected a JSON Object, Array, String, Number, Boolean, or Null. Location: line 0, position 10."),
+                Arguments.of("[ ",
+                    "JSON Array is not closed with a bracket. Location: line 0, position 2."),
+                Arguments.of("null ]",
+                    "Additional value(s) were found after the JSON Value. Location: line 0, position 5."));
 
         @ParameterizedTest
         @FieldSource("BASIC_FAIL")
-        void basicFailParse(String json) {
-            assertThrows(JsonParseException.class, () -> Json.parse(json),
+        void basicFailParse(String json, String expected) {
+            var e = assertThrows(JsonParseException.class, () -> Json.parse(json),
                     "String parse did not fail for %s".formatted(json));
-            assertThrows(JsonParseException.class, () -> Json.parse(json.toCharArray()),
+            assertEquals(expected, e.getMessage());
+            e = assertThrows(JsonParseException.class, () -> Json.parse(json.toCharArray()),
                     "Char parse did not fail for %s".formatted(json));
+            assertEquals(expected, e.getMessage());
         }
     }
 
