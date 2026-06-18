@@ -112,7 +112,7 @@ public final class JsonNumberImpl implements JsonNumber, JsonValueImpl {
                 int fracLen = decimalOffset == -1 ? 0 : sigEnd - decimalOffset - 1;
                 int strippedZeros = 0;
 
-                // Remove trailing zeros from the coefficient and compensate in the power.
+                // Remove trailing zeros from the significand and compensate in the power.
                 // We do this to avoid possible overflow when we parse the coefficient as a long.
                 // E.g. 9223372036854775807.000000 or 922337203685477580700.0e-2
                 while (sigEnd > startOffset) {
