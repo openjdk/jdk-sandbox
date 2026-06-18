@@ -123,9 +123,10 @@ public final class JsonParser {
                         "Expected a colon after the member name");
             }
 
-            if (members.putIfAbsent(name, parseValue()) != null) {
+            if (members.get(name) != null) {
                 throw failure(nameOffset, "The duplicate member name: \"%s\" was already parsed".formatted(name));
             }
+            members.put(name, parseValue());
 
             // Ensure current char is either ',' or '}'
             if (charEquals('}')) {

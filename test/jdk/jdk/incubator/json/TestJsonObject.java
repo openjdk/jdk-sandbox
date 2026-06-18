@@ -177,10 +177,20 @@ public class TestJsonObject {
                 Arguments.of("{ foo : \"bar\" ", "Expecting a JSON Object member name. Location: line 0, position 2."),
                 Arguments.of("{ \"foo : ", "JSON Object member name is not closed with a quotation mark. Location: line 0, position 9."),
                 Arguments.of("{ ", "JSON Object is not closed with a brace. Location: line 0, position 2."),
+
                 // Escaped names
                 Arguments.of("{ \"foo\" : null, \"\\u0066oo\" : null ", "The duplicate member name: \"foo\" was already parsed. Location: line 0, position 26."),
                 Arguments.of("{ \"\\u00M\" ", "Invalid Unicode escape sequence. 'M' is not a hex digit. Location: line 0, position 7."),
-                Arguments.of("{ \"foo\\a\" ", "Unrecognized escape sequence: \"\\a\". Location: line 0, position 7."));
+                Arguments.of("{ \"foo\\a\" ", "Unrecognized escape sequence: \"\\a\". Location: line 0, position 7."),
+
+                // multi-line duplicate member for error location validation
+                Arguments.of("""
+                    {
+                        "a": 0,
+                        "a": [
+                        ]
+                    }
+                    """, "The duplicate member name: \"a\" was already parsed. Location: line 2, position 7."));
 
         @ParameterizedTest
         @FieldSource("INVALID_OBJECTS_MESSAGES")
