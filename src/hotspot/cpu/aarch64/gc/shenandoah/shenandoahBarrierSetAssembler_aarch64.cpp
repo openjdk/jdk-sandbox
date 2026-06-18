@@ -861,7 +861,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
 
   // If the object is null, there is no point in applying barriers.
-  maybe_far_jump_if_zero(masm, _obj, continuation());
+  maybe_far_jump_if_zero(masm, _obj);
 
   // We need to make sure that loads done by callers survive across slow-path calls.
   // For self-loads, we need to care about the case when both KA and LRB are enabled (rare).
@@ -895,15 +895,14 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
 }
 
-void ShenandoahBarrierStubC2::maybe_far_jump_if_zero(MacroAssembler& masm, Register reg, Label* L_target) {
-  assert(L_target == continuation(), "Should be");
+void ShenandoahBarrierStubC2::maybe_far_jump_if_zero(MacroAssembler& masm, Register reg) {
   if (_needs_far_jump) {
     Label L_short_jump;
     __ cbnz(reg, L_short_jump);
-    __ b(*L_target);
+    __ b(*continuation());
     __ bind(L_short_jump);
   } else {
-    __ cbz(reg, *L_target);
+    __ cbz(reg, *continuation());
   }
 }
 
@@ -1018,7 +1017,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
     __ add(_tmp1, _tmp1, _tmp2);
   }
   __ ldrb(_tmp1, Address(_tmp1, 0));
-  maybe_far_jump_if_zero(masm, _tmp1, continuation());
+  maybe_far_jump_if_zero(masm, _tmp1);
 
   // Slow path
   __ bind(L_slow);
