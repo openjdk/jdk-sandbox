@@ -88,13 +88,14 @@ public final class JsonObjectImpl implements JsonObject, JsonValueImpl {
     @Override
     public String toString() {
         var s = new StringBuilder("{");
-        for (Map.Entry<String, JsonValue> kv: asMap().entrySet()) {
+        var map = asMap();
+        for (var kv: map.entrySet()) {
             // Escape the key (which is stored as unescaped) to conform to JSON syntax
             s.append("\"").append(Utils.escape(kv.getKey())).append("\":")
              .append(kv.getValue().toString())
              .append(",");
         }
-        if (!asMap().isEmpty()) {
+        if (!map.isEmpty()) {
             s.setLength(s.length() - 1); // trim final comma
         }
         return s.append("}").toString();
