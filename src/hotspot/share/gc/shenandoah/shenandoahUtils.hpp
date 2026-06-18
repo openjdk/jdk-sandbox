@@ -96,7 +96,10 @@ public:
   ShenandoahTimingsTracker(ShenandoahPhaseTimings::Phase phase, bool should_aggregate = false);
   ~ShenandoahTimingsTracker();
 
-  static ShenandoahPhaseTimings::Phase current_phase() { return _current_phase; }
+  static ShenandoahPhaseTimings::Phase current_phase() {
+    assert(is_current_phase_valid(), "Current phase is not valid");
+    return _current_phase;
+  }
 
   static bool is_current_phase_valid();
 };

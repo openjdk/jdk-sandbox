@@ -144,7 +144,10 @@ bool ShenandoahOldGC::collect(GCCause::Cause cause) {
 
   // Now we are back at concurrent phase, process nmethods to fix their barriers.
   // TODO: Is it safe to do when young GC is running?
-  ShenandoahCodeRoots::disarm_nmethods();
+  {
+    ShenandoahConcurrentPhase gc_phase("Concurrent disarm", ShenandoahPhaseTimings::conc_disarm);
+    ShenandoahCodeRoots::disarm_nmethods();
+  }
 
   // After concurrent old marking finishes, we reclaim immediate garbage. Further, we may also want to expand OLD in order
   // to make room for anticipated promotions and/or for mixed evacuations.  Mixed evacuations are especially likely to
