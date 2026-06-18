@@ -115,6 +115,8 @@ public final class JsonParser {
             // Would requires 2 passes; we should build the String as we parse.
             var name = parseName();
             var nameOffset = offset;
+            var nameLine = line;
+            var nameLineStart = lineStart;
 
             // Move from name to ':'
             skipWhitespaces();
@@ -123,10 +125,9 @@ public final class JsonParser {
                         "Expected a colon after the member name");
             }
 
-            if (members.get(name) != null) {
-                throw failure(nameOffset, "The duplicate member name: \"%s\" was already parsed".formatted(name));
+            if (members.putIfAbsent(name, parseValue()) != null) {
+                throw failure(nameOffset, nameLine, nameLineStart, "The duplicate member name: \"%s\" was already parsed".formatted(name));
             }
-            members.put(name, parseValue());
 
             // Ensure current char is either ',' or '}'
             if (charEquals('}')) {
@@ -426,14 +427,14 @@ public final class JsonParser {
     }
 
     private JsonParseException failure(String message) {
-        return failure(offset, message);
+        return failure(offset, line, lineStart, message);
     }
 
-    private JsonParseException failure(int off, String message) {
+    private JsonParseException failure(int off, int l, int ls, String message) {
         // Non-revealing message does not produce input source String
-        var pos = off - lineStart;
+        var pos = off - ls;
         return new JsonParseException("%s. Location: line %d, position %d."
-                .formatted(message, line, pos), line, pos);
+                .formatted(message, l, pos), l, pos);
     }
 
     // Parsing error messages ----------------------

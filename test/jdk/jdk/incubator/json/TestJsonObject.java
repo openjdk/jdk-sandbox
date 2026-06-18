@@ -190,6 +190,13 @@ public class TestJsonObject {
                         "a": [
                         ]
                     }
+                    """, "The duplicate member name: \"a\" was already parsed. Location: line 2, position 7."),
+                Arguments.of("""
+                    {
+                        "a": 0,
+                        "a"
+                            : 1
+                    }
                     """, "The duplicate member name: \"a\" was already parsed. Location: line 2, position 7."));
 
         @ParameterizedTest
