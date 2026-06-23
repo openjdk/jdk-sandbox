@@ -111,7 +111,8 @@ public class TestJsonNumber {
                     Arguments.of("9223372036854775999", 9223372036854775999d),
                     Arguments.of("9223372036854775999e0", 9223372036854775999d),
                     Arguments.of("5e-100", 5e-100),
-                    Arguments.of("5.000e-100", 5e-100)
+                    Arguments.of("5.000e-100", 5e-100),
+                    Arguments.of("1e-999999999999", 0.0)
             );
         }
 
