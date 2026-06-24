@@ -71,7 +71,7 @@ OopClosure* ShenandoahStackWatermark::closure_from_context(void* context) {
     assert(Thread::current()->is_Worker_thread(), "Unexpected thread passing in context: " PTR_FORMAT, p2i(context));
     return reinterpret_cast<OopClosure*>(context);
   } else {
-    if (_heap->is_evacuation_in_progress()) {
+    if (_heap->is_concurrent_weak_root_in_progress() && _heap->is_evacuation_in_progress()) {
       return &_evac_update_oop_cl;
     } else if (_heap->is_concurrent_mark_in_progress()) {
       return &_keep_alive_cl;
@@ -84,7 +84,8 @@ OopClosure* ShenandoahStackWatermark::closure_from_context(void* context) {
 void ShenandoahStackWatermark::start_processing_impl(void* context) {
   NoSafepointVerifier nsv;
 
-  if (_heap->is_concurrent_mark_in_progress() || _heap->is_evacuation_in_progress()) {
+  if (_heap->is_concurrent_mark_in_progress() ||
+     (_heap->is_concurrent_weak_root_in_progress() && _heap->is_evacuation_in_progress())) {
     // Retire the TLABs, which will force threads to reacquire their TLABs.
 
     // For marking:
