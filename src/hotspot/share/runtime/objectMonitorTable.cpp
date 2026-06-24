@@ -120,21 +120,6 @@
 // requirements. Don't change it for fun, it might backfire.
 // -----------------------------------------------------------------------------
 
-// Get the identity hash from an oop, handling both compact and legacy headers.
-// Returns 0 if the object has not been hashed yet (meaning no monitor exists
-// for it in the table).
-static intptr_t object_hash(oop obj) {
-  markWord mark = obj->mark();
-  if (UseCompactObjectHeaders) {
-    if (!mark.is_hashed()) {
-      return 0;
-    }
-    return static_cast<intptr_t>(ObjectSynchronizer::get_hash(mark, obj));
-  } else {
-    return mark.hash();
-  }
-}
-
 Atomic<ObjectMonitorTable::Table*> ObjectMonitorTable::_curr;
 
 class ObjectMonitorTable::Table : public CHeapObj<mtObjectMonitor> {
@@ -535,8 +520,27 @@ void ObjectMonitorTable::create() {
 }
 
 ObjectMonitor* ObjectMonitorTable::monitor_get(oop obj) {
-  const intptr_t hash = object_hash(obj);
-  if (hash == 0) return nullptr;
+  markWord mark = obj->mark();
+  intptr_t hash;
+  if (UseCompactObjectHeaders) {
+    // With compact headers, hashedness is tracked by the markWord hashctrl bits,
+    // NOT by the hash value. An object that has not been hashed cannot have a
+    // monitor in the table (add_monitor hashes the object first). Once hashed,
+    // the identity hash may legitimately be 0 (e.g. hashCode==6 / FastHash), so we
+    // must not use a value-based sentinel to detect "no monitor" here.
+    if (!mark.is_hashed()) {
+      return nullptr;
+    }
+    hash = static_cast<intptr_t>(ObjectSynchronizer::get_hash(mark, obj));
+  } else {
+    // Legacy headers store the hash inline; 0 is the no-hash sentinel (real
+    // hashes are remapped away from 0 in get_next_hash), so a 0 hash means the
+    // object has not been hashed and therefore has no monitor in the table.
+    hash = mark.hash();
+    if (hash == 0) {
+      return nullptr;
+    }
+  }
   Table* curr = _curr.load_acquire();
   ObjectMonitor* monitor = curr->get(obj, hash);
   return monitor;

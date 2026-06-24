@@ -3527,8 +3527,15 @@ void Arguments::set_compact_headers_flags() {
       FLAG_SET_DEFAULT(UseObjectMonitorTable, true);
     }
   }
-  if (UseCompactObjectHeaders && FLAG_IS_DEFAULT(hashCode)) {
-    hashCode = 6;
+  if (UseCompactObjectHeaders) {
+    // UseCompactObjectHeaders relies on an idempotent identity hash generator.
+    // Rather than silently overriding an explicit request, fail fast so the
+    // incompatibility is obvious.
+    if (FLAG_IS_DEFAULT(hashCode)) {
+      hashCode = 6;
+    } else if (hashCode != 6) {
+      vm_exit_during_initialization("-XX:hashCode must be 6 when UseCompactObjectHeaders is enabled");
+    }
   }
   if (UseCompactObjectHeaders && FLAG_IS_DEFAULT(CompressedClassSpaceSize)) {
     FLAG_SET_DEFAULT(CompressedClassSpaceSize, CompressedKlassPointers::max_klass_range_size_coh);

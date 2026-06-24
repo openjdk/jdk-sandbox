@@ -1601,7 +1601,11 @@ ObjectMonitor* ObjectSynchronizer::add_monitor(ObjectMonitor* monitor, oop obj) 
   } else {
     hash = mark.hash();
   }
-  assert(hash != 0, "must be set when claiming the object monitor");
+  // With compact headers the identity hash may legitimately be 0; hashedness is
+  // guaranteed instead by get_hash()'s internal is_hashed() assert above. With
+  // legacy headers a real hash is never 0 (remapped in get_next_hash), so it must
+  // be set by the time we claim the monitor.
+  assert(UseCompactObjectHeaders || hash != 0, "must be set when claiming the object monitor");
   monitor->set_hash(hash);
 
   return ObjectMonitorTable::monitor_put_get(monitor, obj);
