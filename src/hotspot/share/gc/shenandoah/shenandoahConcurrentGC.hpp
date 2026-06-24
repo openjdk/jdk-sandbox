@@ -41,9 +41,10 @@ class VM_ShenandoahFinalUpdateRefs;
 class ShenandoahConcurrentGC : public ShenandoahGC {
   friend class VM_ShenandoahInitMark;
   friend class VM_ShenandoahFinalMarkStartEvac;
+  friend class VM_ShenandoahFinalRoots;
   friend class VM_ShenandoahInitUpdateRefs;
   friend class VM_ShenandoahFinalUpdateRefs;
-  friend class VM_ShenandoahFinalRoots;
+  friend class VM_ShenandoahFinalVerify;
 
 protected:
   ShenandoahConcurrentMark    _mark;
@@ -69,15 +70,17 @@ protected:
   void vmop_entry_final_mark();
   void vmop_entry_init_update_refs();
   void vmop_entry_final_update_refs();
-  void vmop_entry_final_roots(bool at_gc_end);
+  void vmop_entry_final_roots();
+  void vmop_entry_final_verify();
 
   // Entry methods to normally STW GC operations. These set up logging, monitoring
   // and workers for next VM operation
   void entry_init_mark();
   void entry_final_mark();
+  void entry_final_roots();
   void entry_init_update_refs();
   void entry_final_update_refs();
-  void entry_final_roots(bool at_gc_end);
+  void entry_final_verify();
 
   // Entry methods to normally concurrent GC operations. These set up logging, monitoring
   // for concurrent operation.
@@ -117,6 +120,7 @@ protected:
   void op_update_thread_roots();
   void op_final_update_refs();
 
+  void op_verify_final();
   void op_cleanup_complete();
   void op_reset_after_collect();
 

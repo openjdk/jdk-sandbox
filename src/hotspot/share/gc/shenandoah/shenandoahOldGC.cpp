@@ -140,7 +140,7 @@ bool ShenandoahOldGC::collect(GCCause::Cause cause) {
   // for any young collections (or allocation failures) that interrupt the old
   // collection.
   // Arm the nmethods to possibly flip the barriers to idle.
-  vmop_entry_final_roots(true);
+  vmop_entry_final_roots();
 
   // Now we are back at concurrent phase, process nmethods to fix their barriers.
   // TODO: Is it safe to do when young GC is running?

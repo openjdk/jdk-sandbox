@@ -192,9 +192,10 @@ public:
     VM_Operation::VMOp_Type type = vm_op->type();
     return type == VM_Operation::VMOp_ShenandoahInitMark ||
            type == VM_Operation::VMOp_ShenandoahFinalMarkStartEvac ||
+           type == VM_Operation::VMOp_ShenandoahFinalRoots ||
            type == VM_Operation::VMOp_ShenandoahInitUpdateRefs ||
            type == VM_Operation::VMOp_ShenandoahFinalUpdateRefs ||
-           type == VM_Operation::VMOp_ShenandoahFinalRoots ||
+           type == VM_Operation::VMOp_ShenandoahFinalVerify ||
            type == VM_Operation::VMOp_ShenandoahFullGC ||
            type == VM_Operation::VMOp_ShenandoahDegeneratedGC;
   }

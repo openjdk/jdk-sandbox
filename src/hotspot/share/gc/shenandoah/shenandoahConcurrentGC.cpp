@@ -213,13 +213,13 @@ bool ShenandoahConcurrentGC::collect(GCCause::Cause cause) {
     entry_strong_roots();
   }
 
+  // Roots processing is complete, put the weak roots/ref flags down.
+  vmop_entry_final_roots();
+
   // Continue the cycle with evacuation and optional update-refs.
   // This may be skipped if there is nothing to evacuate.
   // If so, evac_in_progress would be unset by collection set preparation code.
   if (heap->is_evacuation_in_progress()) {
-    // Roots processing is complete, put the weak roots/ref flags down.
-    vmop_entry_final_roots(false);
-
     // Concurrently evacuate
     entry_evacuate();
     if (check_cancellation_and_abort(ShenandoahDegenPoint::_degenerated_evac)) {
@@ -270,8 +270,9 @@ bool ShenandoahConcurrentGC::collect(GCCause::Cause cause) {
 
     // In normal cycle, final-update-refs would verify at the end of the cycle.
     // In abbreviated cycle, we need to verify separately.
-    // This is now also puts the barriers down at the end of the cycle. TODO: Refine.
-    vmop_entry_final_roots(true);
+    if (ShenandoahVerify) {
+      vmop_entry_final_verify();
+    }
   }
 
   // We defer generation resizing actions until after cset regions have been recycled.  We do this even following an
@@ -356,14 +357,25 @@ void ShenandoahConcurrentGC::vmop_entry_final_update_refs() {
   VMThread::execute(&op);
 }
 
-void ShenandoahConcurrentGC::vmop_entry_final_roots(bool at_gc_end) {
+void ShenandoahConcurrentGC::vmop_entry_final_roots() {
   ShenandoahHeap* const heap = ShenandoahHeap::heap();
   TraceCollectorStats tcs(heap->monitoring_support()->stw_collection_counters());
   ShenandoahTimingsTracker timing(ShenandoahPhaseTimings::final_roots_gross);
 
   // This phase does not use workers, no need for setup
   heap->try_inject_alloc_failure();
-  VM_ShenandoahFinalRoots op(this, at_gc_end);
+  VM_ShenandoahFinalRoots op(this);
+  VMThread::execute(&op);
+}
+
+void ShenandoahConcurrentGC::vmop_entry_final_verify() {
+  ShenandoahHeap* const heap = ShenandoahHeap::heap();
+  TraceCollectorStats tcs(heap->monitoring_support()->stw_collection_counters());
+  ShenandoahTimingsTracker timing(ShenandoahPhaseTimings::final_verify_gross);
+
+  // This phase does not use workers, no need for setup
+  heap->try_inject_alloc_failure();
+  VM_ShenandoahFinalVerify op(this);
   VMThread::execute(&op);
 }
 
@@ -410,6 +422,14 @@ void ShenandoahConcurrentGC::entry_final_update_refs() {
                               "final reference update");
 
   op_final_update_refs();
+}
+
+void ShenandoahConcurrentGC::entry_final_verify() {
+  const char* msg = "Final Verify";
+  ShenandoahPausePhase gc_phase(msg, ShenandoahPhaseTimings::final_verify);
+  EventMark em("%s", msg);
+
+  op_verify_final();
 }
 
 void ShenandoahConcurrentGC::entry_reset() {
@@ -1228,7 +1248,7 @@ void ShenandoahConcurrentGC::op_final_update_refs() {
   }
 }
 
-void ShenandoahConcurrentGC::entry_final_roots(bool at_gc_end) {
+void ShenandoahConcurrentGC::entry_final_roots() {
   ShenandoahHeap* const heap = ShenandoahHeap::heap();
   TraceCollectorStats tcs(heap->monitoring_support()->concurrent_collection_counters());
 
@@ -1239,7 +1259,13 @@ void ShenandoahConcurrentGC::entry_final_roots(bool at_gc_end) {
                               ParallelGCThreads,
                               msg);
 
-  heap->op_final_roots(at_gc_end);
+  heap->op_final_roots();
+}
+
+void ShenandoahConcurrentGC::op_verify_final() {
+  assert(ShenandoahVerify, "Should have been checked before");
+  ShenandoahHeap* const heap = ShenandoahHeap::heap();
+  heap->verifier()->verify_after_gc(_generation);
 }
 
 void ShenandoahConcurrentGC::op_cleanup_complete() {
