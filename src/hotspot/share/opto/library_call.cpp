@@ -4776,6 +4776,17 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
     if (load_offset_runtime) {
       // We don't know if it is an array or an exact type, figure it out at run-time.
       // If not an ordinary instance, then we need to take slow-path.
+      //
+      // TODO: micro-optimization deferred (focusing on correctness for now).
+      // This only takes the inline fast-path for kind == InstanceKlassKind, so
+      // every Reference/ClassLoader/StackChunk object falls through to the VM
+      // runtime even though those InstanceKlass subtypes inherit the standard
+      // InstanceKlass::_hash_offset and could use the same inline load. Arrays
+      // (and InstanceMirrorKlass, which compute the offset dynamically) must
+      // stay on the slow path. Broadening this guard (e.g. kind <=
+      // InstanceStackChunkKlassKind && kind != InstanceMirrorKlassKind, plus an
+      // inline array-tail offset computation) is a missed optimization, not a
+      // correctness issue, and is left as a follow-up.
       Node* kind_addr = basic_plus_adr(top(), obj_klass, Klass::kind_offset_in_bytes());
       Node* kind = make_load(control(), kind_addr, TypeInt::INT, T_INT, MemNode::unordered);
       Node* instance_val = _gvn.intcon(Klass::InstanceKlassKind);
