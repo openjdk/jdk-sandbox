@@ -45,12 +45,12 @@ narrowKlass CompressedKlassPointers::_highest_valid_narrow_klass_id = (narrowKla
 size_t CompressedKlassPointers::_protection_zone_size = 0;
 
 size_t CompressedKlassPointers::max_klass_range_size() {
- #ifdef _LP64
-   const size_t encoding_allows = nth_bit(narrow_klass_pointer_bits() + max_shift());
-   assert(!UseCompactObjectHeaders || max_klass_range_size_coh == encoding_allows, "Sanity");
-   constexpr size_t cap = 4 * G;
-   return MIN2(encoding_allows, cap);
- #else
+#ifdef _LP64
+  const size_t encoding_allows = nth_bit(narrow_klass_pointer_bits() + max_shift());
+  assert(!UseCompactObjectHeaders || max_klass_range_size_coh == encoding_allows, "Sanity");
+  constexpr size_t cap = 4 * G;
+  return MIN2(encoding_allows, cap);
+#else
   // 32-bit: only 32-bit "narrow" Klass pointers allowed. If we ever support smaller narrow
   // Klass pointers here, coding needs to be revised.
   // We keep one page safety zone free to guard against size_t overflows on 32-bit. In practice

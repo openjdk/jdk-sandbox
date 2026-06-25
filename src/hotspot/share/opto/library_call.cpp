@@ -4752,10 +4752,6 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
 
     // Hashed&Copied path: read hash-code out of the object.
     set_control(if_true);
-    // result_val->del_req(_fast_path2);
-    // result_reg->del_req(_fast_path2);
-    // result_io->del_req(_fast_path2);
-    // result_mem->del_req(_fast_path2);
 
     Node* obj_klass = load_object_klass(obj);
     Node* hash_addr;
@@ -4777,8 +4773,6 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
       }
     }
 
-    //tty->print_cr("Load hash-offset at runtime: %s", BOOL_TO_STR(load_offset_runtime));
-
     if (load_offset_runtime) {
       // We don't know if it is an array or an exact type, figure it out at run-time.
       // If not an ordinary instance, then we need to take slow-path.
@@ -4792,7 +4786,7 @@ bool LibraryCallKit::inline_native_hashcode(bool is_virtual, bool is_static) {
       // Otherwise it's an instance and we can read the hash_offset from the InstanceKlass.
       Node* hash_offset_addr = basic_plus_adr(top(), obj_klass, InstanceKlass::hash_offset_offset_in_bytes());
       Node* hash_offset = make_load(control(), hash_offset_addr, TypeInt::INT, T_INT, MemNode::unordered);
-      // hash_offset->dump();
+
       Node* hash_addr = basic_plus_adr(obj, ConvI2X(hash_offset));
       Compile::current()->set_has_unsafe_access(true);
       Node* loaded_hash = make_load(control(), hash_addr, TypeInt::INT, T_INT, MemNode::unordered);

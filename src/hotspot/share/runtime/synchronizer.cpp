@@ -769,13 +769,12 @@ intptr_t ObjectSynchronizer::FastHashCode(Thread* current, oop obj) {
 
 uint32_t ObjectSynchronizer::get_hash(markWord mark, oop obj, Klass* klass) {
   assert(UseCompactObjectHeaders, "Only with compact i-hash");
-  //assert(mark.is_neutral() | mark.is_fast_locked(), "only from neutral or fast-locked mark: " INTPTR_FORMAT, mark.value());
   assert(mark.is_hashed(), "only from hashed or copied object");
   if (mark.is_hashed_expanded()) {
     return obj->int_field(klass->hash_offset_in_bytes(obj, mark));
   } else {
     assert(mark.is_hashed_not_expanded(), "must be hashed");
-    assert(hashCode == 6 || hashCode == 2, "must have idempotent hashCode");
+    assert(hashCode == 6, "must have idempotent hashCode");
     // Already marked as hashed, but not yet copied. Recompute hash and return it.
     return ObjectSynchronizer::get_next_hash(nullptr, obj); // recompute hash
   }
