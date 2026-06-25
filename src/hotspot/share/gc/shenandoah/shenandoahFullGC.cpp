@@ -1036,6 +1036,7 @@ void ShenandoahFullGC::compact_humongous_objects() {
 
       oop new_obj = cast_to_oop(heap->get_region(new_start)->bottom());
       new_obj->reinit_mark();
+      new_obj->initialize_hash_if_necessary(old_obj);
 
       {
         ShenandoahAffiliation original_affiliation = r->affiliation();
