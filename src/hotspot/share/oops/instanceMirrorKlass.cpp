@@ -81,14 +81,14 @@ int InstanceMirrorKlass::compute_static_oop_field_count(oop obj) {
   return 0;
 }
 
-int InstanceMirrorKlass::hash_offset_in_bytes(oop obj, markWord m) const {
+size_t InstanceMirrorKlass::hash_offset_in_bytes(oop obj, markWord m) const {
   assert(UseCompactObjectHeaders, "only with compact i-hash");
   // TODO: There may be gaps that we could use, e.g. in the fields of Class,
   // between the fields of Class and the static fields or in or at the end of
   // the static fields block.
   // When implementing any change here, make sure that allocate_instance()
   // and corresponding code in InstanceMirrorKlass.java are in sync.
-  return checked_cast<int>(obj->base_size_given_klass(m, this) * BytesPerWord);
+  return obj->base_size_given_klass(m, this) * BytesPerWord;
 }
 
 #if INCLUDE_CDS

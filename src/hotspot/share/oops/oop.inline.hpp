@@ -364,6 +364,8 @@ inline void   oopDesc::short_field_put(int offset, jshort value)    { *field_add
 
 inline jint oopDesc::int_field(int offset) const                    { return *field_addr<jint>(offset);     }
 inline void oopDesc::int_field_put(int offset, jint value)          { *field_addr<jint>(offset) = value;    }
+inline jint oopDesc::hash_field(size_t offset) const                { return *reinterpret_cast<jint*>(cast_from_oop<intptr_t>(as_oop()) + offset); }
+inline void oopDesc::hash_field_put(size_t offset, jint value)      { *reinterpret_cast<jint*>(cast_from_oop<intptr_t>(as_oop()) + offset) = value; }
 inline jint oopDesc::int_field_relaxed(int offset) const            { return AtomicAccess::load(field_addr<jint>(offset)); }
 inline void oopDesc::int_field_put_relaxed(int offset, jint value)  { AtomicAccess::store(field_addr<jint>(offset), value); }
 
@@ -546,7 +548,7 @@ intptr_t oopDesc::identity_hash() {
     markWord mrk = mark();
     if (mrk.is_hashed_expanded()) {
       Klass* klass = mrk.klass();
-      return int_field(klass->hash_offset_in_bytes(cast_to_oop(this), mrk));
+      return hash_field(klass->hash_offset_in_bytes(cast_to_oop(this), mrk));
     }
     // Fall-through to slow-case.
   } else {

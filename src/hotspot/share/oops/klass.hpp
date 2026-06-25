@@ -786,7 +786,7 @@ public:
 
   static void on_secondary_supers_verification_failure(Klass* super, Klass* sub, bool linear_result, bool table_result, const char* msg);
 
-  virtual int hash_offset_in_bytes(oop obj, markWord m) const = 0;
+  virtual size_t hash_offset_in_bytes(oop obj, markWord m) const = 0;
 
   static int kind_offset_in_bytes() { return (int)offset_of(Klass, _kind); }
 

@@ -972,7 +972,7 @@ public:
     return layout_helper_to_size_helper(layout_helper());
   }
 
-  virtual int hash_offset_in_bytes(oop obj, markWord m) const override {
+  virtual size_t hash_offset_in_bytes(oop obj, markWord m) const override {
     assert(UseCompactObjectHeaders, "only with compact i-hash");
     return _hash_offset;
   }

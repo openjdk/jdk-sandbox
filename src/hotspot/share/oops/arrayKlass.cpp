@@ -288,10 +288,15 @@ void ArrayKlass::oop_verify_on(oop obj, outputStream* st) {
   guarantee(a->length() >= 0, "array with negative length?");
 }
 
-int ArrayKlass::hash_offset_in_bytes(oop obj, markWord m) const {
+size_t ArrayKlass::hash_offset_in_bytes(oop obj, markWord m) const {
   assert(UseCompactObjectHeaders, "only with compact i-hash");
   arrayOop ary = arrayOop(obj);
   BasicType type = element_type();
   int length = LP64_ONLY(m.array_length()) NOT_LP64(ary->length());
-  return ary->base_offset_in_bytes(type) + (length << log2_element_size());
+  // The identity-hash word sits right after the elements. For multi-byte
+  // element types a ~2GB array makes this offset exceed INT_MAX, so it must be
+  // computed and stored in 64-bit; doing the shift in 32-bit int (as before)
+  // overflowed to a negative offset and corrupted the heap during GC expansion.
+  return static_cast<size_t>(ary->base_offset_in_bytes(type)) +
+         (static_cast<size_t>(length) << log2_element_size());
 }

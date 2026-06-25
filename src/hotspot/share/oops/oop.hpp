@@ -226,6 +226,12 @@ class oopDesc {
   jint int_field(int offset) const;
   void int_field_put(int offset, jint contents);
 
+  // Read/write the 4-byte identity-hash slot. Object-internal offsets normally
+  // fit an int, but the hash slot of a very large (~2GB+) array can sit beyond
+  // INT_MAX, so it is addressed with a size_t offset.
+  inline jint hash_field(size_t offset) const;
+  inline void hash_field_put(size_t offset, jint contents);
+
   jshort short_field(int offset) const;
   void short_field_put(int offset, jshort contents);
 

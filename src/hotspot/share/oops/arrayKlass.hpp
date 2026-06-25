@@ -114,7 +114,7 @@ class ArrayKlass: public Klass {
   // Return a handle.
   static void     complete_create_array_klass(ArrayKlass* k, Klass* super_klass, ModuleEntry* module, TRAPS);
 
-  int hash_offset_in_bytes(oop obj, markWord m) const override;
+  size_t hash_offset_in_bytes(oop obj, markWord m) const override;
 
   // JVMTI support
   jint jvmti_class_status() const override;

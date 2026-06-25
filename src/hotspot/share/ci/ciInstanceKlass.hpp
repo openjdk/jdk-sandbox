@@ -309,7 +309,9 @@ public:
   GrowableArray<ciInstanceKlass*>* transitive_interfaces() const;
 
   int hash_offset_in_bytes() const {
-    return get_instanceKlass()->hash_offset_in_bytes(nullptr, markWord(0));
+    // An InstanceKlass hash offset always fits an int (only array hash offsets
+    // can exceed INT_MAX); C2 consumes this as a compile-time int field offset.
+    return checked_cast<int>(get_instanceKlass()->hash_offset_in_bytes(nullptr, markWord(0)));
   }
 
   // Replay support

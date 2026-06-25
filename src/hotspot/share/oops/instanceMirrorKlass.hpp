@@ -68,7 +68,7 @@ class InstanceMirrorKlass: public InstanceKlass {
 
   // Returns the size of the instance including the extra static fields.
   size_t oop_size(oop obj, markWord mark) const override;
-  int hash_offset_in_bytes(oop obj, markWord m) const override;
+  size_t hash_offset_in_bytes(oop obj, markWord m) const override;
 
   // Static field offset is an offset into the Heap, should be converted by
   // based on UseCompressedOop for traversal

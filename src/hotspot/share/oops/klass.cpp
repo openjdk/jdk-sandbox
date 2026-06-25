@@ -1349,8 +1349,8 @@ bool Klass::expand_for_hash(oop obj, markWord m) const {
   assert(UseCompactObjectHeaders, "only with compact i-hash");
   {
     ResourceMark rm;
-    assert((size_t)hash_offset_in_bytes(obj,m ) <= (obj->base_size_given_klass(m, this) * HeapWordSize), "hash offset must be eq or lt base size: hash offset: %d, base size: %zu, class-name: %s", hash_offset_in_bytes(obj, m), obj->base_size_given_klass(m, this) * HeapWordSize, external_name());
+    assert(hash_offset_in_bytes(obj, m) <= (obj->base_size_given_klass(m, this) * HeapWordSize), "hash offset must be eq or lt base size: hash offset: %zu, base size: %zu, class-name: %s", hash_offset_in_bytes(obj, m), obj->base_size_given_klass(m, this) * HeapWordSize, external_name());
   }
 #endif
-  return obj->base_size_given_klass(m, this) * HeapWordSize - hash_offset_in_bytes(obj, m) < (int)sizeof(uint32_t);
+  return obj->base_size_given_klass(m, this) * HeapWordSize - hash_offset_in_bytes(obj, m) < sizeof(uint32_t);
 }
