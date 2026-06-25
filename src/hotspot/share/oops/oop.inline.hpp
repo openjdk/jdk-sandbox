@@ -309,12 +309,14 @@ size_t oopDesc::base_size_given_klass(markWord mrk, const Klass* klass)  {
       // in units of bytes and doing it this way we can round up just once,
       // skipping the intermediate round to HeapWordSize.
       s = align_up(size_in_bytes, MinObjAlignmentInBytes) / HeapWordSize;
+#ifdef ASSERT
       if (s != klass->oop_size(this, mrk)) {
         tty->print_cr("length: %zu", array_length);
         tty->print_cr("log element size: %d", Klass::layout_helper_log2_element_size(lh));
         tty->print_cr("is_objArray: %s", BOOL_TO_STR(klass->is_objArray_klass()));
       }
       assert(s == klass->oop_size(this, mrk), "wrong array object size, s: %zu, oop_size: %zu", s, klass->oop_size(this, mrk));
+#endif
     } else {
       // Must be zero, so bite the bullet and take the virtual call.
       s = klass->oop_size(this, mrk);

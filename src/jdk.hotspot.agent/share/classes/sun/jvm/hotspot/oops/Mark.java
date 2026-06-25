@@ -199,7 +199,6 @@ public class Mark extends VMObject {
   // hash operations
   public long hash() {
     if (VM.getVM().isCompactObjectHeadersEnabled()) {
-      System.exit(-23);
       throw new RuntimeException("Compact I-Hash not yet implemented");
     } else {
       return Bits.maskBitsLong(value() >> hashShift, hashMask);
