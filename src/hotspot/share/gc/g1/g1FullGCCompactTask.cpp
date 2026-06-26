@@ -120,9 +120,11 @@ void G1FullGCCompactTask::compact_humongous_obj(G1HeapRegion* src_hr) {
   assert(src_hr->is_starts_humongous(), "Should be start region of the humongous object");
 
   oop obj = cast_to_oop(src_hr->bottom());
-  size_t word_size = obj->size();
+  size_t src_word_size = obj->size();
+  size_t dest_word_size = obj->copy_size(src_word_size, obj->mark());
 
-  uint num_regions = (uint)G1CollectedHeap::humongous_obj_size_in_regions(word_size);
+  uint src_num_regions = (uint)G1CollectedHeap::humongous_obj_size_in_regions(src_word_size);
+  uint dest_num_regions = (uint)G1CollectedHeap::humongous_obj_size_in_regions(dest_word_size);
   HeapWord* destination = cast_from_oop<HeapWord*>(FullGCForwarding::forwardee(obj));
 
   assert(collector()->mark_bitmap()->is_marked(obj), "Should only compact marked objects");
@@ -132,16 +134,16 @@ void G1FullGCCompactTask::compact_humongous_obj(G1HeapRegion* src_hr) {
 
   uint dest_start_idx = _g1h->addr_to_region(destination);
   // Update the metadata for the destination regions.
-  _g1h->set_humongous_metadata(_g1h->region_at(dest_start_idx), num_regions, word_size, false);
+  _g1h->set_humongous_metadata(_g1h->region_at(dest_start_idx), dest_num_regions, dest_word_size, false);
 
   // Free the source regions that do not overlap with the destination regions.
   uint src_start_idx = src_hr->hrm_index();
-  free_non_overlapping_regions(src_start_idx, dest_start_idx, num_regions);
+  free_non_overlapping_regions(src_start_idx, dest_start_idx, src_num_regions, dest_num_regions);
 }
 
-void G1FullGCCompactTask::free_non_overlapping_regions(uint src_start_idx, uint dest_start_idx, uint num_regions) {
-  uint dest_end_idx = dest_start_idx + num_regions -1;
-  uint src_end_idx  = src_start_idx + num_regions - 1;
+void G1FullGCCompactTask::free_non_overlapping_regions(uint src_start_idx, uint dest_start_idx, uint src_num_regions, uint dest_num_regions) {
+  uint dest_end_idx = dest_start_idx + dest_num_regions - 1;
+  uint src_end_idx  = src_start_idx + src_num_regions - 1;
 
   uint non_overlapping_start = dest_end_idx < src_start_idx ?
                                src_start_idx :

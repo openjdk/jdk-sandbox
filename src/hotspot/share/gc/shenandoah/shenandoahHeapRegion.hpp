@@ -302,6 +302,12 @@ public:
   }
 
   inline static bool requires_humongous(size_t words) {
+    if (UseCompactObjectHeaders) {
+      // We might need to expand the object to accomdate hashcode.
+      // We don't want that to grow a non-humongous object larger than a region.
+      size_t max_expanded_words = align_object_size(words + 1);
+      words = max_expanded_words;
+    }
     return words > ShenandoahHeapRegion::RegionSizeWords;
   }
 
