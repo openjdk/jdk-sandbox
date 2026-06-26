@@ -22,6 +22,7 @@
  */
 
 /*
+ * @bug 8387150
  * @test
  * @summary -XX:+UseCompactObjectHeaders must reject a non-idempotent explicit
  *          -XX:hashCode generator. UCOH recomputes the identity hash for objects

@@ -3536,7 +3536,7 @@ void Arguments::set_compact_headers_flags() {
     // Rather than silently overriding an explicit request, fail fast so the
     // incompatibility is obvious.
     if (FLAG_IS_DEFAULT(hashCode)) {
-      hashCode = 6;
+      FLAG_SET_ERGO(hashCode, 6);
     } else if (hashCode != 6) {
       vm_exit_during_initialization("-XX:hashCode must be 6 when UseCompactObjectHeaders is enabled");
     }

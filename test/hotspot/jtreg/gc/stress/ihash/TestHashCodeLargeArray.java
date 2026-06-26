@@ -23,40 +23,86 @@
  */
 
 /*
+ * @bug 8387311
  * @test id=parallel
  * @summary Hashing a >2GB array and relocating it must not overflow the hash
  *          offset and corrupt the heap (compact object headers).
+ * @library /test/lib
+ * @library /
  * @requires vm.gc.Parallel
  * @requires vm.opt.UseCompactObjectHeaders == null | vm.opt.UseCompactObjectHeaders == true
  * @requires os.maxMemory >= 8G
  * @requires sun.arch.data.model == "64"
+ * @key stress
  * @run main/othervm -XX:+UseCompactObjectHeaders -XX:+UseParallelGC -Xmx6g
  *      TestHashCodeLargeArray
  */
 
 /*
+ * @bug 8387311
  * @test id=serial
  * @summary Hashing a >2GB array and relocating it must not overflow the hash
  *          offset and corrupt the heap (compact object headers).
+ * @library /test/lib
+ * @library /
  * @requires vm.gc.Serial
  * @requires vm.opt.UseCompactObjectHeaders == null | vm.opt.UseCompactObjectHeaders == true
  * @requires os.maxMemory >= 8G
  * @requires sun.arch.data.model == "64"
+ * @key stress
  * @run main/othervm -XX:+UseCompactObjectHeaders -XX:+UseSerialGC -Xmx6g
  *      TestHashCodeLargeArray
  */
 
 /*
+ * @bug 8387311
  * @test id=g1
  * @summary Hashing a >2GB array and relocating it must not overflow the hash
  *          offset and corrupt the heap (compact object headers).
+ * @library /test/lib
+ * @library /
  * @requires vm.gc.G1
  * @requires vm.opt.UseCompactObjectHeaders == null | vm.opt.UseCompactObjectHeaders == true
  * @requires os.maxMemory >= 8G
  * @requires sun.arch.data.model == "64"
+ * @key stress
  * @run main/othervm -XX:+UseCompactObjectHeaders -XX:+UseG1GC -Xmx6g
  *      TestHashCodeLargeArray
  */
+
+/*
+ * @bug 8387311
+ * @test id=shen
+ * @summary Hashing a >2GB array and relocating it must not overflow the hash
+ *          offset and corrupt the heap (compact object headers).
+ * @library /test/lib
+ * @library /
+ * @requires vm.gc.Shenandoah
+ * @requires vm.opt.UseCompactObjectHeaders == null | vm.opt.UseCompactObjectHeaders == true
+ * @requires os.maxMemory >= 8G
+ * @requires sun.arch.data.model == "64"
+ * @key stress
+ * @run main/othervm -XX:+UseCompactObjectHeaders -XX:+UseShenandoahGC -Xmx6g
+ *      TestHashCodeLargeArray
+ */
+
+/*
+ * @bug 8387311
+ * @test id=zgc
+ * @summary Hashing a >2GB array and relocating it must not overflow the hash
+ *          offset and corrupt the heap (compact object headers).
+ * @library /test/lib
+ * @library /
+ * @requires vm.gc.Z
+ * @requires vm.opt.UseCompactObjectHeaders == null | vm.opt.UseCompactObjectHeaders == true
+ * @requires os.maxMemory >= 8G
+ * @requires sun.arch.data.model == "64"
+ * @key stress
+ * @run main/othervm -XX:+UseCompactObjectHeaders -XX:+UseZGC -Xmx6g
+ *      TestHashCodeLargeArray
+ */
+
+import jtreg.SkippedException;
 
 /**
  * Regression test for an integer-overflow in ArrayKlass::hash_offset_in_bytes
