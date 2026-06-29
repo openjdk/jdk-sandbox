@@ -412,10 +412,10 @@ import java.util.function.BiFunction;
  * In this mode of operation, QUIC is responsible for cryptographic protection,
  * and for reliable data delivery.
  * The {@code SSLEngine} performs the initial handshake,
- * and provides updates to QUIC through the {@link QuicTLSCallbacks} interface.
+ * and provides updates to QUIC through the {@link QuicTLSAdapter} interface.
  * <P>
  * A QUIC-supporting {@code SSLEngine} is created by calling
- * {@link SSLContext#createSSLEngine(String, int, QuicTLSCallbacks)}
+ * {@link SSLContext#createSSLEngine(String, int, QuicTLSAdapter)}
  * from an initialized {@code SSLContext}.
  * <P>
  * The QUIC transport replaces the TLS records that were used to describe
@@ -432,10 +432,10 @@ import java.util.function.BiFunction;
  * QUIC transports the {@code CRYPTO} messages in packets encrypted with initial,
  * handshake, and application (1-RTT) keys. The handshake and application keys
  * are derived from secrets provided by the {@code SSLEngine} using
- * {@link QuicTLSCallbacks#deriveHandshakeReadSecrets(SecretKey)},
- * {@link QuicTLSCallbacks#deriveHandshakeWriteSecrets(SecretKey)},
- * {@link QuicTLSCallbacks#deriveApplicationReadSecrets(SecretKey)}, and
- * {@link QuicTLSCallbacks#deriveApplicationWriteSecrets(SecretKey)} callbacks.
+ * {@link QuicTLSAdapter#deriveHandshakeReadSecrets(SecretKey)},
+ * {@link QuicTLSAdapter#deriveHandshakeWriteSecrets(SecretKey)},
+ * {@link QuicTLSAdapter#deriveApplicationReadSecrets(SecretKey)}, and
+ * {@link QuicTLSAdapter#deriveApplicationWriteSecrets(SecretKey)} callbacks.
  * The callbacks may be called from {@code wrap()}, {@code unwrap()},
  * or a delegated task. The read secrets are derived when or after
  * the last expected message from the earlier key space is consumed,
@@ -443,7 +443,7 @@ import java.util.function.BiFunction;
  * from the earlier key space is produced. For example, the {@code wrap()} call
  * that produces the last byte of the {@code Finished} TLS message (the last
  * message protected using the handshake keys) may call the
- * {@link QuicTLSCallbacks#deriveApplicationWriteSecrets(SecretKey)} callback.
+ * {@link QuicTLSAdapter#deriveApplicationWriteSecrets(SecretKey)} callback.
  * <P>
  * The {@link SSLSession#getPacketBufferSize()} method has no meaning for QUIC.
  * The {@code wrap()} method can work with any buffer size now.
@@ -452,7 +452,7 @@ import java.util.function.BiFunction;
  * status when it detects an incomplete message.
  * <P>
  * Handshake failures (alerts) are reported to the QUIC layer
- * through the {@link QuicTLSCallbacks#cryptoError(byte, Exception)} callback.
+ * through the {@link QuicTLSAdapter#cryptoError(byte, Exception)} callback.
  * The QUIC implementation then delivers the alert to the peer
  * in a {@code CONNECTION_CLOSE} QUIC frame.
  * <P>
@@ -471,7 +471,7 @@ import java.util.function.BiFunction;
  * @see SSLServerSocket
  * @see SSLSession
  * @see java.net.Socket
- * @see QuicTLSCallbacks
+ * @see QuicTLSAdapter
  *
  * @since 1.5
  * @author Brad R. Wetmore

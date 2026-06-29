@@ -417,7 +417,7 @@ public class SSLContext {
      * <P>
      * Applications using this factory method are providing no hints
      * for an internal session reuse strategy. If hints are desired,
-     * {@link #createSSLEngine(String, int, QuicTLSCallbacks)} should be used
+     * {@link #createSSLEngine(String, int, QuicTLSAdapter)} should be used
      * instead.
      *
      * @implNote
@@ -429,18 +429,18 @@ public class SSLContext {
      * {@link SSLEngine#setUseClientMode(boolean) SSLEngine.setUseClientMode()}
      * before invoking other methods of the SSLEngine.
      *
-     * @param   quicTLSCallbacks the QUIC transport associated with this engine
+     * @param   quicTLSAdapter the QUIC transport associated with this engine
      * @return  the {@code SSLEngine} object
      * @throws  UnsupportedOperationException if the underlying provider
      *          does not implement the operation.
      * @throws  IllegalStateException if the SSLContextImpl requires
      *          initialization and the {@code init()} has not been called
-     * @throws  NullPointerException if {@code quicTLSCallbacks} is {@code null}
+     * @throws  NullPointerException if {@code quicTLSAdapter} is {@code null}
      * @since   27
      */
-    public final SSLEngine createSSLEngine(QuicTLSCallbacks quicTLSCallbacks) {
-        Objects.requireNonNull(quicTLSCallbacks, "null quicTLSCallbacks");
-        return contextSpi.engineCreateSSLEngine(quicTLSCallbacks);
+    public final SSLEngine createSSLEngine(QuicTLSAdapter quicTLSAdapter) {
+        Objects.requireNonNull(quicTLSAdapter, "null quicTLSAdapter");
+        return contextSpi.engineCreateSSLEngine(quicTLSAdapter);
     }
 
     /**
@@ -461,20 +461,20 @@ public class SSLContext {
      *
      * @param   peerHost the non-authoritative name of the host
      * @param   peerPort the non-authoritative port
-     * @param   quicTLSCallbacks the QUIC transport associated with this engine
+     * @param   quicTLSAdapter the QUIC transport associated with this engine
      * @return  the new {@code SSLEngine} object
      * @throws  UnsupportedOperationException if the underlying provider
      *          does not implement the operation.
      * @throws  IllegalStateException if the SSLContextImpl requires
      *          initialization and the {@code init()} has not been called
-     * @throws  NullPointerException if {@code quicTLSCallbacks} is {@code null}
+     * @throws  NullPointerException if {@code quicTLSAdapter} is {@code null}
      * @since   27
      */
     public final SSLEngine createSSLEngine(String peerHost, int peerPort,
-                                           QuicTLSCallbacks quicTLSCallbacks) {
-        Objects.requireNonNull(quicTLSCallbacks, "null quicTLSCallbacks");
+                                           QuicTLSAdapter quicTLSAdapter) {
+        Objects.requireNonNull(quicTLSAdapter, "null quicTLSAdapter");
         return contextSpi.engineCreateSSLEngine(peerHost, peerPort,
-                quicTLSCallbacks);
+                quicTLSAdapter);
     }
     /**
      * Returns the server session context, which represents the set of

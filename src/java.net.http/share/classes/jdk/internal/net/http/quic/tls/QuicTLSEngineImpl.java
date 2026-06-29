@@ -39,7 +39,7 @@ import javax.crypto.AEADBadTagException;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.ShortBufferException;
-import javax.net.ssl.QuicTLSCallbacks;
+import javax.net.ssl.QuicTLSAdapter;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
@@ -63,7 +63,7 @@ import static jdk.internal.net.http.quic.QuicTLSEngine.KeySpace.*;
  * The implementation of this class uses the {@link QuicKeyManager} to maintain
  * all state relating to keys for each encryption levels.
  */
-public final class QuicTLSEngineImpl implements QuicTLSEngine, QuicTLSCallbacks {
+public final class QuicTLSEngineImpl implements QuicTLSEngine, QuicTLSAdapter {
 
     static final long BASE_CRYPTO_ERROR = 256;
 

@@ -30,7 +30,7 @@ import java.util.Arrays;
 import java.util.Objects;
 
 import javax.crypto.SecretKey;
-import javax.net.ssl.QuicTLSCallbacks;
+import javax.net.ssl.QuicTLSAdapter;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLParameters;
 
@@ -50,7 +50,7 @@ public final class QuicTLSContext {
      */
     public static boolean isQuicCompatible(final SSLContext sslContext) {
         try {
-            sslContext.createSSLEngine(null, -1, new QuicTLSCallbacks() {
+            sslContext.createSSLEngine(null, -1, new QuicTLSAdapter() {
                 @Override
                 public void deriveHandshakeReadSecrets(SecretKey secretKey) {
                 }

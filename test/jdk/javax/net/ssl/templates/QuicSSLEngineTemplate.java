@@ -25,7 +25,7 @@ import jdk.test.lib.RandomFactory;
 import org.junit.jupiter.api.BeforeAll;
 
 import javax.crypto.SecretKey;
-import javax.net.ssl.QuicTLSCallbacks;
+import javax.net.ssl.QuicTLSAdapter;
 import javax.net.ssl.SSLEngine;
 import javax.net.ssl.SSLEngineResult;
 import javax.net.ssl.SSLEngineResult.HandshakeStatus;
@@ -112,7 +112,7 @@ public class QuicSSLEngineTemplate extends SSLContextTemplate {
         sTOc = ByteBuffer.allocate(10000);
     }
 
-    protected static class TestQuicTransport implements QuicTLSCallbacks {
+    protected static class TestQuicTransport implements QuicTLSAdapter {
 
         protected static final int INITIAL = 0;
         protected static final int HANDSHAKE = 1;

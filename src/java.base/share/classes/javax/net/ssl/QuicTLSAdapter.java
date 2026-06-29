@@ -64,7 +64,7 @@ import java.nio.ByteBuffer;
  * @see SSLEngine
  * @since 27
  */
-public interface QuicTLSCallbacks {
+public interface QuicTLSAdapter {
     /**
      * Called when the read secrets associated
      * with the Handshake key space are available.
