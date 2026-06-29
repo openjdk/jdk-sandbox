@@ -417,7 +417,7 @@ public class SSLContext {
      * <P>
      * Applications using this factory method are providing no hints
      * for an internal session reuse strategy. If hints are desired,
-     * {@link #createQUICEngine(String, int, QuicTLSCallbacks)} should be used
+     * {@link #createSSLEngine(String, int, QuicTLSCallbacks)} should be used
      * instead.
      *
      * @implNote
@@ -438,9 +438,9 @@ public class SSLContext {
      * @throws  NullPointerException if {@code quicTLSCallbacks} is {@code null}
      * @since   27
      */
-    public final SSLEngine createQUICEngine(QuicTLSCallbacks quicTLSCallbacks) {
+    public final SSLEngine createSSLEngine(QuicTLSCallbacks quicTLSCallbacks) {
         Objects.requireNonNull(quicTLSCallbacks, "null quicTLSCallbacks");
-        return contextSpi.engineCreateQUICEngine(quicTLSCallbacks);
+        return contextSpi.engineCreateSSLEngine(quicTLSCallbacks);
     }
 
     /**
@@ -470,10 +470,10 @@ public class SSLContext {
      * @throws  NullPointerException if {@code quicTLSCallbacks} is {@code null}
      * @since   27
      */
-    public final SSLEngine createQUICEngine(String peerHost, int peerPort,
-                                            QuicTLSCallbacks quicTLSCallbacks) {
+    public final SSLEngine createSSLEngine(String peerHost, int peerPort,
+                                           QuicTLSCallbacks quicTLSCallbacks) {
         Objects.requireNonNull(quicTLSCallbacks, "null quicTLSCallbacks");
-        return contextSpi.engineCreateQUICEngine(peerHost, peerPort,
+        return contextSpi.engineCreateSSLEngine(peerHost, peerPort,
                 quicTLSCallbacks);
     }
     /**

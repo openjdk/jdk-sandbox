@@ -101,7 +101,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, QuicTLSCallbacks 
         this.sendKeySpace = INITIAL;
         this.recvKeySpace = INITIAL;
         this.sslContext = sslContext;
-        sslEngine = this.sslContext.createQUICEngine(peerHost, peerPort, this);
+        sslEngine = this.sslContext.createSSLEngine(peerHost, peerPort, this);
     }
 
     @Override
@@ -528,7 +528,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, QuicTLSCallbacks 
         if (sendKeySpace != INITIAL || getHandshakeStatus() != SSLEngineResult.HandshakeStatus.NEED_UNWRAP) {
             throw new IllegalStateException("Unexpected handshake state");
         }
-        var newSslEngine = sslContext.createQUICEngine(peerHost, peerPort, this);
+        var newSslEngine = sslContext.createSSLEngine(peerHost, peerPort, this);
         newSslEngine.setUseClientMode(sslEngine.getUseClientMode());
         newSslEngine.setSSLParameters(sslEngine.getSSLParameters());
         newSslEngine.beginHandshake();

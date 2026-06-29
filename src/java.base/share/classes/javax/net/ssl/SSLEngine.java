@@ -415,7 +415,7 @@ import java.util.function.BiFunction;
  * and provides updates to QUIC through the {@link QuicTLSCallbacks} interface.
  * <P>
  * A QUIC-supporting {@code SSLEngine} is created by calling
- * {@link SSLContext#createQUICEngine(String, int, QuicTLSCallbacks)}
+ * {@link SSLContext#createSSLEngine(String, int, QuicTLSCallbacks)}
  * from an initialized {@code SSLContext}.
  * <P>
  * The QUIC transport replaces the TLS records that were used to describe

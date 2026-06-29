@@ -149,7 +149,7 @@ public abstract class SSLContextSpi {
      * <P>
      * Applications using this factory method are providing no hints
      * for an internal session reuse strategy. If hints are desired,
-     * {@link #engineCreateQUICEngine(String, int, QuicTLSCallbacks)}
+     * {@link #engineCreateSSLEngine(String, int, QuicTLSCallbacks)}
      * should be used instead.
      *
      * @implSpec
@@ -163,10 +163,10 @@ public abstract class SSLContextSpi {
      * @throws  IllegalStateException if the SSLContextImpl requires
      *          initialization and the {@code init()} has not been called
      *
-     * @see     SSLContext#createQUICEngine(QuicTLSCallbacks)
+     * @see     SSLContext#createSSLEngine(QuicTLSCallbacks)
      * @since   27
      */
-    protected SSLEngine engineCreateQUICEngine(QuicTLSCallbacks quicTLSCallbacks) {
+    protected SSLEngine engineCreateSSLEngine(QuicTLSCallbacks quicTLSCallbacks) {
         throw new UnsupportedOperationException();
     }
 
@@ -190,10 +190,10 @@ public abstract class SSLContextSpi {
      * @throws UnsupportedOperationException if the underlying provider
      *         does not implement the operation.
      *
-     * @see     SSLContext#createQUICEngine(String, int, QuicTLSCallbacks)
+     * @see     SSLContext#createSSLEngine(String, int, QuicTLSCallbacks)
      * @since   27
      */
-    protected SSLEngine engineCreateQUICEngine(String host, int port, QuicTLSCallbacks quicTLSCallbacks) {
+    protected SSLEngine engineCreateSSLEngine(String host, int port, QuicTLSCallbacks quicTLSCallbacks) {
         throw new UnsupportedOperationException();
     }
 

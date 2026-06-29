@@ -100,10 +100,10 @@ public class QuicSSLEngineTemplate extends SSLContextTemplate {
         serverTransport = createServerQuicTransport();
         clientTransport = createClientQuicTransport();
         serverEngine = configureServerEngine(
-                createServerSSLContext().createQUICEngine(serverTransport));
+                createServerSSLContext().createSSLEngine(serverTransport));
 
         clientEngine = configureClientEngine(
-                createClientSSLContext().createQUICEngine(clientTransport));
+                createClientSSLContext().createSSLEngine(clientTransport));
 
         // We use a hardcoded buffer size here.
         // In practice the write buffer can be arbitrarily small.

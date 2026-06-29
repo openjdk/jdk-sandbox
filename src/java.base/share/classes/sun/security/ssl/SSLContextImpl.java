@@ -184,7 +184,7 @@ public abstract class SSLContextImpl extends SSLContextSpi {
     }
 
     @Override
-    public SSLEngine engineCreateQUICEngine(QuicTLSCallbacks quicTLSCallbacks) {
+    public SSLEngine engineCreateSSLEngine(QuicTLSCallbacks quicTLSCallbacks) {
         if (!isInitialized) {
             throw new IllegalStateException("SSLContext is not initialized");
         }
@@ -192,7 +192,7 @@ public abstract class SSLContextImpl extends SSLContextSpi {
     }
 
     @Override
-    public SSLEngine engineCreateQUICEngine(String host, int port, QuicTLSCallbacks quicTLSCallbacks) {
+    public SSLEngine engineCreateSSLEngine(String host, int port, QuicTLSCallbacks quicTLSCallbacks) {
         if (!isInitialized) {
             throw new IllegalStateException("SSLContext is not initialized");
         }

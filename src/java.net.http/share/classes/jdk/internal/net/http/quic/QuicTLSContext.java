@@ -50,7 +50,7 @@ public final class QuicTLSContext {
      */
     public static boolean isQuicCompatible(final SSLContext sslContext) {
         try {
-            sslContext.createQUICEngine(null, -1, new QuicTLSCallbacks() {
+            sslContext.createSSLEngine(null, -1, new QuicTLSCallbacks() {
                 @Override
                 public void deriveHandshakeReadSecrets(SecretKey secretKey) {
                 }
