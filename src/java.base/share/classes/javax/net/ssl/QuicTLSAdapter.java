@@ -62,7 +62,7 @@ import java.nio.ByteBuffer;
  * @spec https://www.rfc-editor.org/info/rfc9001
  *      RFC 9001: Using TLS to Secure QUIC
  * @see SSLEngine
- * @since 27
+ * @since 28
  */
 public interface QuicTLSAdapter {
     /**

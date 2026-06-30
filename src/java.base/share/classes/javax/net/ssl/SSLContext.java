@@ -438,7 +438,7 @@ public class SSLContext {
      * @throws  IllegalStateException if the SSLContextImpl requires
      *          initialization and the {@code init()} has not been called
      * @throws  NullPointerException if {@code quicTLSAdapter} is {@code null}
-     * @since   27
+     * @since   28
      */
     public final SSLEngine createSSLEngine(QuicTLSAdapter quicTLSAdapter) {
         Objects.requireNonNull(quicTLSAdapter, "null quicTLSAdapter");
@@ -471,7 +471,7 @@ public class SSLContext {
      * @throws  IllegalStateException if the SSLContextImpl requires
      *          initialization and the {@code init()} has not been called
      * @throws  NullPointerException if {@code quicTLSAdapter} is {@code null}
-     * @since   27
+     * @since   28
      */
     public final SSLEngine createSSLEngine(String peerHost, int peerPort,
                                            QuicTLSAdapter quicTLSAdapter) {
