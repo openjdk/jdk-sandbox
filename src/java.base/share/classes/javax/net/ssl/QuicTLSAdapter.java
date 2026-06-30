@@ -29,8 +29,11 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 
 /**
- * This interface defines callback methods used by an {@link SSLEngine}
- * to communicate with a QUIC transport.
+ * This interface is implemented by QUIC transport implementations
+ * and is used by an {@link SSLEngine} instance
+ * {@linkplain SSLContext#createSSLEngine(QuicTLSAdapter)
+ * created for QUIC transport} to communicate with
+ * the QUIC transport that uses this instance.
  * <P>
  * The set of cipher suites supported by the {@code SSLEngine} may be different
  * from the set supported by the QUIC transport. The {@code SSLEngine} calls
