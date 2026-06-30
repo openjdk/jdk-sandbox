@@ -53,7 +53,7 @@ import java.nio.ByteBuffer;
  * the handshake is complete.
  * <P>
  * The {@code SSLEngine} produces the first application secret only.
- * Key updates are expected to be handled internally by the QUIC transport.
+ * Key updates are expected to be handled by the QUIC transport.
  * <P>
  * The {@code SSLEngine} reports any handshake failures using the
  * {@link #cryptoError(byte, Exception)} callback.
