@@ -413,7 +413,9 @@ public class SSLContext {
     }
 
     /**
-     * Creates a new QUIC {@code SSLEngine} using this context.
+     * Creates a new {@code SSLEngine} which uses the specified
+     * {@link QuicTLSAdapter} to secure QUIC using TLS 1.3 as specified
+     * in RFC 9001. Securing QUIC is described in {@link SSLEngine##quic}.
      * <P>
      * Applications using this factory method are providing no hints
      * for an internal session reuse strategy. If hints are desired,
@@ -444,8 +446,9 @@ public class SSLContext {
     }
 
     /**
-     * Creates a new QUIC {@code SSLEngine} using this context using
-     * advisory peer information.
+     * Creates a new {@code SSLEngine} which uses the specified
+     * {@link QuicTLSAdapter} to secure QUIC using TLS 1.3 as specified
+     * in RFC 9001. Securing QUIC is described in {@link SSLEngine##quic}.
      * <P>
      * Applications using this factory method are providing hints
      * for an internal session reuse strategy.
