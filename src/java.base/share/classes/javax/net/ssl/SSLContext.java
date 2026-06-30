@@ -415,7 +415,7 @@ public class SSLContext {
     /**
      * Creates a new {@code SSLEngine} which uses the specified
      * {@link QuicTLSAdapter} to secure QUIC using TLS 1.3 as specified
-     * in RFC 9001. Securing QUIC is described in {@link SSLEngine##quic}.
+     * in RFC 9001.
      * <P>
      * Applications using this factory method are providing no hints
      * for an internal session reuse strategy. If hints are desired,
@@ -439,6 +439,7 @@ public class SSLContext {
      *          initialization and the {@code init()} has not been called
      * @throws  NullPointerException if {@code quicTLSAdapter} is {@code null}
      * @since   28
+     * @see SSLEngine##quic Using SSLEngine to secure QUIC
      */
     public final SSLEngine createSSLEngine(QuicTLSAdapter quicTLSAdapter) {
         Objects.requireNonNull(quicTLSAdapter, "null quicTLSAdapter");
@@ -448,7 +449,7 @@ public class SSLContext {
     /**
      * Creates a new {@code SSLEngine} which uses the specified
      * {@link QuicTLSAdapter} to secure QUIC using TLS 1.3 as specified
-     * in RFC 9001. Securing QUIC is described in {@link SSLEngine##quic}.
+     * in RFC 9001.
      * <P>
      * Applications using this factory method are providing hints
      * for an internal session reuse strategy.
@@ -472,6 +473,7 @@ public class SSLContext {
      *          initialization and the {@code init()} has not been called
      * @throws  NullPointerException if {@code quicTLSAdapter} is {@code null}
      * @since   28
+     * @see SSLEngine##quic Using SSLEngine to secure QUIC
      */
     public final SSLEngine createSSLEngine(String peerHost, int peerPort,
                                            QuicTLSAdapter quicTLSAdapter) {
