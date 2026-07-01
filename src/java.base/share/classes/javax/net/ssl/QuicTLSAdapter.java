@@ -77,7 +77,8 @@ public interface QuicTLSAdapter {
      * {@link SSLEngine#getHandshakeSession() handshake session}
      * using {@link SSLSession#getCipherSuite()} method.
      * <p>
-     * After this method is called, subsequent calls to {@link SSLEngine#unwrap(ByteBuffer, ByteBuffer)}
+     * After the {@code SSLEngine} calls this method, subsequent calls to
+     * {@link SSLEngine#unwrap(ByteBuffer, ByteBuffer)}
      * expect to receive CRYPTO data associated with the Handshake space.
      * If additional CRYPTO data is received in the Initial space
      * after the {@code SSLEngine} has called this method,
@@ -117,7 +118,8 @@ public interface QuicTLSAdapter {
      * Applications should cache the cipher suite value retrieved earlier, or fall back to
      * {@link SSLEngine#getSession()} if handshake session is {@code null}.
      * <p>
-     * After this method is called, subsequent calls to {@link SSLEngine#unwrap(ByteBuffer, ByteBuffer)}
+     * After the {@code SSLEngine} calls this method, subsequent calls to
+     * {@link SSLEngine#unwrap(ByteBuffer, ByteBuffer)}
      * expect to receive CRYPTO data associated with the 1-RTT space.
      * If additional CRYPTO data is received in the Handshake space
      * after the {@code SSLEngine} has called this method,
