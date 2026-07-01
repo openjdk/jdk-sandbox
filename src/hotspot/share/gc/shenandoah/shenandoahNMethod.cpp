@@ -87,6 +87,7 @@ void ShenandoahNMethod::init_from(nmethod* nm) {
 
 void ShenandoahNMethod::parse(nmethod* nm, GrowableArray<oop*>& oops, bool& has_non_immed_oops, GrowableArray<ShenandoahNMethodBarrier>& barriers) {
   has_non_immed_oops = false;
+  address code_begin = nm->code_begin();
   RelocIterator iter(nm);
   while (iter.next()) {
     switch (iter.type()) {
@@ -116,10 +117,8 @@ void ShenandoahNMethod::parse(nmethod* nm, GrowableArray<oop*>& oops, bool& has_
         barrier_Relocation* r = iter.barrier_reloc();
 
         ShenandoahNMethodBarrier b;
-        b._pc = r->addr();
-        // TODO: Parsing the stub address from generated code is kludgy. It also does not work
-        // with nmethod relocation, that can copy the nmethod body with barriers already nop-ped out.
-        b._stub_addr = ShenandoahBarrierSetAssembler::parse_stub_address(b._pc);
+        b._rel_pc = pointer_delta(r->addr(), code_begin, 1);
+        b._rel_target = pointer_delta(ShenandoahBarrierSetAssembler::parse_stub_address(r->addr()), r->addr(), 1);
         b._index = r->format();
         barriers.push(b);
         break;
@@ -163,13 +162,14 @@ void ShenandoahNMethod::update_barriers(nmethod* nm) {
 
   char gc_state = ShenandoahHeap::heap()->gc_state();
 
+  address code_begin = nm->code_begin();
   for (int c = 0; c < data->_barriers_count; c++) {
-    address pc = data->_barriers[c]._pc;
-    address stub_addr = data->_barriers[c]._stub_addr;
+    address pc = code_begin + data->_barriers[c]._rel_pc;
+    address target = pc + data->_barriers[c]._rel_target;
     char trigger_state = reloc_to_gc_state(data->_barriers[c]._index);
 
     if ((gc_state & trigger_state) != 0) {
-      ShenandoahBarrierSetAssembler::patch_nop_to_branch(pc, stub_addr);
+      ShenandoahBarrierSetAssembler::patch_nop_to_branch(pc, target);
     } else {
       ShenandoahBarrierSetAssembler::patch_branch_to_nop(pc);
     }
@@ -183,8 +183,9 @@ void ShenandoahNMethod::assert_barriers(nmethod* nm, bool global_expected) {
   ShenandoahHeap* heap = ShenandoahHeap::heap();
 
   ShenandoahNMethod* snm = gc_data(nm);
+  address code_begin = nm->code_begin();
   for (int c = 0; c < snm->_barriers_count; c++) {
-    address pc = snm->_barriers[c]._pc;
+    address pc = code_begin + snm->_barriers[c]._rel_pc;
     char trigger_state = reloc_to_gc_state(snm->_barriers[c]._index);
     bool expected = global_expected && ((heap->gc_state() & trigger_state) != 0);
     bool actual = ShenandoahBarrierSetAssembler::is_active(pc);
