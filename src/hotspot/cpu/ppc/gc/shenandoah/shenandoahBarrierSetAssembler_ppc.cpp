@@ -1042,7 +1042,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
 
 void ShenandoahBarrierStubC2::maybe_far_jump_if_zero(MacroAssembler& masm, Register reg) {
   __ cmpdi(CR0, reg, 0);
-  // Branch to target if equal
+  // Branch to continuation if equal
   __ bc_far_optimized(Assembler::bcondCRbiIs1, __ bi0(CR0, Assembler::equal), *continuation());
 }
 
