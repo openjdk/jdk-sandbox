@@ -139,6 +139,7 @@ private:
   // passing around the logging/tracing systems
   const char* init_mark_event_message() const;
   const char* final_mark_event_message() const;
+  const char* verify_final_event_message() const;
   const char* final_roots_event_message() const;
   const char* conc_mark_event_message() const;
   const char* conc_reset_event_message() const;
