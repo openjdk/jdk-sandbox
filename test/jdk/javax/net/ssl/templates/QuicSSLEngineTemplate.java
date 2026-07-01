@@ -22,7 +22,6 @@
  */
 
 import jdk.test.lib.RandomFactory;
-import org.junit.jupiter.api.BeforeAll;
 
 import javax.crypto.SecretKey;
 import javax.net.ssl.QuicTLSAdapter;
@@ -70,7 +69,7 @@ public class QuicSSLEngineTemplate extends SSLContextTemplate {
      */
     private static final boolean debug = false;
 
-    static Random RNG;
+    static Random RNG = RandomFactory.getRandom();
 
     protected final SSLEngine clientEngine;     // client Engine
 
@@ -85,11 +84,6 @@ public class QuicSSLEngineTemplate extends SSLContextTemplate {
     // SSLEngine concepts, not how to do network transport.
     protected final ByteBuffer cTOs;      // "reliable" transport client->server
     protected final ByteBuffer sTOc;      // "reliable" transport server->client
-
-    @BeforeAll
-    static void setUp() {
-        RNG = RandomFactory.getRandom();
-    }
 
     protected QuicSSLEngineTemplate() throws Exception {
         clientParams = new byte[RNG.nextInt(100)];
