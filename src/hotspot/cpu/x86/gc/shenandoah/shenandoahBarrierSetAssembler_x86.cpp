@@ -865,7 +865,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
     // TODO: We could have spared the over-jump if patching knew we need the inverse branch.
     char state_to_check = ShenandoahHeap::MARKING;
     Label L_over;
-    __ relocate(barrier_Relocation::spec(), ShenandoahNMethod::gc_state_to_reloc(state_to_check));
+    __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::gc_state_to_reloc(state_to_check)));
     __ jmp(L_over, /* maybe_short = */ false);
     __ jmp(L_through);
     __ bind(L_over);

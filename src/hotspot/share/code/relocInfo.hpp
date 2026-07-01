@@ -1082,7 +1082,8 @@ public:
     return RelocationHolder::construct<patchable_barrier_Relocation>(metadata);
   }
 
-  patchable_barrier_Relocation(int metadata) :  _metadata(metadata), _target_offset(0) { }
+  patchable_barrier_Relocation(int metadata) : Relocation(relocInfo::patchable_barrier_type),
+    _metadata(metadata), _target_offset(0) { }
 
   void pack_data_to(CodeSection* dest) override;
   void unpack_data() override;

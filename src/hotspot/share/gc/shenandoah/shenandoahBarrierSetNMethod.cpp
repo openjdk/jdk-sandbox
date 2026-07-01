@@ -81,6 +81,8 @@ bool ShenandoahBarrierSetNMethod::nmethod_entry_barrier(nmethod* nm) {
 void ShenandoahBarrierSetNMethod::patch_barrier_relocation(patchable_barrier_Relocation* reloc) {
   address pc = reloc->addr();
   address target = ShenandoahBarrierSetAssembler::parse_stub_address(pc);
-  reloc->set_target_offset(pointer_delta(target, pc, 1));
+  if (reloc->target_offset() == 0) {
+    reloc->set_target_offset(pointer_delta(target, pc, 1));
+  }
 }
 
