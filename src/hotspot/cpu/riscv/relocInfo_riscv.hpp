@@ -33,8 +33,7 @@
     offset_unit        =  1,
     // Must be at least 1 for RelocInfo::narrow_oop_in_const.
     // Must be at least 2 for ZGC GC barrier patching.
-    // Must be at least 3 for Shenandoah GC barrier patching.
-    format_width       =  3
+    format_width       =  2
   };
 
  public:

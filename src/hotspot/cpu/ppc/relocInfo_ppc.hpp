@@ -40,8 +40,7 @@
 #else
     // Except narrow oops in 64-bits VM.
     // Must be at least 2 for ZGC GC barrier patching.
-    // Must be at least 3 for Shenandoah GC barrier patching.
-    format_width       =  3
+    format_width       =  2
 #endif
   };
 
