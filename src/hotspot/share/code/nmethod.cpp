@@ -1980,6 +1980,8 @@ void nmethod::finalize_relocations() {
 
   GrowableArray<NativeMovConstReg*> virtual_call_data;
 
+  BarrierSetNMethod* bs_nm = BarrierSet::barrier_set()->barrier_set_nmethod();
+
   // Make sure that post call nops fill in nmethod offsets eagerly so
   // we don't have to race with deoptimization
   RelocIterator iter(this);
@@ -1992,6 +1994,9 @@ void nmethod::finalize_relocations() {
       post_call_nop_Relocation* const reloc = iter.post_call_nop_reloc();
       address pc = reloc->addr();
       install_post_call_nop_displacement(this, pc);
+    } else if (iter.type() == relocInfo::patchable_barrier_type) {
+      patchable_barrier_Relocation* const reloc = iter.patchable_barrier_reloc();
+      bs_nm->patch_barrier_relocation(reloc);
     }
   }
 
@@ -3851,6 +3856,12 @@ const char* nmethod::reloc_string_for(u_char* begin, u_char* end) {
           barrier_Relocation* const reloc = iter.barrier_reloc();
           stringStream st;
           st.print("barrier format=%d", reloc->format());
+          return st.as_string();
+        }
+        case relocInfo::patchable_barrier_type: {
+          patchable_barrier_Relocation* const reloc = iter.patchable_barrier_reloc();
+          stringStream st;
+          st.print("patchable_barrier metadata=%d", reloc->metadata());
           return st.as_string();
         }
 

@@ -113,13 +113,13 @@ void ShenandoahNMethod::parse(nmethod* nm, GrowableArray<oop*>& oops, bool& has_
         break;
       }
 #ifdef COMPILER2
-      case relocInfo::barrier_type: {
-        barrier_Relocation* r = iter.barrier_reloc();
+      case relocInfo::patchable_barrier_type: {
+        patchable_barrier_Relocation* r = iter.patchable_barrier_reloc();
 
         ShenandoahNMethodBarrier b;
         b._rel_pc = pointer_delta(r->addr(), code_begin, 1);
-        b._rel_target = pointer_delta(ShenandoahBarrierSetAssembler::parse_stub_address(r->addr()), r->addr(), 1);
-        b._index = r->format();
+        b._rel_target = r->target_offset();
+        b._index = r->metadata();
         barriers.push(b);
         break;
       }

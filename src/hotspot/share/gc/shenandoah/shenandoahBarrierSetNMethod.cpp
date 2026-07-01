@@ -24,6 +24,8 @@
 
 
 #include "gc/shenandoah/shenandoahBarrierSetNMethod.hpp"
+
+#include "gc/shenandoah/shenandoahBarrierSetAssembler.hpp"
 #include "gc/shenandoah/shenandoahClosures.inline.hpp"
 #include "gc/shenandoah/shenandoahCodeRoots.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
@@ -75,3 +77,10 @@ bool ShenandoahBarrierSetNMethod::nmethod_entry_barrier(nmethod* nm) {
   ShenandoahNMethod::complete_and_disarm_nmethod_unlocked(nm);
   return true;
 }
+
+void ShenandoahBarrierSetNMethod::patch_barrier_relocation(patchable_barrier_Relocation* reloc) {
+  address pc = reloc->addr();
+  address target = ShenandoahBarrierSetAssembler::parse_stub_address(pc);
+  reloc->set_target_offset(pointer_delta(target, pc, 1));
+}
+

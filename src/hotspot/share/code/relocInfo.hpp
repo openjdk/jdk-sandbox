@@ -269,6 +269,7 @@ class relocInfo {
     post_call_nop_type      = 16, // A tag for post call nop relocations
     entry_guard_type        = 17, // A tag for an nmethod entry barrier guard value
     barrier_type            = 18, // GC barrier data
+    patchable_barrier_type  = 19, // Patchable GC barrier
     type_mask               = 31  // A mask which selects only the above values
   };
 
@@ -311,6 +312,7 @@ class relocInfo {
     visitor(post_call_nop) \
     visitor(entry_guard) \
     visitor(barrier) \
+    visitor(patchable_barrier) \
 
 
  public:
@@ -1071,6 +1073,32 @@ class barrier_Relocation : public Relocation {
   barrier_Relocation() : Relocation(relocInfo::barrier_type) { }
 };
 
+class patchable_barrier_Relocation : public Relocation {
+public:
+  jint _metadata;
+  jint _target_offset;
+
+  static RelocationHolder spec(int metadata) {
+    return RelocationHolder::construct<patchable_barrier_Relocation>(metadata);
+  }
+
+  patchable_barrier_Relocation(int metadata) :  _metadata(metadata), _target_offset(0) { }
+
+  void pack_data_to(CodeSection* dest) override;
+  void unpack_data() override;
+
+  void copy_into(RelocationHolder& holder) const override;
+
+  jint metadata() const { return _metadata; }
+  jint target_offset() const { return _target_offset; }
+
+  void set_target_offset(jint target_offset);
+
+private:
+  friend class RelocIterator;
+  friend class RelocationHolder;
+  patchable_barrier_Relocation() : Relocation(relocInfo::patchable_barrier_type) { }
+};
 
 class virtual_call_Relocation : public CallRelocation {
 
