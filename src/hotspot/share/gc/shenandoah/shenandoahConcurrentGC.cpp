@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2021, 2022, Red Hat, Inc. All rights reserved.
  * Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -183,7 +183,7 @@ bool ShenandoahConcurrentGC::collect(GCCause::Cause cause) {
 
   assert(heap->is_concurrent_weak_root_in_progress(), "Must be doing weak roots now");
 
-  // Concurrent stack processing
+  // Finish all thread/stack roots if needed. This completes stack watermark processing.
   if (heap->is_evacuation_in_progress()) {
     entry_thread_roots();
   }
@@ -204,8 +204,6 @@ bool ShenandoahConcurrentGC::collect(GCCause::Cause cause) {
   // we will not age young-gen objects in the case that we skip evacuation.
   entry_cleanup_early();
 
-  heap->free_set()->log_status_under_lock();
-
   // Processing strong roots
   // This may be skipped if there is nothing to update/evacuate.
   // If so, strong_root_in_progress would be unset.
@@ -213,7 +211,7 @@ bool ShenandoahConcurrentGC::collect(GCCause::Cause cause) {
     entry_strong_roots();
   }
 
-  // Roots processing is complete, put the weak roots/ref flags down.
+  // Roots processing is complete, put the weak roots flag down.
   vmop_entry_final_roots();
 
   // Continue the cycle with evacuation and optional update-refs.
@@ -294,12 +292,14 @@ void ShenandoahConcurrentGC::entry_complete_abbreviated_cycle() {
 
   ShenandoahGenerationalHeap* const heap = ShenandoahGenerationalHeap::heap();
 
+  TraceCollectorStats tcs(heap->monitoring_support()->concurrent_collection_counters());
   static const char* msg = "Concurrent complete abbreviated cycle";
   ShenandoahConcurrentPhase gc_phase(msg, ShenandoahPhaseTimings::complete_abbreviated);
   EventMark em("%s", msg);
+
   ShenandoahWorkerScope scope(heap->workers(),
                               ShenandoahWorkerPolicy::calc_workers_for_conc_evac(),
-                             "complete abbreviated");
+                              msg);
 
   // We chose not to evacuate because we found sufficient immediate garbage.
   // However, there may still be regions to promote in place, so do that now.
@@ -819,6 +819,11 @@ void ShenandoahConcurrentGC::op_final_mark() {
       heap->set_evacuation_in_progress(true);
       // From here on, we need to update references.
       heap->set_has_forwarded_objects(true);
+
+      // Arm nmethods/stack for concurrent processing
+      ShenandoahCodeRoots::arm_nmethods();
+      ShenandoahStackWatermark::change_epoch_id();
+
     } else {
       if (ShenandoahVerify) {
         ShenandoahTimingsTracker v(ShenandoahPhaseTimings::final_mark_verify);
@@ -1251,10 +1256,10 @@ void ShenandoahConcurrentGC::op_final_update_refs() {
 void ShenandoahConcurrentGC::entry_final_roots() {
   ShenandoahHeap* const heap = ShenandoahHeap::heap();
   TraceCollectorStats tcs(heap->monitoring_support()->concurrent_collection_counters());
-
-  const char* msg = final_roots_event_message();
-  ShenandoahPausePhase gc_phase(msg, ShenandoahPhaseTimings::final_roots);
+  const char* msg = "Final Roots";
+  ShenandoahConcurrentPhase gc_phase(msg, ShenandoahPhaseTimings::conc_final_roots);
   EventMark em("%s", msg);
+
   ShenandoahWorkerScope scope(heap->workers(),
                               ParallelGCThreads,
                               msg);
