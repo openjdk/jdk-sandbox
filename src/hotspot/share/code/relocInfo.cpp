@@ -579,12 +579,14 @@ void patchable_barrier_Relocation::pack_data_to(CodeSection* dest) {
 }
 
 void patchable_barrier_Relocation::unpack_data() {
-  _metadata = unpack_1_int();
-  _target_offset = unpack_1_int();
+  assert(datalen() == 4, "Should be two int fields");
+  short* d = data();
+  _metadata = relocInfo::jint_from_data(&d[0]);
+  _target_offset = relocInfo::jint_from_data(&d[2]);
 }
 
 void patchable_barrier_Relocation::set_target_offset(jint target_offset) {
-  assert(datalen() == 4, "Should be two fields");
+  assert(datalen() == 4, "Should be two int fields");
   short* d = data();
   d[2] = relocInfo::data0_from_int(target_offset);
   d[3] = relocInfo::data1_from_int(target_offset);
