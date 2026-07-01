@@ -24,7 +24,6 @@
 
 /*
  * @test
- * @ignore
  * @summary Ensure the HotCodeCollector detects a very hot method and relocates
  *          it to the HotCodeHeap. Sampling is best effort, so for reliability
  *          we spawn a seperate test process to manage the VM flags.

@@ -25,7 +25,6 @@
 
 /*
  * @test
- * @ignore
  * @key randomness
  * @requires vm.compiler2.enabled & vm.opt.SegmentedCodeCache != false
  * @library /test/lib /
