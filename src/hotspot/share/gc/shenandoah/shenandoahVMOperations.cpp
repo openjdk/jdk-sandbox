@@ -140,7 +140,7 @@ VM_ShenandoahFinalRoots::VM_ShenandoahFinalRoots(ShenandoahConcurrentGC* gc)
 }
 
 void VM_ShenandoahFinalRoots::doit() {
-  ShenandoahGCPauseMark mark(_gc_id, "Final Roots", SvcGCMarker::CONCURRENT);
+  ShenandoahGCPauseMark mark(_gc_id, "Final Roots", SvcGCMarker::FULL);
   set_active_generation();
   _gc->entry_final_roots();
 }

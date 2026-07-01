@@ -172,7 +172,7 @@ void ShenandoahBarrierSet::on_thread_detach(Thread *thread) {
     if (_heap->is_concurrent_mark_in_progress()) {
       ShenandoahKeepAliveClosure oops;
       StackWatermarkSet::finish_processing(JavaThread::cast(thread), &oops, StackWatermarkKind::gc);
-    } else if (_heap->is_evacuation_in_progress()) {
+    } else if (_heap->is_concurrent_weak_root_in_progress() && _heap->is_evacuation_in_progress()) {
       ShenandoahContextEvacuateUpdateRootsClosure oops;
       StackWatermarkSet::finish_processing(JavaThread::cast(thread), &oops, StackWatermarkKind::gc);
     } else {
