@@ -40,7 +40,7 @@ typedef ShenandoahLocker<ShenandoahNMethodLock>       ShenandoahNMethodLocker;
 struct ShenandoahNMethodBarrier {
   int _rel_pc;
   int _rel_target;
-  int _index;
+  int _metadata;
 };
 
 // ShenandoahNMethod tuple records the internal locations of oop slots within reclocation stream in
@@ -59,53 +59,20 @@ private:
   ShenandoahNMethodLock   _lock;
   ShenandoahNMethodLock   _ic_lock;
 
-  enum ShenandoahNMethodGCState {
-    FORWARDED               = ShenandoahHeap::HAS_FORWARDED,
-    MARKING                 = ShenandoahHeap::MARKING,
-    WEAK                    = ShenandoahHeap::WEAK_ROOTS,
-    FORWARDED_MARKING       = ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::MARKING,
-    FORWARDED_WEAK          = ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::WEAK_ROOTS,
-    MARKING_WEAK            = ShenandoahHeap::MARKING       | ShenandoahHeap::WEAK_ROOTS,
-    FORWARDED_MARKING_WEAK  = ShenandoahHeap::HAS_FORWARDED | ShenandoahHeap::MARKING    | ShenandoahHeap::WEAK_ROOTS
-  };
-
-  enum ShenandoahNMethodGCStatePos {
-    POS_FORWARDED               = 0,
-    POS_MARKING                 = 1,
-    POS_WEAK                    = 2,
-    POS_FORWARDED_MARKING       = 3,
-    POS_FORWARDED_WEAK          = 4,
-    POS_MARKING_WEAK            = 5,
-    POS_FORWARDED_MARKING_WEAK  = 6,
-    POS_MAX
-  };
-
 public:
   ShenandoahNMethod(nmethod *nm);
   ~ShenandoahNMethod();
 
-  static int gc_state_to_reloc(char gc_state) {
-    if (gc_state == FORWARDED)              return POS_FORWARDED;
-    if (gc_state == MARKING)                return POS_MARKING;
-    if (gc_state == WEAK)                   return POS_WEAK;
-    if (gc_state == FORWARDED_MARKING)      return POS_FORWARDED_MARKING;
-    if (gc_state == FORWARDED_WEAK)         return POS_FORWARDED_WEAK;
-    if (gc_state == MARKING_WEAK)           return POS_MARKING_WEAK;
-    if (gc_state == FORWARDED_MARKING_WEAK) return POS_FORWARDED_MARKING_WEAK;
-    ShouldNotReachHere();
-    return 0;
+  static int gc_state_to_reloc(char gc_state, bool inverted) {
+    return (gc_state & 0xFF) | (inverted ? (1 << 8) : 0);
   }
 
-  static char reloc_to_gc_state(int index) {
-    if (index == POS_FORWARDED)              return FORWARDED;
-    if (index == POS_MARKING)                return MARKING;
-    if (index == POS_WEAK)                   return WEAK;
-    if (index == POS_FORWARDED_MARKING)      return FORWARDED_MARKING;
-    if (index == POS_FORWARDED_WEAK)         return FORWARDED_WEAK;
-    if (index == POS_MARKING_WEAK)           return MARKING_WEAK;
-    if (index == POS_FORWARDED_MARKING_WEAK) return FORWARDED_MARKING_WEAK;
-    ShouldNotReachHere();
-    return 0;
+  static char reloc_to_gc_state(int metadata) {
+    return (metadata & 0xFF);
+  }
+
+  static bool reloc_to_inverted(int metadata) {
+    return (metadata & ~0xFF) > 0;
   }
 
   inline nmethod* nm() const;

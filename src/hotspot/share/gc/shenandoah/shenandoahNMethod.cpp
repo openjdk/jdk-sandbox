@@ -119,7 +119,7 @@ void ShenandoahNMethod::parse(nmethod* nm, GrowableArray<oop*>& oops, bool& has_
         ShenandoahNMethodBarrier b;
         b._rel_pc = pointer_delta(r->addr(), code_begin, 1);
         b._rel_target = r->target_offset();
-        b._index = r->metadata();
+        b._metadata = r->metadata();
         barriers.push(b);
         break;
       }
@@ -166,9 +166,10 @@ void ShenandoahNMethod::update_barriers(nmethod* nm) {
   for (int c = 0; c < data->_barriers_count; c++) {
     address pc = code_begin + data->_barriers[c]._rel_pc;
     address target = pc + data->_barriers[c]._rel_target;
-    char trigger_state = reloc_to_gc_state(data->_barriers[c]._index);
-
-    if ((gc_state & trigger_state) != 0) {
+    char trigger_state = reloc_to_gc_state(data->_barriers[c]._metadata);
+    bool inverted = reloc_to_inverted(data->_barriers[c]._metadata);
+    bool active = ((gc_state & trigger_state) != 0) ^ inverted;
+    if (active) {
       ShenandoahBarrierSetAssembler::patch_nop_to_branch(pc, target);
     } else {
       ShenandoahBarrierSetAssembler::patch_branch_to_nop(pc);
@@ -186,10 +187,12 @@ void ShenandoahNMethod::assert_barriers(nmethod* nm, bool global_expected) {
   address code_begin = nm->code_begin();
   for (int c = 0; c < snm->_barriers_count; c++) {
     address pc = code_begin + snm->_barriers[c]._rel_pc;
-    char trigger_state = reloc_to_gc_state(snm->_barriers[c]._index);
-    bool expected = global_expected && ((heap->gc_state() & trigger_state) != 0);
+    char trigger_state = reloc_to_gc_state(snm->_barriers[c]._metadata);
+    bool inverted = reloc_to_inverted(snm->_barriers[c]._metadata);
+    bool expected = (global_expected && ((heap->gc_state() & trigger_state) != 0)) ^ inverted;
     bool actual = ShenandoahBarrierSetAssembler::is_active(pc);
-    assert(expected == actual, "armed expected: %s, actual: %s", BOOL_TO_STR(expected), BOOL_TO_STR(actual));
+    assert(expected == actual, "armed expected: %s, actual: %s; global expected: %s",
+      BOOL_TO_STR(expected), BOOL_TO_STR(actual), BOOL_TO_STR(global_expected));
   }
 #endif
 }
