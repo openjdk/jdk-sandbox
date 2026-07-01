@@ -655,7 +655,7 @@ void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char
 
   // Emit the unconditional branch in the first version of the method.
   // Let the rest of runtime figure out how to manage it.
-  __ relocate(barrier_Relocation::spec(), (int)ShenandoahNMethod::gc_state_to_reloc(test_state));
+  __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::gc_state_to_reloc(test_state, false)));
   __ j(*entry());
 
   // This is were the slowpath stub will return to or the code above will
@@ -769,13 +769,9 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
     assert(L_done == nullptr, "Should be");
     // Emit the unconditional branch in the first version of the method.
     // Let the rest of runtime figure out how to manage it.
-    // TODO: We could have spared the over-jump if patching knew we need the inverse branch.
     char state_to_check = ShenandoahHeap::MARKING;
-    Label L_over;
-    __ relocate(barrier_Relocation::spec(), ShenandoahNMethod::gc_state_to_reloc(state_to_check));
-    __ j(L_over);
+    __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::gc_state_to_reloc(state_to_check, true)));
     __ j(L_through);
-    __ bind(L_over);
   }
 
   // Fast-path: put object into buffer.
@@ -828,20 +824,16 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   // regardless of their cset status.
   if (_needs_load_ref_weak_barrier) {
     char state_to_check = ShenandoahHeap::WEAK_ROOTS;
-    __ relocate(barrier_Relocation::spec(), ShenandoahNMethod::gc_state_to_reloc(state_to_check));
+    __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::gc_state_to_reloc(state_to_check, false)));
     __ j(L_slow);
   }
 
   if (_needs_keep_alive_barrier) {
     // Emit the unconditional branch in the first version of the method.
     // Let the rest of runtime figure out how to manage it.
-    // TODO: We could have spared the over-jump if patching knew we need the inverse branch.
     char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
-    Label L_over;
-    __ relocate(barrier_Relocation::spec(), ShenandoahNMethod::gc_state_to_reloc(state_to_check));
-    __ j(L_over);
+    __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::gc_state_to_reloc(state_to_check, true)));
     __ j(*continuation());
-    __ bind(L_over);
   }
 
   // Cset-check. Fall-through to slow if in collection set.
