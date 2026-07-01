@@ -160,9 +160,9 @@ public abstract class SSLContextSpi {
      * @return  the {@code SSLEngine} object
      * @throws  UnsupportedOperationException if the underlying provider
      *          does not implement the operation.
-     * @throws  IllegalStateException if the SSLContextImpl requires
-     *          initialization and the {@code engineInit()}
-     *          has not been called
+     * @throws  IllegalStateException if the {@code SSLContextSpi}
+     *          implementation requires initialization
+     *          and the {@code engineInit()} has not been called
      *
      * @see     SSLContext#createSSLEngine(QuicTLSAdapter)
      * @since   28
@@ -185,9 +185,9 @@ public abstract class SSLContextSpi {
      * @param port the non-authoritative port
      * @param quicTLSAdapter the QUIC transport associated with this engine
      * @return  the {@code SSLEngine} Object
-     * @throws IllegalStateException if the SSLContextImpl requires
-     *         initialization and the {@code engineInit()}
-     *         has not been called
+     * @throws IllegalStateException if the {@code SSLContextSpi}
+     *         implementation requires initialization
+     *         and the {@code engineInit()} has not been called
      * @throws UnsupportedOperationException if the underlying provider
      *         does not implement the operation.
      *
