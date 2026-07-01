@@ -161,7 +161,8 @@ public abstract class SSLContextSpi {
      * @throws  UnsupportedOperationException if the underlying provider
      *          does not implement the operation.
      * @throws  IllegalStateException if the SSLContextImpl requires
-     *          initialization and the {@code init()} has not been called
+     *          initialization and the {@code engineInit()}
+     *          has not been called
      *
      * @see     SSLContext#createSSLEngine(QuicTLSAdapter)
      * @since   28
