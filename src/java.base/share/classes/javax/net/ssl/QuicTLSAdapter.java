@@ -69,7 +69,7 @@ import java.nio.ByteBuffer;
  */
 public interface QuicTLSAdapter {
     /**
-     * Called when the read secrets associated
+     * Called by the {@link SSLEngine} when the read secrets associated
      * with the Handshake key space are available.
      * <p>
      * The provided secret should be used with the key derivation function
@@ -87,7 +87,7 @@ public interface QuicTLSAdapter {
     void deriveHandshakeReadSecrets(SecretKey secretKey);
 
     /**
-     * Called when the write secrets associated
+     * Called by the {@link SSLEngine} when the write secrets associated
      * with the Handshake key space are available.
      * <p>
      * The provided secret should be used with the key derivation function
@@ -105,7 +105,7 @@ public interface QuicTLSAdapter {
     void deriveHandshakeWriteSecrets(SecretKey secretKey);
 
     /**
-     * Called when the read secrets associated
+     * Called by the {@link SSLEngine} when the read secrets associated
      * with the 1-RTT key space are available.
      * <p>
      * The provided secret should be used with the key derivation function
@@ -128,7 +128,7 @@ public interface QuicTLSAdapter {
     void deriveApplicationReadSecrets(SecretKey secretKey);
 
     /**
-     * Called when the write secrets associated
+     * Called by the {@link SSLEngine} when the write secrets associated
      * with the 1-RTT key space are available.
      * <p>
      * The provided secret should be used with the key derivation function
@@ -148,8 +148,8 @@ public interface QuicTLSAdapter {
     void deriveApplicationWriteSecrets(SecretKey secretKey);
 
     /**
-     * Called to retrieve the names of the cipher suites supported by
-     * this QUIC transport.
+     * Called by the {@link SSLEngine} to retrieve the names
+     * of the cipher suites supported by this QUIC transport.
      * <p>
      * Only the cipher suites supported by the QUIC transport
      * and enabled by the {@link SSLEngine#getEnabledCipherSuites() SSLEngine}
@@ -159,13 +159,15 @@ public interface QuicTLSAdapter {
     String[] getSupportedCipherSuites();
 
     /**
-     * Called to retrieve the contents of the QUIC transport parameters extension
+     * Called by the {@link SSLEngine} to retrieve the contents of the QUIC
+     * transport parameters extension
      * @return the QUIC transport parameters offered by this transport.
      */
     ByteBuffer localQuicTransportParameters();
 
     /**
-     * Called when the remote QUIC transport parameters extension is received.
+     * Called by the {@link SSLEngine} when the remote QUIC
+     * transport parameters extension is received.
      * <p>
      * It is recommended to throw an exception from this method if the parameters
      * contain invalid values
@@ -175,7 +177,8 @@ public interface QuicTLSAdapter {
     void remoteQuicTransportParameters(ByteBuffer parameters) throws IOException;
 
     /**
-     * Called when the handshake fails with a fatal alert.
+     * Called by the {@link SSLEngine} when the handshake fails
+     * with a fatal alert.
      *
      * @param code        the TLS alert code
      * @param closeReason the exception related to the alert
