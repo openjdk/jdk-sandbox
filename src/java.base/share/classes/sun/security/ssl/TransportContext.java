@@ -448,7 +448,7 @@ final class TransportContext implements ConnectionContext {
 
         // QUIC: send fatal alert along with the exception
         if (quicTLSAdapter != null) {
-            quicTLSAdapter.cryptoError(alert.id, closeReason);
+            quicTLSAdapter.cryptoError(alert.id & 0xff, closeReason);
         }
 
         if (closeReason instanceof SSLException) {

@@ -116,7 +116,7 @@ public class QuicSSLEngineTemplate extends SSLContextTemplate {
         protected boolean errorReported;
         protected final byte[] localParameters;
         protected final byte[] expectedRemoteParameters;
-        protected byte errorCode;
+        protected int errorCode;
         protected Throwable errorCause;
 
         protected TestQuicTransport(byte[] localParameters, byte[] expectedRemoteParameters) {
@@ -166,7 +166,7 @@ public class QuicSSLEngineTemplate extends SSLContextTemplate {
         }
 
         @Override
-        public void cryptoError(byte code, Exception closeReason) {
+        public void cryptoError(int code, Exception closeReason) {
             errorReported = true;
             errorCode = code;
             errorCause = closeReason;

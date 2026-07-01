@@ -59,7 +59,7 @@ import java.nio.ByteBuffer;
  * Key updates are expected to be handled by the QUIC transport.
  * <P>
  * The {@code SSLEngine} reports any handshake failures using the
- * {@link #cryptoError(byte, Exception)} callback.
+ * {@link #cryptoError(int, Exception)} callback.
  * Failures are not recoverable.
  *
  * @spec https://www.rfc-editor.org/info/rfc9001
@@ -179,9 +179,12 @@ public interface QuicTLSAdapter {
     /**
      * Called by the {@link SSLEngine} when the handshake fails
      * with a fatal alert.
-     *
+     * <P>
+     * The QUIC transport must convert the alert to a QUIC error code
+     * by adding {@code 0x100} and send it in a {@code CONNECTION_CLOSE} frame
+     * of type {@code 0x1c}.
      * @param code        the TLS alert code
      * @param closeReason the exception related to the alert
      */
-    void cryptoError(byte code, Exception closeReason);
+    void cryptoError(int code, Exception closeReason);
 }

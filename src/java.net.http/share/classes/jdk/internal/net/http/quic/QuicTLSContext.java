@@ -75,7 +75,7 @@ public final class QuicTLSContext {
                 public void remoteQuicTransportParameters(ByteBuffer parameters) throws IOException {
                 }
                 @Override
-                public void cryptoError(byte code, Exception closeReason) {
+                public void cryptoError(int code, Exception closeReason) {
                 }
             });
             return true;

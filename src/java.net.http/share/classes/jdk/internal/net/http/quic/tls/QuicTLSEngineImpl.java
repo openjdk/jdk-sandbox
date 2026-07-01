@@ -554,11 +554,11 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, QuicTLSAdapter {
     }
 
     @Override
-    public void cryptoError(byte code, Exception closeReason) {
+    public void cryptoError(int code, Exception closeReason) {
         if (cryptoError == null) {
             cryptoError = new QuicTransportException(closeReason.getMessage(),
                     recvKeySpace, 0,
-                    BASE_CRYPTO_ERROR + (code & 0xff), closeReason);
+                    BASE_CRYPTO_ERROR + code, closeReason);
         }
     }
 

@@ -452,7 +452,7 @@ import java.util.function.BiFunction;
  * status when it detects an incomplete message.
  * <P>
  * Handshake failures (alerts) are reported to the QUIC layer
- * through the {@link QuicTLSAdapter#cryptoError(byte, Exception)} callback.
+ * through the {@link QuicTLSAdapter#cryptoError(int, Exception)} callback.
  * The QUIC implementation then delivers the alert to the peer
  * in a {@code CONNECTION_CLOSE} QUIC frame.
  * <P>
