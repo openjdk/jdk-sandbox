@@ -1269,6 +1269,11 @@ void ShenandoahHeap::concurrent_prepare_for_update_refs() {
 }
 
 void ShenandoahHeap::op_final_roots() {
+  // Make sure the current stack watermark machinery has completed before we drop flags.
+  // TODO: This should be handled in concurrent phase to avoid extra pauses.
+  ShenandoahCompleteStackwatermarkHandshakeClosure cl;
+  Threads::threads_do(&cl);
+
   set_gc_state_at_safepoint(WEAK_ROOTS, false);
   propagate_gc_state_to_all_threads();
 

@@ -152,6 +152,7 @@ void ShenandoahEvacuateUpdateRootClosureBase<CONCURRENT, STABLE_THREAD>::do_oop_
   if (!CompressedOops::is_null(o)) {
     oop obj = CompressedOops::decode_not_null(o);
     if (_heap->in_collection_set(obj)) {
+      assert(_heap->is_evacuation_in_progress(), "Only do this when evacuation is in progress");
       shenandoah_assert_marked(p, obj);
       oop resolved = ShenandoahForwarding::get_forwardee(obj);
       if (resolved == obj) {
