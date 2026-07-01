@@ -23,9 +23,8 @@
  */
 
 
-#include "gc/shenandoah/shenandoahBarrierSetNMethod.hpp"
-
 #include "gc/shenandoah/shenandoahBarrierSetAssembler.hpp"
+#include "gc/shenandoah/shenandoahBarrierSetNMethod.hpp"
 #include "gc/shenandoah/shenandoahClosures.inline.hpp"
 #include "gc/shenandoah/shenandoahCodeRoots.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
