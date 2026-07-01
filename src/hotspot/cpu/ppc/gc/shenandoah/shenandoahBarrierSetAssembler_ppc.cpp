@@ -931,13 +931,23 @@ void ShenandoahBarrierStubC2::cardtable(MacroAssembler& masm, Address address, R
   __ stbx(R0, tmp2, tmp1);
 }
 
+void ShenandoahBarrierStubC2::patchable_jump_if_gc_state(MacroAssembler& masm, const char test_state, Label* L_target) {
+  // Emit the unconditional branch in the first version of the method.
+  // Let the rest of runtime figure out how to manage it.
+  __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::gc_state_to_reloc(test_state, false)));
+  __ b(*L_target);
+}
+
+void ShenandoahBarrierStubC2::patchable_jump_if_not_gc_state(MacroAssembler& masm, const char test_state, Label* L_target) {
+  // Emit the unconditional branch in the first version of the method.
+  // Let the rest of runtime figure out how to manage it.
+  __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::gc_state_to_reloc(test_state, true)));
+  __ b(*L_target);
+}
+
 void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
-
-  __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::gc_state_to_reloc(test_state, false)));
-  __ b(*entry());
-
-  // This is were the slowpath stub will return to
+  patchable_jump_if_gc_state(masm, test_state, entry());
   __ bind(*continuation());
 }
 
@@ -1044,11 +1054,8 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   // If another barrier is enabled as well, do a check for a specific barrier.
   if (_needs_load_ref_barrier) {
     assert(L_done == nullptr, "Should be");
-    // Emit the unconditional branch in the first version of the method.
-    // Let the rest of runtime figure out how to manage it.
     char state_to_check = ShenandoahHeap::MARKING;
-    __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::gc_state_to_reloc(state_to_check, true)));
-    __ b(L_through);
+    patchable_jump_if_not_gc_state(masm, state_to_check, &L_through);
   }
 
   // Fast-path: put object into buffer.
@@ -1097,20 +1104,17 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
 void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   Label L_slow;
 
+  // If another barrier is enabled as well, do a check for a specific barrier.
+  if (_needs_keep_alive_barrier) {
+    char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
+    patchable_jump_if_not_gc_state(masm, state_to_check, continuation());
+  }
+
   // If weak references are being processed, weak/phantom loads need to go slow,
   // regardless of their cset status.
   if (_needs_load_ref_weak_barrier) {
     char state_to_check = ShenandoahHeap::WEAK_ROOTS;
-    __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::gc_state_to_reloc(state_to_check, false)));
-    __ b(L_slow);
-  }
-
-  if (_needs_keep_alive_barrier) {
-    // Emit the unconditional branch in the first version of the method.
-    // Let the rest of runtime figure out how to manage it.
-    char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
-    __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::gc_state_to_reloc(state_to_check, true)));
-    __ b(*continuation());
+    patchable_jump_if_gc_state(masm, state_to_check, &L_slow);
   }
 
   // Cset-check. Fall-through to slow if in collection set.

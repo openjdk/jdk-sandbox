@@ -743,14 +743,23 @@ void ShenandoahBarrierStubC2::cardtable(MacroAssembler& masm, Address addr, Regi
   __ bind(L_done);
 }
 
-void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp) {
-  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
-
+void ShenandoahBarrierStubC2::patchable_jump_if_gc_state(MacroAssembler& masm, const char test_state, Label* L_target) {
   // Emit the unconditional branch in the first version of the method.
   // Let the rest of runtime figure out how to manage it.
   __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::gc_state_to_reloc(test_state, false)));
-  __ jmp(*entry(), /* maybe_short = */ false);
+  __ jmp(*L_target, /* maybe_short = */ false);
+}
 
+void ShenandoahBarrierStubC2::patchable_jump_if_not_gc_state(MacroAssembler& masm, const char test_state, Label* L_target) {
+  // Emit the unconditional branch in the first version of the method.
+  // Let the rest of runtime figure out how to manage it.
+  __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::gc_state_to_reloc(test_state, true)));
+  __ jmp(*L_target, /* maybe_short = */ false);
+}
+
+void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp) {
+  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
+  patchable_jump_if_gc_state(masm, test_state, entry());
   __ bind(*continuation());
 }
 
@@ -860,11 +869,8 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   // If another barrier is enabled as well, do a check for a specific barrier.
   if (_needs_load_ref_barrier) {
     assert(L_done == nullptr, "Should be");
-    // Emit the unconditional branch in the first version of the method.
-    // Let the rest of runtime figure out how to manage it.
     char state_to_check = ShenandoahHeap::MARKING;
-    __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::gc_state_to_reloc(state_to_check, true)));
-    __ jmp(L_through, /* maybe_short = */ false);
+    patchable_jump_if_not_gc_state(masm, state_to_check, &L_through);
   }
 
   // Need temp to work, allocate one now.
@@ -933,20 +939,17 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
 void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   Label L_pop_and_slow, L_slow;
 
+  // If another barrier is enabled as well, do a check for a specific barrier.
+  if (_needs_keep_alive_barrier) {
+    char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
+    patchable_jump_if_not_gc_state(masm, state_to_check, continuation());
+  }
+
   // If weak references are being processed, weak/phantom loads need to go slow,
   // regardless of their cset status.
   if (_needs_load_ref_weak_barrier) {
     char state_to_check = ShenandoahHeap::WEAK_ROOTS;
-    __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::gc_state_to_reloc(state_to_check, false)));
-    __ jmp(L_slow, /* maybe_short = */ false);
-  }
-
-  if (_needs_keep_alive_barrier) {
-    // Emit the unconditional branch in the first version of the method.
-    // Let the rest of runtime figure out how to manage it.
-    char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
-    __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::gc_state_to_reloc(state_to_check, true)));
-    __ jmp(*continuation(), /* maybe_short = */ false);
+    patchable_jump_if_gc_state(masm, state_to_check, &L_slow);
   }
 
   bool is_aot = AOTCodeCache::is_on_for_dump();

@@ -171,6 +171,8 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   Register select_temp_register(bool& selected_live, Register skip_reg1 = noreg, Register skip_reg2 = noreg);
 
   void maybe_far_jump_if_zero(MacroAssembler& masm, Register reg);
+  void patchable_jump_if_gc_state(MacroAssembler& masm, const char test_state, Label* L_target);
+  void patchable_jump_if_not_gc_state(MacroAssembler& masm, const char test_state, Label* L_target);
 
   void enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp);
 
