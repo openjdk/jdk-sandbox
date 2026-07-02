@@ -36,8 +36,12 @@ import java.util.LinkedList;
 
 /**
  * QUIC {@code OutputRecord} implementation for {@code SSLEngine}.
+ *
+ * This class forwards the encryption keys and handshake messages
+ * to the QUIC layer without processing. Unlike the other {@code OutputRecord}
+ * subclasses, it does not implement the TLS record layer.
  */
-final class QuicEngineOutputRecord extends OutputRecord implements SSLRecord {
+final class QuicEngineOutputRecord extends OutputRecord {
 
     private final HandshakeFragment fragmenter = new HandshakeFragment();
     private final QuicTLSAdapter quicTLSAdapter;

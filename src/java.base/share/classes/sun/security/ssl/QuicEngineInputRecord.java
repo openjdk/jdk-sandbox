@@ -36,6 +36,10 @@ import java.util.ArrayList;
 
 /**
  * {@code InputRecord} implementation for a QUIC {@code SSLEngine}.
+ *
+ * This class forwards the encryption keys to the QUIC layer and buffers
+ * the incoming handshake messages. Unlike the other {@code InputRecord}
+ * subclasses, it does not implement the TLS record layer.
  */
 final class QuicEngineInputRecord extends InputRecord implements SSLRecord {
 
