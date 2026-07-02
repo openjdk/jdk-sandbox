@@ -409,9 +409,9 @@ import java.util.function.BiFunction;
  * <P id="quic"><b>Using SSLEngine to secure QUIC</b></P>
  * <P>
  * An {@code SSLEngine} can be used to secure a QUIC transport.
- * In this mode of operation, QUIC is responsible for cryptographic protection,
- * and for reliable data delivery.
- * The {@code SSLEngine} performs the initial handshake,
+ * In this mode of operation, QUIC is responsible for cryptographic protection
+ * and reliable data delivery.
+ * The {@code SSLEngine} performs the initial handshake
  * and provides updates to QUIC through the {@link QuicTLSAdapter} interface.
  * <P>
  * A QUIC-supporting {@code SSLEngine} is created by calling
@@ -419,7 +419,7 @@ import java.util.function.BiFunction;
  * from an initialized {@code SSLContext}.
  * <P>
  * The QUIC transport replaces the TLS records that are used to describe
- * the message type ("handshake", "alert", or "application data"),
+ * the message type ("handshake", "alert", or "application data")
  * and are the units of encryption. As a result, the semantics of certain
  * {@code SSLEngine} methods have changed.
  * <P>
