@@ -96,7 +96,6 @@ public:
   static inline ShenandoahNMethod* gc_data(nmethod* nm);
   static inline void attach_gc_data(nmethod* nm, ShenandoahNMethod* gc_data);
 
-  static void assert_barriers(nmethod* nm, bool armed) NOT_DEBUG_RETURN;
   void assert_correct() NOT_DEBUG_RETURN;
   void assert_same_oops() NOT_DEBUG_RETURN;
 
