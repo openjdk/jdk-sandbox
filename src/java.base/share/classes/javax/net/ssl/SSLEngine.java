@@ -421,7 +421,7 @@ import java.util.function.BiFunction;
  * The QUIC transport replaces the TLS records that were used to describe
  * the message type ("handshake", "alert", or "application data"),
  * and were the units of encryption. As a result, the semantics of certain
- * {@code SSLEngine} methods were changed.
+ * {@code SSLEngine} methods have changed.
  * <P>
  * The {@code wrap()} and {@code unwrap()} methods operate on raw unencrypted
  * TLS "handshake" messages suitable for inclusion in QUIC {@code CRYPTO}
