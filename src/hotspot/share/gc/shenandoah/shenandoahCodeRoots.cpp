@@ -55,27 +55,27 @@ void ShenandoahCodeRoots::unregister_nmethod(nmethod* nm) {
 }
 
 void ShenandoahCodeRoots::arm_nmethods() {
-  char gc_state = ShenandoahHeap::heap()->gc_state();
-  Events::log(Thread::current(), "Arming nmethods, GC state: %d [%s%s%s%s%s%s%s]",
-      gc_state,
-      ((gc_state & ShenandoahHeap::HAS_FORWARDED) > 0) ? "HAS_FORWARDED "  : "",
-      ((gc_state & ShenandoahHeap::MARKING) > 0)       ? "MARKING "        : "",
-      ((gc_state & ShenandoahHeap::EVACUATION) > 0)    ? "EVACUATION "     : "",
-      ((gc_state & ShenandoahHeap::UPDATE_REFS) > 0)   ? "UPDATE_REFS "    : "",
-      ((gc_state & ShenandoahHeap::WEAK_ROOTS) > 0)    ? "WEAK_ROOTS "     : "",
-      ((gc_state & ShenandoahHeap::YOUNG_MARKING) > 0) ? "YOUNG_MARKING "  : "",
-      ((gc_state & ShenandoahHeap::OLD_MARKING) > 0)   ? "OLD_MARKING "    : ""
-  );
-  log_info(gc)("Arming nmethods with GC state: %d [%s%s%s%s%s%s%s]",
-       gc_state,
-       ((gc_state & ShenandoahHeap::HAS_FORWARDED) > 0) ? "HAS_FORWARDED "  : "",
-       ((gc_state & ShenandoahHeap::MARKING) > 0)       ? "MARKING "        : "",
-       ((gc_state & ShenandoahHeap::EVACUATION) > 0)    ? "EVACUATION "     : "",
-       ((gc_state & ShenandoahHeap::UPDATE_REFS) > 0)   ? "UPDATE_REFS "    : "",
-       ((gc_state & ShenandoahHeap::WEAK_ROOTS) > 0)    ? "WEAK_ROOTS "     : "",
-       ((gc_state & ShenandoahHeap::YOUNG_MARKING) > 0) ? "YOUNG_MARKING "  : "",
-       ((gc_state & ShenandoahHeap::OLD_MARKING) > 0)   ? "OLD_MARKING "    : ""
-  );
+  {
+    ResourceMark rm;
+    stringStream ss;
+
+    char gc_state = ShenandoahHeap::heap()->gc_state();
+    if (gc_state > 0) {
+      ss.print("Arming nmethods: %s%s%s%s%s%s%s",
+          ((gc_state & ShenandoahHeap::HAS_FORWARDED) > 0) ? "HAS_FORWARDED "  : "",
+          ((gc_state & ShenandoahHeap::MARKING) > 0)       ? "MARKING "        : "",
+          ((gc_state & ShenandoahHeap::EVACUATION) > 0)    ? "EVACUATION "     : "",
+          ((gc_state & ShenandoahHeap::UPDATE_REFS) > 0)   ? "UPDATE_REFS "    : "",
+          ((gc_state & ShenandoahHeap::WEAK_ROOTS) > 0)    ? "WEAK_ROOTS "     : "",
+          ((gc_state & ShenandoahHeap::YOUNG_MARKING) > 0) ? "YOUNG_MARKING "  : "",
+          ((gc_state & ShenandoahHeap::OLD_MARKING) > 0)   ? "OLD_MARKING "    : "");
+    } else {
+      ss.print("Arming nmethods: idle");
+    }
+
+    Events::log(Thread::current(), "%s", ss.freeze());
+    log_info(gc)("%s", ss.freeze());
+  }
   BarrierSet::barrier_set()->barrier_set_nmethod()->arm_all_nmethods();
 }
 
