@@ -418,9 +418,9 @@ import java.util.function.BiFunction;
  * {@link SSLContext#createSSLEngine(String, int, QuicTLSAdapter)}
  * from an initialized {@code SSLContext}.
  * <P>
- * The QUIC transport replaces the TLS records that were used to describe
+ * The QUIC transport replaces the TLS records that are used to describe
  * the message type ("handshake", "alert", or "application data"),
- * and were the units of encryption. As a result, the semantics of certain
+ * and are the units of encryption. As a result, the semantics of certain
  * {@code SSLEngine} methods have changed.
  * <P>
  * The {@code wrap()} and {@code unwrap()} methods operate on raw unencrypted
