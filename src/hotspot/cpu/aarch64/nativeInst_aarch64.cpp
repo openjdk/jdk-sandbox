@@ -29,6 +29,7 @@
 #include "gc/shared/collectedHeap.hpp"
 #include "nativeInst_aarch64.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/atomicAccess.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/orderAccess.hpp"
 #include "runtime/sharedRuntime.hpp"
@@ -209,19 +210,12 @@ void NativeMovRegMem::verify() {
 void NativeJump::verify() { ; }
 
 void NativeJump::insert(address code_pos, address entry) {
-  // Dispacement is relative to the jump instruction PC
   intptr_t disp = (intptr_t)entry - ((intptr_t)code_pos);
-
-  // The jump immediate is 26 bits and it will at execution time be scaled by 4
   int64_t imm26 = disp >> 2;
+  guarantee(Assembler::is_simm(imm26, 26), "maximum offset is 128MiB, requested %ld", imm26);
 
-  // The farthest that we can jump is +/- 128MiB
-  guarantee(Assembler::is_simm(imm26, 26), "maximum offset is 128MiB, you asking for %ld", imm26);
-
-  // Patch with opcode | offset
-  *((int32_t*)code_pos) = 0x14000000 | (imm26 & 0x03FFFFFF);
-
-  // Tell hardware to invalidate icache line containing code_pos
+  uint32_t new_val = 0x14000000 | (imm26 & 0x03FFFFFF);
+  AtomicAccess::store((uint32_t*)code_pos, new_val);
   ICache::invalidate_range(code_pos, instruction_size);
 }
 
