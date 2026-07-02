@@ -1245,13 +1245,11 @@ void ShenandoahConcurrentGC::op_final_update_refs() {
 }
 
 void ShenandoahConcurrentGC::entry_final_roots() {
-  ShenandoahHeap* const heap = ShenandoahHeap::heap();
-  TraceCollectorStats tcs(heap->monitoring_support()->concurrent_collection_counters());
   const char* msg = final_roots_event_message();
-  ShenandoahConcurrentPhase gc_phase(msg, ShenandoahPhaseTimings::conc_final_roots);
+  ShenandoahPausePhase gc_phase(msg, ShenandoahPhaseTimings::final_roots);
   EventMark em("%s", msg);
 
-  heap->op_final_roots();
+  ShenandoahHeap::heap()->op_final_roots();
 }
 
 void ShenandoahConcurrentGC::op_verify_final() {
