@@ -32,6 +32,7 @@
 #include "utilities/sizes.hpp"
 
 class nmethod;
+class patchable_barrier_Relocation;
 
 class BarrierSetNMethod: public CHeapObj<mtGC> {
 private:
