@@ -709,9 +709,6 @@ void ShenandoahConcurrentGC::op_init_mark() {
   assert(!_generation->is_mark_complete(), "should not be complete");
   assert(!heap->has_forwarded_objects(), "No forwarded objects on this path");
 
-  // First pause in cycle, check that barriers were not left enabled.
-  ShenandoahCodeRoots::check_barriers();
-
   if (heap->mode()->is_generational()) {
     if (_generation->is_global()) {
       heap->old_generation()->cancel_gc();
@@ -1060,7 +1057,6 @@ public:
     ShenandoahNMethod* data = ShenandoahNMethod::gc_data(n);
     ShenandoahNMethodLocker locker(data->lock());
     data->oops_do(&_cl, /* fix_relocations = */ true);
-    ShenandoahNMethod::complete_and_disarm_nmethod_unlocked(n);
   }
 };
 
@@ -1280,12 +1276,6 @@ void ShenandoahConcurrentGC::op_reset_after_collect() {
   ShenandoahWorkerScope scope(ShenandoahHeap::heap()->workers(),
                           ShenandoahWorkerPolicy::calc_workers_for_conc_reset(),
                           "reset after collection.");
-
-  // Final concurrent phase: complete disabling all barriers.
-  ShenandoahCodeRoots::disarm_nmethods();
-
-  // Check that barriers were not left enabled.
-  ShenandoahCodeRoots::check_barriers();
 
   ShenandoahHeap* const heap = ShenandoahHeap::heap();
   if (heap->mode()->is_generational()) {

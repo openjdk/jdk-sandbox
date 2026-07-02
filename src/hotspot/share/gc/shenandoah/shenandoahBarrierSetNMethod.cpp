@@ -69,11 +69,14 @@ bool ShenandoahBarrierSetNMethod::nmethod_entry_barrier(nmethod* nm) {
   // Heal oops
   ShenandoahNMethod::heal_nmethod(nm);
 
+  // Update barriers
+  ShenandoahNMethod::update_barriers(nm);
+
   // CodeCache unloading support
   nm->mark_as_maybe_on_stack();
 
   // Disarm
-  ShenandoahNMethod::complete_and_disarm_nmethod_unlocked(nm);
+  ShenandoahNMethod::disarm_nmethod(nm);
   return true;
 }
 

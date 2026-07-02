@@ -129,7 +129,6 @@ class outputStream;
   SHENANDOAH_SIMPLE_PHASE_DEF(f, final_update_refs_trash_cset,                    "  Trash Collection Set")          \
   SHENANDOAH_SIMPLE_PHASE_DEF(f, final_update_refs_rebuild_freeset,               "  Rebuild Free Set")              \
   SHENANDOAH_SIMPLE_PHASE_DEF(f, final_update_refs_propagate_gc_state,            "  Propagate GC State")            \
-  SHENANDOAH_SIMPLE_PHASE_DEF(f, conc_disarm,                                     "Concurrent Disarm")               \
   SHENANDOAH_SIMPLE_PHASE_DEF(f, conc_cleanup_complete,                           "Concurrent Cleanup, Complete")    \
   SHENANDOAH_WORKER_PHASE_DEF(f, conc_coalesce_and_fill,                          "Concurrent Coalesce and Fill",    \
                                                                                   "  CC&F: ")                        \

@@ -316,11 +316,7 @@ void ShenandoahDegenGC::op_degenerated() {
 
   // Leaving degenerated GC, we need to flip barriers back to idle.
   ShenandoahCodeRoots::arm_nmethods();
-
-  // There is no operation that follows degenerated GC, so run all nmethod barriers now.
-  // We will take additional time during the safepoint, but we would also incur no
-  // additional latency on mutators once we return from here.
-  ShenandoahCodeRoots::disarm_nmethods();
+  ShenandoahStackWatermark::change_epoch_id();
 
   if (ShenandoahVerify) {
     heap->verifier()->verify_after_degenerated(_generation);
