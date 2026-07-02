@@ -746,14 +746,14 @@ void ShenandoahBarrierStubC2::cardtable(MacroAssembler& masm, Address addr, Regi
 void ShenandoahBarrierStubC2::patchable_jump_if_gc_state(MacroAssembler& masm, const char test_state, Label* L_target) {
   // Emit the unconditional branch in the first version of the method.
   // Let the rest of runtime figure out how to manage it.
-  __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::gc_state_to_reloc(test_state, false)));
+  __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::encode_to_reloc(test_state, false)));
   __ jmp(*L_target, /* maybe_short = */ false);
 }
 
 void ShenandoahBarrierStubC2::patchable_jump_if_not_gc_state(MacroAssembler& masm, const char test_state, Label* L_target) {
   // Emit the unconditional branch in the first version of the method.
   // Let the rest of runtime figure out how to manage it.
-  __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::gc_state_to_reloc(test_state, true)));
+  __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::encode_to_reloc(test_state, true)));
   __ jmp(*L_target, /* maybe_short = */ false);
 }
 

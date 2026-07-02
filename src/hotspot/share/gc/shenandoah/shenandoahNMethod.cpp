@@ -166,8 +166,8 @@ void ShenandoahNMethod::update_barriers(nmethod* nm) {
   for (int c = 0; c < data->_barriers_count; c++) {
     address pc = code_begin + data->_barriers[c]._rel_pc;
     address target = pc + data->_barriers[c]._rel_target;
-    char trigger_state = reloc_to_gc_state(data->_barriers[c]._metadata);
-    bool inverted = reloc_to_inverted(data->_barriers[c]._metadata);
+    char trigger_state = decode_reloc_gc_state(data->_barriers[c]._metadata);
+    bool inverted = decode_reloc_inverted(data->_barriers[c]._metadata);
     bool active = ((gc_state & trigger_state) != 0) ^ inverted;
     if (active) {
       ShenandoahBarrierSetAssembler::patch_nop_to_branch(pc, target);
