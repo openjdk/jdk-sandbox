@@ -446,7 +446,7 @@ import java.util.function.BiFunction;
  * {@link QuicTLSAdapter#deriveApplicationWriteSecrets(SecretKey)} callback.
  * <P>
  * The {@link SSLSession#getPacketBufferSize()} method has no meaning for QUIC.
- * The {@code wrap()} method can work with any buffer size now.
+ * The {@code wrap()} method supports any buffer size.
  * It is implementation-dependent if the {@code unwrap()} method buffers data
  * internally or if it reports a {@link SSLEngineResult.Status#BUFFER_UNDERFLOW}
  * status when it detects an incomplete message.
