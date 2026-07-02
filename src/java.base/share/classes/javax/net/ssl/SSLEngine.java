@@ -457,7 +457,7 @@ import java.util.function.BiFunction;
  * in a {@code CONNECTION_CLOSE} QUIC frame.
  * <P>
  * After the initial handshake, a QUIC {@code SSLEngine} can still be used
- * to process post-handshake messages, but it is not used
+ * to process post-handshake messages, but it cannot be used
  * for application data processing, rehandshaking, or closing the connection.
  * The {@link #closeOutbound()} and {@link #closeInbound()} methods
  * have no meaning and should not be used.
