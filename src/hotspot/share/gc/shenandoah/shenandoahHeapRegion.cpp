@@ -336,13 +336,17 @@ void ShenandoahHeapRegion::make_regular_from_cset() {
 }
 
 void ShenandoahHeapRegion::reset_forwarding_table() {
-  _fwd_table.remove_sentinels();
-  // Wipe table structure and stale mark words.
-  MemRegion tail(forwarding_table_start(), end());
+  // Nothing to empty:
+  // - recycled regions keep their live mutator objects in [bottom, top) with the
+  //   dead table above top (never read, overwritten on reuse);
+  // - pinned regions stay as-is (recycled later);
+  // - already-emptied regions sit at top==bottom.
+  if (!was_early_recycled() && top() > bottom() && !is_pinned()) {
+    // Full GC slide source: empty it so it ends up identical to a recycled region.
+    reset();
+  }
   if (ZapUnusedHeapArea) {
-    SpaceMangler::mangle_region(tail);
-  } else {
-    Copy::zero_to_words(tail.start(), tail.word_size());
+    SpaceMangler::mangle_region(MemRegion(forwarding_table_start(), end()));
   }
   _fwd_table.reset();
   _early_recycled = false;

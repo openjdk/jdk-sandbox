@@ -67,7 +67,12 @@ bool ShenandoahForwardingTable::initialize(size_t num_entries) {
   size_t const num_required_entries = num_entries + num_entries / 2;
   // Optimistic last possible table start. We don't need to search beyond that.
   HeapWord* const last_table_start = end - num_required_entries * entry_size_in_words;
-  assert(last_table_start >= bottom, "table start must be in region: asked for %lu forwardings", num_entries);
+  if (last_table_start < bottom) {
+    log_info(gc)("Forwarding table build failed for region %zu: required=%zu entries of %zu words exceed region_words=%zu (num_forwardings=%zu)",
+                 _region->index(), num_required_entries, entry_size_in_words,
+                 pointer_delta(end, bottom), num_entries);
+    return false;
+  }
   // Count number of live words in the tail [last_table_start, top).
   ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
   size_t unusable_entries = 0;
@@ -320,16 +325,6 @@ void ShenandoahForwardingTable::install_sentinels() {
     write_at_originals<CompactFwdTableEntry>(ShenandoahHeap::in_fwt_sentinel, bottom, fwt_start);
   } else {
     write_at_originals<FwdTableEntry>(ShenandoahHeap::in_fwt_sentinel, bottom, fwt_start);
-  }
-}
-
-void ShenandoahForwardingTable::remove_sentinels() {
-  HeapWord* fwt_start = reinterpret_cast<HeapWord*>(_table);
-  const uintptr_t poison = ((uintptr_t)(juint)badHeapWordVal << 32) | (juint)badHeapWordVal;
-  if (_compact) {
-    write_at_originals<CompactFwdTableEntry>(poison, _region->top(), fwt_start);
-  } else {
-    write_at_originals<FwdTableEntry>(poison, _region->top(), fwt_start);
   }
 }
 

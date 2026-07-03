@@ -134,29 +134,25 @@ HeapWord* ShenandoahHeapRegion::allocate(size_t size, const ShenandoahAllocReque
       const size_t min_sz         = req.min_size();
       const size_t max_size       = size;
       HeapWord*    span_start     = obj;
-      bool         found          = false;
-      size_t       gap            = 0;
 
-      // top may land inside [marked, marked+min_fill_size)
-      // when min_fill_size > 1 (-UseCompactObjectHeaders).
-      HeapWord* prev_marked_addr = ctx->get_last_marked_addr(bottom(), obj);
-      if (prev_marked_addr < obj && pointer_delta(obj, prev_marked_addr) < sentinel_words) {
-        span_start = prev_marked_addr + sentinel_words;
-      }
-
-      while (span_start < alloc_limit) {
-        HeapWord* next_orig = ctx->get_next_marked_addr_ignore_tams(span_start, alloc_limit);
-        gap                 = pointer_delta(next_orig, span_start);
-        if (gap >= min_sz) {
-          // First span large enough for a (possibly truncated) TLAB.
-          size  = MIN2(gap, max_size);
-          obj   = span_start;
-          found = true;
-          break;
+      if (ctx->is_marked_ignore_tams(obj)) {
+        // top is a marked original: skip its sentinel_words to the free span behind.
+        span_start = obj + sentinel_words;
+      } else {
+        // top may land inside [marked, marked+min_fill_size)
+        // when min_fill_size > 1 (-UseCompactObjectHeaders).
+        HeapWord* prev_marked_addr = ctx->get_last_marked_addr(bottom(), obj);
+        if (prev_marked_addr < obj && pointer_delta(obj, prev_marked_addr) < sentinel_words) {
+          return nullptr;
         }
-        span_start = next_orig + sentinel_words;
       }
-      if (!found) return nullptr;
+      if (span_start >= alloc_limit) return nullptr;
+
+      HeapWord* next_orig = ctx->get_next_marked_addr_ignore_tams(span_start, alloc_limit);
+      size_t gap = pointer_delta(next_orig, span_start);
+      if (gap < min_sz) return nullptr;
+      size = MIN2(gap, max_size);
+      obj  = span_start;
 
 #ifndef PRODUCT
       HeapWord* const mark = ctx->get_next_marked_addr_ignore_tams(obj, obj + gap);
