@@ -1254,7 +1254,7 @@ void ShenandoahConcurrentGC::entry_conc_roots() {
 }
 
 void ShenandoahConcurrentGC::entry_final_roots() {
-  const char* msg = "Final Idle";
+  const char* msg = "Pause Final Roots";
   ShenandoahPausePhase gc_phase(msg, ShenandoahPhaseTimings::final_roots);
   EventMark em("%s", msg);
 
