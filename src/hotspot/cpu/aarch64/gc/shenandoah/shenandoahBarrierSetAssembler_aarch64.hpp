@@ -86,7 +86,6 @@ public:
 #ifdef COMPILER2
   // Barrier hotpatching
   static address parse_stub_address(address pc);
-  static bool is_active(address pc);
   static void patch_branch_to_nop(address pc);
   static void patch_nop_to_branch(address pc, address stub_addr);
 

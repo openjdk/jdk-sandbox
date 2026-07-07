@@ -696,11 +696,6 @@ static void check_at(bool cond, address pc, const char* msg) {
          msg, p2i(pc), *(pc + 0), *(pc + 1), *(pc + 2), *(pc + 3));
 }
 
-bool ShenandoahBarrierSetAssembler::is_active(address pc) {
-  NativeInstruction* ni = nativeInstruction_at(pc);
-  return ni->is_jump();
-}
-
 void ShenandoahBarrierSetAssembler::patch_branch_to_nop(address pc) {
   NativeInstruction* ni = nativeInstruction_at(pc);
   if (ni->is_jump()) {

@@ -977,11 +977,6 @@ static void insert_nop(address pc) {
   ICache::invalidate_range(pc, 4);
 }
 
-bool ShenandoahBarrierSetAssembler::is_active(address pc) {
-  NativeInstruction* ni = nativeInstruction_at(pc);
-  return ni->is_jump();
-}
-
 void ShenandoahBarrierSetAssembler::patch_branch_to_nop(address pc) {
   NativeInstruction* ni = nativeInstruction_at(pc);
   if (ni->is_jump()) {
