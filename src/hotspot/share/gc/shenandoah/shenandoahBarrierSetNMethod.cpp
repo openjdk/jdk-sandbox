@@ -81,6 +81,7 @@ bool ShenandoahBarrierSetNMethod::nmethod_entry_barrier(nmethod* nm) {
 }
 
 void ShenandoahBarrierSetNMethod::patch_barrier_relocation(patchable_barrier_Relocation* reloc) {
+#ifdef COMPILER2
   if (reloc->target_offset() != 0) {
     // Already set. This is likely nmethod relocation path, so just trust the existing relocation.
     return;
@@ -89,5 +90,6 @@ void ShenandoahBarrierSetNMethod::patch_barrier_relocation(patchable_barrier_Rel
   address pc = reloc->addr();
   address target = ShenandoahBarrierSetAssembler::parse_stub_address(pc);
   reloc->set_target_offset(target - pc);
+#endif
 }
 
