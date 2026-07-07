@@ -1268,15 +1268,27 @@ void ShenandoahHeap::concurrent_prepare_for_update_refs() {
   _update_refs_iterator.reset();
 }
 
-void ShenandoahHeap::op_final_roots() {
+void ShenandoahHeap::op_conc_roots() {
   // Make sure the current stack watermark machinery has completed before we drop flags.
-  // TODO: This should be handled in concurrent phase to avoid extra pauses.
   ShenandoahCompleteStackwatermarkHandshakeClosure cl;
-  Threads::threads_do(&cl);
+  Handshake::execute(&cl);
 
-  set_gc_state_at_safepoint(WEAK_ROOTS, false);
-  propagate_gc_state_to_all_threads();
+  {
+    // Java threads take this lock while they are being attached and added to the list of threads.
+    // If another thread holds this lock before we update the gc state, it will receive a stale
+    // gc state, but they will have been added to the list of java threads and so will be corrected
+    // by the following handshake.
+    MutexLocker lock(Threads_lock);
 
+    set_gc_state_concurrent(WEAK_ROOTS, false);
+  }
+
+  ShenandoahGCStatePropagatorHandshakeClosure propagator(_gc_state.raw_value());
+  Threads::non_java_threads_do(&propagator);
+  Handshake::execute(&propagator);
+}
+
+void ShenandoahHeap::op_final_roots() {
   // Arm the nmethods to put barriers down.
   ShenandoahCodeRoots::arm_nmethods();
   ShenandoahStackWatermark::change_epoch_id();

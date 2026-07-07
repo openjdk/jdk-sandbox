@@ -109,8 +109,9 @@ class outputStream;
   SHENANDOAH_WORKER_PHASE_DEF(f, complete_abbreviated_promote_in_place,           "  Promote Regions",               \
                                                                                   "    PIP: ")                       \
   SHENANDOAH_SIMPLE_PHASE_DEF(f, complete_abbreviated_update_region_ages,         "  Update Region Ages")            \
-  SHENANDOAH_SIMPLE_PHASE_DEF(f, final_roots_gross,                               "Pause Final Roots (G)")           \
+  SHENANDOAH_SIMPLE_PHASE_DEF(f, conc_roots,                                      "Concurrent Roots")                \
   SHENANDOAH_SIMPLE_PHASE_DEF(f, final_roots,                                     "Pause Final Roots (N)")           \
+  SHENANDOAH_SIMPLE_PHASE_DEF(f, final_roots_gross,                               "Pause Final Roots (G)")           \
   SHENANDOAH_SIMPLE_PHASE_DEF(f, final_verify_gross,                              "Pause Final Verify (G)")          \
   SHENANDOAH_SIMPLE_PHASE_DEF(f, final_verify,                                    "Pause Final Verify (N)")          \
   SHENANDOAH_SIMPLE_PHASE_DEF(f, init_update_refs_gross,                          "Pause Init Update Refs (G)")      \

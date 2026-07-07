@@ -212,6 +212,7 @@ bool ShenandoahConcurrentGC::collect(GCCause::Cause cause) {
   }
 
   // Roots processing is complete, put the weak roots flag down.
+  entry_conc_roots();
   vmop_entry_final_roots();
 
   // Continue the cycle with evacuation and optional update-refs.
@@ -1244,8 +1245,16 @@ void ShenandoahConcurrentGC::op_final_update_refs() {
   }
 }
 
+void ShenandoahConcurrentGC::entry_conc_roots() {
+  const char* msg = conc_final_roots_event_message();
+  ShenandoahConcurrentPhase gc_phase(msg, ShenandoahPhaseTimings::conc_roots);
+  EventMark em("%s", msg);
+
+  ShenandoahHeap::heap()->op_conc_roots();
+}
+
 void ShenandoahConcurrentGC::entry_final_roots() {
-  const char* msg = final_roots_event_message();
+  const char* msg = "Final Idle";
   ShenandoahPausePhase gc_phase(msg, ShenandoahPhaseTimings::final_roots);
   EventMark em("%s", msg);
 
@@ -1348,11 +1357,11 @@ const char* ShenandoahConcurrentGC::verify_final_event_message() const {
   }
 }
 
-const char* ShenandoahConcurrentGC::final_roots_event_message() const {
+const char* ShenandoahConcurrentGC::conc_final_roots_event_message() const {
   if (ShenandoahHeap::heap()->unload_classes()) {
-    SHENANDOAH_RETURN_EVENT_MESSAGE(_generation->type(), "Pause Final Roots", " (unload classes)");
+    SHENANDOAH_RETURN_EVENT_MESSAGE(_generation->type(), "Concurrent Final Roots", " (unload classes)");
   } else {
-    SHENANDOAH_RETURN_EVENT_MESSAGE(_generation->type(), "Pause Final Roots", "");
+    SHENANDOAH_RETURN_EVENT_MESSAGE(_generation->type(), "Concurrent Final Roots", "");
   }
 }
 
