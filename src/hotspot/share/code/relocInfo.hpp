@@ -1074,10 +1074,11 @@ class barrier_Relocation : public Relocation {
 };
 
 class patchable_barrier_Relocation : public Relocation {
-public:
+ private:
   jint _metadata;
   jint _target_offset;
 
+ public:
   static RelocationHolder spec(int metadata) {
     return RelocationHolder::construct<patchable_barrier_Relocation>(metadata);
   }
