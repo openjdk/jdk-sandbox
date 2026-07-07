@@ -209,16 +209,6 @@ void NativeMovRegMem::verify() {
 
 void NativeJump::verify() { ; }
 
-void NativeJump::insert(address code_pos, address entry) {
-  intptr_t disp = (intptr_t)entry - ((intptr_t)code_pos);
-  int64_t imm26 = disp >> 2;
-  guarantee(Assembler::is_simm(imm26, 26), "maximum offset is 128MiB, requested %ld", imm26);
-
-  uint32_t new_val = 0x14000000 | (imm26 & 0x03FFFFFF);
-  AtomicAccess::store((uint32_t*)code_pos, new_val);
-  ICache::invalidate_range(code_pos, instruction_size);
-}
-
 address NativeJump::jump_destination() const          {
   address dest = MacroAssembler::target_addr_for_insn(instruction_address());
 

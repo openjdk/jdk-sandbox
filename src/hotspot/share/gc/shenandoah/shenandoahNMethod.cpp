@@ -153,14 +153,14 @@ void ShenandoahNMethod::heal_nmethod(nmethod* nm) {
   }
 }
 
-void ShenandoahNMethod::update_barriers(nmethod* nm) {
+bool ShenandoahNMethod::update_barriers(nmethod* nm) {
+  bool changed = false;
 #ifdef COMPILER2
   ShenandoahNMethod* data = gc_data(nm);
   assert(data != nullptr, "Sanity");
   assert(data->lock()->owned_by_self(), "Must hold the lock");
 
   char gc_state = ShenandoahHeap::heap()->gc_state();
-
   address code_begin = nm->code_begin();
   for (int c = 0; c < data->_barriers_count; c++) {
     address pc = code_begin + data->_barriers[c]._rel_pc;
@@ -169,12 +169,13 @@ void ShenandoahNMethod::update_barriers(nmethod* nm) {
     bool inverted = decode_reloc_inverted(data->_barriers[c]._metadata);
     bool active = ((gc_state & trigger_state) != 0) ^ inverted;
     if (active) {
-      ShenandoahBarrierSetAssembler::patch_nop_to_branch(pc, target);
+      changed |= ShenandoahBarrierSetAssembler::patch_nop_to_branch(pc, target);
     } else {
-      ShenandoahBarrierSetAssembler::patch_branch_to_nop(pc);
+      changed |= ShenandoahBarrierSetAssembler::patch_branch_to_nop(pc);
     }
   }
 #endif
+  return changed;
 }
 
 #ifdef ASSERT

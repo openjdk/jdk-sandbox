@@ -677,7 +677,7 @@ address ShenandoahBarrierSetAssembler::parse_stub_address(address pc) {
   return jmp->jump_destination();
 }
 
-static bool is_nop(address pc) {
+static bool is_patchable_nop(address pc) {
   if (*(pc + 0) != 0x13) return false;
   if (*(pc + 1) != 0x00) return false;
   if (*(pc + 2) != 0x00) return false;
@@ -685,10 +685,8 @@ static bool is_nop(address pc) {
   return true;
 }
 
-static void insert_nop(address pc) {
+static void insert_patchable_nop(address pc) {
   *reinterpret_cast<int32_t*>(pc) = 0x00000013;
-  assert(is_nop(pc), "Should be");
-  ICache::invalidate_range(pc, 4);
 }
 
 static void check_at(bool cond, address pc, const char* msg) {
@@ -696,23 +694,27 @@ static void check_at(bool cond, address pc, const char* msg) {
          msg, p2i(pc), *(pc + 0), *(pc + 1), *(pc + 2), *(pc + 3));
 }
 
-void ShenandoahBarrierSetAssembler::patch_branch_to_nop(address pc) {
+bool ShenandoahBarrierSetAssembler::patch_branch_to_nop(address pc) {
   NativeInstruction* ni = nativeInstruction_at(pc);
-  if (ni->is_jump()) {
-    insert_nop(pc);
-  } else {
-    check_at(is_nop(pc), pc, "Should already be nop");
+  bool patching = ni->is_jump();
+  if (patching) {
+    insert_patchable_nop(pc);
   }
+
+  check_at(is_patchable_nop(pc), pc, "Should be nop");
+  return patching;
 }
 
-void ShenandoahBarrierSetAssembler::patch_nop_to_branch(address pc, address stub_addr) {
-  NativeInstruction* ni = nativeInstruction_at(pc);
-  if (is_nop(pc)) {
+bool ShenandoahBarrierSetAssembler::patch_nop_to_branch(address pc, address stub_addr) {
+  bool patching = is_patchable_nop(pc);
+  if (patching) {
     NativeJump::insert(pc, stub_addr);
-  } else {
-    check_at(ni->is_jump(), pc, "Should already be jump");
-    check_at(nativeJump_at(pc)->jump_destination() == stub_addr, pc, "Jump should be to the same address");
   }
+
+  NativeInstruction* ni = nativeInstruction_at(pc);
+  check_at(ni->is_jump(), pc, "Should already be jump");
+  check_at(nativeJump_at(pc)->jump_destination() == stub_addr, pc, "Jump should be to the same address");
+  return patching;
 }
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {

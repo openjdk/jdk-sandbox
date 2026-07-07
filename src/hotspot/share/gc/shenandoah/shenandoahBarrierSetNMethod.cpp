@@ -66,14 +66,21 @@ bool ShenandoahBarrierSetNMethod::nmethod_entry_barrier(nmethod* nm) {
     return false;
   }
 
+  bool code_changed = false;
+
   // Heal oops
   ShenandoahNMethod::heal_nmethod(nm);
 
   // Update barriers
-  ShenandoahNMethod::update_barriers(nm);
+  code_changed |= ShenandoahNMethod::update_barriers(nm);
 
   // CodeCache unloading support
   nm->mark_as_maybe_on_stack();
+
+  // Invalidate the entire nmethod once.
+  if (code_changed) {
+    ICache::invalidate_range(nm->code_begin(), nm->code_size());
+  }
 
   // Disarm
   ShenandoahNMethod::disarm_nmethod(nm);

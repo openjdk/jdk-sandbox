@@ -92,7 +92,7 @@ public:
   static inline ShenandoahNMethodLock* ic_lock_for_nmethod(nmethod* nm);
 
   static void heal_nmethod(nmethod* nm);
-  static void update_barriers(nmethod* nm);
+  static bool update_barriers(nmethod* nm);
   static inline void heal_nmethod_metadata(ShenandoahNMethod* nmethod_data);
   static inline void disarm_nmethod(nmethod* nm);
 
