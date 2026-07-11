@@ -116,9 +116,12 @@ HeapWord* ShenandoahHeapRegion::allocate(size_t size, const ShenandoahAllocReque
   HeapWord* alloc_limit = _end;
 
   if (req.is_mutator_alloc() && req.is_lab_alloc()) {
-    assert(!was_early_recycled(), "Use allocate_TLAB_in_early_recycled()");
+    assert(!was_early_recycled(), "Use try_allocate_TLAB_in_early_recycled()");
+    // Optionally disable mutator TLAB carving in cset regions.
+    if (!ShenandoahCSetRegionTLAB && is_cset()) {
+      return nullptr;
+    }
   }
-
   if (pointer_delta(alloc_limit, obj) >= size) {
     make_regular_allocation(req.affiliation());
     adjust_alloc_metadata(req, size);

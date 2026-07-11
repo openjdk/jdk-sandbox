@@ -4360,6 +4360,10 @@ HeapWord* ShenandoahFreeSet::try_allocate_TLAB_in_early_recycled(ShenandoahHeapR
   assert(!req.is_gc_alloc(), "We do not YET recycle cset regions during evacuation");
   assert(ShenandoahCSetRegionTLAB, "Do not come here");
 
+  if (!ShenandoahCSetRegionTLAB && is_cset()) {
+    return nullptr;
+  }
+
   HeapWord* const fwt_start = r->forwarding_table_start();
   HeapWord* alloc_limit = fwt_start;
 
