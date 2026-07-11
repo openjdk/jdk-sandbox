@@ -760,7 +760,6 @@ void ShenandoahRegionPartitions::unretire_to_partition(ShenandoahHeapRegion* r, 
   make_free(r->index(), which_partition, r->free());
 }
 
-
 // The caller is responsible for increasing capacity and available and used in which_partition, and decreasing the
 // same quantities for the original partition
 void ShenandoahRegionPartitions::make_free(idx_t idx, ShenandoahFreeSetPartitionId which_partition, size_t available) {
@@ -1369,9 +1368,13 @@ ShenandoahFreeSet::ShenandoahFreeSet(ShenandoahHeap* heap, size_t max_regions) :
   _global_unaffiliated_regions(0),
   _total_young_regions(0),
   _total_global_regions(0),
-  _mutator_bytes_allocated_since_gc_start(0)
+  _mutator_bytes_allocated_since_gc_start(0),
+  _allocating_from_early_recycled_regions(false),
+  _early_recycled_regions(NEW_C_HEAP_ARRAY(ShenandoahHeapRegion*, max_regions, mtGC)),
+  _early_recycled_regions_data(NEW_C_HEAP_ARRAY(size_t, max_regions, mtGC))
 {
   clear_internal();
+  initialize_recycled_region_arrays();
 }
 
 void ShenandoahFreeSet::move_unaffiliated_regions_from_collector_to_old_collector(ssize_t count) {
@@ -1468,6 +1471,77 @@ HeapWord* ShenandoahFreeSet::allocate_with_affiliation(Iter& iterator,
                                                        ShenandoahAllocRequest& req,
                                                        bool& in_new_region) {
   assert(affiliation != ShenandoahAffiliation::FREE, "Must not");
+  if (_allocating_from_early_recycled_regions) {
+    assert(affiliation == ShenandoahAffiliation::YOUNG_GENERATION, "Not YET allocating in early-recycled regions during evac");
+    if (!req.is_lab_alloc()) {
+      // Try to fill this shared-alloc request from an early-recycled shared-alloc region so that we can preserve
+      // the non-early-recycled regions for TLAB allocations.
+      size_t num_shared_alloc_candidates = num_shared_alloc_regions();
+      for (size_t i = 0; i < num_shared_alloc_candidates; i++) {
+        ShenandoahHeapRegion* r = get_shared_alloc_region(i);
+        HeapWord* orig_top = r->top();
+        HeapWord* result = try_allocate_shared_in_early_recycled(r, req.size());
+        if (result != nullptr) { // Successful allocation.
+          // Only remove from shared_alloc_regions if remnaining memory is smaller than PLAB::min_size
+          if (r->top() + PLAB::min_size() >= r->forwarding_table_start()) {
+            remove_shared_alloc_region(i);
+            insert_retired_region(r);
+          } else {
+            size_t potential_tlab_size = early_recycled_tlab_available_size(r);
+            if (potential_tlab_size > PLAB::min_size()) {
+              remove_shared_alloc_region(i);
+              insert_tlab_region(r, potential_tlab_size);
+            }
+            // Otherwise, this region continues to serve as a shared-alloc region.
+          }
+          // Note: Since the current implementation only supports Mutator allocations, there's no need to register
+          //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
+          req.set_actual_size(req.size());
+          req.set_waste(result - orig_top);
+          increase_bytes_allocated((req.actual_size() + req.waste()) * HeapWordSize);
+          assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Do not YET support early recycle during evac");
+          r->set_affiliation(req.affiliation());
+          return result;
+        }
+      }
+      // We failed to allocate in a shared-alloc region.  Let's try allocating from the early-recycled tlab regions,
+      // starting with the regions that are "least" ideal (smallest potential TLAB size) for TLAB allocations. We want
+      // to preserve the "ideal" TLAB regions for TLAB allocation requests.
+      size_t num_tlab_candidates = num_tlab_regions();
+      for (int i = num_tlab_candidates; i >= 0; i--) {
+        ShenandoahHeapRegion* r = get_tlab_region(i);
+        HeapWord* orig_top = r->top();
+        HeapWord* result = try_allocate_shared_in_early_recycled(r, req.size(), true /* is_tlab_region */);
+        if (result != nullptr) { // Successful allocation.
+          remove_tlab_region(i);
+          if (r->top() + PLAB::min_size() >= r->forwarding_table_start()) {
+            insert_retired_region(r);
+          } else {
+            size_t potential_tlab_size = early_recycled_tlab_available_size(r);
+            if (potential_tlab_size > PLAB::min_size()) {
+              insert_tlab_region(r, potential_tlab_size);
+            } else {
+              insert_shared_alloc_region(r);
+            }
+          }
+          // Note: Since the current implementation only supports Mutator allocations, there's no need to register
+          //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
+          req.set_actual_size(req.size());
+          req.set_waste(result - orig_top);
+          increase_bytes_allocated((req.actual_size() + req.waste()) * HeapWordSize);
+          assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Do not YET support early recycle during evac");
+          r->set_affiliation(req.affiliation());
+          return result;
+        }
+      }
+      // We tried to service shared-alloc request from early recycled regions but this failed, so we'll
+      // fall through and try to allocate from the Mutator partition.
+    }
+  }
+
+  // This loop handles LAB and shared-allocations from free set partitions. This is the back-up plan for shared allocations
+  // in case we failed to satisfy the request from early recycled regions. This is plan A for LAB allocations, even if
+  // early recycled regions exist.
   ShenandoahHeapRegion* free_region = nullptr;
   for (idx_t idx = iterator.current(); iterator.has_next(); idx = iterator.next()) {
     ShenandoahHeapRegion* r = _heap->get_region(idx);
@@ -1486,6 +1560,76 @@ HeapWord* ShenandoahFreeSet::allocate_with_affiliation(Iter& iterator,
     assert(result != nullptr, "Allocate in free region in the partition always succeed.");
     return result;
   }
+
+  if (_allocating_from_early_recycled_regions && req.is_lab_alloc()) {
+    // This is the back-up plan for LAB allocations if we were unable to satisfy the allocation from the freeset partitions.
+    if (req.min_size() == PLAB::min_size()) {
+      // This is a modest LAB request. Any region in the set of early-recycled TLAB regions can satisfy the request.
+      // Allocate from the back of the queue, as this preserves the regions that have "large TLAB potential" for possible future
+      // allocation requests that require larger than the minimum size.
+      // There's no need to iterate here.
+      int i = num_tlab_regions() - 1;
+      ShenandoahHeapRegion* r = get_tlab_region(i);
+      HeapWord* orig_top = r->top();
+      size_t actual_size;
+      HeapWord* result = try_allocate_TLAB_in_early_recycled(r, req, actual_size);
+      assert(result != nullptr, "By construction of the TLAB-allocation set");
+      remove_tlab_region(i);
+      if (r->top() + PLAB::min_size() >= r->forwarding_table_start()) {
+        // The remaining memory is too small to serve future allocation needs
+        insert_retired_region(r);
+      } else {
+        size_t potential_tlab_size = early_recycled_tlab_available_size(r);
+        if (potential_tlab_size > PLAB::min_size()) {
+          insert_tlab_region(r, potential_tlab_size);
+        } else {
+          insert_shared_alloc_region(r);
+        }
+      }
+      // Note: Since the current implementation only supports Mutator allocations, there's no need to register
+      //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
+      req.set_actual_size(actual_size);
+      req.set_waste(result - orig_top);
+      increase_bytes_allocated((actual_size + req.waste()) * HeapWordSize);
+      assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Do not YET support early recycle during evac");
+      r->set_affiliation(req.affiliation());
+      return result;
+    } else if (num_tlab_regions() > 0) {
+      // This LAB needs to be larger than the minimum size. Allocate from the head of the list of early-recycled TLAB-eligible
+      // regions. The head represents the largest possible TLAB. If allocation from head fails, there's no value in trying
+      // other regions.
+      int i = 0;
+      ShenandoahHeapRegion* r = get_tlab_region(i);
+      HeapWord* orig_top = r->top();
+      size_t actual_size;
+      HeapWord* result = try_allocate_TLAB_in_early_recycled(r, req, actual_size);
+      if (result != nullptr) {
+        remove_tlab_region(i);
+        if (r->top() + PLAB::min_size() >= r->forwarding_table_start()) {
+          // The remaining memory is too small to serve future allocation needs
+          insert_retired_region(r);
+        } else {
+          size_t potential_tlab_size = early_recycled_tlab_available_size(r);
+          if (potential_tlab_size > PLAB::min_size()) {
+            insert_tlab_region(r, potential_tlab_size);
+          } else {
+            insert_shared_alloc_region(r);
+          }
+        }
+        // Note: Since the current implementation only supports Mutator allocations, there's no need to register
+        //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
+        req.set_actual_size(actual_size);
+        req.set_waste(result - orig_top);
+        increase_bytes_allocated((actual_size + req.waste()) * HeapWordSize);
+        assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Do not YET support early recycle during evac");
+        r->set_affiliation(req.affiliation());
+        return result;
+      }
+      // Otherwise, we were unable to allocate a TLAB of sufficient size.  Fail fast without iterating over lots of
+      // regions.  This allows the request to be reformulated as a shared-allocation.
+    }
+  }
+
   log_debug(gc, free)("Could not allocate collector region with affiliation: %s for request " PTR_FORMAT,
                       shenandoah_affiliation_name(affiliation), p2i(&req));
   return nullptr;
@@ -1716,7 +1860,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, Shenandoah
       _heap->old_generation()->clear_cards_for(r);
     }
 #ifdef ASSERT
-    ShenandoahMarkingContext* const ctx = _heap->marking_context();
+    ShenandoahMarkingContext* const ctx =  _heap->marking_context();
     assert(ctx->top_at_mark_start(r) == r->bottom(), "Newly established allocation region starts with TAMS equal to bottom");
     assert(ctx->is_bitmap_range_within_region_clear(ctx->top_bitmap(r), r->end()), "Bitmap above top_bitmap() must be clear");
 #endif
@@ -2729,8 +2873,9 @@ void ShenandoahFreeSet::move_regions_from_collector_to_mutator(size_t max_xfer_r
 
 // Admit a fwt cset region's below-FWT space into the Mutator free set.
 bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* r,
-                                           idx_t& mutator_low_idx, idx_t& mutator_high_idx,
-                                           size_t& recycled_bytes, size_t& recycled_regions, size_t& young_recycled_regions) {
+                                                          idx_t& mutator_low_idx, idx_t& mutator_high_idx,
+                                                          size_t& recycled_bytes, size_t& recycled_regions,
+                                                          size_t& young_recycled_regions) {
   shenandoah_assert_heaplocked();
 
   // Today a region is reusable iff it has a forwarding table.
@@ -2747,7 +2892,130 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
     HeapWord* tams = ctx->top_at_mark_start(r);
     size_t above_tams = pointer_delta(top, MAX2(tams, bottom));
     assert(above_tams == 0, "FWT region %zu has above_tams_words=%zu", i, above_tams);
-#endif
+
+#define GATHER_STATS
+#ifdef GATHER_STATS
+    HeapWord* start = bottom;
+    size_t fwt_words = r->fwt_tail_bytes() / HeapWordSize;
+    HeapWord* end = r->end() - fwt_words;
+    size_t allocatable_words = end - start;
+    double percent_allocatable = (100.0 * allocatable_words) / ShenandoahHeapRegion::region_size_words();
+    double percent_fwt = (100.0 * fwt_words) / ShenandoahHeapRegion::region_size_words();
+    log_info(gc)("FWT STATS for recycled region %zu, allocatable words: %zu (%.1f%%), foward table consumes %zu words (%.1f%%)",
+                 r->index(), allocatable_words, percent_allocatable, fwt_words, percent_fwt);
+
+    // If we're padding for start of a shared allocation, where did the pad start?
+    HeapWord* pad_start_addr = nullptr;
+    HeapWord* pad_end_addr = nullptr;
+    size_t shared_pad_max = 0;
+    size_t total_shared_pad = 0;
+    size_t total_pads = 0;
+    size_t forwarded_objects = 0;
+
+    HeapWord* tlab_start_addr = nullptr;
+    size_t max_tlab_words = 0;
+    size_t min_tlab_words = 0;
+    size_t total_tlab_available = 0;
+    size_t total_tlab_unavailable = 0;
+    size_t tlab_count = 0;
+
+    if (!ctx->is_marked(start)) {
+      start = ctx->get_next_marked_addr_ignore_tams(start, end);
+    }
+    tlab_start_addr = start;
+
+    while (start < end) {
+      assert(ctx->is_marked(start), "Loop invariant");
+      assert(tlab_start_addr != nullptr, "Loop invariant");
+      forwarded_objects++;
+
+      size_t tlab_words = start - tlab_start_addr;
+      if (tlab_words > PLAB::min_size()) {
+        total_tlab_available += tlab_words;
+        tlab_count++;
+        if (tlab_words > max_tlab_words) {
+          if (max_tlab_words == 0) {
+            min_tlab_words =tlab_words;
+          }
+          max_tlab_words = tlab_words;
+        } else if (tlab_words < min_tlab_words) {
+          min_tlab_words = tlab_words;
+        }
+      } else {
+        // The gap between forwarded objects is less than min tlab size
+        total_tlab_unavailable += tlab_words;
+      }
+      tlab_start_addr = start + ShenandoahHeap::min_fill_size();
+
+      if (pad_start_addr == nullptr) {
+        pad_start_addr = start;
+        pad_end_addr = start + ShenandoahHeap::min_fill_size();
+      } else if ((pad_end_addr == start) && (ShenandoahHeap::min_fill_size() == 1)) {
+        // We expand the pad because there's no room to place an object between fill words.
+        pad_end_addr = start + 1;
+      } else {
+        // The gap between forwarded objects is larger than the fill size, so we can end the padding
+        if (pad_end_addr == start) {
+          pad_end_addr = start + 1;
+        }
+        size_t pad_words = pad_end_addr - pad_start_addr;
+        // Note that it would be very unprobable for us to experience all of these pads within this region.  In the ideal
+        // case, we experience none of the pads. The total is the very worst case we could experience.
+        total_shared_pad += pad_words;
+        total_pads++;
+        if (pad_words > shared_pad_max) {
+          shared_pad_max = pad_words;
+        }
+        pad_start_addr = start;
+        pad_end_addr = start + ShenandoahHeap::min_fill_size();
+      }
+      start = ctx->get_next_marked_addr_ignore_tams(start, end);
+    }
+    assert(start == end, "Post condition for loop");
+    size_t tlab_words = end - tlab_start_addr;
+    if (tlab_words > PLAB::min_size()) {
+      total_tlab_available += tlab_words;
+      tlab_count++;
+      if (tlab_words > max_tlab_words) {
+        if (max_tlab_words == 0) {
+          min_tlab_words =tlab_words;
+        }
+        max_tlab_words = tlab_words;
+      } else if (tlab_words < min_tlab_words) {
+        min_tlab_words = tlab_words;
+      }
+    } else {
+      // The gap between forwarded objects is less than min tlab size
+      total_tlab_unavailable += tlab_words;
+    }
+
+    if (pad_start_addr != nullptr) {
+      size_t pad_words = start - pad_start_addr;
+      total_shared_pad += pad_words;
+      total_pads++;
+      if (pad_words > shared_pad_max) {
+        shared_pad_max = pad_words;
+      }
+    }
+
+    double percent_tlab = (100.0 * total_tlab_available) / allocatable_words;
+    size_t tlab_waste = total_tlab_unavailable + forwarded_objects * ShenandoahHeap::min_fill_size();
+    double percent_tlab_waste = (100.0 * tlab_waste) / allocatable_words;
+    size_t average_tlab_size = total_tlab_available / tlab_count;
+    double percent_tlab_size = (100.0 * average_tlab_size) / PLAB::min_size();
+
+    double percent_shared_pad_waste = (100.0 * total_shared_pad) / allocatable_words;
+    size_t average_pad = total_shared_pad / total_pads;
+    log_info(gc)(" TLAB total words: %zu, percent of available: %.1f%%, TLAB waste (words): %zu, percent of available: %.1f%%",
+                 total_tlab_available, percent_tlab, tlab_waste, percent_tlab_waste);
+    log_info(gc)("  average TLAB size (words): %zu, Percent of min size: %.1f%%, min/max TLAB sizes (words): %zu/%zu",
+                 average_tlab_size, percent_tlab_size, min_tlab_words, max_tlab_words);
+    log_info(gc)(" Worst-case padding to avoid forwarded object collisions (total words): %zu, percent of available: %.1f%%",
+                 total_shared_pad, percent_shared_pad_waste);
+    log_info(gc)("  average pad (words): %zu, largest pad (words): %zu", average_pad, shared_pad_max);
+
+#endif   // GATHER_STATS (only under ASSERT)
+#endif   // ASSERT
     log_info(gc)("FWT recycle region %zu: top=" PTR_FORMAT " fwt_start=" PTR_FORMAT,
                  i, p2i(top), p2i(r->forwarding_table_start()));
   }
@@ -2760,8 +3028,16 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
   if (!reuse_body) {
     if (ShenandoahRecycleFWTBodies) {
       log_info(gc)(" region has only %zu available, so not going to make this free", available);
+      insert_retired_region(r);
     }
     return false;
+  }
+
+  size_t potential_tlab_size = early_recycled_tlab_available_size(r);
+  if (ShenandoahCSetRegionTLAB && (potential_tlab_size != 0)) {
+    insert_tlab_region(r, potential_tlab_size);
+  } else {
+    insert_shared_alloc_region(r);
   }
 
   size_t region_size_bytes = ShenandoahHeapRegion::region_size_bytes();
@@ -2790,21 +3066,37 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
   assert(orig_partition == ShenandoahFreeSetPartitionId::NotFree, "cset regions should be in the NotFree partition");
   // Since orig_partition is NotFree, we don't have to adjust capacity, available, and used for orig_partition
 
+#ifdef KELVIN_DEPRECATE
+  // KELVIN DEPRECATES THIS CODE.  WE'RE NOT PLACING THE EARLY RECYCLED REGION INTO THE MUTATOR PARTITION.  INSTEAD,
+  // WE HAVE INSERTED IT INTO EARLY_RECYCLED DATA STRUCTURES, WHICH PERFORM ALLOCATIONS DIFFERENTLY.
+
+  // THE DEPRECATED CALL TO MAKE_FREE SETS THE MEMBERSHIP OF THIS REGION TO MUTATOR AND ADJUSTS THE INTERVAL FOR THE
+  // MUTATOR PARTITION.  WE DON'T WANT THAT ANYMORE
+
+  // TODO: I'LL NEED TO MAKE SURE THE VERIFIER TALLIES THESE EARLY-RECYCLED REGIONS AS PART OF THE MUTATOR PARTITION TOTALS.
+
   // Even though this region has no allocations, we cannot count it as Empty.  It cannot be used to represents a humongous
   // object because we cannot (yet) overwrite its forwarding table.
   _partitions.make_free(i, ShenandoahFreeSetPartitionId::Mutator, available);
 
   mutator_low_idx  = MIN2(mutator_low_idx,  (idx_t)i);
   mutator_high_idx = MAX2(mutator_high_idx, (idx_t)i);
+#endif  // KELVIN_DEPRECATE
 
   if (r->fwt_tail_bytes() > 0) {
+    // Above, we incrased the capacity of the Mutator partition by region_size_bytes.
     _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, r->fwt_tail_bytes());
   }
+
 #ifdef KELVIN_FWT
   log_info(gc)(" Increasing mutator used by %zu for forward table of region %zu", r->fwt_tail_bytes(), r->index());
 #endif
 
+#ifdef KELVIN_DEPRECATE
+  // KELVIN DEPRECATES BECAUSE WE'RE NOT PUTTING THIS REGION INTO THE MUTATOR PARTITION.
   _partitions.increase_region_counts(ShenandoahFreeSetPartitionId::Mutator, 1);
+#endif
+
 #ifdef KELVIN_CAPACITY
   log_info(gc)(" Mutator partition capacity grows to %zu, used expanded by %zu to %zu, region counts increased to %zu",
 	       _partitions.get_capacity(ShenandoahFreeSetPartitionId::Mutator),
@@ -2818,11 +3110,18 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
 }
 
 #ifdef KELVIN_FWT
-static void dump_used(const char* msg, ShenandoahRegionPartitions* p) {
+static void dump_used(const char* msg, ShenandoahRegionPartitions* p, ShenandoahFreeSet* free_set) {
   log_info(gc)("dump_used(%s)", msg);
-  log_info(gc)("     _used[Mutator]: %zu", p->get_used(ShenandoahFreeSetPartitionId::Mutator));
-  log_info(gc)("   _used[Collector]: %zu", p->get_used(ShenandoahFreeSetPartitionId::Collector));
-  log_info(gc)("_used[OldCollector]: %zu", p->get_used(ShenandoahFreeSetPartitionId::OldCollector));
+  log_info(gc)("            _used[Mutator]: %zu", p->get_used(ShenandoahFreeSetPartitionId::Mutator));
+  log_info(gc)("       freecycle tlab used: %zu", freeset->early_recycled_tlab_used());
+  log_info(gc)("     freecycle shared used: %zu", freeset->early_recycled_shared_alloc_used());
+  log_info(gc)("    freecycle retired used: %zu", freeset->early_recycled_retired_used());
+  log_info(gc)("   freecycle tlab capacity: %zu", freeset->early_recycled_tlab_capacity());
+  log_info(gc)(" freecycle shared capacity: %zu", freeset->early_recycled_shared_alloc_capacity());
+  log_info(gc)("freecycle retired capacity: %zu", freeset->early_recycled_retired_capacity());
+
+  log_info(gc)("          _used[Collector]: %zu", p->get_used(ShenandoahFreeSetPartitionId::Collector));
+  log_info(gc)("       _used[OldCollector]: %zu", p->get_used(ShenandoahFreeSetPartitionId::OldCollector));
 }
 #endif
 
@@ -2838,13 +3137,21 @@ void ShenandoahFreeSet::recycle_collection_set() {
   dump_used("At start of recycle_collection_set", &_partitions);
 #endif
 
-
   ShenandoahCollectionSet* cset = _heap->collection_set();
   for (size_t i = 0; i < _heap->num_regions(); i++) {
     ShenandoahHeapRegion* r = _heap->get_region(i);
     if (cset->is_reusable(r) && !r->is_pinned()) {
       recycle_cset_region_before_update(r, mutator_low_idx, mutator_high_idx, recycled_bytes, recycled_regions, young_recycled_regions);
     }
+    // TODO:
+    // If r->is_pinned(), there is at least one object inside of r that cannot be relocated. This prevents us from fully
+    // evacuating and repurposing the region right now.  You'd think maybe we wouldn't put a region into the cset if it was
+    // pinned.  And once a region is in the cset, we should not allow it to be pinned.  Rather, the JNI code that attempts
+    // to pin it should be dealing with the to-space object, after it was evacuated from the cset region.  Let's investigate
+    // this further.
+
+    // TODO:
+    // else if (r->is_cset()) { insert this region into the early_recycled_retired_regions set; }
   }
 
 #ifdef KELVIN_FWT
@@ -2855,6 +3162,9 @@ void ShenandoahFreeSet::recycle_collection_set() {
 #endif
 
   if (recycled_regions > 0) {
+    _allocating_from_early_recycled_regions = true;
+#ifdef KELVIN_DEPRECATE
+
     _partitions.expand_interval_if_range_modifies_either_boundary(
       ShenandoahFreeSetPartitionId::Mutator, mutator_low_idx, mutator_high_idx,
       _partitions.max(), -1);
@@ -2875,6 +3185,7 @@ void ShenandoahFreeSet::recycle_collection_set() {
                                /* AffiliatedChangesAreYoungNeutral */ false, /* AffiliatedChangesAreGlobalNeutral */ false,
                                /* UnaffiliatedChangesAreYoungNeutral */ false>();
     _partitions.assert_bounds();
+#endif  // KELVIN_DEPRECATE
   }
 #ifdef KELVIN_FWT
   dump_used("At end of recycle_collection_set", &_partitions);
@@ -2892,11 +3203,19 @@ void ShenandoahFreeSet::finish_cset_region_recycling() {
   size_t released_bytes   = 0;
   size_t emptied_regions  = 0;
   size_t num_regions = _heap->num_regions();
+
+  // KELVIN TODO
+  //  MAYBE WE CAN ITERATE OVER THE SMALLER NUMBER OF REGIONS IN THE EARLY_RECYCLED_REGIONS ARRAY
+
   for (size_t idx = 0; idx < num_regions; idx++) {
     if (!cset->is_in(idx)) continue;
 
     ShenandoahHeapRegion* r = _heap->get_region(idx);
     if (!cset->use_forward_table(r)) continue;
+
+    // KELVIN ADDS:
+    // The capacity and usage for this region has already been added into the Mutator partition totals, but the region is not
+    // currently in the Mutator partition.
 
     ShenandoahFreeSetPartitionId p = _partitions.membership(idx);
     size_t tail = r->fwt_tail_bytes();
@@ -2910,6 +3229,9 @@ void ShenandoahFreeSet::finish_cset_region_recycling() {
           released_regions++;
           released_bytes += tail;
         }
+        // As with the previously pinned region, KELVIN BELIEVES IT IS NOT NECESSARY TO ADD THIS REGION TO THE MUTATOR
+        // PARTITION.  THE REBUILD_FREE_SET() INVOCATION THAT FOLLOWS WILL TAKE ARE OF THAT.
+
       } else if (r->was_early_recycled() && available >= min_size && region_free >= min_size) {
         // Skip a NotFree region that wasn't early recycled (e.g. pinned).
         if (ShenandoahRecycleFWTBodies) {
@@ -2926,8 +3248,11 @@ void ShenandoahFreeSet::finish_cset_region_recycling() {
       emptied_regions++;
     }
   }
-  log_info(gc)("Released FWT tails for %zu regions, freeing %zu%s",
-               released_regions,
+
+  // We're no longer allocating from early recycled regions.
+  _allocating_from_early_recycled_regions = false;
+
+  log_info(gc)("Released FWT tails for %zu regions, freeing %zu%s", released_regions,
                byte_size_in_proper_unit(released_bytes), proper_unit_for_byte_size(released_bytes));
   recompute_total_used</* UsedByMutatorChanged */ true,
                        /* UsedByCollectorChanged */ false,
@@ -3644,7 +3969,7 @@ double ShenandoahFreeSet::external_fragmentation() {
   ShenandoahLeftRightIterator iterator(&_partitions, ShenandoahFreeSetPartitionId::Mutator);
   for (idx_t index = iterator.current(); iterator.has_next(); index = iterator.next()) {
     ShenandoahHeapRegion* r = _heap->get_region(index);
-    if (r->is_empty()) {
+    if (r->is_empty()) { 
       free += ShenandoahHeapRegion::region_size_bytes();
       if (last_idx + 1 == index) {
         empty_contig++;
@@ -3663,5 +3988,448 @@ double ShenandoahFreeSet::external_fragmentation() {
   } else {
     return 0;
   }
+}
+
+void ShenandoahFreeSet::shift_retired_regions_down() {
+  assert(_early_recycled_retired_regions + num_retired_regions() + 1
+         < _early_recycled_shared_alloc_regions - num_shared_alloc_regions(), "Too many early recycled regions!");
+  size_t retired_regions = num_retired_regions();
+  _early_recycled_retired_regions[retired_regions] = _early_recycled_retired_regions[0];
+  _early_recycled_retired_regions++;
+}
+
+void ShenandoahFreeSet::shift_retired_regions_up() {
+  assert(_early_recycled_tlab_regions + num_tlab_regions() <= _early_recycled_retired_regions - 1,
+         "Too many early recycled regions!");
+  _early_recycled_retired_regions--;
+  size_t retired_regions = num_retired_regions();
+  _early_recycled_retired_regions[0] = _early_recycled_retired_regions[retired_regions];
+}
+
+void ShenandoahFreeSet::initialize_recycled_region_arrays() {
+  size_t num_regions = _heap->num_regions();
+
+  _early_recycled_tlab_regions = _early_recycled_regions;
+  _early_recycled_tlab_regions_data = _early_recycled_regions_data;
+  _early_recycled_tlab_regions_count = 0;
+
+  _early_recycled_shared_alloc_regions = &_early_recycled_regions[num_regions - 1];
+  _early_recycled_shared_alloc_regions_data = &_early_recycled_regions_data[num_regions - 1];
+  _early_recycled_shared_alloc_regions_count = 0;
+
+  _early_recycled_retired_regions = &_early_recycled_regions[num_regions / 2];
+  _early_recycled_retired_regions_count = 0;
+}
+
+ShenandoahHeapRegion* ShenandoahFreeSet::get_tlab_region(size_t index) {
+  assert(index < _early_recycled_tlab_regions_count, "Precondition");
+  return _early_recycled_tlab_regions[index];
+}
+
+size_t ShenandoahFreeSet::get_tlab_allocatable_size(size_t index) {
+  assert(index < _early_recycled_tlab_regions_count, "Precondition");
+  return _early_recycled_tlab_regions_data[index];
+}
+
+ShenandoahHeapRegion* ShenandoahFreeSet::get_shared_alloc_region(size_t index) {
+  assert(index < _early_recycled_shared_alloc_regions_count, "Precondition");
+  return _early_recycled_shared_alloc_regions[-index];
+}
+
+size_t ShenandoahFreeSet::get_shared_allocatable_size(size_t index) {
+  assert(index < _early_recycled_shared_alloc_regions_count, "Precondition");
+  return _early_recycled_shared_alloc_regions_data[-index];
+}
+
+ShenandoahHeapRegion* ShenandoahFreeSet::get_retired_region(size_t index) {
+  assert(index < _early_recycled_retired_regions_count, "Precondition");
+  return _early_recycled_retired_regions[index];
+}
+
+// The heap is represented by an array. For a node at position index within the heap, the left child of the node
+// is at 2 * index + 1 and the right child is at 2 * index + 2.
+//
+// The heap invariant: each entry's is no smaller than the value held by either of the entries held by subtrees.
+// Precondition: All nodes from position 0 .. heap_size - 1 satisfy the property that their value is no smaller than
+// either of their two child nodes except that the child at position index may be larger than its parent.
+//
+// Restore the heap invariant by swapping this node with its parent and/or its sibling nodes.
+void ShenandoahFreeSet::heapify_tlab_regions_upward(size_t index) {
+  while (true) {
+    if (index == 0) {
+      // There's nothing above me with which to compare.
+      break;
+    }
+    size_t parent_index = (index - 1) / 2;
+    size_t left_index = 2 * parent_index + 1;
+    size_t right_index = 2 * parent_index + 2;
+
+    // Assume the parent is the largest index.  If it is, we're done.  We already know that parent value is greater
+    // than index's sibling value.  We figure out below whether index is left or right sibling.
+    size_t largest_index = parent_index;
+
+    if (index == left_index) {
+      assert(left_index < _early_recycled_tlab_regions_count, "Sanity");
+      if (_early_recycled_tlab_regions_data[left_index] > _early_recycled_tlab_regions_data[largest_index]) {
+        largest_index = left_index;
+      }
+    } else {
+      assert(index == right_index, "Sanity");
+      if ((right_index < _early_recycled_tlab_regions_count) &&
+          (_early_recycled_tlab_regions_data[right_index] > _early_recycled_tlab_regions_data[largest_index])) {
+        largest_index = right_index;
+      }
+    }
+
+    // If the largest index is not the root, swap. Then upward_heapify the parent
+    if (largest_index != parent_index) {
+      // Since largest_index != index, we know that largest_index value is at least as large as its sibling's value.
+
+      size_t t = _early_recycled_tlab_regions_data[largest_index];
+      _early_recycled_tlab_regions_data[largest_index] = _early_recycled_tlab_regions_data[index];
+      _early_recycled_tlab_regions_data[index] = t;
+
+      ShenandoahHeapRegion* r = _early_recycled_tlab_regions[largest_index];
+      _early_recycled_tlab_regions[largest_index] = _early_recycled_tlab_regions[index];
+      _early_recycled_tlab_regions[index] = r;
+
+      // Iterate, with new value of index
+      index = parent_index;
+    } else {
+      // Since largest_index == parent_index, we know its value is at least as large as each of its children's values.  We're done.
+      break;
+    }
+  }
+}
+
+// The heap is represented by an array. For a node at position index within the heap, the left child of the node
+// is at 2 * index + 1 and the right child is at 2 * index + 2.
+//
+// The heap invariant: each entry's is no smaller than the value held by either of the entries held by subtrees.
+//
+// Precondition: All nodes from position 0 .. heap_size - 1 satisfy the property that their value is no smaller than
+// either of their two child nodes except that the parent at position index may be smaller than one or both of its
+// child values.
+//
+// Restore the heap invariant by swapping this node with one of its child nodes.
+void ShenandoahFreeSet::heapify_tlab_regions_downward(size_t index) {
+  while (true) {
+    size_t parent_index = index;
+    size_t left_index = 2 * parent_index + 1;
+    size_t right_index = 2 * parent_index + 2;
+
+    // Assume the parent is the largest index.  If it is, we're done.
+    size_t largest_index = parent_index;
+
+    if ((left_index < _early_recycled_tlab_regions_count) &&
+        (_early_recycled_tlab_regions_data[left_index] > _early_recycled_tlab_regions_data[largest_index])) {
+      largest_index = left_index;
+    }                                  
+    if ((right_index < _early_recycled_tlab_regions_count) &&
+        (_early_recycled_tlab_regions_data[right_index] > _early_recycled_tlab_regions_data[largest_index])) {
+      largest_index = right_index;
+    }
+
+    // If the largest index is not the root, swap. Then upward_heapify the parent
+    if (largest_index != parent_index) {
+      // Since largest_index != index, we know that largest_index value is at least as large as its sibling's value.
+
+      size_t t = _early_recycled_tlab_regions_data[largest_index];
+      _early_recycled_tlab_regions_data[largest_index] = _early_recycled_tlab_regions_data[index];
+      _early_recycled_tlab_regions_data[index] = t;
+
+      ShenandoahHeapRegion* r = _early_recycled_tlab_regions[largest_index];
+      _early_recycled_tlab_regions[largest_index] = _early_recycled_tlab_regions[index];
+      _early_recycled_tlab_regions[index] = r;
+
+      // Iterate, with swapped child as the new parent
+      index = largest_index;
+    } else {
+      // Since largest_index == index, we know its value is at least as large as each of its children's values.  We're done.
+      // If this node has no children, its value will be the largest and we'll terminate here.
+      break;
+    }
+  }
+}
+
+void ShenandoahFreeSet::insert_tlab_region(ShenandoahHeapRegion* r, size_t max_tlab_size) {
+  if (_early_recycled_tlab_regions + _early_recycled_tlab_regions_count + 1 >= _early_recycled_retired_regions) {
+    shift_retired_regions_down();
+  }
+  _early_recycled_tlab_used += (r->top() - r->bottom()) * ShenandoahHeapRegion::region_size_bytes() + r->fwt_tail_bytes();
+  _early_recycled_tlab_regions[_early_recycled_tlab_regions_count] = r;
+  _early_recycled_tlab_regions_data[_early_recycled_tlab_regions_count++] = max_tlab_size;
+  heapify_tlab_regions_upward(_early_recycled_tlab_regions_count - 1);
+}
+
+void ShenandoahFreeSet::remove_tlab_region(size_t index) {
+  ShenandoahHeapRegion* r = get_tlab_region(index);
+  _early_recycled_tlab_used -= (r->top() - r->bottom()) * ShenandoahHeapRegion::region_size_bytes() + r->fwt_tail_bytes();
+  if (index == _early_recycled_tlab_regions_count - 1) {
+    // Removing the last entry in the partition is easy.  Just decrement the count.
+    _early_recycled_tlab_regions_count--;
+  } else {
+    // Move the last entry into position of the removed entry. Then heapify downward and upward.
+    size_t last_index = _early_recycled_tlab_regions_count - 1;
+    _early_recycled_tlab_regions_count--;
+    _early_recycled_tlab_regions[index] = _early_recycled_tlab_regions[_early_recycled_tlab_regions_count];
+    _early_recycled_tlab_regions_data[index] = _early_recycled_tlab_regions_data[_early_recycled_tlab_regions_count];
+    heapify_tlab_regions_downward(index);
+    heapify_tlab_regions_upward(index);
+  }
+}
+
+// The heap is represented by an array. For a node at position index within the heap, the left child of the node
+// is at 2 * index + 1 and the right child is at 2 * index + 2.
+//
+// The heap invariant: each entry's is no smaller than the value held by either of the entries held by subtrees.
+// Precondition: All nodes from position 0 .. heap_size - 1 satisfy the property that their value is no smaller than
+// either of their two child nodes except that the child at position index may be larger than its parent.
+//
+// Restore the heap invariant by swapping this node with its parent and/or its sibling nodes.
+void ShenandoahFreeSet::heapify_shared_alloc_regions_upward(size_t index) {
+  while (true) {
+    if (index == 0) {
+      // There's nothing above me with which to compare.
+      break;
+    }
+    size_t parent_index = (index - 1) / 2;
+    size_t left_index = 2 * parent_index + 1;
+    size_t right_index = 2 * parent_index + 2;
+
+    // Assume the parent is the largest index.  If it is, we're done.  We already know that parent value is greater
+    // than index's sibling value.  We figure out below whether index is left or right sibling.
+    size_t largest_index = parent_index;
+
+    if (index == left_index) {
+      assert(left_index < _early_recycled_shared_alloc_regions_count, "Sanity");
+      if (_early_recycled_shared_alloc_regions_data[-left_index] > _early_recycled_shared_alloc_regions_data[-largest_index]) {
+        largest_index = left_index;
+      }
+    } else {
+      assert(index == right_index, "Sanity");
+      if ((right_index < _early_recycled_shared_alloc_regions_count) &&
+          (_early_recycled_shared_alloc_regions_data[-right_index] > _early_recycled_shared_alloc_regions_data[-largest_index])) {
+        largest_index = right_index;
+      }
+    }
+
+    // If the largest index is not the root, swap. Then upward_heapify the parent
+    if (largest_index != parent_index) {
+      // Since largest_index != index, we know that largest_index value is at least as large as its sibling's value.
+      size_t t = _early_recycled_shared_alloc_regions_data[-largest_index];
+      _early_recycled_shared_alloc_regions_data[-largest_index] = _early_recycled_shared_alloc_regions_data[-index];
+      _early_recycled_shared_alloc_regions_data[-index] = t;
+
+      ShenandoahHeapRegion* r = _early_recycled_shared_alloc_regions[-largest_index];
+      _early_recycled_shared_alloc_regions[-largest_index] = _early_recycled_shared_alloc_regions[-index];
+      _early_recycled_shared_alloc_regions[-index] = r;
+
+      // Iterate, with new value of index
+      index = parent_index;
+    } else {
+      // Since largest_index == parent_index, we know its value is at least as large as each of its children's values.  We're done.
+      break;
+    }
+  }
+}
+
+// The heap is represented by an array. For a node at position index within the heap, the left child of the node
+// is at 2 * index + 1 and the right child is at 2 * index + 2.
+//
+// The heap invariant: each entry's is no smaller than the value held by either of the entries held by subtrees.
+//
+// Precondition: All nodes from position 0 .. heap_size - 1 satisfy the property that their value is no smaller than
+// either of their two child nodes except that the parent at position index may be smaller than one or both of its
+// child values.
+//
+// Restore the heap invariant by swapping this node with one of its child nodes.
+void ShenandoahFreeSet::heapify_shared_alloc_regions_downward(size_t index) {
+  while (true) {
+    size_t parent_index = index;
+    size_t left_index = 2 * parent_index + 1;
+    size_t right_index = 2 * parent_index + 2;
+
+    // Assume the parent is the largest index.  If it is, we're done.
+    size_t largest_index = parent_index;
+
+    if ((left_index < _early_recycled_shared_alloc_regions_count) &&
+        (_early_recycled_shared_alloc_regions_data[-left_index] > _early_recycled_shared_alloc_regions_data[-largest_index])) {
+      largest_index = left_index;
+    }                                  
+    if ((right_index < _early_recycled_shared_alloc_regions_count) &&
+        (_early_recycled_shared_alloc_regions_data[-right_index] > _early_recycled_shared_alloc_regions_data[-largest_index])) {
+      largest_index = right_index;
+    }
+
+    // If the largest index is not the root, swap. Then upward_heapify the parent
+    if (largest_index != parent_index) {
+      // Since largest_index != index, we know that largest_index value is at least as large as its sibling's value.
+
+      size_t t = _early_recycled_shared_alloc_regions_data[-largest_index];
+      _early_recycled_shared_alloc_regions_data[-largest_index] = _early_recycled_shared_alloc_regions_data[-index];
+      _early_recycled_shared_alloc_regions_data[-index] = t;
+
+      ShenandoahHeapRegion* r = _early_recycled_shared_alloc_regions[-largest_index];
+      _early_recycled_shared_alloc_regions[-largest_index] = _early_recycled_shared_alloc_regions[-index];
+      _early_recycled_shared_alloc_regions[-index] = r;
+
+      // Iterate, with swapped child as the new parent
+      index = largest_index;
+    } else {
+      // Since largest_index == index, we know its value is at least as large as each of its children's values.  We're done.
+      // If this node has no children, its value will be the largest and we'll terminate here.
+      break;
+    }
+  }
+}
+
+void ShenandoahFreeSet::insert_shared_alloc_region(ShenandoahHeapRegion* r) {
+  size_t orig_shared_alloc_words = (r->end() - r->bottom()) - r->fwt_tail_bytes() / HeapWordSize;
+  if (_early_recycled_shared_alloc_regions - _early_recycled_shared_alloc_regions_count <=
+      _early_recycled_retired_regions + _early_recycled_retired_regions_count) {
+    shift_retired_regions_up();
+  }
+  _early_recycled_shared_alloc_used += (r->top() - r->bottom()) * ShenandoahHeapRegion::region_size_bytes() + r->fwt_tail_bytes();
+  _early_recycled_shared_alloc_regions[-_early_recycled_shared_alloc_regions_count] = r;
+  _early_recycled_shared_alloc_regions_data[-_early_recycled_shared_alloc_regions_count++] = orig_shared_alloc_words;
+  heapify_shared_alloc_regions_upward(_early_recycled_shared_alloc_regions_count - 1);
+}
+
+void ShenandoahFreeSet::remove_shared_alloc_region(size_t index) {
+  ShenandoahHeapRegion* r = get_shared_alloc_region(index);
+  _early_recycled_shared_alloc_used -= (r->top() - r->bottom()) * ShenandoahHeapRegion::region_size_bytes() + r->fwt_tail_bytes();
+  if (index == _early_recycled_shared_alloc_regions_count - 1) {
+    // Removing the last entry in the partition is easy.  Just decrement the count.
+    _early_recycled_shared_alloc_regions_count--;
+  } else {
+    // Move the last entry into position of the removed entry. Then heapify downward and upward.
+    size_t last_index = _early_recycled_shared_alloc_regions_count - 1;
+    _early_recycled_shared_alloc_regions_count--;
+    _early_recycled_shared_alloc_regions[-index] =
+      _early_recycled_shared_alloc_regions[-_early_recycled_shared_alloc_regions_count];
+    _early_recycled_shared_alloc_regions_data[-index] =
+      _early_recycled_shared_alloc_regions_data[-_early_recycled_shared_alloc_regions_count];
+    heapify_shared_alloc_regions_downward(index);
+    heapify_shared_alloc_regions_upward(index);
+  }
+}
+
+void ShenandoahFreeSet::insert_retired_region(ShenandoahHeapRegion* r) {
+  if (_early_recycled_retired_regions + _early_recycled_retired_regions_count + 1 >
+      _early_recycled_shared_alloc_regions - (_early_recycled_shared_alloc_regions_count - 1)) {
+    shift_retired_regions_up();
+  }
+  _early_recycled_retired_regions[_early_recycled_retired_regions_count++] = r;
+  _early_recycled_retired_used += (r->top() - r->bottom()) * ShenandoahHeapRegion::region_size_bytes() + r->fwt_tail_bytes();
+}
+
+// Return size in bytes of candidate region size if greater than PLAB::min_size().  Otherwrise, return 0 if no TLAB available.
+size_t ShenandoahFreeSet::early_recycled_tlab_available_size(ShenandoahHeapRegion* r) {
+  size_t largest_tlab_seen = 0;
+  HeapWord* const fwt_start = r->forwarding_table_start();
+  HeapWord* alloc_limit = fwt_start;
+  HeapWord* orig_top = r->top();
+  ShenandoahMarkingContext* ctx = _heap->marking_context();
+  for (size_t pad = 0; pad <= ShenandoahRecycleFWTMaxTLABPad; pad++) {
+    HeapWord* candidate_start = orig_top + pad;
+    if (candidate_start >= alloc_limit) {
+      break;
+    }
+    if (!ctx->is_marked(candidate_start)) {
+      HeapWord* end_of_candidate_tlab = ctx->get_next_marked_addr_ignore_tams(candidate_start, alloc_limit);
+      size_t candidate_tlab_size = end_of_candidate_tlab - candidate_start;
+      if (candidate_tlab_size > largest_tlab_seen) {
+        largest_tlab_seen = candidate_tlab_size;
+      }
+      // Skip to next open span: pad + candidate_lab_size points to next object start or alloc_limit.
+      // When we increment pad at top of loop, we will point to the word following next marked object.
+      pad += candidate_tlab_size;
+    }
+  }
+  return (largest_tlab_seen >= PLAB::min_size())? largest_tlab_seen * HeapWordSize: 0;
+}
+
+
+// Returns address of TLAB, overwrites size argument, and adjusts top() if allocation is successful.
+// Returns nullptr without modifying size or top() if allocation fails.
+HeapWord* ShenandoahFreeSet::try_allocate_TLAB_in_early_recycled(ShenandoahHeapRegion* r,
+                                                                 const ShenandoahAllocRequest& req, size_t& size) {
+  assert(req.is_lab_alloc(), "Precondition");
+  assert(r->was_early_recycled(), "Precondition");
+  assert(!req.is_gc_alloc(), "We do not YET recycle cset regions during evacuation");
+  assert(ShenandoahCSetRegionTLAB, "Do not come here");
+
+  HeapWord* const fwt_start = r->forwarding_table_start();
+  HeapWord* alloc_limit = fwt_start;
+
+  // Use marking context to avoid full scan.
+  const size_t min_fill       = ShenandoahHeap::min_fill_size();
+  const size_t min_size       = req.min_size();
+  const size_t max_size       = size;
+  HeapWord* orig_top = r->top();
+  ShenandoahMarkingContext* ctx = _heap->marking_context();
+  for (size_t pad = 0; pad <= ShenandoahRecycleFWTMaxTLABPad; pad++) {
+    HeapWord* candidate_start = orig_top + pad;
+    if (candidate_start >= alloc_limit) {
+      break;
+    } else if ((pad == 0) || (pad > min_fill)) {
+      if (!ctx->is_marked(candidate_start)) {
+        HeapWord* end_of_candidate_tlab = ctx->get_next_marked_addr_ignore_tams(candidate_start, alloc_limit);
+        size_t candidate_tlab_size = end_of_candidate_tlab - candidate_start;
+        if (candidate_tlab_size >= min_size) {
+          // Use the first fit within the allowed range of padding
+          size = (candidate_tlab_size < max_size)? candidate_tlab_size: max_size;
+          if (pad > 0) {
+            ShenandoahHeap::fill_with_object(orig_top, pad);
+          }
+          increase_early_recycled_tlab_regions_used(size + pad);
+          r->set_top(orig_top + size + pad);
+          log_debug(gc, alloc)("TLAB allocated %zu words at " PTR_FORMAT " in FWT region %zu"
+                               " [" PTR_FORMAT ", " PTR_FORMAT ")"
+                               " region=[" PTR_FORMAT ", " PTR_FORMAT ") fwt_start=" PTR_FORMAT,
+                               size, p2i(candidate_start), r->index(), p2i(candidate_start), p2i(candidate_start + size),
+                               p2i(r->bottom()), p2i(r->end()), p2i(fwt_start));
+          return candidate_start;
+        } else {
+          // Skip to next open span: pad + candidate_lab_size points to next object start or alloc_limit.
+          // When we increment pad at top of loop, we will point to the word following next marked object.
+          pad += candidate_tlab_size;
+        }
+      }
+    }
+  }
+  // We failed to find an eligible span of unforwarded memory
+  return nullptr;
+}
+
+// Returns address of TLAB and adjusts top() if allocation is successful.
+// Returns nullptr without modifying top() if allocation fails.
+HeapWord* ShenandoahFreeSet::try_allocate_shared_in_early_recycled(ShenandoahHeapRegion* r, size_t size, bool is_tlab_region) {
+  assert(r->was_early_recycled(), "Precondition");
+  const size_t    min_fill  = ShenandoahHeap::min_fill_size();
+  HeapWord* const fwt_start = r->forwarding_table_start();
+  HeapWord*     alloc_limit = fwt_start;
+  HeapWord* orig_top = r->top();
+  ShenandoahMarkingContext* ctx = _heap->marking_context();
+  for (size_t pad = 0; orig_top + pad + size <= alloc_limit; pad++) {
+    HeapWord* candidate_start = orig_top + pad;
+    if (!ctx->is_marked(candidate_start)) {
+      if (is_tlab_region) {
+        increase_early_recycled_tlab_regions_used(size + pad);
+      } else {
+        increase_early_recycled_shared_alloc_regions_used(size + pad);
+      }
+      r->set_top(orig_top + size + pad);
+      log_debug(gc, alloc)("TLAB allocated %zu words at " PTR_FORMAT " in FWT region %zu"
+                           " [" PTR_FORMAT ", " PTR_FORMAT ")"
+                           " region=[" PTR_FORMAT ", " PTR_FORMAT ") fwt_start=" PTR_FORMAT,
+                           size, p2i(candidate_start), r->index(), p2i(candidate_start), p2i(candidate_start + size),
+                           p2i(r->bottom()), p2i(r->end()), p2i(fwt_start));
+      return candidate_start;
+    }
+  }
+  // We failed to find an eligible location for the requested allocation.
+  return nullptr;
 }
 

@@ -108,115 +108,24 @@ HeapWord* ShenandoahHeapRegion::allocate_fill(size_t size) {
   return obj;
 }
 
-
 HeapWord* ShenandoahHeapRegion::allocate(size_t size, const ShenandoahAllocRequest& req) {
   shenandoah_assert_heaplocked_or_safepoint();
   assert(is_object_aligned(size), "alloc size breaks alignment: %zu", size);
 
   HeapWord* obj = top();
-  HeapWord* const fwt_start = forwarding_table_start();
-  HeapWord* alloc_limit = (fwt_start != nullptr) ? fwt_start : _end;
-
-  // Disable PLAB/GCLAB allocation in early-recycled FWT regions.
-  if (fwt_start != nullptr && req.is_gc_alloc() && req.is_lab_alloc()) {
-    return nullptr;
-  }
+  HeapWord* alloc_limit = _end;
 
   if (req.is_mutator_alloc() && req.is_lab_alloc()) {
-    // Optionally disable mutator TLAB carving in cset regions.
-    if (!ShenandoahCSetRegionTLAB && is_cset()) {
-      return nullptr;
-    }
-    if (was_early_recycled()) {
-      // Use marking context to avoid full scan.
-      ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
-      const size_t sentinel_words = ShenandoahHeap::min_fill_size();
-      const size_t min_sz         = req.min_size();
-      const size_t max_size       = size;
-      HeapWord*    span_start     = obj;
-      bool         found          = false;
-      size_t       gap            = 0;
-
-      // top may land inside [marked, marked+min_fill_size)
-      // when min_fill_size > 1 (-UseCompactObjectHeaders).
-      HeapWord* prev_marked_addr = ctx->get_last_marked_addr(bottom(), obj);
-      if (prev_marked_addr < obj && pointer_delta(obj, prev_marked_addr) < sentinel_words) {
-        span_start = prev_marked_addr + sentinel_words;
-      }
-
-      while (span_start < alloc_limit) {
-        HeapWord* next_orig = ctx->get_next_marked_addr_ignore_tams(span_start, alloc_limit);
-        gap                 = pointer_delta(next_orig, span_start);
-        if (gap >= min_sz) {
-          // First span large enough for a (possibly truncated) TLAB.
-          size  = MIN2(gap, max_size);
-          obj   = span_start;
-          found = true;
-          break;
-        }
-        span_start = next_orig + sentinel_words;
-      }
-      if (!found) return nullptr;
-
-#ifndef PRODUCT
-      HeapWord* const mark = ctx->get_next_marked_addr_ignore_tams(obj, obj + gap);
-      guarantee(mark == obj + gap,
-                "carved TLAB gap overlaps marked original at " PTR_FORMAT
-                " region=%zu obj=" PTR_FORMAT " gap=%zu fwt_start=" PTR_FORMAT,
-                p2i(mark), index(), p2i(obj), gap, p2i(fwt_start));
-      guarantee(min_sz <= size && size <= gap && size <= max_size,
-                "carve size out of bounds: region=%zu obj=" PTR_FORMAT
-                " min=%zu size=%zu gap=%zu max=%zu",
-                index(), p2i(obj), min_sz, size, gap, max_size);
-#endif
-    }
-  } else { // object
-    // Don't allocate at addresses that are in the FWT.
-    if (fwt_start != nullptr) {
-      const uintptr_t fwt_sentinel      = ShenandoahHeap::in_fwt_sentinel;
-      const size_t    fwt_sentinel_step = (size_t)MinObjAlignment;
-      const size_t    min_fill          = ShenandoahHeap::min_fill_size();
-      size_t skipped = 0;
-      while (obj < alloc_limit
-             && *reinterpret_cast<uintptr_t*>(obj) == fwt_sentinel) {
-        obj     += fwt_sentinel_step;
-        skipped += fwt_sentinel_step;
-      }
-      if (skipped != 0 && skipped < min_fill) {
-        obj += min_fill - skipped;
-        while (obj < alloc_limit
-               && *reinterpret_cast<uintptr_t*>(obj) == fwt_sentinel) {
-          obj += fwt_sentinel_step;
-        }
-      }
-      if (obj >= alloc_limit) return nullptr;
-    }
+    assert(!was_early_recycled(), "Use allocate_TLAB_in_early_recycled()");
   }
 
   if (pointer_delta(alloc_limit, obj) >= size) {
     make_regular_allocation(req.affiliation());
     adjust_alloc_metadata(req, size);
-
     HeapWord* new_top = obj + size;
     set_top(new_top);
-
     assert(is_object_aligned(new_top), "new top breaks alignment: " PTR_FORMAT, p2i(new_top));
     assert(is_object_aligned(obj),     "obj is not aligned: "       PTR_FORMAT, p2i(obj));
-
-    if (fwt_start != nullptr) {
-      if (req.is_lab_alloc() && req.is_mutator_alloc()) {
-        log_debug(gc, alloc)("TLAB allocated %zu words at " PTR_FORMAT " in FWT region %zu"
-                             " [" PTR_FORMAT ", " PTR_FORMAT ")"
-                             " region=[" PTR_FORMAT ", " PTR_FORMAT ") fwt_start=" PTR_FORMAT,
-                             size, p2i(obj), index(), p2i(obj), p2i(obj + size),
-                             p2i(bottom()), p2i(_end), p2i(fwt_start));
-      } else {
-        log_debug(gc, alloc)("Allocated %zu words at " PTR_FORMAT " in early-recycled FWT region %zu"
-                             " (alloc_end: " PTR_FORMAT ", end: " PTR_FORMAT ")",
-                             size, p2i(obj), index(), p2i(alloc_limit), p2i(_end));
-      }
-    }
-
     return obj;
   } else {
     return nullptr;

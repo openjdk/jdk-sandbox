@@ -443,6 +443,16 @@
           "below-FWT body at the start of update-refs and the former tail "\
           "once the table is torn down.")                                  \
                                                                             \
+  product(uintx, ShenandoahRecycleFWTMaxTLABPad, 4, EXPERIMENTAL,           \
+          "How many words of padding do we allow to precede an "            \
+          "allocated TLAB within an early recycled cset region? "           \
+          "Allowing more pad words increases the likelihood that "          \
+          "we can successfully allocate a TLAB within this region "         \
+          "with the downsides that larger pads result in more waste "       \
+          "and larger pads result in more time trying to find an "          \
+          "an acceptable TLAB location.")                                   \
+          range(0, 32768)                                                   \
+                                                                            \
   product(uintx, ShenandoahCriticalFreeThreshold, 1, EXPERIMENTAL,          \
           "How much of the heap needs to be free after recovery cycles, "   \
           "either Degenerated or Full GC to be claimed successful. If this "\
