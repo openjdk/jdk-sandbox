@@ -4360,7 +4360,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_TLAB_in_early_recycled(ShenandoahHeapR
   assert(!req.is_gc_alloc(), "We do not YET recycle cset regions during evacuation");
   assert(ShenandoahCSetRegionTLAB, "Do not come here");
 
-  if (!ShenandoahCSetRegionTLAB && is_cset()) {
+  if (!ShenandoahCSetRegionTLAB && r->is_cset()) {
     return nullptr;
   }
 
