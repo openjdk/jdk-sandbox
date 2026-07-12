@@ -2893,7 +2893,7 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
     size_t above_tams = pointer_delta(top, MAX2(tams, bottom));
     assert(above_tams == 0, "FWT region %zu has above_tams_words=%zu", i, above_tams);
 
-#define GATHER_STATS
+#undef GATHER_STATS
 #ifdef GATHER_STATS
     HeapWord* start = bottom;
     size_t fwt_words = r->fwt_tail_bytes() / HeapWordSize;
