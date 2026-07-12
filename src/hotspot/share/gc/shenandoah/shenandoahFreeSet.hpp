@@ -618,30 +618,6 @@ private:
     return _early_recycled_retired_regions_count;
   }
 
-  size_t early_recycled_tlab_used() {
-    return _early_recycled_tlab_used;
-  }
-
-  size_t early_recycled_tlab_capacity() {
-    return _early_recycled_tlab_regions_count * ShenandoahHeapRegion::region_size_bytes();
-  }
-
-  size_t early_recycled_shared_alloc_used() {
-    return _early_recycled_shared_alloc_used;
-  }
-
-  size_t early_recycled_shared_alloc_capacity() {
-    return _early_recycled_shared_alloc_regions_count * ShenandoahHeapRegion::region_size_bytes();
-  }
-
-  size_t early_recycled_retired_used() {
-    return _early_recycled_retired_used;
-  }
-
-  size_t early_recycled_retired_capacity() {
-    return _early_recycled_retired_regions_count * ShenandoahHeapRegion::region_size_bytes();
-  }
-
   size_t early_recycled_tlab_available_size(ShenandoahHeapRegion* r);
   HeapWord* try_allocate_TLAB_in_early_recycled(ShenandoahHeapRegion* r, const ShenandoahAllocRequest& req, size_t& size);
   HeapWord* try_allocate_shared_in_early_recycled(ShenandoahHeapRegion* r, size_t size, bool is_tlab_region = false);
@@ -1038,6 +1014,30 @@ public:
   // of regions reserved of young evacuations.
   void compute_young_and_old_reserves(size_t young_cset_regions, size_t old_cset_regions,
                                       size_t &young_reserve_result, size_t &old_reserve_result) const;
+
+  size_t early_recycled_tlab_used() const {
+    return _early_recycled_tlab_used;
+  }
+
+  size_t early_recycled_tlab_capacity() const {
+    return _early_recycled_tlab_regions_count * ShenandoahHeapRegion::region_size_bytes();
+  }
+
+  size_t early_recycled_shared_alloc_used() const {
+    return _early_recycled_shared_alloc_used;
+  }
+
+  size_t early_recycled_shared_alloc_capacity() const {
+    return _early_recycled_shared_alloc_regions_count * ShenandoahHeapRegion::region_size_bytes();
+  }
+
+  size_t early_recycled_retired_used() const {
+    return _early_recycled_retired_used;
+  }
+
+  size_t early_recycled_retired_capacity() const {
+    return _early_recycled_retired_regions_count * ShenandoahHeapRegion::region_size_bytes();
+  }
 };
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHFREESET_HPP
