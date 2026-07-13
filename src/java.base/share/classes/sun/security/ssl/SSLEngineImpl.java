@@ -93,10 +93,7 @@ final class SSLEngineImpl extends SSLEngine implements SSLTransport {
         this.sslContext = sslContext;
         HandshakeHash handshakeHash = new HandshakeHash();
         if (sslContext.isDTLS()) {
-            if (quicTLSAdapter != null) {
-                throw new IllegalArgumentException(
-                        "DTLS context does not support QUIC");
-            }
+            assert quicTLSAdapter == null;
             this.conContext = new TransportContext(sslContext, this,
                     (QuicTLSAdapter)null,
                     new DTLSInputRecord(handshakeHash),
