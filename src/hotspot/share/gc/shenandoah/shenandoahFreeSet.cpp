@@ -3079,7 +3079,7 @@ void ShenandoahFreeSet::move_regions_from_collector_to_mutator(size_t max_xfer_r
 
 // Admit a fwt cset region's below-FWT space into the Mutator free set.
 bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* r,
-                                                          idx_t& mutator_low_idx, idx_t& mutator_high_idx,
+//                                                          idx_t& mutator_low_idx, idx_t& mutator_high_idx,
                                                           size_t& recycled_bytes, size_t& recycled_regions,
                                                           size_t& young_recycled_regions) {
   shenandoah_assert_heaplocked();
@@ -3126,7 +3126,7 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
     size_t tlab_count = 0;
 
     if (!ctx->is_marked(start)) {
-      start = ctx->get_next_marked_addr_ignore_tams(start, end);
+      start = ctx->get_next_marked_addr_ignore_tams(start + 1, end);
     }
     tlab_start_addr = start;
 
@@ -3175,7 +3175,7 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
         pad_start_addr = start;
         pad_end_addr = start + ShenandoahHeap::min_fill_size();
       }
-      start = ctx->get_next_marked_addr_ignore_tams(start, end);
+      start = ctx->get_next_marked_addr_ignore_tams(start + 1, end);
     }
     assert(start == end, "Post condition for loop");
     size_t tlab_words = end - tlab_start_addr;
@@ -3319,12 +3319,12 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
 static void dump_used(const char* msg, ShenandoahRegionPartitions* p, ShenandoahFreeSet* free_set) {
   log_info(gc)("dump_used(%s)", msg);
   log_info(gc)("            _used[Mutator]: %zu", p->get_used(ShenandoahFreeSetPartitionId::Mutator));
-  log_info(gc)("       freecycle tlab used: %zu", freeset->early_recycled_tlab_used());
-  log_info(gc)("     freecycle shared used: %zu", freeset->early_recycled_shared_alloc_used());
-  log_info(gc)("    freecycle retired used: %zu", freeset->early_recycled_retired_used());
-  log_info(gc)("   freecycle tlab capacity: %zu", freeset->early_recycled_tlab_capacity());
-  log_info(gc)(" freecycle shared capacity: %zu", freeset->early_recycled_shared_alloc_capacity());
-  log_info(gc)("freecycle retired capacity: %zu", freeset->early_recycled_retired_capacity());
+  log_info(gc)("       freecycle tlab used: %zu", free_set->early_recycled_tlab_used());
+  log_info(gc)("     freecycle shared used: %zu", free_set->early_recycled_shared_alloc_used());
+  log_info(gc)("    freecycle retired used: %zu", free_set->early_recycled_retired_used());
+  log_info(gc)("   freecycle tlab capacity: %zu", free_set->early_recycled_tlab_capacity());
+  log_info(gc)(" freecycle shared capacity: %zu", free_set->early_recycled_shared_alloc_capacity());
+  log_info(gc)("freecycle retired capacity: %zu", free_set->early_recycled_retired_capacity());
 
   log_info(gc)("          _used[Collector]: %zu", p->get_used(ShenandoahFreeSetPartitionId::Collector));
   log_info(gc)("       _used[OldCollector]: %zu", p->get_used(ShenandoahFreeSetPartitionId::OldCollector));
@@ -3335,19 +3335,25 @@ void ShenandoahFreeSet::recycle_collection_set() {
   shenandoah_assert_heaplocked();
   size_t recycled_regions = 0;
   size_t recycled_bytes = 0;
+#ifdef KELVIN_DEPRECATE
   idx_t mutator_low_idx = _partitions.max();
   idx_t mutator_high_idx = -1;
+#endif
   size_t young_recycled_regions = 0;
 #ifdef KELVIN_FWT
   log_info(gc)("recycle_collection_set() at start of update refs");
-  dump_used("At start of recycle_collection_set", &_partitions);
+  dump_used("At start of recycle_collection_set", &_partitions, this);
 #endif
 
   ShenandoahCollectionSet* cset = _heap->collection_set();
   for (size_t i = 0; i < _heap->num_regions(); i++) {
     ShenandoahHeapRegion* r = _heap->get_region(i);
     if (cset->is_reusable(r) && !r->is_pinned()) {
-      recycle_cset_region_before_update(r, mutator_low_idx, mutator_high_idx, recycled_bytes, recycled_regions, young_recycled_regions);
+      recycle_cset_region_before_update(r,
+#ifdef KELVIN_DEPRECATE
+                                        mutator_low_idx, mutator_high_idx,
+#endif
+                                        recycled_bytes, recycled_regions, young_recycled_regions);
     }
     // TODO:
     // If r->is_pinned(), there is at least one object inside of r that cannot be relocated. This prevents us from fully
@@ -3361,10 +3367,9 @@ void ShenandoahFreeSet::recycle_collection_set() {
   }
 
 #ifdef KELVIN_FWT
-  log_info(gc)(" recycled regions range from %zu to %zu", mutator_low_idx, mutator_high_idx);
   log_info(gc)(" We recycled %zu young regions and %zu old regions",
 	       young_recycled_regions, recycled_regions - young_recycled_regions);
-  dump_used("After recycling regions", &_partitions);
+  dump_used("After recycling regions", &_partitions, this);
 #endif
 
   if (recycled_regions > 0) {
@@ -3394,12 +3399,15 @@ void ShenandoahFreeSet::recycle_collection_set() {
 #endif  // KELVIN_DEPRECATE
   }
 #ifdef KELVIN_FWT
-  dump_used("At end of recycle_collection_set", &_partitions);
+  dump_used("At end of recycle_collection_set", &_partitions, this);
 #endif
   log_info(gc)("Recycled %zu FWT cset regions (below-FWT space),"
-                     " added %zu%s to Mutator free set",
-                     recycled_regions,
-                     byte_size_in_proper_unit(recycled_bytes), proper_unit_for_byte_size(recycled_bytes));
+               " added %zu%s to early-recycled region sets for tlabs: %zu, shared-allocs: %zu, retired: %zu",
+               recycled_regions,
+               byte_size_in_proper_unit(recycled_bytes), proper_unit_for_byte_size(recycled_bytes),
+               early_recycled_tlab_capacity() - early_recycled_tlab_used(),
+               early_recycled_shared_alloc_capacity() - early_recycled_shared_alloc_used(),
+               early_recycled_retired_capacity() - early_recycled_retired_used());
 }
 
 void ShenandoahFreeSet::finish_cset_region_recycling() {
@@ -4218,13 +4226,16 @@ void ShenandoahFreeSet::initialize_recycled_region_arrays() {
   _early_recycled_tlab_regions = _early_recycled_regions;
   _early_recycled_tlab_regions_data = _early_recycled_regions_data;
   _early_recycled_tlab_regions_count = 0;
+  _early_recycled_tlab_used = 0;
 
   _early_recycled_shared_alloc_regions = &_early_recycled_regions[num_regions - 1];
   _early_recycled_shared_alloc_regions_data = &_early_recycled_regions_data[num_regions - 1];
   _early_recycled_shared_alloc_regions_count = 0;
+  _early_recycled_shared_alloc_used = 0;
 
   _early_recycled_retired_regions = &_early_recycled_regions[num_regions / 2];
   _early_recycled_retired_regions_count = 0;
+  _early_recycled_retired_used = 0;
 }
 
 ShenandoahHeapRegion* ShenandoahFreeSet::get_tlab_region(size_t index) {

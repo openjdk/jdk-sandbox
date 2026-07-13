@@ -757,7 +757,7 @@ private:
 
   // Admit a reusable CSet region's freed body into the Mutator free set; returns false if too small.
   bool recycle_cset_region_before_update(ShenandoahHeapRegion* r,
-                                         idx_t& mutator_low_idx, idx_t& mutator_high_idx,
+//                                         idx_t& mutator_low_idx, idx_t& mutator_high_idx,
                                          size_t& recycled_bytes, size_t& recycled_regions, size_t& young_recycled_regions);
 
 public:
