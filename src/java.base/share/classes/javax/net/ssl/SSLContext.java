@@ -423,9 +423,8 @@ public class SSLContext {
      * instead.
      *
      * @implNote
-     * TODO revisit after JDK-8382270
      * It is provider-specific if the returned SSLEngine uses client or
-     * server mode by default for the (D)TLS connection. The JDK SunJSSE
+     * server mode by default for the TLS connection. The JDK SunJSSE
      * provider implementation uses server mode by default.  However, it
      * is recommended to always set the desired mode explicitly by calling
      * {@link SSLEngine#setUseClientMode(boolean) SSLEngine.setUseClientMode()}
@@ -455,9 +454,8 @@ public class SSLContext {
      * for an internal session reuse strategy.
      *
      * @implNote
-     * TODO revisit after JDK-8382270
      * It is provider-specific if the returned SSLEngine uses client or
-     * server mode by default for the (D)TLS connection. The JDK SunJSSE
+     * server mode by default for the TLS connection. The JDK SunJSSE
      * provider implementation uses server mode by default.  However, it
      * is recommended to always set the desired mode explicitly by calling
      * {@link SSLEngine#setUseClientMode(boolean) SSLEngine.setUseClientMode()}
