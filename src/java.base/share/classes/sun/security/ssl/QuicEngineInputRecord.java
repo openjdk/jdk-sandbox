@@ -100,7 +100,7 @@ final class QuicEngineInputRecord extends InputRecord implements SSLRecord {
     void changeT13ReadCiphers(SSLTrafficKeyDerivation kdg, HandshakeContext hc,
                               SecretKey readSecret) {
         epoch++;
-        switch(epoch) {
+        switch (epoch) {
             case 1->
                     quicTLSAdapter.deriveHandshakeReadSecrets(readSecret);
             case 2->
