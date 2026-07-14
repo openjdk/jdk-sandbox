@@ -432,10 +432,10 @@ import java.util.function.BiFunction;
  * QUIC transports the {@code CRYPTO} messages in packets encrypted with initial,
  * handshake, and application (1-RTT) keys. The handshake and application keys
  * are derived from secrets provided by the {@code SSLEngine} using
- * {@link QuicTLSAdapter#deriveHandshakeReadSecrets(SecretKey)},
- * {@link QuicTLSAdapter#deriveHandshakeWriteSecrets(SecretKey)},
- * {@link QuicTLSAdapter#deriveApplicationReadSecrets(SecretKey)}, and
- * {@link QuicTLSAdapter#deriveApplicationWriteSecrets(SecretKey)} callbacks.
+ * {@link QuicTLSAdapter#deriveHandshakeReadSecrets(SecretKey, String)},
+ * {@link QuicTLSAdapter#deriveHandshakeWriteSecrets(SecretKey, String)},
+ * {@link QuicTLSAdapter#deriveApplicationReadSecrets(SecretKey, String)}, and
+ * {@link QuicTLSAdapter#deriveApplicationWriteSecrets(SecretKey, String)} callbacks.
  * The callbacks may be called from {@code wrap()}, {@code unwrap()},
  * or a delegated task. The read secrets are derived when or after
  * the last expected message from the earlier key space is consumed,
@@ -443,7 +443,7 @@ import java.util.function.BiFunction;
  * from the earlier key space is produced. For example, the {@code wrap()} call
  * that produces the last byte of the {@code Finished} TLS message (the last
  * message protected using the handshake keys) may call the
- * {@link QuicTLSAdapter#deriveApplicationWriteSecrets(SecretKey)} callback.
+ * {@link QuicTLSAdapter#deriveApplicationWriteSecrets(SecretKey, String)} callback.
  * <P>
  * The {@link SSLSession#getPacketBufferSize()} method has no meaning for QUIC.
  * The {@code wrap()} method supports any buffer size.

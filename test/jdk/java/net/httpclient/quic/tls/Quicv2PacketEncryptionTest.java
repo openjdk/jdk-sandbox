@@ -26,7 +26,6 @@ import jdk.internal.net.http.quic.QuicTLSContext;
 import jdk.internal.net.http.quic.QuicTLSEngine;
 import jdk.internal.net.http.quic.QuicTransportException;
 import jdk.internal.net.http.quic.tls.QuicTLSEngineImpl;
-import jdk.internal.net.http.quic.tls.QuicTLSEngineImplAccessor;
 
 import javax.crypto.AEADBadTagException;
 import javax.crypto.SecretKey;
@@ -50,7 +49,6 @@ import org.junit.jupiter.api.Test;
  * @library /test/lib
  * @modules java.net.http/jdk.internal.net.http.quic
  *          java.net.http/jdk.internal.net.http.quic.tls
- * @build java.net.http/jdk.internal.net.http.quic.tls.QuicTLSEngineImplAccessor
  * @summary known-answer test for packet encryption and decryption with Quic v2
  * @run junit/othervm ${test.main.class}
  */
@@ -329,10 +327,9 @@ public class Quicv2PacketEncryptionTest {
     public void testEncryptChaCha() throws Exception {
         QuicTLSEngineImpl clientEngine = (QuicTLSEngineImpl) getQuicV2Engine(SSLContext.getDefault(), true);
         SecretKey key = new SecretKeySpec(HexFormat.of().parseHex(ONERTT_SECRET), 0, 32, "ChaCha20-Poly1305");
-        QuicTLSEngineImplAccessor.setCipherSuite(clientEngine, "TLS_CHACHA20_POLY1305_SHA256");
         clientEngine.versionNegotiated(QUIC_V2);
-        clientEngine.deriveApplicationReadSecrets(key);
-        clientEngine.deriveApplicationWriteSecrets(key);
+        clientEngine.deriveApplicationReadSecrets(key, "TLS_CHACHA20_POLY1305_SHA256");
+        clientEngine.deriveApplicationWriteSecrets(key, "TLS_CHACHA20_POLY1305_SHA256");
 
         final int packetLen = ONERTT_PAYLOAD_OFFSET + ONERTT_PAYLOAD_LENGTH + 16;
         final ByteBuffer packet = ByteBuffer.allocate(packetLen);
@@ -354,10 +351,9 @@ public class Quicv2PacketEncryptionTest {
         QuicTLSEngineImpl serverEngine = (QuicTLSEngineImpl) getQuicV2Engine(SSLContext.getDefault(), false);
         // mark the TLS handshake as FINISHED
         SecretKey key = new SecretKeySpec(HexFormat.of().parseHex(ONERTT_SECRET), 0, 32, "ChaCha20-Poly1305");
-        QuicTLSEngineImplAccessor.setCipherSuite(serverEngine, "TLS_CHACHA20_POLY1305_SHA256");
         serverEngine.versionNegotiated(QUIC_V2);
-        serverEngine.deriveApplicationReadSecrets(key);
-        serverEngine.deriveApplicationWriteSecrets(key);
+        serverEngine.deriveApplicationReadSecrets(key, "TLS_CHACHA20_POLY1305_SHA256");
+        serverEngine.deriveApplicationWriteSecrets(key, "TLS_CHACHA20_POLY1305_SHA256");
 
         ByteBuffer packet = ByteBuffer.wrap(HexFormat.of().parseHex(ENCRYPTED_ONERTT_PAYLOAD));
         unprotect(QuicTLSEngine.KeySpace.ONE_RTT, packet, ONERTT_PN_OFFSET, ONERTT_PAYLOAD_OFFSET - ONERTT_PN_OFFSET, serverEngine, 0x1f);
@@ -377,10 +373,9 @@ public class Quicv2PacketEncryptionTest {
         QuicTLSEngineImpl serverEngine = (QuicTLSEngineImpl) getQuicV2Engine(SSLContext.getDefault(), false);
         // mark the TLS handshake as FINISHED
         SecretKey key = new SecretKeySpec(HexFormat.of().parseHex(ONERTT_SECRET), 0, 32, "ChaCha20-Poly1305");
-        QuicTLSEngineImplAccessor.setCipherSuite(serverEngine, "TLS_CHACHA20_POLY1305_SHA256");
         serverEngine.versionNegotiated(QUIC_V2);
-        serverEngine.deriveApplicationReadSecrets(key);
-        serverEngine.deriveApplicationWriteSecrets(key);
+        serverEngine.deriveApplicationReadSecrets(key, "TLS_CHACHA20_POLY1305_SHA256");
+        serverEngine.deriveApplicationWriteSecrets(key, "TLS_CHACHA20_POLY1305_SHA256");
 
         // attempt 1
         ByteBuffer packet = ByteBuffer.wrap(HexFormat.of().parseHex(ENCRYPTED_ONERTT_PAYLOAD));
@@ -406,10 +401,9 @@ public class Quicv2PacketEncryptionTest {
             QuicTLSEngineImpl serverEngine = (QuicTLSEngineImpl) getQuicV2Engine(SSLContext.getDefault(), false);
             // mark the TLS handshake as FINISHED
             SecretKey key = new SecretKeySpec(HexFormat.of().parseHex(ONERTT_SECRET), 0, 32, "ChaCha20-Poly1305");
-            QuicTLSEngineImplAccessor.setCipherSuite(serverEngine, "TLS_CHACHA20_POLY1305_SHA256");
             serverEngine.versionNegotiated(QUIC_V2);
-            serverEngine.deriveApplicationReadSecrets(key);
-            serverEngine.deriveApplicationWriteSecrets(key);
+            serverEngine.deriveApplicationReadSecrets(key, "TLS_CHACHA20_POLY1305_SHA256");
+            serverEngine.deriveApplicationWriteSecrets(key, "TLS_CHACHA20_POLY1305_SHA256");
             ByteBuffer packet = ByteBuffer.wrap(HexFormat.of().parseHex(ENCRYPTED_ONERTT_PAYLOAD));
             unprotect(QuicTLSEngine.KeySpace.ONE_RTT, packet, ONERTT_PN_OFFSET, ONERTT_PAYLOAD_OFFSET - ONERTT_PN_OFFSET, serverEngine, 0x1f);
             ByteBuffer src = packet.asReadOnlyBuffer();

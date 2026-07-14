@@ -137,7 +137,7 @@ final class QuicEngineOutputRecord extends OutputRecord {
              SecretKey writeSecret, boolean useChangeCipherSpec) {
         recordLock.lock();
         try {
-            fragmenter.changePacketSpace(writeSecret);
+            fragmenter.changePacketSpace(writeSecret, hc.negotiatedCipherSuite.name());
         } finally {
             recordLock.unlock();
         }
@@ -167,6 +167,7 @@ final class QuicEngineOutputRecord extends OutputRecord {
     private static class HandshakeMemo {
         int acquireOffset;
         SecretKey nextKey;
+        String nextCipherSuite;
         byte[] fragment;
     }
 
@@ -185,17 +186,18 @@ final class QuicEngineOutputRecord extends OutputRecord {
             handshakeMemos.add(memo);
         }
 
-        void changePacketSpace(SecretKey baseSecret) {
+        void changePacketSpace(SecretKey baseSecret, String cipherSuite) {
             HandshakeMemo lastMemo = handshakeMemos.peekLast();
             if (lastMemo != null) {
                 lastMemo.nextKey = baseSecret;
+                lastMemo.nextCipherSuite = cipherSuite;
             } else {
                 currentPacketSpace++;
                 switch(currentPacketSpace) {
                     case 1->
-                            quicTLSAdapter.deriveHandshakeWriteSecrets(baseSecret);
+                            quicTLSAdapter.deriveHandshakeWriteSecrets(baseSecret, cipherSuite);
                     case 2->
-                            quicTLSAdapter.deriveApplicationWriteSecrets(baseSecret);
+                            quicTLSAdapter.deriveApplicationWriteSecrets(baseSecret, cipherSuite);
                     default ->
                             throw new AssertionError("Unexpected key epoch");
                 }
@@ -216,9 +218,11 @@ final class QuicEngineOutputRecord extends OutputRecord {
                 currentPacketSpace++;
                 switch(currentPacketSpace) {
                     case 1->
-                            quicTLSAdapter.deriveHandshakeWriteSecrets(hsMemo.nextKey);
+                            quicTLSAdapter.deriveHandshakeWriteSecrets(
+                                    hsMemo.nextKey, hsMemo.nextCipherSuite);
                     case 2->
-                            quicTLSAdapter.deriveApplicationWriteSecrets(hsMemo.nextKey);
+                            quicTLSAdapter.deriveApplicationWriteSecrets(
+                                    hsMemo.nextKey, hsMemo.nextCipherSuite);
                     default ->
                             throw new AssertionError("Unexpected key epoch");
                 }

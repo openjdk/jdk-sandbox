@@ -48,10 +48,10 @@ import java.nio.ByteBuffer;
  * parameters offered by the peer.
  * <P>
  * The {@code SSLEngine} delivers the traffic secrets by calling
- * {@link #deriveHandshakeReadSecrets(SecretKey)},
- * {@link #deriveHandshakeWriteSecrets(SecretKey)},
- * {@link #deriveApplicationReadSecrets(SecretKey)}, and
- * {@link #deriveApplicationWriteSecrets(SecretKey)} callbacks.
+ * {@link #deriveHandshakeReadSecrets(SecretKey, String)},
+ * {@link #deriveHandshakeWriteSecrets(SecretKey, String)},
+ * {@link #deriveApplicationReadSecrets(SecretKey, String)}, and
+ * {@link #deriveApplicationWriteSecrets(SecretKey, String)} callbacks.
  * When application secrets are available in both directions,
  * the handshake is complete.
  * <P>
@@ -73,9 +73,7 @@ public interface QuicTLSAdapter {
      * with the Handshake key space are available.
      * <p>
      * The provided secret should be used with the key derivation function
-     * defined for the active cipher suite. The cipher suite can be retrieved from the
-     * {@link SSLEngine#getHandshakeSession() handshake session}
-     * using {@link SSLSession#getCipherSuite()} method.
+     * defined for the selected cipher suite.
      * <p>
      * After the {@code SSLEngine} calls this method, subsequent calls to
      * {@link SSLEngine#unwrap(ByteBuffer, ByteBuffer)}
@@ -85,38 +83,34 @@ public interface QuicTLSAdapter {
      * the QUIC transport implementation must close the
      * associated QUIC connection with PROTOCOL_VIOLATION error.
      *
-     * @param secretKey the base secret used for deriving the handshake read keys
+     * @param secretKey   the base secret used for deriving the handshake read keys
+     * @param cipherSuite the selected cipher suite
      */
-    void deriveHandshakeReadSecrets(SecretKey secretKey);
+    void deriveHandshakeReadSecrets(SecretKey secretKey, String cipherSuite);
 
     /**
      * Called by the {@link SSLEngine} when the write secrets associated
      * with the Handshake key space are available.
      * <p>
      * The provided secret should be used with the key derivation function
-     * defined for the active cipher suite. The cipher suite can be retrieved from the
-     * {@link SSLEngine#getHandshakeSession() handshake session}
-     * using {@link SSLSession#getCipherSuite()} method.
+     * defined for the selected cipher suite.
      * <p>
      * If this method is called from {@code wrap},
      * the data produced by that call is associated with the Initial key space.
      * Subsequent calls to {@link SSLEngine#wrap(ByteBuffer, ByteBuffer)}
      * produce data for the Handshake key space.
      *
-     * @param secretKey the base secret used for deriving the handshake write keys
+     * @param secretKey   the base secret used for deriving the handshake write keys
+     * @param cipherSuite the selected cipher suite
      */
-    void deriveHandshakeWriteSecrets(SecretKey secretKey);
+    void deriveHandshakeWriteSecrets(SecretKey secretKey, String cipherSuite);
 
     /**
      * Called by the {@link SSLEngine} when the read secrets associated
      * with the 1-RTT key space are available.
      * <p>
      * The provided secret should be used with the key derivation function
-     * defined for the active cipher suite. This is the same cipher suite
-     * that was used with {@link #deriveHandshakeReadSecrets(SecretKey)} earlier.
-     * Note that {@link SSLEngine#getHandshakeSession()} might no longer be available at this point.
-     * Applications should cache the cipher suite value retrieved earlier, or fall back to
-     * {@link SSLEngine#getSession()} if handshake session is {@code null}.
+     * defined for the selected cipher suite.
      * <p>
      * After the {@code SSLEngine} calls this method, subsequent calls to
      * {@link SSLEngine#unwrap(ByteBuffer, ByteBuffer)}
@@ -129,29 +123,27 @@ public interface QuicTLSAdapter {
      * The derived secrets must not be used
      * before the application write secrets are available.
      *
-     * @param secretKey the base secret used for deriving the 1-RTT read keys
+     * @param secretKey   the base secret used for deriving the 1-RTT read keys
+     * @param cipherSuite the selected cipher suite
      */
-    void deriveApplicationReadSecrets(SecretKey secretKey);
+    void deriveApplicationReadSecrets(SecretKey secretKey, String cipherSuite);
 
     /**
      * Called by the {@link SSLEngine} when the write secrets associated
      * with the 1-RTT key space are available.
      * <p>
      * The provided secret should be used with the key derivation function
-     * defined for the active cipher suite. This is the same cipher suite
-     * that was used with {@link #deriveHandshakeReadSecrets(SecretKey)} earlier.
-     * Note that {@link SSLEngine#getHandshakeSession()} might no longer be available at this point.
-     * Applications should cache the cipher suite value retrieved earlier, or fall back to
-     * {@link SSLEngine#getSession()} if handshake session is {@code null}.
+     * defined for the selected cipher suite.
      * <p>
      * If this method is called from {@code wrap},
      * the data produced by that call is associated with the Handshake key space.
      * Subsequent calls to {@link SSLEngine#wrap(ByteBuffer, ByteBuffer)}
      * produce data for the 1-RTT key space.
      *
-     * @param secretKey the base secret used for deriving the 1-RTT write keys
+     * @param secretKey   the base secret used for deriving the 1-RTT write keys
+     * @param cipherSuite the selected cipher suite
      */
-    void deriveApplicationWriteSecrets(SecretKey secretKey);
+    void deriveApplicationWriteSecrets(SecretKey secretKey, String cipherSuite);
 
     /**
      * Called by the {@link SSLEngine} to retrieve the names

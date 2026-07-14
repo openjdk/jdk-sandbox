@@ -125,25 +125,25 @@ public class QuicSSLEngineTemplate extends SSLContextTemplate {
         }
 
         @Override
-        public void deriveHandshakeReadSecrets(SecretKey secretKey) {
+        public void deriveHandshakeReadSecrets(SecretKey secretKey, String cipherSuite) {
             log("Derived handshake read secrets");
             currentReadSpace = HANDSHAKE;
         }
 
         @Override
-        public void deriveHandshakeWriteSecrets(SecretKey secretKey) {
+        public void deriveHandshakeWriteSecrets(SecretKey secretKey, String cipherSuite) {
             log("Derived handshake write secrets");
             currentWriteSpace = HANDSHAKE;
         }
 
         @Override
-        public void deriveApplicationReadSecrets(SecretKey secretKey) {
+        public void deriveApplicationReadSecrets(SecretKey secretKey, String cipherSuite) {
             log("Derived app read secrets");
             currentReadSpace = APP;
         }
 
         @Override
-        public void deriveApplicationWriteSecrets(SecretKey secretKey) {
+        public void deriveApplicationWriteSecrets(SecretKey secretKey, String cipherSuite) {
             log("Derived app write secrets");
             currentWriteSpace = APP;
         }

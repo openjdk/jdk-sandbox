@@ -52,16 +52,16 @@ public final class QuicTLSContext {
         try {
             sslContext.createSSLEngine(null, -1, new QuicTLSAdapter() {
                 @Override
-                public void deriveHandshakeReadSecrets(SecretKey secretKey) {
+                public void deriveHandshakeReadSecrets(SecretKey secretKey, String cipherSuite) {
                 }
                 @Override
-                public void deriveHandshakeWriteSecrets(SecretKey secretKey) {
+                public void deriveHandshakeWriteSecrets(SecretKey secretKey, String cipherSuite) {
                 }
                 @Override
-                public void deriveApplicationReadSecrets(SecretKey secretKey) {
+                public void deriveApplicationReadSecrets(SecretKey secretKey, String cipherSuite) {
                 }
                 @Override
-                public void deriveApplicationWriteSecrets(SecretKey secretKey) {
+                public void deriveApplicationWriteSecrets(SecretKey secretKey, String cipherSuite) {
                 }
                 @Override
                 public String[] getSupportedCipherSuites() {

@@ -102,9 +102,11 @@ final class QuicEngineInputRecord extends InputRecord implements SSLRecord {
         epoch++;
         switch (epoch) {
             case 1->
-                    quicTLSAdapter.deriveHandshakeReadSecrets(readSecret);
+                    quicTLSAdapter.deriveHandshakeReadSecrets(readSecret,
+                            hc.negotiatedCipherSuite.name());
             case 2->
-                    quicTLSAdapter.deriveApplicationReadSecrets(readSecret);
+                    quicTLSAdapter.deriveApplicationReadSecrets(readSecret,
+                            hc.negotiatedCipherSuite.name());
             default ->
                     throw new AssertionError("Unexpected key epoch");
         }
