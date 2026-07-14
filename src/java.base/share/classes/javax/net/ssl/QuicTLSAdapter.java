@@ -100,10 +100,10 @@ public interface QuicTLSAdapter {
      * The provided secret should be used with the key derivation function
      * defined for the selected cipher suite.
      * <p>
-     * If this method is called from {@code wrap},
-     * the data produced by that call is associated with the Initial key space.
-     * Subsequent calls to {@link SSLEngine#wrap(ByteBuffer, ByteBuffer)}
-     * produce data for the Handshake key space.
+     * This method may be called from {@link SSLEngine#wrap(ByteBuffer, ByteBuffer)},
+     * in which case the data produced by that call is the last chunk associated
+     * with the Initial key space.
+     * Subsequent calls to {@code wrap} produce data for the Handshake key space.
      *
      * @param secretKey   the base secret used for deriving the handshake write keys
      * @param cipherSuite the selected cipher suite
@@ -140,10 +140,10 @@ public interface QuicTLSAdapter {
      * The provided secret should be used with the key derivation function
      * defined for the selected cipher suite.
      * <p>
-     * If this method is called from {@code wrap},
-     * the data produced by that call is associated with the Handshake key space.
-     * Subsequent calls to {@link SSLEngine#wrap(ByteBuffer, ByteBuffer)}
-     * produce data for the 1-RTT key space.
+     * This method may be called from {@link SSLEngine#wrap(ByteBuffer, ByteBuffer)},
+     * in which case the data produced by that call is the last chunk associated
+     * with the Handshake key space.
+     * Subsequent calls to {@code wrap} produce data for the 1-RTT key space.
      *
      * @param secretKey   the base secret used for deriving the 1-RTT write keys
      * @param cipherSuite the selected cipher suite
