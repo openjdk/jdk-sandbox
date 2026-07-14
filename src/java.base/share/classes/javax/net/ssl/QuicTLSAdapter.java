@@ -163,8 +163,10 @@ public interface QuicTLSAdapter {
 
     /**
      * Called by the {@link SSLEngine} to retrieve the contents of the QUIC
-     * transport parameters extension
-     * @return the QUIC transport parameters offered by this transport.
+     * transport parameters extension.
+     * <P>
+     * The returned buffer must not be modified until the calling method returns.
+     * @return the QUIC transport parameters offered by this transport. Must not be null.
      */
     ByteBuffer localQuicTransportParameters();
 
