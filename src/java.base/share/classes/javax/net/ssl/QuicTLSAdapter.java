@@ -77,8 +77,8 @@ public interface QuicTLSAdapter {
      * Called by the {@link SSLEngine} when the read secrets associated
      * with the Handshake key space are available.
      * <p>
-     * The provided secret should be used with the key derivation function
-     * defined for the selected cipher suite.
+     * The implementation should use the provided secret and cipher suite
+     * to derive the packet decryption keys for the Handshake key space.
      * <p>
      * After the {@code SSLEngine} calls this method, subsequent calls to
      * {@link SSLEngine#unwrap(ByteBuffer, ByteBuffer)}
@@ -97,8 +97,8 @@ public interface QuicTLSAdapter {
      * Called by the {@link SSLEngine} when the write secrets associated
      * with the Handshake key space are available.
      * <p>
-     * The provided secret should be used with the key derivation function
-     * defined for the selected cipher suite.
+     * The implementation should use the provided secret and cipher suite
+     * to derive the packet encryption keys for the Handshake key space.
      * <p>
      * This method may be called from {@link SSLEngine#wrap(ByteBuffer, ByteBuffer)},
      * in which case the data produced by that call is the last chunk associated
@@ -114,8 +114,8 @@ public interface QuicTLSAdapter {
      * Called by the {@link SSLEngine} when the read secrets associated
      * with the 1-RTT key space are available.
      * <p>
-     * The provided secret should be used with the key derivation function
-     * defined for the selected cipher suite.
+     * The implementation should use the provided secret and cipher suite
+     * to derive the packet decryption keys for the 1-RTT key space.
      * <p>
      * After the {@code SSLEngine} calls this method, subsequent calls to
      * {@link SSLEngine#unwrap(ByteBuffer, ByteBuffer)}
@@ -137,8 +137,8 @@ public interface QuicTLSAdapter {
      * Called by the {@link SSLEngine} when the write secrets associated
      * with the 1-RTT key space are available.
      * <p>
-     * The provided secret should be used with the key derivation function
-     * defined for the selected cipher suite.
+     * The implementation should use the provided secret and cipher suite
+     * to derive the packet encryption keys for the 1-RTT key space.
      * <p>
      * This method may be called from {@link SSLEngine#wrap(ByteBuffer, ByteBuffer)},
      * in which case the data produced by that call is the last chunk associated
