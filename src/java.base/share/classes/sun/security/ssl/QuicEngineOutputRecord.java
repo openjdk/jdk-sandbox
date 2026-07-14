@@ -46,34 +46,12 @@ final class QuicEngineOutputRecord extends OutputRecord {
     private final HandshakeFragment fragmenter = new HandshakeFragment();
     private final QuicTLSAdapter quicTLSAdapter;
 
-    private volatile boolean isCloseWaiting;
-
     QuicEngineOutputRecord(HandshakeHash handshakeHash, QuicTLSAdapter quicTLSAdapter) {
         super(handshakeHash, SSLWriteCipher.nullTlsWriteCipher());
         this.quicTLSAdapter = quicTLSAdapter;
 
         this.packetSize = SSLRecord.maxRecordSize;
         this.protocolVersion = ProtocolVersion.NONE;
-    }
-
-    @Override
-    public void close() throws IOException {
-        recordLock.lock();
-        try {
-            if (!isClosed) {
-                if (!fragmenter.isEmpty()) {
-                    isCloseWaiting = true;
-                } else {
-                    super.close();
-                }
-            }
-        } finally {
-            recordLock.unlock();
-        }
-    }
-
-    boolean isClosed() {
-        return isClosed || isCloseWaiting;
     }
 
     @Override
