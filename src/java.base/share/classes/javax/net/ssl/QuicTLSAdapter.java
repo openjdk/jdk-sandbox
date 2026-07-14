@@ -101,9 +101,10 @@ public interface QuicTLSAdapter {
      * to derive the packet encryption keys for the Handshake key space.
      * <p>
      * This method may be called from {@link SSLEngine#wrap(ByteBuffer, ByteBuffer)},
-     * in which case the data produced by that call is the last chunk associated
-     * with the Initial key space.
-     * Subsequent calls to {@code wrap} produce data for the Handshake key space.
+     * in which case the data produced by that call is the last chunk
+     * to be delivered in the Initial key space.
+     * Bytes produced by subsequent calls to {@code wrap} must be delivered
+     * in the Handshake key space.
      *
      * @param secretKey   the base secret used for deriving the handshake write keys
      * @param cipherSuite the selected cipher suite
@@ -141,9 +142,10 @@ public interface QuicTLSAdapter {
      * to derive the packet encryption keys for the 1-RTT key space.
      * <p>
      * This method may be called from {@link SSLEngine#wrap(ByteBuffer, ByteBuffer)},
-     * in which case the data produced by that call is the last chunk associated
-     * with the Handshake key space.
-     * Subsequent calls to {@code wrap} produce data for the 1-RTT key space.
+     * in which case the data produced by that call is the last chunk
+     * to be delivered in the Handshake key space.
+     * Bytes produced by subsequent calls to {@code wrap} must be delivered
+     * in the 1-RTT key space.
      *
      * @param secretKey   the base secret used for deriving the 1-RTT write keys
      * @param cipherSuite the selected cipher suite
