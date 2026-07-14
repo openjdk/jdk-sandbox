@@ -83,10 +83,10 @@ public interface QuicTLSAdapter {
      * After the {@code SSLEngine} calls this method, subsequent calls to
      * {@link SSLEngine#unwrap(ByteBuffer, ByteBuffer)}
      * expect to receive CRYPTO data associated with the Handshake space.
-     * If additional CRYPTO data is received in the Initial space
-     * after the {@code SSLEngine} has called this method,
-     * the QUIC transport implementation must close the
-     * associated QUIC connection with PROTOCOL_VIOLATION error.
+     * If the QUIC transport implementation detects CRYPTO data
+     * in the Initial space extending beyond what was already consumed
+     * by {@code unwrap()}, it must close the associated QUIC connection
+     * with a PROTOCOL_VIOLATION error.
      *
      * @param secretKey   the base secret used for deriving the handshake read keys
      * @param cipherSuite the selected cipher suite
@@ -121,10 +121,10 @@ public interface QuicTLSAdapter {
      * After the {@code SSLEngine} calls this method, subsequent calls to
      * {@link SSLEngine#unwrap(ByteBuffer, ByteBuffer)}
      * expect to receive CRYPTO data associated with the 1-RTT space.
-     * If additional CRYPTO data is received in the Handshake space
-     * after the {@code SSLEngine} has called this method,
-     * the QUIC transport implementation must close the
-     * associated QUIC connection with PROTOCOL_VIOLATION error.
+     * If the QUIC transport implementation detects CRYPTO data
+     * in the Handshake space extending beyond what was already consumed
+     * by {@code unwrap()}, it must close the associated QUIC connection
+     * with a PROTOCOL_VIOLATION error.
      * <p>
      * The derived secrets must not be used
      * before the application write secrets are available.
