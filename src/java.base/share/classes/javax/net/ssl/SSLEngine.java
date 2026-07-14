@@ -429,7 +429,7 @@ import java.util.function.BiFunction;
  * the {@code src} argument to {@code wrap()} and the {@code dst} argument
  * to {@code unwrap()} are not used.
  * <P>
- * QUIC transports the {@code CRYPTO} messages in packets encrypted with initial,
+ * QUIC transports the {@code CRYPTO} frames in packets encrypted with initial,
  * handshake, and application (1-RTT) keys. The handshake and application keys
  * are derived from secrets provided by the {@code SSLEngine} using
  * {@link QuicTLSAdapter#deriveHandshakeReadSecrets(SecretKey, String)},
