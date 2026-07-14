@@ -1038,6 +1038,10 @@ public:
   size_t early_recycled_retired_capacity() const {
     return _early_recycled_retired_regions_count * ShenandoahHeapRegion::region_size_bytes();
   }
+
+  bool allocating_from_early_recycled_regions() const {
+    return _allocating_from_early_recycled_regions;
+  }
 };
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHFREESET_HPP

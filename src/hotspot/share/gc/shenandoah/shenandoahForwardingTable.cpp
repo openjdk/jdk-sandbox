@@ -283,6 +283,7 @@ bool ShenandoahForwardingTable::build(size_t num_entries) {
   }
 }
 
+#ifdef USE_SENTINELS
 template<class Entry>
 void ShenandoahForwardingTable::write_at_originals(uintptr_t word, HeapWord* from, HeapWord* to) {
   assert(_table != nullptr, "FWT must be built before writing sentinels");
@@ -327,4 +328,49 @@ void ShenandoahForwardingTable::install_sentinels() {
     write_at_originals<FwdTableEntry>(ShenandoahHeap::in_fwt_sentinel, bottom, fwt_start);
   }
 }
+#else
+template<class Entry>
+void ShenandoahForwardingTable::add_marks_above_tams() {
+  assert(_table != nullptr, "FWT must be built before writing sentinels");
+  Entry* table = reinterpret_cast<Entry*>(_table);
+  ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
+  HeapWord* TAMS = ctx->top_at_mark_start(_region);
+  HeapWord* region_base = _region->bottom();
+#define KELVIN_MARK_BITMAP
+#ifdef KELVIN_MARK_BITMAP
+  log_info(gc)("KELVIN extending bitmap for region %zu, [" PTR_FORMAT ", " PTR_FORMAT "], TAMS: " PTR_FORMAT,
+               _region->index(), p2i(_region->bottom()), p2i(_region->end()), p2i(TAMS));
+  size_t newly_marked = 0;
+  size_t already_marked = 0;
+#endif
+  for (size_t i = 0; i < _num_entries; i++) {
+    if (table[i].is_used()) {
+      HeapWord* original = table[i].original(region_base);
+      if (original >= TAMS) {
+        bool was_upgraded;
+        oop obj = cast_to_oop(original);
+        ctx->mark_strong_ignore_tams(obj, was_upgraded);
+#ifdef KELVIN_MARK_BITMAP
+        if (was_upgraded) {
+          newly_marked++;
+        } else {
+          already_marked++;
+        }
+#endif
+      }
+    }
+  }
+#ifdef KELVIN_MARK_BITMAP
+  log_info(gc)(" added %zu mark bits, supplementing %zu originally marked_bits", newly_marked, already_marked);
+#endif
+}
+
+void ShenandoahForwardingTable::extend_mark_bitmaps() {
+  if (_compact) {
+    add_marks_above_tams<CompactFwdTableEntry>();
+  } else {
+    add_marks_above_tams<FwdTableEntry>();
+  }
+}
+#endif
 

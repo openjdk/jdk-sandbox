@@ -304,7 +304,13 @@ void ShenandoahHeapRegion::recycle_early(bool reuse_body) {
 
       reset();
       if (reuse_body) {
+#ifdef USE_SENTINELS
         _fwd_table.install_sentinels();
+#else
+        // kelvin wants to experiment with this alternative mechanism to detect forwarded objects.
+        // With this, we need valid mark bits even above TAMS, but we don't need sentinels.
+        _fwd_table.extend_mark_bitmaps();
+#endif
         _early_recycled = true;
       }
       return;

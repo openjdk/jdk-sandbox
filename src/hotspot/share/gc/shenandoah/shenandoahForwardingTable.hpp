@@ -120,8 +120,13 @@ class ShenandoahForwardingTable {
   template<class Entry>
   void verify_forwardings() PRODUCT_RETURN;
 
+#ifdef USE_SENTINELS
   template<class Entry>
   void write_at_originals(uintptr_t word, HeapWord* from, HeapWord* to);
+#else
+  template<class Entry>
+  void add_marks_above_tams();
+#endif
 
 public:
   ShenandoahForwardingTable(ShenandoahHeapRegion* region) :
@@ -143,8 +148,11 @@ public:
   HeapWord* start() const {
     return reinterpret_cast<HeapWord*>(_table);
   }
-
+#ifdef USE_SENTINELS
   void install_sentinels();
+#else
+  void extend_mark_bitmaps();
+#endif
 
   template<class Entry>
   HeapWord* forwardee(HeapWord* orginal) const;
