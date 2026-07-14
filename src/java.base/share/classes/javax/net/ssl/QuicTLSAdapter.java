@@ -58,9 +58,14 @@ import java.nio.ByteBuffer;
  * The {@code SSLEngine} produces the first application secret only.
  * Key updates are expected to be handled by the QUIC transport.
  * <P>
- * The {@code SSLEngine} reports any handshake failures using the
+ * The {@code SSLEngine} reports handshake failures using the
  * {@link #cryptoError(int, Exception)} callback.
  * Failures are not recoverable.
+ * <P>
+ * The methods on this interface may be called by {@code SSLEngine wrap()},
+ * {@code unwrap()}, {@code beginHandshake()}, or by delegated tasks.
+ * The implementations must not call {@code wrap()}, {@code unwrap()},
+ * or run any delegated tasks.
  *
  * @spec https://www.rfc-editor.org/info/rfc9001
  *      RFC 9001: Using TLS to Secure QUIC
