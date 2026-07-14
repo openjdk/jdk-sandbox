@@ -172,9 +172,13 @@ public interface QuicTLSAdapter {
      * Called by the {@link SSLEngine} when the remote QUIC
      * transport parameters extension is received.
      * <p>
-     * It is recommended to throw an exception from this method if the parameters
-     * contain invalid values
-     * @param parameters the remote QUIC transport parameters
+     * If the parameters are invalid, the QUIC transport must close
+     * the connection with the {@code TRANSPORT_PARAMETER_ERROR} error code.
+     * After closing the connection, this method may throw an exception
+     * to abort the handshake.
+     * @param parameters a buffer containing the remote QUIC transport
+     *                   parameters. This buffer is only valid for the duration
+     *                   of this callback.
      * @throws IOException when parameters are invalid
      */
     void remoteQuicTransportParameters(ByteBuffer parameters) throws IOException;
@@ -183,7 +187,8 @@ public interface QuicTLSAdapter {
      * Called by the {@link SSLEngine} when the handshake fails
      * with a fatal alert.
      * <P>
-     * The QUIC transport must convert the alert to a QUIC error code
+     * Unless the connection has already been closed for other reasons,
+     * the QUIC transport must convert the alert to a QUIC error code
      * by adding {@code 0x100} and send it in a {@code CONNECTION_CLOSE} frame
      * of type {@code 0x1c}.
      * @param code        the TLS alert code
