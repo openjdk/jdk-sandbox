@@ -33,7 +33,6 @@
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
 #include "runtime/atomicAccess.hpp"
-#include "utilities/events.hpp"
 #include "utilities/powerOfTwo.hpp"
 
 

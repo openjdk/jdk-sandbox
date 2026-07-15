@@ -25,7 +25,6 @@
 #ifndef SHARE_GC_SHENANDOAH_SHENANDOAHBARRIERSETNMETHOD_HPP
 #define SHARE_GC_SHENANDOAH_SHENANDOAHBARRIERSETNMETHOD_HPP
 
-#include "code/relocInfo.hpp"
 #include "gc/shared/barrierSetNMethod.hpp"
 #include "memory/allocation.hpp"
 
