@@ -728,7 +728,7 @@ void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char
   __ bind(*continuation());
 }
 
-address ShenandoahBarrierSetAssembler::parse_stub_address(address pc) {
+address ShenandoahBarrierSetAssembler::parse_jump_address(address pc) {
   NativeInstruction* ni = nativeInstruction_at(pc);
   assert(ni->is_jump(), "Initial code version: GC barrier fastpath must be a jump");
   NativeJump* jmp = nativeJump_at(pc);
@@ -746,44 +746,20 @@ static uint32_t encode_patchable_jump(address pc, address target_pc) {
   return 0x14000000 | (imm26 & 0x03FFFFFF);
 }
 
-static void insert_patchable_nop(address pc) {
+void ShenandoahBarrierSetAssembler::insert_patchable_nop(address pc) {
   *((uint32_t*)pc) = encode_patchable_nop();
 }
 
-static void insert_patchable_jump(address pc, address target_pc) {
+void ShenandoahBarrierSetAssembler::insert_patchable_jump(address pc, address target_pc) {
   *((uint32_t*)pc) = encode_patchable_jump(pc, target_pc);
 }
 
-static bool is_patchable_nop(address pc) {
+bool ShenandoahBarrierSetAssembler::is_patchable_nop(address pc) {
   return *((uint32_t*)pc) == encode_patchable_nop();
 }
 
-static bool is_patchable_jump(address pc, address target_pc) {
+bool ShenandoahBarrierSetAssembler::is_patchable_jump(address pc, address target_pc) {
   return *((uint32_t*)pc) == encode_patchable_jump(pc, target_pc);
-}
-
-bool ShenandoahBarrierSetAssembler::patch_barrier(address pc, address stub_pc, bool active) {
-  // Use precise instruction rewrite code, and only when it recognizes the current insns.
-  // nmethod entry barriers coordinate this update for atomicity and icache flushing.
-  bool patched = true;
-  if (active && is_patchable_nop(pc)) {
-    insert_patchable_jump(pc, stub_pc);
-  } else if (!active && is_patchable_jump(pc, stub_pc)) {
-    insert_patchable_nop(pc);
-  } else {
-    patched = false;
-  }
-
-  NativeInstruction* ni = nativeInstruction_at(pc);
-  if (active) {
-    assert(is_patchable_jump(pc, stub_pc), "Active barrier: should be jump to the same address");
-    assert(ni->is_jump(), "Active barrier: cross-checking, should be jump");
-    assert(nativeJump_at(pc)->jump_destination() == stub_pc, "Active barrier: cross-checking, jump should be to the same address");
-  } else {
-    assert(is_patchable_nop(pc), "Inactive barrier: should be patchable nop");
-  }
-
-  return patched;
 }
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {

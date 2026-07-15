@@ -788,14 +788,14 @@ void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char
   __ bind(*continuation());
 }
 
-address ShenandoahBarrierSetAssembler::parse_stub_address(address pc) {
+address ShenandoahBarrierSetAssembler::parse_jump_address(address pc) {
   NativeInstruction* ni = nativeInstruction_at(pc);
   assert(ni->is_jump(), "Must be a jump");
   NativeJump* jmp = nativeJump_at(pc);
   return jmp->jump_destination();
 }
 
-static void insert_patchable_nop(address pc) {
+void ShenandoahBarrierSetAssembler::insert_patchable_nop(address pc) {
   *(pc + 0) = 0x0F;
   *(pc + 1) = 0x1F;
   *(pc + 2) = 0x44;
@@ -803,7 +803,7 @@ static void insert_patchable_nop(address pc) {
   *(pc + 4) = 0x00;
 }
 
-static bool is_patchable_nop(address pc) {
+bool ShenandoahBarrierSetAssembler::is_patchable_nop(address pc) {
   if (*(pc + 0) != 0x0F) return false;
   if (*(pc + 1) != 0x1F) return false;
   if (*(pc + 2) != 0x44) return false;
@@ -812,7 +812,7 @@ static bool is_patchable_nop(address pc) {
   return true;
 }
 
-static void insert_patchable_jump(address pc, address target_pc) {
+void ShenandoahBarrierSetAssembler::insert_patchable_jump(address pc, address target_pc) {
   int32_t disp = checked_cast<int32_t>((intptr_t)target_pc - ((intptr_t)pc + 5));
 
   *(pc + 0) = 0xE9;
@@ -822,7 +822,7 @@ static void insert_patchable_jump(address pc, address target_pc) {
   *(pc + 4) = (disp >> 24) & 0xFF;
 }
 
-static bool is_patchable_jump(address pc, address target_pc) {
+bool ShenandoahBarrierSetAssembler::is_patchable_jump(address pc, address target_pc) {
   int32_t disp = checked_cast<int32_t>((intptr_t)target_pc - ((intptr_t)pc + 5));
 
   if (*(pc + 0) != 0xE9) return false;
@@ -831,28 +831,6 @@ static bool is_patchable_jump(address pc, address target_pc) {
   if (*(pc + 3) != ((disp >> 16) & 0xFF)) return false;
   if (*(pc + 4) != ((disp >> 24) & 0xFF)) return false;
   return true;
-}
-
-bool ShenandoahBarrierSetAssembler::patch_barrier(address pc, address stub_pc, bool active) {
-  // Use precise instruction rewrite code, and only when it recognizes the current insns.
-  // nmethod entry barriers coordinate this update for atomicity and icache flushing.
-  bool patched = true;
-  if (active && is_patchable_nop(pc)) {
-    insert_patchable_jump(pc, stub_pc);
-  } else if (!active && is_patchable_jump(pc, stub_pc)) {
-    insert_patchable_nop(pc);
-  } else {
-    patched = false;
-  }
-
-  if (active) {
-    assert(is_patchable_jump(pc, stub_pc), "Active barrier: should be jump to the same address");
-    assert(parse_stub_address(pc) == stub_pc, "Active barrier: cross-checking, jump should be to the same address");
-  } else {
-    assert(is_patchable_nop(pc), "Inactive barrier: should be patchable nop");
-  }
-
-  return patched;
 }
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {

@@ -160,7 +160,6 @@ bool ShenandoahNMethod::handle_oops(nmethod* nm) {
 
 bool ShenandoahNMethod::handle_barriers(nmethod* nm) {
   bool changed = false;
-#ifdef COMPILER2
   ShenandoahNMethod* data = gc_data(nm);
   assert(data != nullptr, "Sanity");
   assert(data->lock()->owned_by_self(), "Must hold the lock");
@@ -173,10 +172,34 @@ bool ShenandoahNMethod::handle_barriers(nmethod* nm) {
     char trigger_state = decode_reloc_gc_state(data->_barriers[c]._metadata);
     bool inverted = decode_reloc_inverted(data->_barriers[c]._metadata);
     bool active = ((gc_state & trigger_state) != 0) ^ inverted;
-    changed |= ShenandoahBarrierSetAssembler::patch_barrier(pc, target, active);
+    changed |= patch_barrier(pc, target, active);
   }
-#endif
   return changed;
+}
+
+bool ShenandoahNMethod::patch_barrier(address pc, address stub_pc, bool active) {
+#ifdef COMPILER2
+  // Use precise instruction rewrite code, and only when it recognizes the current insns.
+  // nmethod entry barriers coordinate this update for atomicity and icache flushing.
+  bool patched = true;
+  if (active && ShenandoahBarrierSetAssembler::is_patchable_nop(pc)) {
+    ShenandoahBarrierSetAssembler::insert_patchable_jump(pc, stub_pc);
+  } else if (!active && ShenandoahBarrierSetAssembler::is_patchable_jump(pc, stub_pc)) {
+    ShenandoahBarrierSetAssembler::insert_patchable_nop(pc);
+  } else {
+    patched = false;
+  }
+
+  if (active) {
+    assert(ShenandoahBarrierSetAssembler::is_patchable_jump(pc, stub_pc), "Active barrier: should be jump to the same address");
+    assert(ShenandoahBarrierSetAssembler::parse_jump_address(pc) == stub_pc, "Active barrier: cross-checking, jump should be to the same address");
+  } else {
+    assert(ShenandoahBarrierSetAssembler::is_patchable_nop(pc), "Inactive barrier: should be patchable nop");
+  }
+  return patched;
+#else
+  return false;
+#endif
 }
 
 #ifdef ASSERT
