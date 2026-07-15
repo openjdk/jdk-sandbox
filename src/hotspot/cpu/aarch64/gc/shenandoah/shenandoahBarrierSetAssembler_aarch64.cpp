@@ -717,7 +717,7 @@ void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char
     // We'll use that information to decide whether we need a far jump to the
     // stub entry point or not. In scratch_emit_size mode we don't bind entry()
     // because otherwise it will be rebound when we later emit the instructions
-    // for real.
+    // for real. We know the patched barrier is exactly one instruction long.
     __ nop();
   } else {
     patchable_jump_if_gc_state(masm, test_state, entry());
