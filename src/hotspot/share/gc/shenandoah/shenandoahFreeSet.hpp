@@ -892,6 +892,10 @@ public:
 
   // Admit reusable CSet regions' freed bodies into the Mutator free set, before update-refs.
   void recycle_collection_set();
+
+  void finish_recycle_of_one_cset_region(ShenandoahHeapRegion* r, size_t& released_regions,
+                                          size_t& released_bytes, size_t& emptied_regions);;
+
   // Release the reserved FWT tails of reusable CSet regions, after update-refs.
   void finish_cset_region_recycling();
 
