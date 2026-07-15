@@ -134,7 +134,7 @@ ShenandoahNMethod* ShenandoahNMethod::for_nmethod(nmethod* nm) {
   return new ShenandoahNMethod(nm);
 }
 
-void ShenandoahNMethod::heal_nmethod(nmethod* nm) {
+bool ShenandoahNMethod::handle_oops(nmethod* nm) {
   ShenandoahNMethod* data = gc_data(nm);
   assert(data != nullptr, "Sanity");
   assert(data->lock()->owned_by_self(), "Must hold the lock");
@@ -143,6 +143,8 @@ void ShenandoahNMethod::heal_nmethod(nmethod* nm) {
   if ((heap->is_concurrent_weak_root_in_progress() && heap->is_evacuation_in_progress()) ||
       heap->is_concurrent_strong_root_in_progress()) {
     heal_nmethod_metadata(data);
+    // Assume healing changed the code.
+    return true;
   } else if (heap->is_concurrent_mark_in_progress()) {
     ShenandoahKeepAliveClosure cl;
     data->oops_do(&cl);
@@ -151,9 +153,12 @@ void ShenandoahNMethod::heal_nmethod(nmethod* nm) {
     // In this case, concurrent root phase is skipped and degenerated GC should be
     // followed, where nmethods are disarmed.
   }
+
+  // No code modifications happened
+  return false;
 }
 
-bool ShenandoahNMethod::update_barriers(nmethod* nm) {
+bool ShenandoahNMethod::handle_barriers(nmethod* nm) {
   bool changed = false;
 #ifdef COMPILER2
   ShenandoahNMethod* data = gc_data(nm);
@@ -284,7 +289,7 @@ void ShenandoahNMethodTable::register_nmethod(nmethod* nm) {
     wait_until_concurrent_iteration_done();
     ShenandoahNMethodLocker data_locker(data->lock());
     data->update();
-    ShenandoahNMethod::update_barriers(nm);
+    ShenandoahNMethod::handle_barriers(nm);
   } else {
     // For a new nmethod, we can safely append it to the list, because
     // concurrent iteration will not touch it.
@@ -295,7 +300,7 @@ void ShenandoahNMethodTable::register_nmethod(nmethod* nm) {
     log_register_nmethod(nm);
     append(data);
     ShenandoahNMethodLocker data_locker(data->lock());
-    ShenandoahNMethod::update_barriers(nm);
+    ShenandoahNMethod::handle_barriers(nm);
   }
   // Disarm new nmethod
   ShenandoahNMethod::disarm_nmethod(nm);

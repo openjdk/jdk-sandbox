@@ -66,21 +66,19 @@ bool ShenandoahBarrierSetNMethod::nmethod_entry_barrier(nmethod* nm) {
     return false;
   }
 
-  bool code_changed = false;
+  bool changed = false;
 
-  // Heal oops
-  ShenandoahNMethod::heal_nmethod(nm);
+  // Handle oops and barriers.
+  changed |= ShenandoahNMethod::handle_oops(nm);
+  changed |= ShenandoahNMethod::handle_barriers(nm);
 
-  // Update barriers
-  code_changed |= ShenandoahNMethod::update_barriers(nm);
+  // If any code changed, bulk invalidate the entire nmethod.
+  if (changed) {
+    ICache::invalidate_range(nm->code_begin(), nm->code_size());
+  }
 
   // CodeCache unloading support
   nm->mark_as_maybe_on_stack();
-
-  // Invalidate the entire nmethod once.
-  if (code_changed) {
-    ICache::invalidate_range(nm->code_begin(), nm->code_size());
-  }
 
   // Disarm
   ShenandoahNMethod::disarm_nmethod(nm);
