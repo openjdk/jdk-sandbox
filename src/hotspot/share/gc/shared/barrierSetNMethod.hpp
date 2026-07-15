@@ -59,8 +59,6 @@ public:
 
   int disarmed_guard_value() const;
 
-  virtual void finalize_relocations(nmethod* nm) {};
-
   static int nmethod_stub_entry_barrier(address* return_address_ptr);
   bool nmethod_osr_entry_barrier(nmethod* nm);
   bool is_armed(nmethod* nm);
@@ -75,6 +73,8 @@ public:
 
   virtual oop oop_load_no_keepalive(const nmethod* nm, int index);
   virtual oop oop_load_phantom(const nmethod* nm, int index);
+
+  virtual void finalize_relocations(nmethod* nm) {}
 };
 
 
