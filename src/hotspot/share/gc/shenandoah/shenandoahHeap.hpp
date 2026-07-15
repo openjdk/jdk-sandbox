@@ -494,8 +494,6 @@ private:
   void concurrent_prepare_for_update_refs();
 
   // Turn off weak roots flag
-  void op_conc_roots();
-
   void op_final_roots();
 
   virtual void update_heap_references(ShenandoahGeneration* generation, bool concurrent);

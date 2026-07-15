@@ -140,8 +140,6 @@ bool ShenandoahOldGC::collect(GCCause::Cause cause) {
   // return from here with weak roots in progress. This is not a valid gc state
   // for any young collections (or allocation failures) that interrupt the old
   // collection.
-  // Arm the nmethods to possibly flip the barriers to idle.
-  entry_conc_roots();
   vmop_entry_final_roots();
 
   // After concurrent old marking finishes, we reclaim immediate garbage. Further, we may also want to expand OLD in order

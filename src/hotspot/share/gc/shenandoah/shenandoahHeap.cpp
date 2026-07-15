@@ -1240,6 +1240,7 @@ public:
 };
 
 void ShenandoahHeap::concurrent_prepare_for_update_refs() {
+  // The stack watermarks are active since op_final_roots().
   // Make sure the current stack watermark machinery has completed before we drop evac flags.
   // Otherwise the stack processing on stack unwinding may enter evac closure concurrently.
   ShenandoahCompleteStackwatermarkHandshakeClosure cl;
@@ -1269,30 +1270,17 @@ void ShenandoahHeap::concurrent_prepare_for_update_refs() {
   _update_refs_iterator.reset();
 }
 
-void ShenandoahHeap::op_conc_roots() {
-  // Make sure the current stack watermark machinery has completed before we drop flags.
-  ShenandoahCompleteStackwatermarkHandshakeClosure cl;
-  Handshake::execute(&cl);
-
-  {
-    // Java threads take this lock while they are being attached and added to the list of threads.
-    // If another thread holds this lock before we update the gc state, it will receive a stale
-    // gc state, but they will have been added to the list of java threads and so will be corrected
-    // by the following handshake.
-    MutexLocker lock(Threads_lock);
-
-    set_gc_state_concurrent(WEAK_ROOTS, false);
-  }
-
-  ShenandoahGCStatePropagatorHandshakeClosure propagator(_gc_state.raw_value());
-  Threads::non_java_threads_do(&propagator);
-  Handshake::execute(&propagator);
-}
-
 void ShenandoahHeap::op_final_roots() {
-  // Arm the nmethods to put barriers down.
+  set_gc_state_at_safepoint(WEAK_ROOTS, false);
+
+  // Arm the nmethods to change the barriers.
   ShenandoahCodeRoots::arm_nmethods();
   ShenandoahStackWatermark::change_epoch_id();
+
+  {
+    ShenandoahTimingsTracker timing(ShenandoahPhaseTimings::final_roots_propagate_gc_state);
+    propagate_gc_state_to_all_threads();
+  }
 }
 
 oop ShenandoahHeap::evacuate_object(oop p, Thread* thread) {

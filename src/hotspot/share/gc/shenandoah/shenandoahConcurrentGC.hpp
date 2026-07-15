@@ -94,7 +94,6 @@ protected:
   void entry_class_unloading();
   void entry_strong_roots();
   void entry_cleanup_early();
-  void entry_conc_roots();
   void entry_complete_abbreviated_cycle();
   void entry_evacuate();
   void entry_update_thread_roots();
@@ -141,7 +140,7 @@ private:
   const char* init_mark_event_message() const;
   const char* final_mark_event_message() const;
   const char* verify_final_event_message() const;
-  const char* conc_final_roots_event_message() const;
+  const char* final_roots_event_message() const;
   const char* conc_mark_event_message() const;
   const char* conc_reset_event_message() const;
   const char* conc_reset_after_collect_event_message() const;
