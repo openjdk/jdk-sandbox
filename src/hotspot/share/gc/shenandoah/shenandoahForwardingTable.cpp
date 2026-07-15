@@ -139,29 +139,27 @@ template<class Entry>
 void ShenandoahForwardingTable::clear() {
   assert((void*)(reinterpret_cast<Entry*>(_table) + _num_entries) == (void*)_region->end(), "table must be anchored at region end");
 
-  // Clear all entries, but be careful to skip existing object headers.
-  // We still need them.
-  class ClearFwdTableClosure {
-    HeapWord* _last;
-  public:
-    ClearFwdTableClosure(HeapWord* start) : _last(start) {}
-    HeapWord* last() const { return _last; }
-    void do_object(oop obj) {
-      HeapWord* current = cast_from_oop<HeapWord*>(obj);
-      if (_last != current) {
-        Copy::fill_to_aligned_words(_last, current - _last);
-      }
-      assert(*reinterpret_cast<uintptr_t*>(current) != 0, "preserved mark word must be non-zero at " PTR_FORMAT, p2i(current));
-      _last = current + 1;
-    }
-  } cl(_region->bottom());
-  ShenandoahHeap::heap()->marked_object_iterate(_region, &cl);
+  // Clear all entries in the table space, but be careful to skip existing
+  // object headers. We still need them.
+  ShenandoahMarkingContext* const ctx = ShenandoahHeap::heap()->marking_context();
+  HeapWord* const top = _region->top();
+  assert(ctx->top_at_mark_start(_region) == top, "TAMS must be at top during table build");
 
-  // Clear unused tail.
-  HeapWord* end = cl.last();
+  HeapWord* last = reinterpret_cast<HeapWord*>(_table);
+  HeapWord* cb = (last < top) ? ctx->get_next_marked_addr(last, top) : top;
+  while (cb < top) {
+    if (last != cb) {
+      Copy::fill_to_aligned_words(last, cb - last);
+    }
+    assert(*reinterpret_cast<uintptr_t*>(cb) != 0, "preserved mark word must be non-zero at " PTR_FORMAT, p2i(cb));
+    last = cb + 1;
+    cb = (last < top) ? ctx->get_next_marked_addr(last, top) : top;
+  }
+
+  // Clear the unused tail above the last preserved header.
   HeapWord* region_end = _region->end();
-  if (end != region_end) {
-    Copy::fill_to_aligned_words(end, region_end - end);
+  if (last != region_end) {
+    Copy::fill_to_aligned_words(last, region_end - last);
   }
 }
 
