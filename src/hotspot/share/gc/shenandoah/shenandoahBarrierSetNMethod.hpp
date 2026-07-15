@@ -42,7 +42,7 @@ public:
 
   virtual bool nmethod_entry_barrier(nmethod* nm);
 
-  void patch_barrier_relocation(patchable_barrier_Relocation* reloc) override;
+  void finalize_relocations(nmethod* nm) override;
 };
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHBARRIERSETNMETHOD_HPP

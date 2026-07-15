@@ -60,7 +60,7 @@ public:
 
   int disarmed_guard_value() const;
 
-  virtual void patch_barrier_relocation(patchable_barrier_Relocation* reloc) {};
+  virtual void finalize_relocations(nmethod* nm) {};
 
   static int nmethod_stub_entry_barrier(address* return_address_ptr);
   bool nmethod_osr_entry_barrier(nmethod* nm);

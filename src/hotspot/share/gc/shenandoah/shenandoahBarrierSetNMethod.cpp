@@ -87,16 +87,22 @@ bool ShenandoahBarrierSetNMethod::nmethod_entry_barrier(nmethod* nm) {
   return true;
 }
 
-void ShenandoahBarrierSetNMethod::patch_barrier_relocation(patchable_barrier_Relocation* reloc) {
+void ShenandoahBarrierSetNMethod::finalize_relocations(nmethod* nm) {
 #ifdef COMPILER2
-  if (reloc->target_offset() != 0) {
-    // Already set. This is likely nmethod relocation path, so just trust the existing relocation.
-    return;
+  RelocIterator iter(nm);
+  while (iter.next()) {
+    if (iter.type() == relocInfo::patchable_barrier_type) {
+      patchable_barrier_Relocation* r = iter.patchable_barrier_reloc();
+      if (r->target_offset() == 0) {
+        address pc = r->addr();
+        address target = ShenandoahBarrierSetAssembler::parse_stub_address(pc);
+        r->set_target_offset(target - pc);
+      } else {
+        // Already set. This is likely nmethod relocation, so just trust
+        // the existing relocation data.
+      }
+    }
   }
-
-  address pc = reloc->addr();
-  address target = ShenandoahBarrierSetAssembler::parse_stub_address(pc);
-  reloc->set_target_offset(target - pc);
 #endif
 }
 
