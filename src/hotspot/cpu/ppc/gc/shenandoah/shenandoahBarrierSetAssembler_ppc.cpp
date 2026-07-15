@@ -986,30 +986,28 @@ static void insert_patchable_nop(address pc) {
   *((uint32_t*)pc) = encode_patchable_nop();
 }
 
-static void insert_patchable_jump(address pc, int32_t disp) {
+static void insert_patchable_jump(address pc, address target_pc) {
   CodeBuffer cb(pc, BytesPerInstWord + 1);
   MacroAssembler a(&cb);
-  a.b(pc + disp);
+  a.b(target_pc);
 }
 
 static bool is_patchable_nop(address pc) {
   return *((uint32_t*)pc) == encode_patchable_nop();
 }
 
-static bool is_patchable_jump(address pc, int32_t disp) {
+static bool is_patchable_jump(address pc, address target_pc) {
   NativeInstruction* ni = nativeInstruction_at(pc);
-  return ni->is_jump() && nativeGeneralJump_at(pc)->jump_destination() == pc + disp;
+  return ni->is_jump() && nativeGeneralJump_at(pc)->jump_destination() == target_pc;
 }
 
 bool ShenandoahBarrierSetAssembler::patch_barrier(address pc, address stub_pc, bool active) {
-  int32_t disp = checked_cast<int32_t>((intptr_t)stub_pc - (intptr_t)pc);
-
   // Use precise instruction rewrite code, and only when it recognizes the current insns.
   // nmethod entry barriers coordinate this update for atomicity and icache flushing.
   bool patched = true;
   if (active && is_patchable_nop(pc)) {
-    insert_patchable_jump(pc, disp);
-  } else if (!active && is_patchable_jump(pc, disp)) {
+    insert_patchable_jump(pc, stub_pc);
+  } else if (!active && is_patchable_jump(pc, stub_pc)) {
     insert_patchable_nop(pc);
   } else {
     patched = false;
@@ -1017,7 +1015,7 @@ bool ShenandoahBarrierSetAssembler::patch_barrier(address pc, address stub_pc, b
 
   NativeInstruction* ni = nativeInstruction_at(pc);
   if (active) {
-    assert(is_patchable_jump(pc, disp), "Active barrier: should be jump to the same address");
+    assert(is_patchable_jump(pc, stub_pc), "Active barrier: should be jump to the same address");
     assert(ni->is_jump(), "Active barrier: cross-checking, should be jump");
     assert(nativeGeneralJump_at(pc)->jump_destination() == stub_pc, "Active barrier: cross-checking, jump should be to the same address");
   } else {

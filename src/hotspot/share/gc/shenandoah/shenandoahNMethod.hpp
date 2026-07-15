@@ -105,6 +105,7 @@ public:
 private:
   void init_from(nmethod* nm);
   static void parse(nmethod* nm, GrowableArray<oop*>& oops, bool& _has_non_immed_oops, GrowableArray<ShenandoahNMethodBarrier>& barriers);
+  // static void patch_barrier(address pc, address stub_pc, bool active);
 };
 
 class ShenandoahNMethodTable;
