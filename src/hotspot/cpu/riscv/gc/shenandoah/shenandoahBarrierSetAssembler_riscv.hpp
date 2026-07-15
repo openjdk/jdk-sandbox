@@ -92,8 +92,7 @@ public:
 #ifdef COMPILER2
   // Barrier hotpatching
   static address parse_stub_address(address pc);
-  static bool patch_branch_to_nop(address pc);
-  static bool patch_nop_to_branch(address pc, address stub_addr);
+  static bool patch_barrier(address pc, address stub_pc, bool active);
 
   // Entry points from Matcher
   void load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address addr, Register tmp1, Register tmp2, bool is_narrow);

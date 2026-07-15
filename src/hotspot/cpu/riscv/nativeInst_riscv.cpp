@@ -279,13 +279,6 @@ void NativeMovConstReg::print() {
 
 void NativeJump::verify() { }
 
-void NativeJump::insert(address code_pos, address entry) {
-  intptr_t disp = (intptr_t)entry - ((intptr_t)code_pos);
-  uint32_t new_jal = Assembler::encode_jal(x0, disp);
-  AtomicAccess::store((uint32_t *)code_pos, new_jal);
-  ICache::invalidate_range(code_pos, instruction_size);
-}
-
 address NativeJump::jump_destination() const {
   address dest = MacroAssembler::target_addr_for_insn(instruction_address());
 
