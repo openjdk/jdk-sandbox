@@ -179,6 +179,10 @@ void ShenandoahGenerationalHeap::evacuate_collection_set(ShenandoahGeneration* g
   ShenandoahRegionIterator regions;
   ShenandoahGenerationalEvacuationTask task(this, generation, &regions, concurrent, false /* only promote regions */);
   workers()->run_task(&task);
+  // Single post-evacuation rendezvous; see ShenandoahHeap::evacuate_collection_set.
+  if (concurrent && ShenandoahForwardingTables) {
+    rendezvous_threads("Switch to Forward Table");
+  }
 }
 
 void ShenandoahGenerationalHeap::promote_regions_in_place(ShenandoahGeneration* generation, bool concurrent) {

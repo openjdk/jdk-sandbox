@@ -166,8 +166,8 @@ void ShenandoahGenerationalEvacuationTask::evacuate_and_promote_regions() {
         cl.finish_region(r);
         num_forwardings = cl.num_forwardings();
       }
-      // Build forwarding table outside the stsj+oom scope: rendezvous_threads
-      // requires the calling thread not to be in the suspendible set.
+      // Build the forwarding table outside the stsj+oom scope, after the
+      // region's objects have been evacuated.
       _heap->finish_region_evacuation(r, num_forwardings, _concurrent);
     } else {
       ShenandoahSuspendibleThreadSetJoiner stsj(_concurrent);

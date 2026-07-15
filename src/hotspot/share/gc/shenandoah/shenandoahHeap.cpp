@@ -1201,8 +1201,8 @@ private:
         }
         num_forwardings = cl.num_forwardings();
       }
-      // Build forwarding table outside the stsj+oom scope: rendezvous_threads
-      // requires the calling thread not to be in the suspendible set.
+      // Build the forwarding table outside the stsj+oom scope, after the
+      // region's objects have been evacuated.
       _sh->finish_region_evacuation(r, num_forwardings, _concurrent);
     }
   }
@@ -1275,6 +1275,9 @@ void ShenandoahHeap::evacuate_collection_set(ShenandoahGeneration* generation, b
   assert(generation->is_global(), "Only global generation expected here");
   ShenandoahEvacuationTask task(this, _collection_set, concurrent);
   workers()->run_task(&task);
+  if (concurrent && ShenandoahForwardingTables) {
+    rendezvous_threads("Switch to Forward Table");
+  }
 }
 
 void ShenandoahHeap::concurrent_prepare_for_update_refs() {
@@ -1444,19 +1447,11 @@ bool ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t nu
   }
   bool use_fwd_table = r->build_forwarding_table(num_forwardings);
   if (use_fwd_table) {
-    // Got to make sure that everybody sees the table before
-    // turning on use_forward_table for the region.
+    // Got to make sure that everybody sees the table before turning on
+    // use_forward_table. A single rendezvous after evacuation (see
+    // evacuate_collection_set) brings every thread onto the tables.
     OrderAccess::fence();
     collection_set()->switch_to_forward_table(r);
-
-    if (concurrent) {
-      // We need to bring mutator threads to a safepoint, otherwise
-      // they might see use_forward_table=false and then end up trying
-      // to read the forwarding pointer from the mark-word which might
-      // not exist anymore.
-      assert(!Thread::current()->is_suspendible_thread(), "must not hold STS join across rendezvous");
-      rendezvous_threads("Switch to Forward Table");
-    }
   }
   return use_fwd_table;
 }
