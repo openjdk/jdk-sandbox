@@ -125,6 +125,8 @@ public:
   virtual void try_peek_weak_handle_in_nmethod(MacroAssembler* masm, Register weak_handle, Register obj,
                                                Register tmp, Label& slow_path);
 
+  virtual void check_oop(MacroAssembler *masm, Register obj, const char* msg);
+
 #ifdef COMPILER2
   // Barrier hotpatching
   static address parse_stub_address(address pc);
