@@ -735,52 +735,56 @@ address ShenandoahBarrierSetAssembler::parse_stub_address(address pc) {
   return jmp->jump_destination();
 }
 
-static bool is_patchable_nop(address pc) {
-  if (*(pc + 0) != 0x1F) return false;
-  if (*(pc + 1) != 0x20) return false;
-  if (*(pc + 2) != 0x03) return false;
-  if (*(pc + 3) != 0xD5) return false;
-  return true;
+static uint32_t encode_patchable_nop() {
+  return 0xD503201F;
+}
+
+static uint32_t encode_patchable_jump(int32_t disp) {
+  int64_t imm26 = disp >> 2;
+  assert(Assembler::is_simm(imm26, 26), "maximum offset is 128MiB");
+  return 0x14000000 | (imm26 & 0x03FFFFFF);
 }
 
 static void insert_patchable_nop(address pc) {
-  *reinterpret_cast<int32_t*>(pc) = 0xD503201F;
+  *((uint32_t*)pc) = encode_patchable_nop();
 }
 
-static void insert_patchable_jump(address code_pos, address entry) {
-  intptr_t disp = (intptr_t)entry - ((intptr_t)code_pos);
-  int64_t imm26 = disp >> 2;
-  guarantee(Assembler::is_simm(imm26, 26), "maximum offset is 128MiB, requested %ld", imm26);
-
-  uint32_t new_val = 0x14000000 | (imm26 & 0x03FFFFFF);
-  AtomicAccess::store((uint32_t*)code_pos, new_val);
+static void insert_patchable_jump(address pc, int32_t disp) {
+  *((uint32_t*)pc) = encode_patchable_jump(disp);
 }
 
-static void check_at(bool cond, address pc, const char* msg) {
-  assert(cond, "%s: at PC " PTR_FORMAT ": %02x%02x%02x%02x",
-         msg, p2i(pc), *(pc + 0), *(pc + 1), *(pc + 2), *(pc + 3));
+static bool is_patchable_nop(address pc) {
+  return *((uint32_t*)pc) == encode_patchable_nop();
 }
 
-bool ShenandoahBarrierSetAssembler::patch_branch_to_nop(address pc) {
-  NativeInstruction* ni = nativeInstruction_at(pc);
-  bool patching = ni->is_jump();
-  if (patching) {
+static bool is_patchable_jump(address pc, int32_t disp) {
+  return *((uint32_t*)pc) == encode_patchable_jump(disp);
+}
+
+bool ShenandoahBarrierSetAssembler::patch_barrier(address pc, address stub_pc, bool active) {
+  int32_t disp = checked_cast<int32_t>((intptr_t)stub_pc - (intptr_t)pc);
+
+  // Use precise instruction rewrite code, and only when it recognizes the current insns.
+  // nmethod entry barriers coordinate this update for atomicity and icache flushing.
+  bool patched = true;
+  if (active && is_patchable_nop(pc)) {
+    insert_patchable_jump(pc, disp);
+  } else if (!active && is_patchable_jump(pc, disp)) {
     insert_patchable_nop(pc);
-  }
-  check_at(is_patchable_nop(pc), pc, "Should be nop");
-  return patching;
-}
-
-bool ShenandoahBarrierSetAssembler::patch_nop_to_branch(address pc, address stub_addr) {
-  bool patching = is_patchable_nop(pc);
-  if (patching) {
-    insert_patchable_jump(pc, stub_addr);
+  } else {
+    patched = false;
   }
 
   NativeInstruction* ni = nativeInstruction_at(pc);
-  check_at(ni->is_jump(), pc, "Should be jump");
-  check_at(nativeJump_at(pc)->jump_destination() == stub_addr, pc, "Jump should be to the same address");
-  return patching;
+  if (active) {
+    assert(is_patchable_jump(pc, disp), "Active barrier: should be jump to the same address");
+    assert(ni->is_jump(), "Active barrier: cross-checking, should be jump");
+    assert(nativeJump_at(pc)->jump_destination() == stub_pc, "Active barrier: cross-checking, jump should be to the same address");
+  } else {
+    assert(is_patchable_nop(pc), "Inactive barrier: should be patchable nop");
+  }
+
+  return patched;
 }
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {

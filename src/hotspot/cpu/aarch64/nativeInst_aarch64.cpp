@@ -29,7 +29,6 @@
 #include "gc/shared/collectedHeap.hpp"
 #include "nativeInst_aarch64.hpp"
 #include "oops/oop.inline.hpp"
-#include "runtime/atomicAccess.hpp"
 #include "runtime/handles.hpp"
 #include "runtime/orderAccess.hpp"
 #include "runtime/sharedRuntime.hpp"
