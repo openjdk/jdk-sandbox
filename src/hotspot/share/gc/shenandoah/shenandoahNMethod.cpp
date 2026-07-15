@@ -173,11 +173,7 @@ bool ShenandoahNMethod::handle_barriers(nmethod* nm) {
     char trigger_state = decode_reloc_gc_state(data->_barriers[c]._metadata);
     bool inverted = decode_reloc_inverted(data->_barriers[c]._metadata);
     bool active = ((gc_state & trigger_state) != 0) ^ inverted;
-    if (active) {
-      changed |= ShenandoahBarrierSetAssembler::patch_nop_to_branch(pc, target);
-    } else {
-      changed |= ShenandoahBarrierSetAssembler::patch_branch_to_nop(pc);
-    }
+    changed |= ShenandoahBarrierSetAssembler::patch_barrier(pc, target, active);
   }
 #endif
   return changed;
