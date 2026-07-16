@@ -193,8 +193,9 @@ bool ShenandoahNMethod::patch_barrier(address pc, address stub_pc, bool active) 
   }
 
   if (active) {
-    assert(ShenandoahBarrierSetAssembler::is_patchable_jump(pc, stub_pc), "Active barrier: should be jump to the same address");
-    assert(ShenandoahBarrierSetAssembler::parse_jump_address(pc) == stub_pc, "Active barrier: cross-checking, jump should be to the same address");
+    // Failing these are catastrophic for correctness, so prefer to crash hard even in product.
+    guarantee(ShenandoahBarrierSetAssembler::is_patchable_jump(pc, stub_pc), "Active barrier: should be jump to the same address");
+    guarantee(ShenandoahBarrierSetAssembler::parse_jump_address(pc) == stub_pc, "Active barrier: cross-checking, jump should be to the same address");
   } else {
     assert(ShenandoahBarrierSetAssembler::is_patchable_nop(pc), "Inactive barrier: should be patchable nop");
   }
