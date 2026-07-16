@@ -321,6 +321,8 @@ void ShenandoahNMethodTable::register_nmethod(nmethod* nm) {
     ShenandoahNMethodLocker data_locker(data->lock());
     ShenandoahNMethod::handle_barriers(nm);
   }
+  // Fix ups might have happened, flush the nmethod now.
+  ICache::invalidate_range(nm->code_begin(), nm->code_size());
   // Disarm new nmethod
   ShenandoahNMethod::disarm_nmethod(nm);
 }

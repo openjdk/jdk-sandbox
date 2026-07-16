@@ -106,4 +106,3 @@ void ShenandoahBarrierSetNMethod::finalize_relocations(nmethod* nm) {
   }
 #endif
 }
-
