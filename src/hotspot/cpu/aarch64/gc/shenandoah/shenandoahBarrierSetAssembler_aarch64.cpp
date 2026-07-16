@@ -708,7 +708,7 @@ void ShenandoahBarrierStubC2::patchable_jump_if_not_gc_state(MacroAssembler& mas
   __ b(*L_target);
 }
 
-void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp) {
+void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
   PhaseOutput* const output = Compile::current()->output();
 

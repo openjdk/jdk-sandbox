@@ -782,7 +782,7 @@ void ShenandoahBarrierStubC2::patchable_jump_if_not_gc_state(MacroAssembler& mas
   __ jmp(*L_target, /* maybe_short = */ false);
 }
 
-void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp) {
+void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
   patchable_jump_if_gc_state(masm, test_state, entry());
   __ bind(*continuation());

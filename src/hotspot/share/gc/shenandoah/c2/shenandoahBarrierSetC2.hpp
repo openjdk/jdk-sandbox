@@ -174,7 +174,7 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   void patchable_jump_if_gc_state(MacroAssembler& masm, const char test_state, Label* L_target);
   void patchable_jump_if_not_gc_state(MacroAssembler& masm, const char test_state, Label* L_target);
 
-  void enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp);
+  void enter_if_gc_state(MacroAssembler& masm, const char test_state);
 
   void keepalive(MacroAssembler& masm, Label* L_done);
   void lrb(MacroAssembler& masm);
