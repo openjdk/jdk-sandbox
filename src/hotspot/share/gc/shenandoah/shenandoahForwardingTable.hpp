@@ -27,6 +27,7 @@
 #include "gc/shared/fullGCForwarding.hpp"
 #include "utilities/globalDefinitions.hpp"
 
+class BitMap;
 class ShenandoahHeapRegion;
 class ShenandoahMarkingContext;
 
@@ -39,6 +40,7 @@ public:
   HeapWord* original(HeapWord* region_base) const { return _original; }
   HeapWord* forwardee() const { return _forwardee; }
   bool is_marked(ShenandoahMarkingContext* ctx) const;
+  // Used on the forwardee lookup path. At construction time the scratch BitMap is used instead.
   bool is_used() const { return _original != nullptr || _forwardee != nullptr; }
   bool is_original(HeapWord* region_base, HeapWord* original);
 };
@@ -83,6 +85,7 @@ public:
   HeapWord* original(HeapWord* region_base) const { return decode_original(region_base, _encoded); }
   HeapWord* forwardee() const { return decode_forwardee(_encoded); }
   bool is_marked(ShenandoahMarkingContext* ctx) const;
+  // Used on the forwardee lookup path. At construction time the scratch BitMap is used instead.
   bool is_used() const { return _encoded != 0; }
   bool is_original(HeapWord* region_base, HeapWord* original);
 };
@@ -104,15 +107,18 @@ class ShenandoahForwardingTable {
   bool initialize(size_t num_forwardings);
 
   template<class Entry>
-  void clear();
+  void set_marked_entries_used(BitMap& used);
+
+  template<class Entry>
+  void clear_unused_slots(const BitMap& used);
 
   static uint64_t hash(HeapWord* original, void* table);
 
   template<class Entry>
-  void enter_forwarding(HeapWord* original, HeapWord* forwardee);
+  void enter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee);
 
   template<class Entry>
-  void fill_forwardings();
+  void fill_forwardings(BitMap& used);
 
   template<class Entry>
   void log_stats() const;
