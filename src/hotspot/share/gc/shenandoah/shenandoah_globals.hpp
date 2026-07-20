@@ -516,9 +516,6 @@
   product(bool, ShenandoahElideMachBarriers, true, DIAGNOSTIC,              \
           "Elide redundant Shenandoah barriers on C2 Mach level.")          \
                                                                             \
-  product(bool, ShenandoahCompleteBarriersEagerly, true, DIAGNOSTIC,        \
-          "Complete barrier fixups eagerly instead of lazily.")             \
-                                                                            \
   develop(bool, ShenandoahVerifyOptoBarriers, trueInDebug,                  \
           "Verify no missing barriers in C2.")                              \
                                                                             \

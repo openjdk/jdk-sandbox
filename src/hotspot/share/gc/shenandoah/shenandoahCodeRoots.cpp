@@ -57,24 +57,6 @@ void ShenandoahCodeRoots::arm_nmethods() {
   BarrierSet::barrier_set()->barrier_set_nmethod()->arm_all_nmethods();
 }
 
-class ShenandoahRunNMethodClosure : public NMethodClosure {
-private:
-  BarrierSetNMethod* const  _bs;
-
-public:
-  ShenandoahRunNMethodClosure() : _bs(ShenandoahBarrierSet::barrier_set()->barrier_set_nmethod()) {}
-
-  virtual void do_nmethod(nmethod* nm) {
-    _bs->nmethod_entry_barrier(nm);
-  }
-};
-
-void ShenandoahCodeRoots::complete_nmethod_entry_barriers() {
-  ShenandoahRunNMethodClosure nm_cl;
-  ShenandoahConcurrentNMethodIterator iterator(table());
-  iterator.nmethods_do(&nm_cl);
-}
-
 class ShenandoahNMethodUnlinkClosure : public NMethodClosure {
 private:
   bool                      _unloading_occurred;

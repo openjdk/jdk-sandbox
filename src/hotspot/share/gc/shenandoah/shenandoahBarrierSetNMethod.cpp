@@ -77,11 +77,8 @@ bool ShenandoahBarrierSetNMethod::nmethod_entry_barrier(nmethod* nm) {
     ICache::invalidate_range(nm->code_begin(), nm->code_size());
   }
 
-  // CodeCache unloading support. We only care about it when GC is not idle:
-  // sweeper treats this data as "gathered during the GC cycle".
-  if (!ShenandoahHeap::heap()->is_idle()) {
-    nm->mark_as_maybe_on_stack();
-  }
+  // CodeCache unloading support.
+  nm->mark_as_maybe_on_stack();
 
   // Disarm
   ShenandoahNMethod::disarm_nmethod(nm);

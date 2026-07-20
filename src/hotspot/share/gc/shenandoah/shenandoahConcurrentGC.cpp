@@ -1288,12 +1288,6 @@ void ShenandoahConcurrentGC::op_reset_after_collect() {
                           ShenandoahWorkerPolicy::calc_workers_for_conc_reset(),
                           "reset after collection.");
 
-  // Complete all nmethod entry barriers ahead of mutator hitting them.
-  if (ShenandoahCompleteBarriersEagerly) {
-    ShenandoahTimingsTracker timing(ShenandoahPhaseTimings::conc_reset_after_collect_nmethods);
-    ShenandoahCodeRoots::complete_nmethod_entry_barriers();
-  }
-
   ShenandoahHeap* const heap = ShenandoahHeap::heap();
   if (heap->mode()->is_generational()) {
     // If we are in the midst of an old gc bootstrap or an old marking, we want to leave the mark bit map of
