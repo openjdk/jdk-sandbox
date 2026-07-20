@@ -177,8 +177,8 @@ void ShenandoahForwardingTable::clear_unused_slots(const BitMap& used) {
 template<class Entry>
 void ShenandoahForwardingTable::enter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee) {
   Entry* table = reinterpret_cast<Entry*>(_table);
-  uint64_t index = index_of(original);
-  DEBUG_ONLY(uint64_t const first_index = index;)
+  size_t index = index_of(original);
+  DEBUG_ONLY(size_t const first_index = index;)
   HeapWord* region_base = _region->bottom();
   while (used.at(index)) {
     assert(!table[index].is_original(region_base, original), "occupied slot must not match the original being entered");

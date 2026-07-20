@@ -76,15 +76,15 @@ inline uint64_t ShenandoahForwardingTable::hash(HeapWord* original, void* table)
  return FastHash::get_hash64(reinterpret_cast<uint64_t>(original), reinterpret_cast<uint64_t>(table));
 }
 
-inline uint64_t ShenandoahForwardingTable::index_of(HeapWord* original) const {
- return hash(original, _table) % _num_entries;
+inline size_t ShenandoahForwardingTable::index_of(HeapWord* original) const {
+ return static_cast<size_t>(hash(original, _table) % _num_entries);
 }
 
 template<class Entry>
 HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
  Entry* table = reinterpret_cast<Entry*>(_table);
- uint64_t const start_index = index_of(original);
- uint64_t index = start_index;
+ size_t const start_index = index_of(original);
+ size_t index = start_index;
 
  HeapWord* const region_base = _region->bottom();
 
