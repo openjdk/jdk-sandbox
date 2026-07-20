@@ -35,6 +35,8 @@ class FwdTableEntry {
   HeapWord* const _original;
   HeapWord* const _forwardee;
 public:
+  // Default-constructed entries read as unused.
+  FwdTableEntry() : _original(nullptr), _forwardee(nullptr) {}
   FwdTableEntry(HeapWord* region_base, HeapWord* original, HeapWord* forwardee) : _original(original), _forwardee(forwardee) {}
 
   HeapWord* original(HeapWord* region_base) const { return _original; }
@@ -65,6 +67,8 @@ class CompactFwdTableEntry {
   static HeapWord* decode_forwardee(uint64_t encoded);
 
 public:
+  // Default-constructed entries read as unused.
+  CompactFwdTableEntry() : _encoded(0) {}
   CompactFwdTableEntry(HeapWord* region_base, HeapWord* original, HeapWord* forwardee) : _encoded(encode(region_base, original, forwardee)) {}
 
   static constexpr size_t max_region_size_words() {

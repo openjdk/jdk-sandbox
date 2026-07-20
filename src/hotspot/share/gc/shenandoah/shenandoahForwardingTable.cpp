@@ -28,7 +28,6 @@
 #include "gc/shenandoah/shenandoahMarkingContext.hpp"
 #include "memory/resourceArea.hpp"
 #include "utilities/bitMap.inline.hpp"
-#include "utilities/copy.hpp"
 
 HeapWord* CompactFwdTableEntry::_heap_base = nullptr;
 bool ShenandoahForwardingTable::_compact = false;
@@ -165,12 +164,10 @@ void ShenandoahForwardingTable::set_marked_entries_used(BitMap& used) {
 template<class Entry>
 void ShenandoahForwardingTable::clear_unused_slots(const BitMap& used) {
   Entry* table = reinterpret_cast<Entry*>(_table);
-  constexpr size_t entry_words = sizeof(Entry) / sizeof(HeapWord*);
   BitMap::idx_t current = used.find_first_clear_bit(0);
   while (current < _num_entries) {
-    BitMap::idx_t next = used.find_first_set_bit(current);
-    Copy::fill_to_aligned_words(reinterpret_cast<HeapWord*>(&table[current]), (next - current) * entry_words);
-    current = used.find_first_clear_bit(next);
+    new (&table[current]) Entry();
+    current = used.find_first_clear_bit(current + 1);
   }
 }
 
