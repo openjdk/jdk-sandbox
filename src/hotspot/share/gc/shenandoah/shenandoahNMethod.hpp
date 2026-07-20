@@ -38,9 +38,9 @@ typedef ShenandoahReentrantLock<ShenandoahSimpleLock> ShenandoahNMethodLock;
 typedef ShenandoahLocker<ShenandoahNMethodLock>       ShenandoahNMethodLocker;
 
 struct ShenandoahNMethodBarrier {
-  int _rel_pc;
-  int _rel_target;
-  int _metadata;
+  int32_t _rel_pc;
+  int32_t _rel_target;
+  uint16_t _metadata;
 };
 
 // ShenandoahNMethod tuple records the internal locations of oop slots within reclocation stream in
@@ -63,16 +63,16 @@ public:
   ShenandoahNMethod(nmethod *nm);
   ~ShenandoahNMethod();
 
-  static bool decode_reloc_active(int reloc) {
+  static bool decode_reloc_active(uint16_t reloc) {
     return (reloc & (1 << 8)) != 0;
   }
 
-  static char decode_reloc_gc_state(int reloc) {
+  static char decode_reloc_gc_state(uint16_t reloc) {
     return (reloc & 0xFF);
   }
 
-  static int encode_to_reloc(char gc_state, bool active) {
-    int res = (gc_state & 0xFF) | (active ? (1 << 8) : 0);
+  static uint16_t encode_to_reloc(char gc_state, bool active) {
+    uint16_t res = (gc_state & 0xFF) | (active ? (1 << 8) : 0);
     assert(decode_reloc_active(res)   == active, "Round-trip");
     assert(decode_reloc_gc_state(res) == gc_state, "Round-trip");
     return res;

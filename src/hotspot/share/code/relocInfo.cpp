@@ -571,25 +571,24 @@ void section_word_Relocation::unpack_data() {
 
 void patchable_barrier_Relocation::pack_data_to(CodeSection* dest) {
   short* p = (short*) dest->locs_end();
-  *p++ = relocInfo::data0_from_int(_metadata);
-  *p++ = relocInfo::data1_from_int(_metadata);
   *p++ = relocInfo::data0_from_int(_target_offset);
   *p++ = relocInfo::data1_from_int(_target_offset);
+  *p++ = checked_cast<short>(_metadata);
   dest->set_locs_end((relocInfo*)p);
 }
 
 void patchable_barrier_Relocation::unpack_data() {
-  assert(datalen() == 4, "Should be two int fields");
+  assert(datalen() == 3, "Should be short+int fields");
   short* d = data();
-  _metadata = relocInfo::jint_from_data(&d[0]);
-  _target_offset = relocInfo::jint_from_data(&d[2]);
+  _target_offset = relocInfo::jint_from_data(&d[0]);
+  _metadata = checked_cast<uint16_t>(d[2]);
 }
 
-void patchable_barrier_Relocation::set_target_offset(jint target_offset) {
-  assert(datalen() == 4, "Should be two int fields");
+void patchable_barrier_Relocation::set_target_offset(int32_t target_offset) {
+  assert(datalen() == 3, "Should be short+int fields");
   short* d = data();
-  d[2] = relocInfo::data0_from_int(target_offset);
-  d[3] = relocInfo::data1_from_int(target_offset);
+  d[0] = relocInfo::data0_from_int(target_offset);
+  d[1] = relocInfo::data1_from_int(target_offset);
 }
 
 //// miscellaneous methods

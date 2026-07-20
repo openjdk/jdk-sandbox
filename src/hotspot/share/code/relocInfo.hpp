@@ -1075,26 +1075,26 @@ class barrier_Relocation : public Relocation {
 
 class patchable_barrier_Relocation : public Relocation {
  private:
-  jint _metadata;
-  jint _target_offset;
+  int32_t _target_offset;
+  uint16_t _metadata;
 
  public:
-  static RelocationHolder spec(int metadata) {
+  static RelocationHolder spec(uint16_t metadata) {
     return RelocationHolder::construct<patchable_barrier_Relocation>(metadata);
   }
 
-  patchable_barrier_Relocation(int metadata) : Relocation(relocInfo::patchable_barrier_type),
-    _metadata(metadata), _target_offset(0) { }
+  patchable_barrier_Relocation(uint16_t metadata) : Relocation(relocInfo::patchable_barrier_type),
+    _target_offset(0), _metadata(metadata) { }
 
   void pack_data_to(CodeSection* dest) override;
   void unpack_data() override;
 
   void copy_into(RelocationHolder& holder) const override;
 
-  jint metadata() const { return _metadata; }
-  jint target_offset() const { return _target_offset; }
+  uint16_t metadata() const { return _metadata; }
+  int32_t target_offset() const { return _target_offset; }
 
-  void set_target_offset(jint target_offset);
+  void set_target_offset(int32_t target_offset);
 
 private:
   friend class RelocIterator;
