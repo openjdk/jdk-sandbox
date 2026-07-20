@@ -1054,6 +1054,8 @@ void ShenandoahBarrierStubC2::post_init() {
   ShenandoahBarrierSetC2State* state = barrier_set_state();
   if (output->in_scratch_emit_size()) {
     state->inc_stubs_current_total_size(get_stub_size(this));
+    entry()->reset();
+    continuation()->reset();
     _needs_far_jump = true;
     return;
   }

@@ -680,8 +680,8 @@ void ShenandoahBarrierStubC2::patchable_jump(MacroAssembler& masm, const char te
   PhaseOutput* const output = Compile::current()->output();
   if (output->in_scratch_emit_size()) {
     // We piggyback on scratch_emit_size mode to compute the slowpath stub size.
-    // Avoid binding entry() at this time. We know the patched check is at worst
-    // two instructions long.
+    // Avoid binding entry() or trusting needs_far_jump at this time.
+    // We know the patched check is at worst two instructions long.
     __ nop();
     __ nop();
     return;
@@ -745,14 +745,7 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
   PhaseOutput* const output = Compile::current()->output();
 
-  // We piggyback on scratch_emit_size mode to compute the slowpath stub size.
-  // We'll use that information to decide whether we need a far jump to the
-  // stub entry point or not. In scratch_emit_size mode we don't bind entry()
-  // because otherwise it will be rebound when we later emit the instructions
-  // for real.
-  if (!output->in_scratch_emit_size()) {
-    __ bind(*entry());
-  }
+  __ bind(*entry());
 
   // If we need to load ourselves, do it here.
   if (_do_load) {
