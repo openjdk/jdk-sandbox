@@ -1029,3 +1029,37 @@ bool ShenandoahBarrierSetC2State::needs_liveness_data(const MachNode* mach) cons
 bool ShenandoahBarrierSetC2State::needs_livein_data() const {
   return true;
 }
+
+static int get_stub_size(ShenandoahBarrierStubC2* stub) {
+  PhaseOutput* const output = Compile::current()->output();
+  assert(output->in_scratch_emit_size(), "only used when in scratch_emit_size.");
+  BufferBlob* const blob = output->scratch_buffer_blob();
+  CodeBuffer cb(blob->content_begin(), (address)output->scratch_locs_memory() - blob->content_begin());
+  MacroAssembler masm(&cb);
+  stub->emit_code(masm);
+  return cb.insts_size();
+}
+
+void ShenandoahBarrierStubC2::post_init() {
+  const int branch_max_reach = max_branch_reach();
+  if (branch_max_reach < 0) {
+    // This architecture can encode any branch without special treatment.
+    _needs_far_jump = false;
+    return;
+  }
+
+  // If we are in scratch emit mode we assume worst case, and force the use of
+  // far branches.
+  PhaseOutput* const output = Compile::current()->output();
+  ShenandoahBarrierSetC2State* state = barrier_set_state();
+  if (output->in_scratch_emit_size()) {
+    state->inc_stubs_current_total_size(get_stub_size(this));
+    _needs_far_jump = true;
+    return;
+  }
+
+  // Otherwise we need far jumps if we predict some branches would be long.
+  const BufferSizingData* sizing = output->buffer_sizing_data();
+  const int code_size = sizing->_code + state->stubs_current_total_size();
+  _needs_far_jump = code_size >= branch_max_reach;
+}

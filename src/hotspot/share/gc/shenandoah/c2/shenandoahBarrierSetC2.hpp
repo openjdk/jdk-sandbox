@@ -170,9 +170,24 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   bool is_special_register(Register reg);
   Register select_temp_register(bool& selected_live, Register skip_reg1 = noreg, Register skip_reg2 = noreg);
 
+  int max_branch_reach();
+
   void maybe_far_jump_if_zero(MacroAssembler& masm, Register reg);
-  void patchable_jump_if_gc_state(MacroAssembler& masm, const char test_state, Label* L_target);
-  void patchable_jump_if_not_gc_state(MacroAssembler& masm, const char test_state, Label* L_target);
+
+  void patchable_jump(MacroAssembler& masm, const char test_state, bool active, Label* L_target, bool needs_far_jump);
+
+  void patchable_short_jump_if_gc_state(MacroAssembler& masm, const char test_state, Label* L_target) {
+    patchable_jump(masm, test_state, true, L_target, false);
+  }
+  void patchable_short_jump_if_not_gc_state(MacroAssembler& masm, const char test_state, Label* L_target) {
+    patchable_jump(masm, test_state, false, L_target, false);
+  }
+  void patchable_jump_if_gc_state(MacroAssembler& masm, const char test_state, Label* L_target) {
+    patchable_jump(masm, test_state, true, L_target, _needs_far_jump);
+  }
+  void patchable_jump_if_not_gc_state(MacroAssembler& masm, const char test_state, Label* L_target) {
+    patchable_jump(masm, test_state, false, L_target, _needs_far_jump);
+  }
 
   void enter_if_gc_state(MacroAssembler& masm, const char test_state);
 

@@ -177,8 +177,8 @@ bool ShenandoahNMethod::handle_barriers(nmethod* nm) {
     address pc = code_begin + b._rel_pc;
     address target = pc + b._rel_target;
     char rel_gc_state = decode_reloc_gc_state(b._metadata);
-    bool rel_inverted = decode_reloc_inverted(b._metadata);
-    bool active = ((gc_state & rel_gc_state) != 0) ^ rel_inverted;
+    bool rel_active   = decode_reloc_active(b._metadata);
+    bool active = ((gc_state & rel_gc_state) != 0) ^ !rel_active;
     changed |= patch_barrier(pc, target, active);
   }
   return changed;

@@ -51,6 +51,7 @@
 #endif
 #ifdef COMPILER2
 #include "gc/shenandoah/c2/shenandoahBarrierSetC2.hpp"
+#include "opto/output.hpp"
 #endif
 
 #define __ masm->
@@ -951,18 +952,30 @@ void ShenandoahBarrierStubC2::cardtable(MacroAssembler& masm, Address address, R
   __ stbx(R0, tmp2, tmp1);
 }
 
-void ShenandoahBarrierStubC2::patchable_jump_if_gc_state(MacroAssembler& masm, const char test_state, Label* L_target) {
-  // Emit the unconditional branch in the first version of the method.
-  // Let the rest of runtime figure out how to manage it.
-  __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::encode_to_reloc(test_state, false)));
-  __ b(*L_target);
-}
+void ShenandoahBarrierStubC2::patchable_jump(MacroAssembler& masm, const char test_state, bool active, Label* L_target, bool needs_far_jump) {
+  PhaseOutput* const output = Compile::current()->output();
+  if (output->in_scratch_emit_size()) {
+    // We piggyback on scratch_emit_size mode to compute the slowpath stub size.
+    // Avoid binding L_target at this time. We know the patched check is exactly
+    // two instructions long.
+    __ nop();
+    __ nop();
+    return;
+  }
 
-void ShenandoahBarrierStubC2::patchable_jump_if_not_gc_state(MacroAssembler& masm, const char test_state, Label* L_target) {
   // Emit the unconditional branch in the first version of the method.
-  // Let the rest of runtime figure out how to manage it.
-  __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::encode_to_reloc(test_state, true)));
-  __ b(*L_target);
+  // Let the rest of runtime figure out how to manage it. If the jump target
+  // is far away, we need to flip it to make sure patchable jumps are encodeable.
+  if (needs_far_jump) {
+    Label L_over;
+    __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::encode_to_reloc(test_state, !active)));
+    __ b(L_over);
+    __ b(*L_target);
+    __ bind(L_over);
+  } else {
+    __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::encode_to_reloc(test_state, active)));
+    __ b(*L_target);
+  }
 }
 
 void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state) {
@@ -1004,8 +1017,16 @@ bool ShenandoahBarrierSetAssembler::is_patchable_jump(address pc, address target
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
   assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
+  PhaseOutput* const output = Compile::current()->output();
 
-  __ bind(*entry());
+  // We piggyback on scratch_emit_size mode to compute the slowpath stub size.
+  // We'll use that information to decide whether we need a far jump to the
+  // stub entry point or not. In scratch_emit_size mode we don't bind entry()
+  // because otherwise it will be rebound when we later emit the instructions
+  // for real.
+  if (!output->in_scratch_emit_size()) {
+    __ bind(*entry());
+  }
 
   // If we need to load ourselves, do it here.
   if (_do_load) {
@@ -1055,7 +1076,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   if (_needs_load_ref_barrier) {
     assert(L_done == nullptr, "Should be");
     char state_to_check = ShenandoahHeap::MARKING;
-    patchable_jump_if_not_gc_state(masm, state_to_check, &L_through);
+    patchable_short_jump_if_not_gc_state(masm, state_to_check, &L_through);
   }
 
   // Fast-path: put object into buffer.
@@ -1114,7 +1135,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   // regardless of their cset status.
   if (_needs_load_ref_weak_barrier) {
     char state_to_check = ShenandoahHeap::WEAK_ROOTS;
-    patchable_jump_if_gc_state(masm, state_to_check, &L_slow);
+    patchable_short_jump_if_gc_state(masm, state_to_check, &L_slow);
   }
 
   // Cset-check. Fall-through to slow if in collection set.
@@ -1181,8 +1202,9 @@ bool ShenandoahBarrierStubC2::is_special_register(Register r) {
   return true;
 }
 
-void ShenandoahBarrierStubC2::post_init() {
-  // Do nothing.
+int ShenandoahBarrierStubC2::max_branch_reach() {
+  // The range is 32M. Subtract 2K to be ultra conservative.
+  return (int)(32*M - 2*K);
 }
 
 #endif // COMPILER2

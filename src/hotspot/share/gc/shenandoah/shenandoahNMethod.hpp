@@ -63,7 +63,7 @@ public:
   ShenandoahNMethod(nmethod *nm);
   ~ShenandoahNMethod();
 
-  static bool decode_reloc_inverted(int reloc) {
+  static bool decode_reloc_active(int reloc) {
     return (reloc & (1 << 8)) != 0;
   }
 
@@ -71,9 +71,9 @@ public:
     return (reloc & 0xFF);
   }
 
-  static int encode_to_reloc(char gc_state, bool inverted) {
-    int res = (gc_state & 0xFF) | (inverted ? (1 << 8) : 0);
-    assert(decode_reloc_inverted(res) == inverted, "Round-trip");
+  static int encode_to_reloc(char gc_state, bool active) {
+    int res = (gc_state & 0xFF) | (active ? (1 << 8) : 0);
+    assert(decode_reloc_active(res)   == active, "Round-trip");
     assert(decode_reloc_gc_state(res) == gc_state, "Round-trip");
     return res;
   }

@@ -768,17 +768,10 @@ void ShenandoahBarrierStubC2::cardtable(MacroAssembler& masm, Address addr, Regi
   __ bind(L_done);
 }
 
-void ShenandoahBarrierStubC2::patchable_jump_if_gc_state(MacroAssembler& masm, const char test_state, Label* L_target) {
+void ShenandoahBarrierStubC2::patchable_jump(MacroAssembler& masm, const char test_state, bool active, Label* L_target, bool needs_far_jump) {
   // Emit the unconditional branch in the first version of the method.
   // Let the rest of runtime figure out how to manage it.
-  __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::encode_to_reloc(test_state, false)));
-  __ jmp(*L_target, /* maybe_short = */ false);
-}
-
-void ShenandoahBarrierStubC2::patchable_jump_if_not_gc_state(MacroAssembler& masm, const char test_state, Label* L_target) {
-  // Emit the unconditional branch in the first version of the method.
-  // Let the rest of runtime figure out how to manage it.
-  __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::encode_to_reloc(test_state, true)));
+  __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::encode_to_reloc(test_state, active)));
   __ jmp(*L_target, /* maybe_short = */ false);
 }
 
@@ -965,7 +958,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   // regardless of their cset status.
   if (_needs_load_ref_weak_barrier) {
     char state_to_check = ShenandoahHeap::WEAK_ROOTS;
-    patchable_jump_if_gc_state(masm, state_to_check, &L_slow);
+    patchable_short_jump_if_gc_state(masm, state_to_check, &L_slow);
   }
 
   bool is_aot = AOTCodeCache::is_on_for_dump();
@@ -1088,10 +1081,6 @@ bool ShenandoahBarrierStubC2::is_special_register(Register r) {
   return r == rsp || r == rbp || r == r12_heapbase || r == r15_thread;
 }
 
-void ShenandoahBarrierStubC2::post_init() {
-  // Do nothing.
-}
-
 void ShenandoahBarrierStubC2::maybe_far_jump_if_zero(MacroAssembler& masm, Register reg) {
   if (_narrow) {
     __ testl(reg, reg);
@@ -1099,6 +1088,11 @@ void ShenandoahBarrierStubC2::maybe_far_jump_if_zero(MacroAssembler& masm, Regis
     __ testq(reg, reg);
   }
   __ jcc(Assembler::zero, *continuation());
+}
+
+int ShenandoahBarrierStubC2::max_branch_reach() {
+  // Unlimited reach.
+  return -1;
 }
 
 #endif // COMPILER2
