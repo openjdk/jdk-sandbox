@@ -114,6 +114,8 @@ class ShenandoahForwardingTable {
 
   static uint64_t hash(HeapWord* original, void* table);
 
+  uint64_t index_of(HeapWord* original) const;
+
   template<class Entry>
   void enter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee);
 

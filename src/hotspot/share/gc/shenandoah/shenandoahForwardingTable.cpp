@@ -29,7 +29,6 @@
 #include "memory/resourceArea.hpp"
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/copy.hpp"
-#include "utilities/fastHash.hpp"
 
 HeapWord* CompactFwdTableEntry::_heap_base = nullptr;
 bool ShenandoahForwardingTable::_compact = false;
@@ -178,13 +177,15 @@ void ShenandoahForwardingTable::clear_unused_slots(const BitMap& used) {
 template<class Entry>
 void ShenandoahForwardingTable::enter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee) {
   Entry* table = reinterpret_cast<Entry*>(_table);
-  uint64_t hash = FastHash::get_hash64(reinterpret_cast<uint64_t>(original), reinterpret_cast<uint64_t>(table));
-  uint64_t index = hash % _num_entries;
+  uint64_t index = index_of(original);
+  DEBUG_ONLY(uint64_t const first_index = index;)
   HeapWord* region_base = _region->bottom();
   while (used.at(index)) {
     assert(!table[index].is_original(region_base, original), "occupied slot must not match the original being entered");
-    index = (index + 1) % _num_entries;
-    assert(index != hash % _num_entries, "must find a usable slot, _num_entries: %lu, actual forwardings: %lu, live_words: %lu", _num_entries, _num_actual_forwardings, _num_live_words);
+    if (++index == _num_entries) {
+      index = 0;
+    }
+    assert(index != first_index, "must find a usable slot, _num_entries: %lu, actual forwardings: %lu, live_words: %lu", _num_entries, _num_actual_forwardings, _num_live_words);
   }
   new (&table[index]) Entry(region_base, original, forwardee);
   used.set_bit(index);
