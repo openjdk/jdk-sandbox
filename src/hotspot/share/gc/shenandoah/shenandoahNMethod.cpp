@@ -59,11 +59,13 @@ void ShenandoahNMethod::init_from(nmethod* nm) {
   parse(nm, oops, non_immediate_oops, barriers);
 
   int new_oops_count = oops.length();
-  if (new_oops_count > 0 && _oops_count != new_oops_count) {
+  if (_oops_count != new_oops_count) {
     if (_oops != nullptr) {
       FREE_C_HEAP_ARRAY(_oops);
     }
-    _oops = NEW_C_HEAP_ARRAY(oop*, new_oops_count, mtGC);
+    if (new_oops_count > 0) {
+      _oops = NEW_C_HEAP_ARRAY(oop*, new_oops_count, mtGC);
+    }
   }
   _oops_count = new_oops_count;
   for (int c = 0; c < _oops_count; c++) {
@@ -72,11 +74,13 @@ void ShenandoahNMethod::init_from(nmethod* nm) {
   assert_same_oops();
 
   int new_barriers_count = barriers.length();
-  if (new_barriers_count > 0 && _barriers_count != new_barriers_count) {
+  if (_barriers_count != new_barriers_count) {
     if (_barriers != nullptr) {
       FREE_C_HEAP_ARRAY(_barriers);
     }
-    _barriers = NEW_C_HEAP_ARRAY(ShenandoahNMethodBarrier, new_barriers_count, mtGC);
+    if (new_barriers_count > 0) {
+      _barriers = NEW_C_HEAP_ARRAY(ShenandoahNMethodBarrier, new_barriers_count, mtGC);
+    }
   }
   _barriers_count = new_barriers_count;
   for (int c = 0; c < _barriers_count; c++) {
