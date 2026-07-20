@@ -743,7 +743,6 @@ bool ShenandoahBarrierSetAssembler::is_patchable_jump(address pc, address target
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
   assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
-  PhaseOutput* const output = Compile::current()->output();
 
   __ bind(*entry());
 

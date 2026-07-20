@@ -68,7 +68,6 @@ public:
   static void unlink(WorkerThreads* workers, bool unloading_occurred);
   static void purge();
   static void arm_nmethods();
-  static void complete_nmethod_entry_barriers();
 
   static int  disarmed_value()         { return _disarmed_value; }
   static int* disarmed_value_address() { return &_disarmed_value; }
