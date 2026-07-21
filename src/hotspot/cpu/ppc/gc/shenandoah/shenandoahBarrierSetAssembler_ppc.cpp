@@ -1195,7 +1195,7 @@ bool ShenandoahBarrierStubC2::is_special_register(Register r) {
 }
 
 int ShenandoahBarrierStubC2::max_branch_reach() {
-  // The range is 32M. Subtract 2K to be ultra conservative.
+  // The branch target range is 32M. Subtract 2K to be ultra conservative.
   return (int)(32*M - 2*K);
 }
 

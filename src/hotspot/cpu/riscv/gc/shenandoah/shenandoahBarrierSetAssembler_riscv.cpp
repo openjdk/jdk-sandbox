@@ -780,14 +780,10 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
 }
 
 void ShenandoahBarrierStubC2::maybe_far_jump_if_zero(MacroAssembler& masm, Register reg) {
-  if (_needs_far_jump) {
-    Label L_short_jump;
-    __ bnez(reg, L_short_jump);
-    __ j(*continuation());
-    __ bind(L_short_jump);
-  } else {
-    __ beqz(reg, *continuation());
-  }
+  Label L_short_jump;
+  __ bnez(reg, L_short_jump);
+  __ j(*continuation());
+  __ bind(L_short_jump);
 }
 
 void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
@@ -930,8 +926,8 @@ bool ShenandoahBarrierStubC2::is_special_register(Register r) {
 }
 
 int ShenandoahBarrierStubC2::max_branch_reach() {
-  // Maximum backward range is 1M. Maximum forward reach is 1M - 4bytes.
-  // Subtract 2K to be ultra conservative.
+  // For bnez, the target range is 1M. For j, the range is 128M.
+  // Choose the lowest range and subtract 2K to be ultra conservative.
   return (int)(1*M - 2*K);
 }
 

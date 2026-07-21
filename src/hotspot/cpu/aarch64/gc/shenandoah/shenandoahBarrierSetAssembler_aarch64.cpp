@@ -976,8 +976,8 @@ bool ShenandoahBarrierStubC2::is_special_register(Register r) {
 }
 
 int ShenandoahBarrierStubC2::max_branch_reach() {
-  // Maximum backward range is 1M. Maximum forward reach is 1M - 4bytes.
-  // Subtract 2K to be ultra conservative.
+  // For cbz/cbnz, the target range is 1M. For b, the range is 128M.
+  // Choose the lowest range and subtract 2K to be ultra conservative.
   return (int)(1*M - 2*K);
 }
 
