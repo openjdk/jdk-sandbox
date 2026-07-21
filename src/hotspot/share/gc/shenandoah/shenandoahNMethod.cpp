@@ -189,9 +189,9 @@ bool ShenandoahNMethod::handle_barriers(nmethod* nm) {
 bool ShenandoahNMethod::patch_barrier(address pc, address stub_pc, bool active) {
 #ifdef COMPILER2
   // Use precise instruction rewrite code, and only when it recognizes the current insns.
-  // This patching code is non-atomic, but it runs in the nmethod entry barrier context,
-  // which guarantee the updates are not interleaved with execution. The icache flushing
-  // is also handled in nmethod entry barriers.
+  // This patching code is non-atomic, but it runs either for new nmethods that are not
+  // yet executing, or in the nmethod entry barrier context, which guarantee the updates
+  // are not interleaved with execution. The icache flushing is also handled on both paths.
   bool patched = true;
   if (active && ShenandoahBarrierSetAssembler::is_patchable_nop(pc)) {
     ShenandoahBarrierSetAssembler::insert_patchable_jump(pc, stub_pc);
@@ -318,33 +318,31 @@ void ShenandoahNMethodTable::register_nmethod(nmethod* nm) {
   ShenandoahNMethod* data = ShenandoahNMethod::gc_data(nm);
 
   if (data != nullptr) {
-    // Re-registering the existing nmethod. There are two paths to here:
-    // nmethod relocation and C1 oop patching. In either case, we expect
-    // no barrier changes. Only oops can change in C1 case. The barriers
-    // fixup is left to nmethod entry barriers, if active.
+    // Re-registering the existing nmethod. This is the C1 oop patching path.
+    // We expect no barriers here, as only oops can change in C1 case.
     assert(contain(nm), "Must have been registered");
     assert(nm == data->nm(), "Must be same nmethod");
+    assert(nm->is_compiled_by_c1(), "Must be compiled by C1");
+    assert(!data->has_barriers(), "Sanity");
     // Prevent updating a nmethod while concurrent iteration is in progress.
     wait_until_concurrent_iteration_done();
     ShenandoahNMethodLocker data_locker(data->lock());
     data->update();
   } else {
     // New nmethod, not yet executing. We can safely append it to the list,
-    // because concurrent iteration will not touch it. Ditto we can do
-    // barrier fixups right here and disarm the nmethod now.
+    // because concurrent iteration will not touch it. Ditto we do barrier
+    // fixups right here, without relying on nmethod entry barrier to be armed
+    // for new nmethods.
     data = ShenandoahNMethod::for_nmethod(nm);
     assert(data != nullptr, "Sanity");
     ShenandoahNMethod::attach_gc_data(nm, data);
     ShenandoahLocker locker(&_lock);
     log_register_nmethod(nm);
     append(data);
-    {
-      ShenandoahNMethodLocker data_locker(data->lock());
-      if (ShenandoahNMethod::handle_barriers(nm)) {
-        ICache::invalidate_range(nm->code_begin(), nm->code_size());
-      }
+    ShenandoahNMethodLocker data_locker(data->lock());
+    if (ShenandoahNMethod::handle_barriers(nm)) {
+      ICache::invalidate_range(nm->code_begin(), nm->code_size());
     }
-    // Disarm new nmethod
     ShenandoahNMethod::disarm_nmethod(nm);
   }
 }

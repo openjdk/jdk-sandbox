@@ -102,6 +102,10 @@ public:
   void assert_correct() NOT_DEBUG_RETURN;
   void assert_same_oops() NOT_DEBUG_RETURN;
 
+  bool has_barriers() {
+    return _barriers_count > 0;
+  }
+
 private:
   void init_from(nmethod* nm);
   static void parse(nmethod* nm, GrowableArray<oop*>& oops, bool& _has_non_immed_oops, GrowableArray<ShenandoahNMethodBarrier>& barriers);
