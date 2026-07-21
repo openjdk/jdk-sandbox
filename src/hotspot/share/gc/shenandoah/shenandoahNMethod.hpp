@@ -109,7 +109,7 @@ public:
 private:
   void init_from(nmethod* nm);
   static void parse(nmethod* nm, GrowableArray<oop*>& oops, bool& _has_non_immed_oops, GrowableArray<ShenandoahNMethodBarrier>& barriers);
-  static bool patch_barrier(address pc, address target_pc, bool should_call_target);
+  static bool patch_barrier(address pc, address target_pc, bool should_jump);
 };
 
 class ShenandoahNMethodTable;
