@@ -694,7 +694,7 @@ void ShenandoahBarrierStubC2::cardtable(MacroAssembler& masm, Address address, R
   }
 }
 
-void ShenandoahBarrierStubC2::patchable_jump(MacroAssembler& masm, const char test_state, bool active, Label* L_target, bool needs_far_jump) {
+void ShenandoahBarrierStubC2::patchable_jump(MacroAssembler& masm, const char gc_state, bool jump_when_state, Label* L_target, bool needs_far_jump) {
   PhaseOutput* const output = Compile::current()->output();
   if (output->in_scratch_emit_size()) {
     // We piggyback on scratch_emit_size mode to compute the slowpath stub size.
@@ -710,12 +710,12 @@ void ShenandoahBarrierStubC2::patchable_jump(MacroAssembler& masm, const char te
   // is far away, we need to flip it to make sure patchable jumps are encodeable.
   if (needs_far_jump) {
     Label L_over;
-    __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::encode_to_reloc(test_state, !active)));
+    __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::encode_to_reloc(gc_state, !jump_when_state)));
     __ b(L_over);
     __ b(*L_target);
     __ bind(L_over);
   } else {
-    __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::encode_to_reloc(test_state, active)));
+    __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::encode_to_reloc(gc_state, jump_when_state)));
     __ b(*L_target);
   }
 }

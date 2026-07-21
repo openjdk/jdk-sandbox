@@ -63,7 +63,7 @@ public:
   ShenandoahNMethod(nmethod *nm);
   ~ShenandoahNMethod();
 
-  static bool decode_reloc_active(uint16_t reloc) {
+  static bool decode_reloc_jump_when_state(uint16_t reloc) {
     return (reloc & (1 << 8)) != 0;
   }
 
@@ -71,9 +71,9 @@ public:
     return (reloc & 0xFF);
   }
 
-  static uint16_t encode_to_reloc(char gc_state, bool active) {
-    uint16_t res = (gc_state & 0xFF) | (active ? (1 << 8) : 0);
-    assert(decode_reloc_active(res)   == active, "Round-trip");
+  static uint16_t encode_to_reloc(char gc_state, bool jump_when_state) {
+    uint16_t res = (gc_state & 0xFF) | (jump_when_state ? (1 << 8) : 0);
+    assert(decode_reloc_jump_when_state(res) == jump_when_state, "Round-trip");
     assert(decode_reloc_gc_state(res) == gc_state, "Round-trip");
     return res;
   }
@@ -109,7 +109,7 @@ public:
 private:
   void init_from(nmethod* nm);
   static void parse(nmethod* nm, GrowableArray<oop*>& oops, bool& _has_non_immed_oops, GrowableArray<ShenandoahNMethodBarrier>& barriers);
-  static bool patch_barrier(address pc, address stub_pc, bool active);
+  static bool patch_barrier(address pc, address target_pc, bool should_call_target);
 };
 
 class ShenandoahNMethodTable;

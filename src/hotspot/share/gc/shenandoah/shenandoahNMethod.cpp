@@ -179,38 +179,38 @@ bool ShenandoahNMethod::handle_barriers(nmethod* nm) {
     address pc = code_begin + b._rel_pc;
     address target = pc + b._rel_target;
     char rel_gc_state = decode_reloc_gc_state(b._metadata);
-    bool rel_active   = decode_reloc_active(b._metadata);
-    bool active = ((gc_state & rel_gc_state) != 0) ^ !rel_active;
-    changed |= patch_barrier(pc, target, active);
+    bool rel_jump_when_state = decode_reloc_jump_when_state(b._metadata);
+    bool should_jump = ((gc_state & rel_gc_state) != 0) == rel_jump_when_state;
+    changed |= patch_barrier(pc, target, should_jump);
   }
   return changed;
 }
 
-bool ShenandoahNMethod::patch_barrier(address pc, address stub_pc, bool active) {
+bool ShenandoahNMethod::patch_barrier(address pc, address target_pc, bool should_jump) {
 #ifdef COMPILER2
   // Use precise instruction rewrite code, and only when it recognizes the current insns.
   // This patching code is non-atomic, but it runs either for new nmethods that are not
   // yet executing, or in the nmethod entry barrier context, which guarantee the updates
   // are not interleaved with execution. The icache flushing is also handled on both paths.
   bool patched = true;
-  if (active && ShenandoahBarrierSetAssembler::is_patchable_nop(pc)) {
-    ShenandoahBarrierSetAssembler::insert_patchable_jump(pc, stub_pc);
-  } else if (!active && ShenandoahBarrierSetAssembler::is_patchable_jump(pc, stub_pc)) {
+  if (should_jump && ShenandoahBarrierSetAssembler::is_patchable_nop(pc)) {
+    ShenandoahBarrierSetAssembler::insert_patchable_jump(pc, target_pc);
+  } else if (!should_jump && ShenandoahBarrierSetAssembler::is_patchable_jump(pc, target_pc)) {
     ShenandoahBarrierSetAssembler::insert_patchable_nop(pc);
   } else {
     patched = false;
   }
 
-  if (active) {
-    // Failing to activate the barrier is catastrophic for correctness,
-    // so prefer to crash hard even in product.
-    guarantee(ShenandoahBarrierSetAssembler::is_patchable_jump(pc, stub_pc),
-      "Active barrier: should be jump to the same address");
-    assert(ShenandoahBarrierSetAssembler::parse_jump_address(pc) == stub_pc,
-      "Active barrier: cross-checking, jump should be to the same address");
+  // Failing to change the barrier is catastrophic for correctness,
+  // so prefer to crash hard even in product.
+  if (should_jump) {
+    guarantee(ShenandoahBarrierSetAssembler::is_patchable_jump(pc, target_pc),
+      "Should be jump to the same address");
+    assert(ShenandoahBarrierSetAssembler::parse_jump_address(pc) == target_pc,
+      "Cross-checking, jump should be to the same address");
   } else {
-    assert(ShenandoahBarrierSetAssembler::is_patchable_nop(pc),
-      "Inactive barrier: should be patchable nop");
+    guarantee(ShenandoahBarrierSetAssembler::is_patchable_nop(pc),
+      "Should be patchable nop");
   }
   return patched;
 #else

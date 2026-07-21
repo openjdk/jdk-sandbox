@@ -768,10 +768,10 @@ void ShenandoahBarrierStubC2::cardtable(MacroAssembler& masm, Address addr, Regi
   __ bind(L_done);
 }
 
-void ShenandoahBarrierStubC2::patchable_jump(MacroAssembler& masm, const char test_state, bool active, Label* L_target, bool needs_far_jump) {
+void ShenandoahBarrierStubC2::patchable_jump(MacroAssembler& masm, const char gc_state, bool jump_when_state, Label* L_target, bool needs_far_jump) {
   // Emit the unconditional branch in the first version of the method.
   // Let the rest of runtime figure out how to manage it.
-  __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::encode_to_reloc(test_state, active)));
+  __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::encode_to_reloc(gc_state, jump_when_state)));
   __ jmp(*L_target, /* maybe_short = */ false);
 }
 
