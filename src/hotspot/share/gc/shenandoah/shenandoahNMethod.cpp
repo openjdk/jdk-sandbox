@@ -323,7 +323,7 @@ void ShenandoahNMethodTable::register_nmethod(nmethod* nm) {
     assert(contain(nm), "Must have been registered");
     assert(nm == data->nm(), "Must be same nmethod");
     assert(nm->is_compiled_by_c1(), "Must be compiled by C1");
-    assert(!data->has_barriers(), "Sanity");
+    assert(!data->has_barriers(), "Must not have barriers");
     // Prevent updating a nmethod while concurrent iteration is in progress.
     wait_until_concurrent_iteration_done();
     ShenandoahNMethodLocker data_locker(data->lock());
