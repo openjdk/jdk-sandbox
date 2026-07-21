@@ -62,6 +62,7 @@ void ShenandoahNMethod::init_from(nmethod* nm) {
   if (_oops_count != new_oops_count) {
     if (_oops != nullptr) {
       FREE_C_HEAP_ARRAY(_oops);
+      _oops = nullptr;
     }
     if (new_oops_count > 0) {
       _oops = NEW_C_HEAP_ARRAY(oop*, new_oops_count, mtGC);
@@ -77,6 +78,7 @@ void ShenandoahNMethod::init_from(nmethod* nm) {
   if (_barriers_count != new_barriers_count) {
     if (_barriers != nullptr) {
       FREE_C_HEAP_ARRAY(_barriers);
+      _barriers = nullptr;
     }
     if (new_barriers_count > 0) {
       _barriers = NEW_C_HEAP_ARRAY(ShenandoahNMethodBarrier, new_barriers_count, mtGC);
