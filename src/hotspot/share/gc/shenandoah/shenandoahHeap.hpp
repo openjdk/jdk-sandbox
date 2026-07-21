@@ -462,6 +462,8 @@ protected:
   // also used in shGenerationalHeap, which uses a different closure for update refs.
   ShenandoahRegionIterator _update_refs_iterator;
 
+  void rendezvous_threads(const char* name);
+
 private:
   inline void reset_cancellation_time();
 
@@ -487,7 +489,6 @@ private:
   void update_heap_region_states(bool concurrent);
   virtual void final_update_refs_update_region_states();
 
-  void rendezvous_threads(const char* name);
   void recycle_trash();
 public:
   // The following two functions rebuild the free set at the end of GC, in preparation for an idle phase.
