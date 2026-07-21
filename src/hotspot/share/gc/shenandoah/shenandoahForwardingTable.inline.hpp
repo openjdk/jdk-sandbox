@@ -98,7 +98,8 @@ HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
   }
  }
 
- // Full GC resets the marking bitmap.
+ // Full GC resets the marking bitmap but still consults forwardees left over from an abandoned concurrent GC effort
+ // before it begins its sliding compaction GC.
  assert(ShenandoahHeap::heap()->is_full_gc_in_progress()
         || !ShenandoahHeap::heap()->marking_context()->is_marked_ignore_tams(original),
         "FWT probe miss for marked obj " PTR_FORMAT " region=%zu", p2i(original), _region->index());

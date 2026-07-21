@@ -743,6 +743,10 @@ size_t ShenandoahRegionPartitions::retire_from_partition(ShenandoahFreeSetPartit
     // Count the alignment pad remnant of memory as used when we retire this region
     size_t fill_padding = _region_size_bytes - used_bytes;
     waste_bytes = fill_padding;
+#define KELVIN_USED
+#ifdef KELVIN_USED
+    log_info(gc)("retire_from_partition(%s, region: %zu, waste: %zu)", partition_name(partition), idx, fill_padding);
+#endif
     increase_used(partition, fill_padding);
   }
   _membership[int(partition)].clear_bit(idx);
@@ -854,6 +858,10 @@ void ShenandoahRegionPartitions::move_from_partition_to_partition(idx_t idx, She
 #endif
 
   // We increased availableby full region size above, but decrease it by used within this region now.
+#ifdef KELVIN_USED
+  log_info(gc)("move_from_partition_to_partition() is increasing used for partition %s by %zu",
+               partition_name(new_partition), used);
+#endif
   increase_used(new_partition, used);
   expand_interval_if_boundary_modified(new_partition, idx, available);
 
@@ -1018,19 +1026,24 @@ void ShenandoahRegionPartitions::assert_bounds() {
                                       _free_set->early_recycled_shared_alloc_capacity());
   }
 
+  size_t early_recycled_tally_capacity = 0;
+  size_t early_recycled_tally_used = 0;
+
   for (idx_t i = 0; i < _max; i++) {
     ShenandoahFreeSetPartitionId partition = membership(i);
-    size_t capacity = _free_set->alloc_capacity(i);
+    size_t alloc_capacity = _free_set->alloc_capacity(i);
     switch (partition) {
       case ShenandoahFreeSetPartitionId::NotFree:
       {
-        assert(capacity != _region_size_bytes, "Should not be retired if empty");
+        assert(alloc_capacity != _region_size_bytes, "Should not be retired if empty");
         ShenandoahHeapRegion* r = ShenandoahHeap::heap()->get_region(i);
 #ifdef KELVIN_FWT
 	log_info(gc)("assert_bounds(), retired %s %s region %zu has alloc_capacity: %zu, used: %zu",
-		     r->is_old()? "old": "young", r->is_humongous()? "humongous": "regular", i, capacity, r->used());
+		     r->is_old()? "old": "young", r->is_humongous()? "humongous": "regular", i, alloc_capacity, r->used());
 #endif
         if (r->is_humongous()) {
+          // A humongous NotFree region is never early recycled.  If the humongous region had become unreachable, it would
+          // have been reclaimed as immediate garbage.
           if (r->is_old()) {
             regions[int(ShenandoahFreeSetPartitionId::OldCollector)]++;
             used[int(ShenandoahFreeSetPartitionId::OldCollector)] += _region_size_bytes;
@@ -1043,14 +1056,14 @@ void ShenandoahRegionPartitions::assert_bounds() {
 	    log_info(gc)(" capacities[OldCollector] incremented by %zu to %zu for NotFree humongous old region %zd", 
 			 _region_size_bytes, capacities[int(ShenandoahFreeSetPartitionId::OldCollector)], i);
 #endif
-            humongous_waste[int(ShenandoahFreeSetPartitionId::OldCollector)] += capacity;
+            humongous_waste[int(ShenandoahFreeSetPartitionId::OldCollector)] += alloc_capacity;
           } else {
             assert(r->is_young(), "Must be young if not old");
             young_retired_regions++;
             // Count entire region as used even if there is some waste.
             young_retired_used += _region_size_bytes;
             young_retired_capacity += _region_size_bytes;
-            young_humongous_waste += capacity;
+            young_humongous_waste += alloc_capacity;
 #ifdef KELVIN_FWT
 	    log_info(gc)(" young_retired_used incremented by %zu to %zu for NotFree humongous young region %zd", 
 			 _region_size_bytes, young_retired_used, i);
@@ -1061,14 +1074,27 @@ void ShenandoahRegionPartitions::assert_bounds() {
 #endif
           }
         } else {
-          assert(r->is_cset() || (capacity < PLAB::min_size() * HeapWordSize),
+          // Note that early recycled region are in the cset.
+          assert(r->is_cset() || (alloc_capacity < PLAB::min_size() * HeapWordSize),
                  "Expect retired remnant size to be smaller than min plab size");
-          // This region has been retired already or it is in the cset.  In either case, we set capacity to zero
-          // so that the entire region will be counted as used.  We count young cset regions as "retired".
-          capacity = 0;
+          if (!r->was_early_recycled()) {
+            // Since this NotFree region was not early recycled, we count it as legitimately retired. None of its
+            // memory can be allocated at this time, so we set alloc_capacity to 0.  (A partially consumed CSET region
+            // may not be early recycled if, for example, the forwarding table consumes so much of the region's memory
+            // that it is not practical to recycle it.  During phases of GC that do not have forwarded, and during times
+            // when GC is idle, we will retire regions that still have alloc_capacity if the alloc_capacity is smaller
+            // than PLAB::min_size().
+            alloc_capacity = 0;
+          } else {
+            // otherwise, we count used as size of forwarding table plus accumulated allocations.
+            assert(_free_set->allocating_from_early_recycled_regions(),
+                   "r->was_early_recycled() implies we are allocating from early-recycled regions");
+            early_recycled_tally_capacity += _region_size_bytes;
+            early_recycled_tally_used += _region_size_bytes - alloc_capacity;
+          }
           if (r->is_old()) {
             regions[int(ShenandoahFreeSetPartitionId::OldCollector)]++;
-            used[int(ShenandoahFreeSetPartitionId::OldCollector)] += _region_size_bytes - capacity;
+            used[int(ShenandoahFreeSetPartitionId::OldCollector)] += _region_size_bytes - alloc_capacity;
 #ifdef KELVIN_FWT
 	    // kelvin not sure if we need to adjust for fwt
 	    log_info(gc)(" used[OldCollector] incremented by %zu to %zu for NotFree regular old region %zd", 
@@ -1082,11 +1108,11 @@ void ShenandoahRegionPartitions::assert_bounds() {
           } else {
             assert(r->is_young(), "Must be young if not old");
             young_retired_regions++;
-            young_retired_used += _region_size_bytes - capacity;
+            young_retired_used += _region_size_bytes - alloc_capacity;
             young_retired_capacity += _region_size_bytes;
 #ifdef KELVIN_FWT
 	    log_info(gc)(" young_retired_used incremented by %zu to %zu for NotFree regular young region %zd", 
-			 _region_size_bytes, young_retired_used, i);
+			 _region_size_bytes - alloc_capacity, young_retired_used, i);
 #endif
 #ifdef KELVIN_CAPACITY
 	    log_info(gc)(" young_retired_capacity incremented by %zu to %zu for NotFree regular young region %zd", 
@@ -1102,10 +1128,10 @@ void ShenandoahRegionPartitions::assert_bounds() {
       case ShenandoahFreeSetPartitionId::OldCollector:
       {
         ShenandoahHeapRegion* r = ShenandoahHeap::heap()->get_region(i);
-        assert(capacity > 0, "free regions must have allocation capacity");
-        bool is_empty = (capacity == _region_size_bytes);
+        assert(alloc_capacity > 0, "free regions must have allocation capacity");
+        bool is_empty = (alloc_capacity == _region_size_bytes);
         regions[int(partition)]++;
-        used[int(partition)] += _region_size_bytes - capacity;
+        used[int(partition)] += _region_size_bytes - alloc_capacity;
         capacities[int(partition)] += _region_size_bytes;
 #ifdef KELVIN_CAPACITY
 	if (partition == ShenandoahFreeSetPartitionId::Collector) {
@@ -1115,8 +1141,8 @@ void ShenandoahRegionPartitions::assert_bounds() {
 #endif
 #ifdef KELVIN_FWT
 	log_info(gc)(" used[%s] incremented by %zu to %zu for region %zd with alloc_capacity: %zu", 
-		     partition_name(partition), _region_size_bytes - capacity,
-		     used[int(partition)], i, capacity);
+		     partition_name(partition), _region_size_bytes - alloc_capacity,
+		     used[int(partition)], i, alloc_capacity);
 #endif
 
         if (i < leftmosts[int(partition)]) {
@@ -1138,6 +1164,14 @@ void ShenandoahRegionPartitions::assert_bounds() {
         ShouldNotReachHere();
     }
   }
+
+  assert(early_recycled_tally_capacity == early_recycled_region_capacity, "Tally should match early-recycled stats");
+  assert(early_recycled_tally_used <= early_recycled_tally_capacity, "Cannot use more than capacity");
+  assert(early_recycled_tally_used == _free_set->early_recycled_retired_used() +
+         _free_set->early_recycled_tlab_used() + _free_set->early_recycled_shared_alloc_used(),
+         "Tally (%zu) should match early-recycled stats (%zu + %zu + %zu)",
+         early_recycled_tally_used, _free_set->early_recycled_retired_used(),
+         _free_set->early_recycled_tlab_used(), _free_set->early_recycled_shared_alloc_used());
 
   // Performance invariants. Failing these would not break the free partition, but performance would suffer.
   assert (leftmost(ShenandoahFreeSetPartitionId::Mutator) <= _max,
@@ -1251,33 +1285,45 @@ void ShenandoahRegionPartitions::assert_bounds() {
   // At the current time, all early-recycled regions are dedicated to Mutator allocations. At some future time, we
   // intend to recycle regions during evacuation.  At that time, we'll need to enhance this protocol to account for
   // some of this used memory as pertaining to the Collector or OldCollector partitions.
+#ifdef KELVIN_DEPRECATE
   size_t used_by_early_recycled = (_free_set->early_recycled_retired_used() +
                                    _free_set->early_recycled_tlab_used() + _free_set->early_recycled_shared_alloc_used());
   size_t capacity_of_early_recycled = (_free_set->early_recycled_retired_capacity() +
                                    _free_set->early_recycled_tlab_capacity() + _free_set->early_recycled_shared_alloc_capacity());
-  used[int(ShenandoahFreeSetPartitionId::Mutator)] += used_by_early_recycled;
-  capacities[int(ShenandoahFreeSetPartitionId::Mutator)] += capacity_of_early_recycled;
-  regions[int(ShenandoahFreeSetPartitionId::Mutator)] += capacity_of_early_recycled / _region_size_bytes;
-  assert(young_retired_regions * _region_size_bytes >= capacity_of_early_recycled,
-         "Early recycled regions should be seen as young retired");
-  young_retired_regions -= capacity_of_early_recycled / _region_size_bytes;
-  young_retired_capacity -= capacity_of_early_recycled;
-  young_retired_used -= capacity_of_early_recycled;
 
-#ifdef KELVIN_CAPACITY
-  log_info(gc)("assert_bounds(), expanding used[Mutator] by %zu to %zu, capacity[Mutator] by %zu to %zu (for early recycled)",
-               used_by_early_recycled, used[int(ShenandoahFreeSetPartitionId::Mutator)],
-               capacity_of_early_recycled, capacities[int(ShenandoahFreeSetPartitionId::Mutator)]);
+  // we do not want to add these in because early_recycled regions are not counted as part of the partition accounting
+  used[int(ShenandoahFreeSetPartitionId::Mutator)] += early_recycled_tally_used;
+  capacities[int(ShenandoahFreeSetPartitionId::Mutator)] += early_recycled_tally_capacity;
+  regions[int(ShenandoahFreeSetPartitionId::Mutator)] += early_recycled_tally_capacity / _region_size_bytes;
 #endif
 
-  // young_retired_regions need to be added to either Mutator or Collector partitions, 100% used.
-  // Give enough of young_retired_regions, young_retired_capacity, young_retired_used
-  //  to the Mutator partition to top it off so that it matches the running totals.
-  //
-  // Give any remnants to the Collector partition.  After topping off the Collector partition, its values
-  //  should also match running totals.
+#ifdef KELVIN_FWT
+  log_info(gc)("kelvin suspects: did not added early_recycled_tally_used (%zu) to used[Mutator], yielding: %zu",
+               early_recycled_tally_used, used[int(ShenandoahFreeSetPartitionId::Mutator)]);
+  log_info(gc)("  also did not add early_recycled_tally_capacity (%zu) capacities[Mutator], yielding: %zu",
+               early_recycled_tally_capacity, capacities[int(ShenandoahFreeSetPartitionId::Mutator)]);
+  log_info(gc)("  also did not add early_recycled_tally_regions (%zu) capacities[Mutator], yielding: %zu",
+               early_recycled_tally_capacity / _region_size_bytes, regions[int(ShenandoahFreeSetPartitionId::Mutator)]);
+#endif
+
+  assert(young_retired_regions * _region_size_bytes >= early_recycled_tally_capacity,
+         "Early recycled regions should be seen as young retired");
+  assert(young_retired_used >= early_recycled_tally_used, "young_retired_used must include early_recycled_tally_used");
+
+  // Subtract the early-recycled component from young_retired quantities.
+  young_retired_regions -= early_recycled_tally_capacity / _region_size_bytes;
+  young_retired_capacity -= early_recycled_tally_capacity;
+  young_retired_used -= early_recycled_tally_used;
+
+#ifdef KELVIN_CAPACITY
+  log_info(gc)("assert_bounds() subtracting early_recycled_tally_used (%zu) from young_retired_used, yielding: %zu",
+               early_recycled_tally_used, young_retired_used);
+  log_info(gc)("assert_bounds() subtracting early_recycled_tally_capacity (%zu) from young_retired_capacity, yielding: %zu",
+               early_recycled_tally_capacity, young_retired_capacity);
+#endif
+
   assert(young_retired_regions * _region_size_bytes == young_retired_capacity, "sanity");
-  assert(young_retired_capacity == young_retired_used, "sanity");
+  assert(young_retired_capacity == young_retired_used, "All retired regions are fully used");
 
   assert(capacities[int(ShenandoahFreeSetPartitionId::OldCollector)]
          == _capacity[int(ShenandoahFreeSetPartitionId::OldCollector)], "Old collector capacities must match (%zu != %zu)",
@@ -1297,6 +1343,13 @@ void ShenandoahRegionPartitions::assert_bounds() {
 
   assert(_capacity[int(ShenandoahFreeSetPartitionId::Mutator)] >= capacities[int(ShenandoahFreeSetPartitionId::Mutator)],
          "Capacity total must be >= counted tally");
+
+  // young_retired_regions need to be added to either Mutator or Collector partitions, 100% used.
+  // Give enough of young_retired_regions, young_retired_capacity, young_retired_used
+  //  to the Mutator partition to top it off so that it matches the running totals.
+  //
+  // Give any remnants to the Collector partition.  After topping off the Collector partition, its values
+  //  should also match running totals.
   size_t mutator_capacity_shortfall =
     _capacity[int(ShenandoahFreeSetPartitionId::Mutator)] - capacities[int(ShenandoahFreeSetPartitionId::Mutator)];
 
@@ -1324,6 +1377,8 @@ void ShenandoahRegionPartitions::assert_bounds() {
 #ifdef KELVIN_CAPACITY
   log_info(gc)("assert_bounds(), adjusted young_retired_capacity: %zu added to capacities[Collector] to yield %zu",
 	       young_retired_capacity, capacities[int(ShenandoahFreeSetPartitionId::Collector)]);
+  log_info(gc)(" _used[Mutator]: %zu should be >= tallied used[Mutator]: %zu",
+               _used[int(ShenandoahFreeSetPartitionId::Mutator)], used[int(ShenandoahFreeSetPartitionId::Mutator)]);
 #endif
 
   assert(_used[int(ShenandoahFreeSetPartitionId::Mutator)] >= used[int(ShenandoahFreeSetPartitionId::Mutator)],
@@ -1553,6 +1608,9 @@ void ShenandoahFreeSet::add_promoted_in_place_region_to_old_collector(Shenandoah
   // decrease capacity adjusts available
   _partitions.decrease_capacity(ShenandoahFreeSetPartitionId::Mutator, region_size_bytes);
   _partitions.increase_capacity(ShenandoahFreeSetPartitionId::OldCollector, region_size_bytes);
+#ifdef KELVIN_USED
+  log_info(gc)("add_pip_region_to_old_collector(region: %zu)", region->index());
+#endif
   _partitions.increase_used(ShenandoahFreeSetPartitionId::OldCollector, used_after_pip);
   region->set_affiliation(ShenandoahAffiliation::OLD_GENERATION);
   if (available_in_region > 0) {
@@ -1645,8 +1703,6 @@ HeapWord* ShenandoahFreeSet::allocate_with_affiliation(Iter& iterator,
           req.set_actual_size(req.size());
           req.set_waste(result - orig_top);
           increase_bytes_allocated((req.actual_size() + req.waste()) * HeapWordSize);
-          assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Do not YET support early recycle during evac");
-          r->set_affiliation(req.affiliation());
 #ifdef KELVIN_TRACE_FWT_ALLOC
           log_info(gc)("alloc_with_affiliation() satisfied shared-alloc req.size %zu from tlab reserve at index %zu of %zu",
                        req.size(), i -1, num_tlab_candidates);
@@ -1711,8 +1767,6 @@ HeapWord* ShenandoahFreeSet::allocate_with_affiliation(Iter& iterator,
       req.set_actual_size(actual_size);
       req.set_waste(result - orig_top);
       increase_bytes_allocated((actual_size + req.waste()) * HeapWordSize);
-      assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Do not YET support early recycle during evac");
-      r->set_affiliation(req.affiliation());
 #ifdef KELVIN_TRACE_FWT_ALLOC
       log_info(gc)("alloc_with_affiliation() satisfied min TLAB (%zu), actual size %zu from tlab reserve %zu of %zu",
                    req.min_size(), actual_size, i, num_tlab_regions());
@@ -1745,8 +1799,6 @@ HeapWord* ShenandoahFreeSet::allocate_with_affiliation(Iter& iterator,
         req.set_actual_size(actual_size);
         req.set_waste(result - orig_top);
         increase_bytes_allocated((actual_size + req.waste()) * HeapWordSize);
-        assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Do not YET support early recycle during evac");
-        r->set_affiliation(req.affiliation());
 #ifdef KELVIN_TRACE_FWT_ALLOC
         log_info(gc)("alloc_with_affiliation() satisfied larger TLAB (%zu), actual size %zu from tlab reserve %zu of %zu",
                      req.min_size(), actual_size, i, num_tlab_regions());
@@ -1787,9 +1839,31 @@ HeapWord* ShenandoahFreeSet::allocate_single(ShenandoahAllocRequest& req, bool& 
   }
 }
 
-HeapWord* ShenandoahFreeSet::allocate_for_mutator(ShenandoahAllocRequest &req, bool &in_new_region) {
-  update_allocation_bias();
+#ifdef KELVIN_FWT
+static void dump_used(const char* msg, ShenandoahRegionPartitions* p, ShenandoahFreeSet* free_set) {
+  log_info(gc)("dump_used(%s)", msg);
+  log_info(gc)("            _used[Mutator]: %zu", p->get_used(ShenandoahFreeSetPartitionId::Mutator));
+  log_info(gc)("        _capacity[Mutator]: %zu", p->get_capacity(ShenandoahFreeSetPartitionId::Mutator));
+  log_info(gc)("          _used[Collector]: %zu", p->get_used(ShenandoahFreeSetPartitionId::Collector));
+  log_info(gc)("      _capacity[Collector]: %zu", p->get_capacity(ShenandoahFreeSetPartitionId::Collector));
+  log_info(gc)("       _used[OldCollector]: %zu", p->get_used(ShenandoahFreeSetPartitionId::OldCollector));
+  log_info(gc)("   _capacity[OldCollector]: %zu", p->get_capacity(ShenandoahFreeSetPartitionId::OldCollector));
+  log_info(gc)("       freecycle tlab used: %zu", free_set->early_recycled_tlab_used());
+  log_info(gc)("     freecycle shared used: %zu", free_set->early_recycled_shared_alloc_used());
+  log_info(gc)("    freecycle retired used: %zu", free_set->early_recycled_retired_used());
+  log_info(gc)("   freecycle tlab capacity: %zu", free_set->early_recycled_tlab_capacity());
+  log_info(gc)(" freecycle shared capacity: %zu", free_set->early_recycled_shared_alloc_capacity());
+  log_info(gc)("freecycle retired capacity: %zu", free_set->early_recycled_retired_capacity());
 
+}
+#endif
+
+HeapWord* ShenandoahFreeSet::allocate_for_mutator(ShenandoahAllocRequest &req, bool &in_new_region) {
+  shenandoah_assert_heaplocked();
+  update_allocation_bias();
+#ifdef KELVIN_FWT
+  dump_used("At entry to allocate_for_mutator()", &_partitions, this);
+#endif
   if (_allocating_from_early_recycled_regions) {
     assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Precondition");
     if (!req.is_lab_alloc()) {
@@ -1801,6 +1875,9 @@ HeapWord* ShenandoahFreeSet::allocate_for_mutator(ShenandoahAllocRequest &req, b
         HeapWord* orig_top = r->top();
         HeapWord* result = try_allocate_shared_in_early_recycled(r, req.size());
         if (result != nullptr) { // Successful allocation.
+          req.set_actual_size(req.size());
+          req.set_waste(result - orig_top);
+          size_t used_bytes = (req.actual_size() + req.waste()) * HeapWordSize;
           // Only remove from shared_alloc_regions if remnaining memory is smaller than PLAB::min_size
           if (r->top() + PLAB::min_size() >= r->forwarding_table_start()) {
             remove_shared_alloc_region(i);
@@ -1815,15 +1892,15 @@ HeapWord* ShenandoahFreeSet::allocate_for_mutator(ShenandoahAllocRequest &req, b
           }
           // Note: Since the current implementation only supports Mutator allocations, there's no need to register
           //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
-          req.set_actual_size(req.size());
-          req.set_waste(result - orig_top);
-          increase_bytes_allocated((req.actual_size() + req.waste()) * HeapWordSize);
-          assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Do not YET support early recycle during evac");
-          r->set_affiliation(req.affiliation());
+          increase_bytes_allocated(used_bytes);
 #define KELVIN_TRACE_FWT_ALLOC
 #ifdef KELVIN_TRACE_FWT_ALLOC
-          log_info(gc)("allocate_for_mutator() satisfied shared-alloc req.size %zu from shared reserve %zu of %zu",
-                       req.size(), i, num_shared_alloc_candidates);
+          log_info(gc)("allocate_for_mutator(): shared-alloc req.size %zu and waste %zu from shared reserve %zu of %zu, region: %zu",
+                       req.size(), req.waste(), i, num_shared_alloc_candidates, r->index());
+#endif
+#ifdef KELVIN_FWT
+          dump_used("At return from allocate_for_mutator()", &_partitions, this);
+          _partitions.assert_bounds();
 #endif
           return result;
         }
@@ -1854,10 +1931,13 @@ HeapWord* ShenandoahFreeSet::allocate_for_mutator(ShenandoahAllocRequest &req, b
           req.set_waste(result - orig_top);
           increase_bytes_allocated((req.actual_size() + req.waste()) * HeapWordSize);
           assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Do not YET support early recycle during evac");
-          r->set_affiliation(req.affiliation());
 #ifdef KELVIN_TRACE_FWT_ALLOC
-          log_info(gc)("allocate_for_mutator() satisfied shared-alloc req.size %zu from tlab reserve at index %zu of %zu",
-                       req.size(), i - 1, num_tlab_candidates);
+          log_info(gc)("allocate_for_mutator() satisfied shared-alloc req.size %zu and waste %zu from tlab reserve at index %zu of %zu, region: %zu",
+                       req.size(), req.waste(), i - 1, num_tlab_candidates, r->index());
+#endif
+#ifdef KELVIN_FWT
+          dump_used("At return from allocate_for_mutator()", &_partitions, this);
+          _partitions.assert_bounds();
 #endif
           return result;
         }
@@ -1869,6 +1949,9 @@ HeapWord* ShenandoahFreeSet::allocate_for_mutator(ShenandoahAllocRequest &req, b
 
   if (!_allocating_from_early_recycled_regions && _partitions.is_empty(ShenandoahFreeSetPartitionId::Mutator)) {
     // There is no recovery. Mutator does not touch collector view at all.
+#ifdef KELVIN_FWT
+    dump_used("At failed return from allocate_for_mutator()", &_partitions, this);
+#endif
     return nullptr;
   }
 
@@ -1886,56 +1969,27 @@ HeapWord* ShenandoahFreeSet::allocate_for_mutator(ShenandoahAllocRequest &req, b
     result = allocate_from_regions(iterator, req, in_new_region);
   }
   if (result != nullptr) {
+#ifdef KELVIN_FWT
+    dump_used("At return from allocate_for_mutator() after allocate_from_regions()", &_partitions, this);
+#endif
     return result;
   }
 
-  if (_allocating_from_early_recycled_regions && req.is_lab_alloc() && (num_tlab_regions() > 0)) {
-    assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Do not YET support early recycle during evac");
-    // This is the back-up plan for LAB allocations if we were unable to satisfy the allocation from the freeset partitions.
-    if (req.min_size() == PLAB::min_size()) {
-      // This is a modest LAB request. Any region in the set of early-recycled TLAB regions can satisfy the request.
-      // Allocate from the back of the queue, as this preserves the regions that have "large TLAB potential" for possible future
-      // allocation requests that require larger than the minimum size.
-      // There's no need to iterate here.
-      size_t i = num_tlab_regions() - 1;
-      ShenandoahHeapRegion* r = get_tlab_region(i);
-      HeapWord* orig_top = r->top();
-      size_t actual_size;
-      HeapWord* result = try_allocate_TLAB_in_early_recycled(r, req, actual_size);
-      assert(result != nullptr, "By construction of the TLAB-allocation set");
-      remove_tlab_region(i);
-      if (r->top() + PLAB::min_size() >= r->forwarding_table_start()) {
-        // The remaining memory is too small to serve future allocation needs
-        insert_retired_region(r);
-      } else {
-        size_t potential_tlab_size = early_recycled_tlab_available_size(r);
-        if (potential_tlab_size > PLAB::min_size()) {
-          insert_tlab_region(r, potential_tlab_size);
-        } else {
-          insert_shared_alloc_region(r);
-        }
-      }
-      // Note: Since the current implementation only supports Mutator allocations, there's no need to register
-      //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
-      req.set_actual_size(actual_size);
-      req.set_waste(result - orig_top);
-      increase_bytes_allocated((actual_size + req.waste()) * HeapWordSize);
-      r->set_affiliation(req.affiliation());
-#ifdef KELVIN_TRACE_FWT_ALLOC
-      log_info(gc)("allocate_for_mutator() satisfied min TLAB (%zu), actual size %zu from tlab reserve %zu of %zu",
-                   req.min_size(), actual_size, i, num_tlab_regions());;
-#endif
-      return result;
-    } else if (num_tlab_regions() > 0) {
-      // This LAB needs to be larger than the minimum size. Allocate from the head of the list of early-recycled TLAB-eligible
-      // regions. The head represents the largest possible TLAB. If allocation from head fails, there's no value in trying
-      // other regions.
-      size_t i = 0;
-      ShenandoahHeapRegion* r = get_tlab_region(i);
-      HeapWord* orig_top = r->top();
-      size_t actual_size;
-      HeapWord* result = try_allocate_TLAB_in_early_recycled(r, req, actual_size);
-      if (result != nullptr) {
+  if (num_tlab_regions() > 0) {
+    if (_allocating_from_early_recycled_regions && req.is_lab_alloc()) {
+      assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Do not YET support early recycle during evac");
+      // This is the back-up plan for LAB allocations if we were unable to satisfy the allocation from the freeset partitions.
+      if (req.min_size() == PLAB::min_size()) {
+        // This is a modest LAB request. Any region in the set of early-recycled TLAB regions can satisfy the request.
+        // Allocate from the back of the queue, as this preserves the regions that have "large TLAB potential" for possible future
+        // allocation requests that require larger than the minimum size.
+        // There's no need to iterate here.
+        size_t i = num_tlab_regions() - 1;
+        ShenandoahHeapRegion* r = get_tlab_region(i);
+        HeapWord* orig_top = r->top();
+        size_t actual_size;
+        HeapWord* result = try_allocate_TLAB_in_early_recycled(r, req, actual_size);
+        assert(result != nullptr, "By construction of the TLAB-allocation set");
         remove_tlab_region(i);
         if (r->top() + PLAB::min_size() >= r->forwarding_table_start()) {
           // The remaining memory is too small to serve future allocation needs
@@ -1953,18 +2007,62 @@ HeapWord* ShenandoahFreeSet::allocate_for_mutator(ShenandoahAllocRequest &req, b
         req.set_actual_size(actual_size);
         req.set_waste(result - orig_top);
         increase_bytes_allocated((actual_size + req.waste()) * HeapWordSize);
-        assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Do not YET support early recycle during evac");
-        r->set_affiliation(req.affiliation());
 #ifdef KELVIN_TRACE_FWT_ALLOC
-        log_info(gc)("allocate_for_mutator() satisfied larger TLAB (%zu), actual size %zu from tlab reserve %zu of %zu",
-                     req.min_size(), actual_size, i, num_tlab_regions());
+        log_info(gc)("allocate_for_mutator() satisfied min TLAB (%zu), actual size %zu and waste %zu from tlab reserve %zu of %zu, region: %zu",
+                     req.min_size(), actual_size, req.waste(), i, num_tlab_regions(), r->index());;
+#endif
+#ifdef KELVIN_FWT
+        dump_used("At return from allocate_for_mutator()", &_partitions, this);
+        _partitions.assert_bounds();
 #endif
         return result;
+      } else {
+        // This LAB needs to be larger than the minimum size. Allocate from the head of the list of early-recycled TLAB-eligible
+        // regions. The head represents the largest possible TLAB. If allocation from head fails, there's no value in trying
+        // other regions.
+        size_t i = 0;
+        ShenandoahHeapRegion* r = get_tlab_region(i);
+        HeapWord* orig_top = r->top();
+        size_t actual_size;
+        HeapWord* result = try_allocate_TLAB_in_early_recycled(r, req, actual_size);
+        if (result != nullptr) {
+          remove_tlab_region(i);
+          if (r->top() + PLAB::min_size() >= r->forwarding_table_start()) {
+            // The remaining memory is too small to serve future allocation needs
+            insert_retired_region(r);
+          } else {
+            size_t potential_tlab_size = early_recycled_tlab_available_size(r);
+            if (potential_tlab_size > PLAB::min_size()) {
+              insert_tlab_region(r, potential_tlab_size);
+            } else {
+              insert_shared_alloc_region(r);
+            }
+          }
+          // Note: Since the current implementation only supports Mutator allocations, there's no need to register
+          //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
+          req.set_actual_size(actual_size);
+          req.set_waste(result - orig_top);
+          increase_bytes_allocated((actual_size + req.waste()) * HeapWordSize);
+          assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Do not YET support early recycle during evac");
+#ifdef KELVIN_TRACE_FWT_ALLOC
+          log_info(gc)("allocate_for_mutator() satisfied larger TLAB (%zu), actual size %zu and waste %zu from tlab reserve %zu of %zu, region: %zu",
+                       req.min_size(), req.waste(), actual_size, i, num_tlab_regions(), r->index());
+#endif
+#ifdef KELVIN_FWT
+          dump_used("At return from allocate_for_mutator()", &_partitions, this);
+          _partitions.assert_bounds();
+#endif
+          return result;
+        }
+        // Otherwise, we were unable to allocate a TLAB of sufficient size.  Fail fast without iterating over lots of
+        // regions.  This allows the request to be reformulated as a shared-allocation.
       }
-      // Otherwise, we were unable to allocate a TLAB of sufficient size.  Fail fast without iterating over lots of
-      // regions.  This allows the request to be reformulated as a shared-allocation.
     }
   }
+#ifdef KELVIN_FWT
+  dump_used("At failed return from allocate_for_mutator()", &_partitions, this);
+  _partitions.assert_bounds();
+#endif
   return nullptr;
 }
 
@@ -2115,7 +2213,14 @@ HeapWord* ShenandoahFreeSet::allocate_aligned_plab(size_t size, ShenandoahAllocR
 }
 
 HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, ShenandoahAllocRequest& req, bool& in_new_region) {
+  shenandoah_assert_heaplocked();
   assert (has_alloc_capacity(r), "Performance: should avoid full regions on this path: %zu", r->index());
+
+#define KELVIN_ALLOCATE
+#ifdef KELVIN_ALLOCATE
+  dump_used("At entry to try_allocate_in()", &_partitions, this);
+#endif
+
   if (_heap->is_concurrent_weak_root_in_progress() && r->is_trash()) {
     // We cannot use this region for allocation when weak roots are in progress because the collector may need
     // to reference unmarked oops during concurrent classunloading. The collector also needs accurate marking
@@ -2229,6 +2334,10 @@ HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, Shenandoah
     // Allocation successful, bump stats:
     if (req.is_mutator_alloc()) {
       assert(req.is_young(), "Mutator allocations always come from young generation.");
+#ifdef KELVIN_USED
+      log_info(gc)("try_allocate_in() is increasing used for Mutator, actual_size: %zu, waste: %zu",
+                   req.actual_size(), req.waste());
+#endif
       _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, (req.actual_size() + req.waste()) * HeapWordSize);
       increase_bytes_allocated(req.actual_size() * HeapWordSize);
     } else {
@@ -2239,8 +2348,16 @@ HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, Shenandoah
       // PLABs be made parsable at the end of evacuation.  This is enabled by retiring all plabs at end of evacuation.
       r->set_update_watermark(r->top());
       if (r->is_old()) {
+#ifdef KELVIN_USED
+        log_info(gc)("try_allocate_in() is increasing used for OldCollector, actual_size: %zu, waste: %zu",
+                     req.actual_size(), req.waste());
+#endif
         _partitions.increase_used(ShenandoahFreeSetPartitionId::OldCollector, (req.actual_size() + req.waste()) * HeapWordSize);
       } else {
+#ifdef KELVIN_USED
+        log_info(gc)("try_allocate_in() is increasing used for Collector, actual_size: %zu, waste: %zu",
+                     req.actual_size(), req.waste());
+#endif
         _partitions.increase_used(ShenandoahFreeSetPartitionId::Collector, (req.actual_size() + req.waste()) * HeapWordSize);
       }
     }
@@ -2312,6 +2429,9 @@ HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, Shenandoah
   default:
     assert(false, "won't happen");
   }
+#ifdef KELVIN_ALLOCATE
+  dump_used("At exit from try_allocate_in()", &_partitions, this);
+#endif
   _partitions.assert_bounds();
   return result;
 }
@@ -2443,6 +2563,10 @@ HeapWord* ShenandoahFreeSet::allocate_contiguous(ShenandoahAllocRequest& req, bo
       increase_bytes_allocated(waste_bytes);
     }
   }
+
+#ifdef KELVIN_USED
+  log_info(gc)("allocate_contiguous() is increasing used for Mutator: %zu", total_used);
+#endif
 
   _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, total_used);
   increase_bytes_allocated(total_used);
@@ -2877,6 +3001,10 @@ void ShenandoahFreeSet::transfer_humongous_regions_from_mutator_to_old_collector
 
   _partitions.increase_capacity(ShenandoahFreeSetPartitionId::OldCollector, xfer_regions * region_size_bytes);
   _partitions.increase_humongous_waste(ShenandoahFreeSetPartitionId::OldCollector, humongous_waste_bytes);
+#ifdef KELVIN_USED
+  log_info(gc)("transfer_humongous_regions_from_mutator_to_old_collector() is increasing used for OldCollecor: %zu",
+               xfer_regions * region_size_bytes);
+#endif
   _partitions.increase_used(ShenandoahFreeSetPartitionId::OldCollector, xfer_regions * region_size_bytes);
 
   // _total_humongous_waste, _total_global_regions are unaffected by transfer
@@ -3082,6 +3210,9 @@ transfer_non_empty_regions_from_collector_set_to_mutator_set(ShenandoahFreeSetPa
   _partitions.decrease_capacity(which_collector, transferred_regions * region_size_bytes);
   _partitions.increase_capacity(ShenandoahFreeSetPartitionId::Mutator, transferred_regions * region_size_bytes);
   _partitions.increase_region_counts(ShenandoahFreeSetPartitionId::Mutator, transferred_regions);
+#ifdef KELVIN_USED
+  log_info(gc)("transfer_non_empty_regions_from_collector_set_to_mutator_set() increased Mutator used: %zu", used_transfer);
+#endif
   _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, used_transfer);
 
   if (which_collector == ShenandoahFreeSetPartitionId::OldCollector) {
@@ -3118,6 +3249,7 @@ void ShenandoahFreeSet::move_regions_from_collector_to_mutator(size_t max_xfer_r
 
 #ifdef KELVIN_CAPACITY
   log_info(gc)("move_regions_from_collector_to_mutator(%zu)", max_xfer_regions);
+  dump_used("At entry to move_regions_from_collector_to_mutator", &_partitions, this);
 #endif
 
   // Process empty regions within the Collector free partition
@@ -3156,6 +3288,10 @@ void ShenandoahFreeSet::move_regions_from_collector_to_mutator(size_t max_xfer_r
                      byte_size_in_proper_unit(total_xfer), proper_unit_for_byte_size(total_xfer),
                      byte_size_in_proper_unit(collector_xfer), proper_unit_for_byte_size(collector_xfer),
                      byte_size_in_proper_unit(old_collector_xfer), proper_unit_for_byte_size(old_collector_xfer));
+
+#ifdef KELVIN_CAPACITY
+  dump_used("At exit from move_regions_from_collector_to_mutator", &_partitions, this);
+#endif
 }
 
 // Admit a fwt cset region's below-FWT space into the Mutator free set.
@@ -3206,6 +3342,8 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
     size_t total_tlab_unavailable = 0;
     size_t tlab_count = 0;
 
+    size_t total_evacuated_words = 0;
+
     if (!ctx->is_marked_ignore_tams(start)) {
       start = ctx->get_next_marked_addr_ignore_tams(start + 1, end);
     }
@@ -3215,6 +3353,8 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
       assert(ctx->is_marked_ignore_tams(start), "Loop invariant");
       assert(tlab_start_addr != nullptr, "Loop invariant");
       forwarded_objects++;
+      oop obj = cast_to_oop(start);
+      total_evacuated_words += obj->size();
 
       size_t tlab_words = start - tlab_start_addr;
       if (tlab_words > PLAB::min_size()) {
@@ -3284,6 +3424,8 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
         shared_pad_max = pad_words;
       }
     }
+    double percent_evacuated = (100.0 * total_evacuated_words) / ShenandoahHeapRegion::region_size_words();
+    log_info(gc)(" Total evacuated words from this region: %zu (%.1f%%)", total_evacuated_words, percent_evacuated);
 
     double percent_tlab = (100.0 * total_tlab_available) / allocatable_words;
     size_t tlab_waste = total_tlab_unavailable + forwarded_objects * ShenandoahHeap::min_fill_size();
@@ -3336,11 +3478,16 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
     log_info(gc)(" Decreasing OldCollector used by %zu for region %zu", region_size_bytes, r->index());
 #endif
     _partitions.decrease_capacity(ShenandoahFreeSetPartitionId::OldCollector, region_size_bytes);
+/*
+ * Remove because early-recycled regions are not part of partition accounting
     _partitions.increase_capacity(ShenandoahFreeSetPartitionId::Mutator, region_size_bytes);
+*/
   } else {
     // Even if this region had not been totally consumed, since the region had been retired, it is treated as entirely used.
     // We know this region was originally in Mutator partition since it is not old, and since it was retired.
     _partitions.decrease_used(ShenandoahFreeSetPartitionId::Mutator, region_size_bytes);
+    // We do not count early-recycled regions as part of partition accounting
+    _partitions.decrease_capacity(ShenandoahFreeSetPartitionId::Mutator, region_size_bytes);
 #ifdef KELVIN_FWT
     log_info(gc)(" Decreasing mutator used by %zu for region %zu", region_size_bytes, r->index());
 #endif
@@ -3372,7 +3519,12 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
 
   if (r->fwt_tail_bytes() > 0) {
     // Above, we incrased the capacity of the Mutator partition by region_size_bytes.
-    _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, r->fwt_tail_bytes());
+#ifdef KELVIN_USED
+    log_info(gc)("recycle_one_cset_region() increases used for Mutator by %zu", r->fwt_tail_bytes());
+#endif
+    /* Remove because we do not count early-recycled regions as part of partition accounting
+       _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, r->fwt_tail_bytes());
+    */
   }
 
 #ifdef KELVIN_FWT
@@ -3395,22 +3547,6 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
   recycled_regions++;
   return true;
 }
-
-#ifdef KELVIN_FWT
-static void dump_used(const char* msg, ShenandoahRegionPartitions* p, ShenandoahFreeSet* free_set) {
-  log_info(gc)("dump_used(%s)", msg);
-  log_info(gc)("            _used[Mutator]: %zu", p->get_used(ShenandoahFreeSetPartitionId::Mutator));
-  log_info(gc)("       freecycle tlab used: %zu", free_set->early_recycled_tlab_used());
-  log_info(gc)("     freecycle shared used: %zu", free_set->early_recycled_shared_alloc_used());
-  log_info(gc)("    freecycle retired used: %zu", free_set->early_recycled_retired_used());
-  log_info(gc)("   freecycle tlab capacity: %zu", free_set->early_recycled_tlab_capacity());
-  log_info(gc)(" freecycle shared capacity: %zu", free_set->early_recycled_shared_alloc_capacity());
-  log_info(gc)("freecycle retired capacity: %zu", free_set->early_recycled_retired_capacity());
-
-  log_info(gc)("          _used[Collector]: %zu", p->get_used(ShenandoahFreeSetPartitionId::Collector));
-  log_info(gc)("       _used[OldCollector]: %zu", p->get_used(ShenandoahFreeSetPartitionId::OldCollector));
-}
-#endif
 
 void ShenandoahFreeSet::recycle_collection_set() {
   shenandoah_assert_heaplocked();
@@ -3493,21 +3629,18 @@ void ShenandoahFreeSet::recycle_collection_set() {
 
 void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* r, size_t& released_regions,
                                                           size_t& released_bytes, size_t& emptied_regions) {
-  // KELVIN ADDS:
-  // The capacity and usage for this region has already been added into the Mutator partition totals, but the region is not
-  // currently in the Mutator partition.
-
   ShenandoahFreeSetPartitionId p = _partitions.membership(r->index());
   size_t tail = r->fwt_tail_bytes();
   size_t available = r->capacity() - tail;
   size_t min_size = PLAB::min_size() * HeapWordSize;
   size_t region_free = r->free();
+#define KELVIN_RECYCLE
 #ifdef KELVIN_RECYCLE
   log_info(gc)("finish_recycle_of_one_cset_region(index: %zu), fwt_size:: %zu, available: %zu, region_free: %zu",
                r->index(), tail, available, region_free);
 #endif
+  assert(p == ShenandoahFreeSetPartitionId::NotFree, "Early recycled regions are not in free-set partitions");
   if (tail > 0) {
-    assert(p == ShenandoahFreeSetPartitionId::NotFree, "Early recycled regions are not in free-set partitions");
     // Some regions that would otherwise qualify to be early recycled are not recycled due to pinning, for example.
     // For these regions,
 
@@ -3521,13 +3654,15 @@ void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* 
     //
     // Bottom line: Kelvin believes it is safe to assume that if we reach here, the region was early recycled.
     if (ShenandoahRecycleFWTBodies) {
-      _partitions.decrease_used(p, tail);
+      // As we move this region from an early-recycled set into the Mutator partition, 
+      _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, (r->top() - r->bottom()) * HeapWordSize);
+      _partitions.increase_capacity(ShenandoahFreeSetPartitionId::Mutator, ShenandoahHeapRegion::region_size_bytes());
       released_regions++;
       released_bytes += tail;
     }
   }
   r->reset_forwarding_table();
-  if (p != ShenandoahFreeSetPartitionId::NotFree && r->is_empty()) {
+  if (r->is_empty()) {
     _partitions.increase_empty_region_counts(p, 1);
     emptied_regions++;
   }
@@ -3540,6 +3675,10 @@ void ShenandoahFreeSet::finish_cset_region_recycling() {
   size_t released_bytes   = 0;
   size_t emptied_regions  = 0;
   size_t num_regions = _heap->num_regions();
+
+#ifdef KELVIN_FWT
+  dump_used("finish_cset_region_recycling() at end of update-refs", &_partitions, this);
+#endif
 
   // KELVIN TODO
   //  MAYBE WE CAN ITERATE OVER THE SMALLER NUMBER OF REGIONS IN THE EARLY_RECYCLED_REGIONS ARRAY.
@@ -3556,6 +3695,10 @@ void ShenandoahFreeSet::finish_cset_region_recycling() {
 
   // We're no longer allocating from early recycled regions.
   _allocating_from_early_recycled_regions = false;
+#ifdef KELVIN_FWT
+  dump_used("finish_cset_region_recycling() before clearing early recycle totals", &_partitions, this);
+#endif
+  clear_early_recycling_totals();
 
   log_info(gc)("Released FWT tails for %zu regions, freeing %zu%s", released_regions,
                byte_size_in_proper_unit(released_bytes), proper_unit_for_byte_size(released_bytes));
@@ -3570,6 +3713,9 @@ void ShenandoahFreeSet::finish_cset_region_recycling() {
                                /* AffiliatedChangesAreGlobalNeutral */ false,
                                /* UnaffiliatedChangesAreYoungNeutral */ false>();
   }
+#ifdef KELVIN_FWT
+  dump_used("At end of finish_cset_region_recycling()", &_partitions, this);
+#endif
 }
 
 // Overwrite arguments to represent the amount of memory in each generation that is about to be recycled
@@ -3917,10 +4063,16 @@ void ShenandoahFreeSet::reserve_regions(size_t to_reserve, size_t to_reserve_old
   _partitions.increase_empty_region_counts(ShenandoahFreeSetPartitionId::OldCollector, empty_regions_to_old_collector);
 
   if (used_to_collector > 0) {
+#ifdef KELVIN_USED
+    log_info(gc)("reserve_regions() incrases used for Collector by %zu", used_to_collector);
+#endif
     _partitions.increase_used(ShenandoahFreeSetPartitionId::Collector, used_to_collector);
   }
 
   if (used_to_old_collector > 0) {
+#ifdef KELVIN_USED
+    log_info(gc)("reserve_regions() incrases used for OldCollector by %zu", used_to_old_collector);
+#endif
     _partitions.increase_used(ShenandoahFreeSetPartitionId::OldCollector, used_to_old_collector);
   }
 
@@ -4329,6 +4481,15 @@ void ShenandoahFreeSet::initialize_recycled_region_arrays() {
   _early_recycled_retired_used = 0;
 }
 
+void ShenandoahFreeSet::clear_early_recycling_totals() {
+  _early_recycled_tlab_regions_count = 0;
+  _early_recycled_tlab_used = 0;
+  _early_recycled_shared_alloc_regions_count = 0;
+  _early_recycled_shared_alloc_used = 0;
+  _early_recycled_retired_regions_count = 0;
+  _early_recycled_retired_used = 0;
+}
+
 ShenandoahHeapRegion* ShenandoahFreeSet::get_tlab_region(size_t index) {
   assert(index < _early_recycled_tlab_regions_count, "Precondition");
   return _early_recycled_tlab_regions[index];
@@ -4598,7 +4759,7 @@ void ShenandoahFreeSet::insert_shared_alloc_region(ShenandoahHeapRegion* r) {
       _early_recycled_retired_regions + _early_recycled_retired_regions_count) {
     shift_retired_regions_up();
   }
-  _early_recycled_shared_alloc_used += (r->top() - r->bottom()) * ShenandoahHeapRegion::region_size_bytes() + r->fwt_tail_bytes();
+  _early_recycled_shared_alloc_used += (r->top() - r->bottom()) * HeapWordSize + r->fwt_tail_bytes();
   _early_recycled_shared_alloc_regions[-_early_recycled_shared_alloc_regions_count] = r;
   _early_recycled_shared_alloc_regions_data[-_early_recycled_shared_alloc_regions_count++] = orig_shared_alloc_words;
   heapify_shared_alloc_regions_upward(_early_recycled_shared_alloc_regions_count - 1);
@@ -4606,7 +4767,7 @@ void ShenandoahFreeSet::insert_shared_alloc_region(ShenandoahHeapRegion* r) {
 
 void ShenandoahFreeSet::remove_shared_alloc_region(size_t index) {
   ShenandoahHeapRegion* r = get_shared_alloc_region(index);
-  _early_recycled_shared_alloc_used -= (r->top() - r->bottom()) * ShenandoahHeapRegion::region_size_bytes() + r->fwt_tail_bytes();
+  _early_recycled_shared_alloc_used -= (r->top() - r->bottom()) * HeapWordSize + r->fwt_tail_bytes();
   if (index == _early_recycled_shared_alloc_regions_count - 1) {
     // Removing the last entry in the partition is easy.  Just decrement the count.
     _early_recycled_shared_alloc_regions_count--;
@@ -4629,7 +4790,7 @@ void ShenandoahFreeSet::insert_retired_region(ShenandoahHeapRegion* r) {
     shift_retired_regions_up();
   }
   _early_recycled_retired_regions[_early_recycled_retired_regions_count++] = r;
-  _early_recycled_retired_used += (r->top() - r->bottom()) * ShenandoahHeapRegion::region_size_bytes() + r->fwt_tail_bytes();
+  _early_recycled_retired_used += (r->top() - r->bottom()) * HeapWordSize + r->fwt_tail_bytes();
 }
 
 // Return size in bytes of candidate region size if greater than PLAB::min_size().  Otherwrise, return 0 if no TLAB available.
@@ -4695,7 +4856,9 @@ HeapWord* ShenandoahFreeSet::try_allocate_TLAB_in_early_recycled(ShenandoahHeapR
           if (pad > 0) {
             ShenandoahHeap::fill_with_object(orig_top, pad);
           }
-          increase_early_recycled_tlab_regions_used(size + pad);
+          increase_early_recycled_tlab_regions_used((size + pad) * HeapWordSize);
+          // This assignment may be redundant. Maybe we can optimize.
+          r->set_affiliation(ShenandoahAffiliation::YOUNG_GENERATION);
           r->set_top(orig_top + size + pad);
           log_debug(gc, alloc)("TLAB allocated %zu words at " PTR_FORMAT " in FWT region %zu"
                                " [" PTR_FORMAT ", " PTR_FORMAT ")"
@@ -4728,10 +4891,12 @@ HeapWord* ShenandoahFreeSet::try_allocate_shared_in_early_recycled(ShenandoahHea
     HeapWord* candidate_start = orig_top + pad;
     if (!ctx->is_marked_ignore_tams(candidate_start)) {
       if (is_tlab_region) {
-        increase_early_recycled_tlab_regions_used(size + pad);
+        increase_early_recycled_tlab_regions_used((size + pad) * HeapWordSize);
       } else {
-        increase_early_recycled_shared_alloc_regions_used(size + pad);
+        increase_early_recycled_shared_alloc_regions_used((size + pad) * HeapWordSize);
       }
+      // This assignment may be redundant. Maybe we can optimize.
+      r->set_affiliation(ShenandoahAffiliation::YOUNG_GENERATION);
       r->set_top(orig_top + size + pad);
       log_debug(gc, alloc)("Share allocated %zu words at " PTR_FORMAT " in FWT region %zu"
                            " [" PTR_FORMAT ", " PTR_FORMAT ")"

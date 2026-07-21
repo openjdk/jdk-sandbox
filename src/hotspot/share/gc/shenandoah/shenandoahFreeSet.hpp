@@ -524,6 +524,7 @@ private:
   ShenandoahHeapRegion** _early_recycled_tlab_regions;
   size_t* _early_recycled_tlab_regions_data;
   size_t _early_recycled_tlab_regions_count;
+  // bytes of used memory within early-recycled tlab regions
   size_t _early_recycled_tlab_used;
 
   // This points to the last element of _early_recycled_region_data. We prioritize allocation from the regions that have
@@ -535,26 +536,29 @@ private:
   ShenandoahHeapRegion** _early_recycled_shared_alloc_regions;
   size_t* _early_recycled_shared_alloc_regions_data;
   size_t _early_recycled_shared_alloc_regions_count;
+  // bytes of used memory within early-recycled shared-alloc regions
   size_t _early_recycled_shared_alloc_used;
 
   // This points somewhere in the middle of the _early_recycled_region_data array, to an area of the array that does not
   // conflit with either the tlab or shared-allocation regions.
   ShenandoahHeapRegion** _early_recycled_retired_regions;
   size_t _early_recycled_retired_regions_count;
+  // bytes of used memory within early-recycled retired regions
   size_t _early_recycled_retired_used;
 
   void initialize_recycled_region_arrays();
+  void clear_early_recycling_totals();
 
   void insert_tlab_region(ShenandoahHeapRegion* r, size_t max_tlab_size);
   void insert_shared_alloc_region(ShenandoahHeapRegion* r);
   void insert_retired_region(ShenandoahHeapRegion* r);
 
-  void increase_early_recycled_tlab_regions_used(size_t delta) {
-    _early_recycled_tlab_used += delta;
+  void increase_early_recycled_tlab_regions_used(size_t delta_bytes) {
+    _early_recycled_tlab_used += delta_bytes;
   }
 
-  void increase_early_recycled_shared_alloc_regions_used(size_t delta) {
-    _early_recycled_shared_alloc_used += delta;
+  void increase_early_recycled_shared_alloc_regions_used(size_t delta_bytes) {
+    _early_recycled_shared_alloc_used += delta_bytes;
   }
 
   // Get the tlab region at requested index position.  Index 0 represents entry with largest allocatable tlab.
