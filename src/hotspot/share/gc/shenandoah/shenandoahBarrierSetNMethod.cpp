@@ -94,7 +94,7 @@ void ShenandoahBarrierSetNMethod::finalize_relocations(nmethod* nm) {
       if (r->target_offset() == 0) {
         address pc = r->addr();
         address target = ShenandoahBarrierSetAssembler::parse_jump_address(pc);
-        r->set_target_offset(target - pc);
+        r->set_target_offset(target - nm->code_begin());
       } else {
         // Already set. This is likely nmethod relocation, so just trust
         // the existing relocation data.

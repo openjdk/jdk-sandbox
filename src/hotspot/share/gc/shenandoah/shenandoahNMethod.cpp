@@ -125,8 +125,9 @@ void ShenandoahNMethod::parse(nmethod* nm, GrowableArray<oop*>& oops, bool& has_
 
         ShenandoahNMethodBarrier b;
         b._rel_pc = pointer_delta(r->addr(), code_begin, 1);
-        b._rel_target = r->target_offset();
-        b._metadata = r->metadata();
+        b._rel_target_pc = r->target_offset();
+        b._gc_state = decode_reloc_gc_state(r->metadata());
+        b._jump_when_state = decode_reloc_jump_when_state(r->metadata());
         barriers.push(b);
         break;
       }
@@ -167,21 +168,19 @@ bool ShenandoahNMethod::handle_oops(nmethod* nm) {
 }
 
 bool ShenandoahNMethod::handle_barriers(nmethod* nm) {
-  bool changed = false;
   ShenandoahNMethod* data = gc_data(nm);
   assert(data != nullptr, "Sanity");
   assert(data->lock()->owned_by_self(), "Must hold the lock");
 
   char gc_state = ShenandoahHeap::heap()->gc_state();
   address code_begin = nm->code_begin();
+
+  bool changed = false;
   for (int c = 0; c < data->_barriers_count; c++) {
     ShenandoahNMethodBarrier& b = data->_barriers[c];
-    address pc = code_begin + b._rel_pc;
-    address target = pc + b._rel_target;
-    char rel_gc_state = decode_reloc_gc_state(b._metadata);
-    bool rel_jump_when_state = decode_reloc_jump_when_state(b._metadata);
-    bool should_jump = ((gc_state & rel_gc_state) != 0) == rel_jump_when_state;
-    changed |= patch_barrier(pc, target, should_jump);
+    changed |= patch_barrier(code_begin + b._rel_pc,
+                             code_begin + b._rel_target_pc,
+                             ((gc_state & b._gc_state) != 0) == b._jump_when_state);
   }
   return changed;
 }
@@ -190,7 +189,7 @@ bool ShenandoahNMethod::patch_barrier(address pc, address target_pc, bool should
 #ifdef COMPILER2
   // Use precise instruction rewrite code, and only when it recognizes the current insns.
   // This patching code is non-atomic, but it runs either for new nmethods that are not
-  // yet executing, or in the nmethod entry barrier context, which guarantee the updates
+  // yet executing, or in the nmethod entry barrier context, which guarantees the updates
   // are not interleaved with execution. The icache flushing is also handled on both paths.
   bool patched = true;
   if (should_jump && ShenandoahBarrierSetAssembler::is_patchable_nop(pc)) {

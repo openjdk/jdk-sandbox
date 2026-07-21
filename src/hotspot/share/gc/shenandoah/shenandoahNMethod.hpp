@@ -39,8 +39,9 @@ typedef ShenandoahLocker<ShenandoahNMethodLock>       ShenandoahNMethodLocker;
 
 struct ShenandoahNMethodBarrier {
   int32_t _rel_pc;
-  int32_t _rel_target;
-  uint16_t _metadata;
+  int32_t _rel_target_pc;
+  char _gc_state;
+  bool _jump_when_state;
 };
 
 // ShenandoahNMethod tuple records the internal locations of oop slots within reclocation stream in
