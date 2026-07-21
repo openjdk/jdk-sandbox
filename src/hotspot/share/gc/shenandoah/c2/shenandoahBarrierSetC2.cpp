@@ -1053,10 +1053,10 @@ void ShenandoahBarrierStubC2::post_init() {
   PhaseOutput* const output = Compile::current()->output();
   ShenandoahBarrierSetC2State* state = barrier_set_state();
   if (output->in_scratch_emit_size()) {
+    _needs_far_jump = true;
     state->inc_stubs_current_total_size(get_stub_size(this));
     entry()->reset();
     continuation()->reset();
-    _needs_far_jump = true;
     return;
   }
 

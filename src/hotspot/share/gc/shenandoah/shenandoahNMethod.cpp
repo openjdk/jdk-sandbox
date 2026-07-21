@@ -314,6 +314,7 @@ void ShenandoahNMethodTable::register_nmethod(nmethod* nm) {
   assert(_index >= 0 && _index <= _list->size(), "Sanity");
 
   ShenandoahNMethod* data = ShenandoahNMethod::gc_data(nm);
+  bool code_changed = false;
 
   if (data != nullptr) {
     assert(contain(nm), "Must have been registered");
@@ -322,7 +323,7 @@ void ShenandoahNMethodTable::register_nmethod(nmethod* nm) {
     wait_until_concurrent_iteration_done();
     ShenandoahNMethodLocker data_locker(data->lock());
     data->update();
-    ShenandoahNMethod::handle_barriers(nm);
+    code_changed = ShenandoahNMethod::handle_barriers(nm);
   } else {
     // For a new nmethod, we can safely append it to the list, because
     // concurrent iteration will not touch it.
@@ -333,10 +334,11 @@ void ShenandoahNMethodTable::register_nmethod(nmethod* nm) {
     log_register_nmethod(nm);
     append(data);
     ShenandoahNMethodLocker data_locker(data->lock());
-    ShenandoahNMethod::handle_barriers(nm);
+    code_changed = ShenandoahNMethod::handle_barriers(nm);
   }
-  // Fix ups might have happened, flush the nmethod now.
-  ICache::invalidate_range(nm->code_begin(), nm->code_size());
+  if (code_changed) {
+    ICache::invalidate_range(nm->code_begin(), nm->code_size());
+  }
   // Disarm new nmethod
   ShenandoahNMethod::disarm_nmethod(nm);
 }

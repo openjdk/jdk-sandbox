@@ -200,7 +200,6 @@ class outputStream;
   SHENANDOAH_SIMPLE_PHASE_DEF(f, full_gc_propagate_gc_state,                      "  Propagate GC State")            \
                                                                                                                      \
   SHENANDOAH_SIMPLE_PHASE_DEF(f, conc_reset_after_collect,                        "Concurrent Reset After Collect")  \
-  SHENANDOAH_SIMPLE_PHASE_DEF(f, conc_reset_after_collect_nmethods,               "  Complete NMethod Barriers")     \
                                                                                                                      \
   SHENANDOAH_WORKER_PHASE_DEF(f, heap_iteration_roots,                            "Heap Iteration",                  \
                                                                                   "  HI: ")                          \

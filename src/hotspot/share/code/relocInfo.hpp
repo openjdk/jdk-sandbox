@@ -1096,7 +1096,7 @@ class patchable_barrier_Relocation : public Relocation {
 
   void set_target_offset(int32_t target_offset);
 
-private:
+ private:
   friend class RelocIterator;
   friend class RelocationHolder;
   patchable_barrier_Relocation() : Relocation(relocInfo::patchable_barrier_type) { }
