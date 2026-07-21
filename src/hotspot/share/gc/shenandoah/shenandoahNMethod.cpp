@@ -316,33 +316,37 @@ void ShenandoahNMethodTable::register_nmethod(nmethod* nm) {
   assert(_index >= 0 && _index <= _list->size(), "Sanity");
 
   ShenandoahNMethod* data = ShenandoahNMethod::gc_data(nm);
-  bool code_changed = false;
 
   if (data != nullptr) {
+    // Re-registering the existing nmethod. There are two paths to here:
+    // nmethod relocation and C1 oop patching. In either case, we expect
+    // no barrier changes. Only oops can change in C1 case. The barriers
+    // fixup is left to nmethod entry barriers, if active.
     assert(contain(nm), "Must have been registered");
     assert(nm == data->nm(), "Must be same nmethod");
     // Prevent updating a nmethod while concurrent iteration is in progress.
     wait_until_concurrent_iteration_done();
     ShenandoahNMethodLocker data_locker(data->lock());
     data->update();
-    code_changed = ShenandoahNMethod::handle_barriers(nm);
   } else {
-    // For a new nmethod, we can safely append it to the list, because
-    // concurrent iteration will not touch it.
+    // New nmethod, not yet executing. We can safely append it to the list,
+    // because concurrent iteration will not touch it. Ditto we can do
+    // barrier fixups right here and disarm the nmethod now.
     data = ShenandoahNMethod::for_nmethod(nm);
     assert(data != nullptr, "Sanity");
     ShenandoahNMethod::attach_gc_data(nm, data);
     ShenandoahLocker locker(&_lock);
     log_register_nmethod(nm);
     append(data);
-    ShenandoahNMethodLocker data_locker(data->lock());
-    code_changed = ShenandoahNMethod::handle_barriers(nm);
+    {
+      ShenandoahNMethodLocker data_locker(data->lock());
+      if (ShenandoahNMethod::handle_barriers(nm)) {
+        ICache::invalidate_range(nm->code_begin(), nm->code_size());
+      }
+    }
+    // Disarm new nmethod
+    ShenandoahNMethod::disarm_nmethod(nm);
   }
-  if (code_changed) {
-    ICache::invalidate_range(nm->code_begin(), nm->code_size());
-  }
-  // Disarm new nmethod
-  ShenandoahNMethod::disarm_nmethod(nm);
 }
 
 void ShenandoahNMethodTable::unregister_nmethod(nmethod* nm) {
