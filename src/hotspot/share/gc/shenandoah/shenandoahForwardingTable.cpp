@@ -27,6 +27,7 @@
 #include "gc/shenandoah/shenandoahHeapRegion.hpp"
 #include "gc/shenandoah/shenandoahMarkingContext.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/markWord.hpp"
 #include "utilities/bitMap.inline.hpp"
 
 HeapWord* CompactFwdTableEntry::_heap_base = nullptr;
@@ -147,7 +148,19 @@ void ShenandoahForwardingTable::set_marked_entries_used(BitMap& used) {
   constexpr size_t entry_words = sizeof(Entry) / sizeof(HeapWord*);
   HeapWord* cb = (table_start < top) ? ctx->get_next_marked_addr(table_start, top) : top;
   while (cb < top) {
-    assert(*reinterpret_cast<uintptr_t*>(cb) != 0, "preserved mark word must be non-zero at " PTR_FORMAT, p2i(cb));
+    // These slots overlay live object headers, which the forwardee path tells from real
+    // entries by value alone (see forwardee()). That needs a forwarding pointer here, not
+    // a plain header carrying klass bits, which under +UseCompactObjectHeaders would alias
+    // ENTRY_MARKER. Assert it, so relaxing that cannot break it quietly.
+    DEBUG_ONLY(markWord const mark = markWord(*reinterpret_cast<uintptr_t*>(cb));)
+    DEBUG_ONLY(void* const fwdptr = mark.clear_lock_bits().to_pointer();)
+    assert(mark.is_marked(), "preserved header at " PTR_FORMAT " in region %zu must be a forwarding "
+           "pointer, got " PTR_FORMAT, p2i(cb), _region->index(), p2i(mark.to_pointer()));
+    // A null forwardee reads back as "not forwarded" and carries no klass bits either,
+    // so accept it; a non-null one must be a real heap address.
+    assert(fwdptr == nullptr || ShenandoahHeap::heap()->is_in(fwdptr),
+           "preserved header at " PTR_FORMAT " in region %zu must forward into the heap, got " PTR_FORMAT,
+           p2i(cb), _region->index(), p2i(fwdptr));
     size_t slot = (cb - table_start) / entry_words;
     used.set_bit(slot);
     HeapWord* const slot_base = table_start + slot * entry_words;
