@@ -1458,22 +1458,42 @@ bool ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t nu
 
 void ShenandoahHeap::trash_cset_regions() {
   ShenandoahHeapLocker locker(lock());
-
+#undef KELVIN_VERIFY_PROBLEM
+#ifdef KELVIN_VERIFY_PROBLEM
+  log_info(gc)("ShenHeap::trash_cset_regions()");
+#endif
   ShenandoahCollectionSet* cset = collection_set();
   ShenandoahHeapRegion* r;
   cset->clear_current_index();
   while ((r = cset->next()) != nullptr) {
     if (cset->is_reusable(r)) {
       bool has_live_objects = (r->top() != r->bottom());
+#ifdef KELVIN_VERIFY_PROBLEM
+      log_info(gc)(" trash_cset_regions() examines region %zu, %s",
+                   r->index(), has_live_objects? "has live objects": "does not have live objects");
+#endif
       if (has_live_objects) {
         r->make_regular_from_cset();
         marking_context()->clear_bitmap(r);
+#ifdef KELVIN_VERIFY_PROBLEM
+        log_info(gc)(" trash_cset_regions() makes region %zu regular from the cset and clears its bitmap", r->index());
+#endif
       } else if (free_set()->membership(r->index()) == ShenandoahFreeSetPartitionId::NotFree) {
         r->make_trash();
+#ifdef KELVIN_VERIFY_PROBLEM
+        log_info(gc)(" trash_cset_regions() makes region %zu into trash", r->index());
+#endif
       } else {
+#ifdef KELVIN_VERIFY_PROBLEM
+        log_info(gc)(" trash_cset_regions() calls finish_recycle_earl() on region %zu because membership is not NotFree",
+                     r->index());
+#endif
         r->finish_recycle_early();
       }
     } else {
+#ifdef KELVIN_VERIFY_PROBLEM
+      log_info(gc)(" trash_cset_regions() makes region %zu trash because region is not reusable", r->index());
+#endif
       r->make_trash();
     }
   }

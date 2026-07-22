@@ -351,7 +351,7 @@ void ShenandoahForwardingTable::add_marks_above_tams() {
   ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
   HeapWord* TAMS = ctx->top_at_mark_start(_region);
   HeapWord* region_base = _region->bottom();
-#define KELVIN_MARK_BITMAP
+#undef KELVIN_MARK_BITMAP
 #ifdef KELVIN_MARK_BITMAP
   log_info(gc)("KELVIN extending bitmap for region %zu, [" PTR_FORMAT ", " PTR_FORMAT "], TAMS: " PTR_FORMAT,
                _region->index(), p2i(_region->bottom()), p2i(_region->end()), p2i(TAMS));
