@@ -77,7 +77,7 @@ bool ShenandoahBarrierSetNMethod::nmethod_entry_barrier(nmethod* nm) {
     ICache::invalidate_range(nm->code_begin(), nm->code_size());
   }
 
-  // CodeCache unloading support.
+  // CodeCache unloading support
   nm->mark_as_maybe_on_stack();
 
   // Disarm
