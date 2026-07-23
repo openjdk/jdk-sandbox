@@ -676,7 +676,7 @@ void ShenandoahBarrierStubC2::cardtable(MacroAssembler& masm, Address address, R
   }
 }
 
-void ShenandoahBarrierStubC2::patchable_jump(MacroAssembler& masm, const char gc_state, bool jump_when_state, Label* L_target, bool needs_far_jump) {
+void ShenandoahBarrierStubC2::patchable_jump(MacroAssembler& masm, const char gc_state, bool jump_when_state, Label* L_target) {
   PhaseOutput* const output = Compile::current()->output();
   if (output->in_scratch_emit_size()) {
     // Avoid binding L_target in scratch emits.
@@ -785,7 +785,7 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   if (_needs_load_ref_barrier) {
     assert(L_done == nullptr, "Should be");
     char state_to_check = ShenandoahHeap::MARKING;
-    patchable_short_jump_if_not_gc_state(masm, state_to_check, &L_through);
+    patchable_jump_if_not_gc_state(masm, state_to_check, &L_through);
   }
 
   // Fast-path: put object into buffer.
@@ -844,7 +844,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   // regardless of their cset status.
   if (_needs_load_ref_weak_barrier) {
     char state_to_check = ShenandoahHeap::WEAK_ROOTS;
-    patchable_short_jump_if_gc_state(masm, state_to_check, &L_slow);
+    patchable_jump_if_gc_state(masm, state_to_check, &L_slow);
   }
 
   // Cset-check. Fall-through to slow if in collection set.

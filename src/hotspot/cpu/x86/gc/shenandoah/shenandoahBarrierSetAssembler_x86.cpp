@@ -769,7 +769,7 @@ void ShenandoahBarrierStubC2::cardtable(MacroAssembler& masm, Address addr, Regi
   __ bind(L_done);
 }
 
-void ShenandoahBarrierStubC2::patchable_jump(MacroAssembler& masm, const char gc_state, bool jump_when_state, Label* L_target, bool needs_far_jump) {
+void ShenandoahBarrierStubC2::patchable_jump(MacroAssembler& masm, const char gc_state, bool jump_when_state, Label* L_target) {
   PhaseOutput* const output = Compile::current()->output();
   if (output->in_scratch_emit_size()) {
     // Avoid binding L_target in scratch emits.
@@ -967,7 +967,7 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   // regardless of their cset status.
   if (_needs_load_ref_weak_barrier) {
     char state_to_check = ShenandoahHeap::WEAK_ROOTS;
-    patchable_short_jump_if_gc_state(masm, state_to_check, &L_slow);
+    patchable_jump_if_gc_state(masm, state_to_check, &L_slow);
   }
 
   bool is_aot = AOTCodeCache::is_on_for_dump();
