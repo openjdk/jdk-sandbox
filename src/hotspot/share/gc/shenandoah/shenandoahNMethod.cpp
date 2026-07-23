@@ -188,9 +188,12 @@ bool ShenandoahNMethod::handle_barriers(nmethod* nm) {
 bool ShenandoahNMethod::patch_barrier(address pc, address target_pc, bool should_jump) {
 #ifdef COMPILER2
   // Use precise instruction rewrite code, and only when it recognizes the current insns.
-  // This patching code is non-atomic, but it runs either for new nmethods that are not
-  // yet executing, or in the nmethod entry barrier context, which guarantees the updates
-  // are not interleaved with execution. The icache flushing is also handled on both paths.
+  // This patching code is non-atomic, but it runs in two safe contexts:
+  //   a) For new nmethods that are not yet executing;
+  //   b) For existing methods in the nmethod entry barrier context. The nmethod entry barriers
+  //      are armed along with stack watermark machinery activation, which together guarantee
+  //      the nmethod updates are not interleaved with execution.
+  // The icache flushing is also handled on both paths.
   bool patched = true;
   if (should_jump && ShenandoahBarrierSetAssembler::is_patchable_nop(pc)) {
     ShenandoahBarrierSetAssembler::insert_patchable_jump(pc, target_pc);
