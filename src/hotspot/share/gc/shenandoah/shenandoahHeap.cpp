@@ -1291,7 +1291,6 @@ void ShenandoahHeap::op_final_roots() {
 
   // Arm the nmethods to change the barriers.
   ShenandoahCodeRoots::arm_nmethods();
-  ShenandoahStackWatermark::change_epoch_id();
 
   {
     ShenandoahTimingsTracker timing(ShenandoahPhaseTimings::final_roots_propagate_gc_state);

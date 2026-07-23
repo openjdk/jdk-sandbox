@@ -778,7 +778,6 @@ void ShenandoahConcurrentGC::op_init_mark() {
 
   // Arm nmethods/stack for concurrent processing
   ShenandoahCodeRoots::arm_nmethods();
-  ShenandoahStackWatermark::change_epoch_id();
 
   {
     ShenandoahTimingsTracker timing(ShenandoahPhaseTimings::init_propagate_gc_state);
@@ -848,7 +847,6 @@ void ShenandoahConcurrentGC::op_final_mark() {
 
   // Arm nmethods/stack for concurrent processing
   ShenandoahCodeRoots::arm_nmethods();
-  ShenandoahStackWatermark::change_epoch_id();
 
   {
     ShenandoahTimingsTracker timing(ShenandoahPhaseTimings::final_mark_propagate_gc_state);
@@ -1250,11 +1248,8 @@ void ShenandoahConcurrentGC::op_final_update_refs() {
   heap->rebuild_free_set(true /*concurrent*/);
   _generation->heuristics()->start_idle_span();
 
-  {
-    // Final pause: update GC barriers to idle state.
-    ShenandoahCodeRoots::arm_nmethods();
-    ShenandoahStackWatermark::change_epoch_id();
-  }
+  // Final pause: update GC barriers to idle state.
+  ShenandoahCodeRoots::arm_nmethods();
 
   {
     ShenandoahTimingsTracker timing(ShenandoahPhaseTimings::final_update_refs_propagate_gc_state);

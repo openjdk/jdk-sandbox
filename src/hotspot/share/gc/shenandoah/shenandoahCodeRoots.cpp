@@ -29,6 +29,7 @@
 #include "gc/shenandoah/shenandoahClosures.inline.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahNMethod.inline.hpp"
+#include "gc/shenandoah/shenandoahStackWatermark.hpp"
 #include "gc/shenandoah/shenandoahUtils.hpp"
 #include "memory/resourceArea.hpp"
 #include "memory/universe.hpp"
@@ -55,6 +56,11 @@ void ShenandoahCodeRoots::unregister_nmethod(nmethod* nm) {
 
 void ShenandoahCodeRoots::arm_nmethods() {
   BarrierSet::barrier_set()->barrier_set_nmethod()->arm_all_nmethods();
+
+  // nmethod entry barriers are used to update nmethods. In order to guarantee
+  // that nmethod execution is not interleaved with nmethod entry barrier fixups,
+  // we need to also activate stack watermark machinery.
+  ShenandoahStackWatermark::change_epoch_id();
 }
 
 class ShenandoahNMethodUnlinkClosure : public NMethodClosure {

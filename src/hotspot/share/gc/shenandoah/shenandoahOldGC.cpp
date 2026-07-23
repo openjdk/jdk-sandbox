@@ -76,7 +76,6 @@ void ShenandoahOldGC::op_final_mark() {
 
     // Arm nmethods/stack for concurrent processing
     ShenandoahCodeRoots::arm_nmethods();
-    ShenandoahStackWatermark::change_epoch_id();
 
     {
       ShenandoahTimingsTracker timing(ShenandoahPhaseTimings::final_mark_propagate_gc_state);

@@ -317,7 +317,6 @@ void ShenandoahDegenGC::op_degenerated() {
 
   // Leaving degenerated GC, we need to flip barriers back to idle.
   ShenandoahCodeRoots::arm_nmethods();
-  ShenandoahStackWatermark::change_epoch_id();
 
   if (ShenandoahVerify) {
     heap->verifier()->verify_after_degenerated(_generation);
