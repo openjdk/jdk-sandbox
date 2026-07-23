@@ -681,7 +681,7 @@ void ShenandoahBarrierStubC2::patchable_jump(MacroAssembler& masm, const char gc
   if (output->in_scratch_emit_size()) {
     // We piggyback on scratch_emit_size mode to compute the slowpath stub size.
     // Avoid binding entry() or trusting needs_far_jump at this time.
-    // We know the patched check is at worst one incompressible instruction long.
+    // We know the patched check is exactly one incompressible instruction long.
     Assembler::IncompressibleScope scope(&masm);
     __ nop();
     return;

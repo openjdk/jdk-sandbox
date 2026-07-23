@@ -957,25 +957,15 @@ void ShenandoahBarrierStubC2::patchable_jump(MacroAssembler& masm, const char gc
   if (output->in_scratch_emit_size()) {
     // We piggyback on scratch_emit_size mode to compute the slowpath stub size.
     // Avoid binding L_target at this time. We know the patched check is exactly
-    // two instructions long.
-    __ nop();
+    // one instruction long.
     __ nop();
     return;
   }
 
   // Emit the unconditional branch in the first version of the method.
-  // Let the rest of runtime figure out how to manage it. If the jump target
-  // is far away, we need to flip it to make sure patchable jumps are encodeable.
-  if (needs_far_jump) {
-    Label L_over;
-    __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::encode_to_reloc(gc_state, !jump_when_state)));
-    __ b(L_over);
-    __ b(*L_target);
-    __ bind(L_over);
-  } else {
-    __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::encode_to_reloc(gc_state, jump_when_state)));
-    __ b(*L_target);
-  }
+  // Let the rest of runtime figure out how to manage it.
+  __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::encode_to_reloc(gc_state, jump_when_state)));
+  __ b(*L_target);
 }
 
 void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state) {
@@ -1195,8 +1185,10 @@ bool ShenandoahBarrierStubC2::is_special_register(Register r) {
 }
 
 int ShenandoahBarrierStubC2::max_branch_reach() {
-  // The branch target range is 32M. Subtract 2K to be ultra conservative.
-  return (int)(32*M - 2*K);
+  // PPC code already assumes the target range is within 32M, using b()-s
+  // all over the place. Therefore, there is no practical reason to cap the
+  // max branch reach here. TODO: This needs to be addressed generically.
+  return -1;
 }
 
 #endif // COMPILER2
