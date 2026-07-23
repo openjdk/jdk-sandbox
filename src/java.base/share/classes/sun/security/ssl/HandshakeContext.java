@@ -358,7 +358,7 @@ abstract class HandshakeContext implements ConnectionContext {
         }
         if (quicTLSAdapter != null) {
             Set<String> supportedByQuic
-                    = Set.of(quicTLSAdapter.getSupportedCipherSuites());
+                    = quicTLSAdapter.getSupportedCipherSuites();
             suites.removeIf(cs -> !supportedByQuic.contains(cs.name));
         }
 

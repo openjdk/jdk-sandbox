@@ -50,9 +50,11 @@ import javax.net.ssl.SSLSession;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.Set;
 import java.util.function.IntFunction;
+import java.util.stream.Collectors;
 
 import static jdk.internal.net.http.quic.QuicTLSEngine.KeySpace.*;
 
@@ -485,12 +487,10 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, QuicTLSAdapter {
     }
 
     @Override
-    public String[] getSupportedCipherSuites() {
-        return new String[] {
-                "TLS_AES_128_GCM_SHA256",
-                "TLS_AES_256_GCM_SHA384",
-                "TLS_CHACHA20_POLY1305_SHA256",
-        };
+    public Set<String> getSupportedCipherSuites() {
+        return Arrays.stream(QuicCipherSuite.values())
+                .map(QuicCipherSuite::toString)
+                .collect(Collectors.toSet());
     }
 
     @Override

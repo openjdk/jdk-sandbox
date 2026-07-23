@@ -28,6 +28,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Objects;
+import java.util.Set;
 
 import javax.crypto.SecretKey;
 import javax.net.ssl.QuicTLSAdapter;
@@ -64,8 +65,8 @@ public final class QuicTLSContext {
                 public void deriveApplicationWriteSecrets(SecretKey secretKey, String cipherSuite) {
                 }
                 @Override
-                public String[] getSupportedCipherSuites() {
-                    return new String[0];
+                public Set<String> getSupportedCipherSuites() {
+                    return Set.of();
                 }
                 @Override
                 public ByteBuffer localQuicTransportParameters() {

@@ -32,6 +32,7 @@ import javax.net.ssl.SSLParameters;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Random;
+import java.util.Set;
 
 /**
  * A QUIC SSLEngine usage example which simplifies the presentation
@@ -149,9 +150,9 @@ public class QuicSSLEngineTemplate extends SSLContextTemplate {
         }
 
         @Override
-        public String[] getSupportedCipherSuites() {
-            return new String[] {"TLS_AES_128_GCM_SHA256", "TLS_AES_256_GCM_SHA384",
-                    "TLS_CHACHA20_POLY1305_SHA256"};
+        public Set<String> getSupportedCipherSuites() {
+            return Set.of("TLS_AES_128_GCM_SHA256", "TLS_AES_256_GCM_SHA384",
+                    "TLS_CHACHA20_POLY1305_SHA256");
         }
 
         @Override

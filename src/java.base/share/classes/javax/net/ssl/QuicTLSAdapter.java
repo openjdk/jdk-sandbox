@@ -28,6 +28,7 @@ import javax.crypto.SecretKey;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.security.GeneralSecurityException;
+import java.util.Set;
 
 /**
  * This interface is implemented by QUIC transport implementations
@@ -191,7 +192,7 @@ public interface QuicTLSAdapter {
      * will be offered.
      * @return the names of the cipher suites supported by this QUIC transport
      */
-    String[] getSupportedCipherSuites();
+    Set<String> getSupportedCipherSuites();
 
     /**
      * Called by the {@link SSLEngine} to retrieve the contents of the QUIC
