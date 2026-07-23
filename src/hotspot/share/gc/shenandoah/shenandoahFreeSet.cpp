@@ -3628,7 +3628,8 @@ void ShenandoahFreeSet::recycle_collection_set() {
 }
 
 void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* r, size_t& released_regions,
-                                                          size_t& released_bytes, size_t& emptied_regions) {
+                                                          size_t& released_bytes, size_t& emptied_regions,
+                                                          size_t& early_recycled_allocation_regions) {
   ShenandoahFreeSetPartitionId p = _partitions.membership(r->index());
   size_t tail = r->fwt_tail_bytes();
   size_t available = r->capacity() - tail;
@@ -3660,6 +3661,7 @@ void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* 
 #ifdef KELVIN_RECYCLE
         log_info(gc)("  assigning region %zu to the Mutator partition", r->index());
 #endif
+        early_recycled_allocation_regions++;
         _partitions.raw_assign_membership(r->index(), ShenandoahFreeSetPartitionId::Mutator);
         _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, early_recycle_allocated);
         _partitions.increase_capacity(ShenandoahFreeSetPartitionId::Mutator, region_size_bytes);
@@ -3671,6 +3673,7 @@ void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* 
         assert(r->affiliation() == ShenandoahAffiliation::YOUNG_GENERATION,
                "Region should be affiliated young at start of update refs");
         assert(r->is_trash(), "Should be made trash before we get here");
+        _partitions.raw_assign_membership(r->index(), ShenandoahFreeSetPartitionId::Mutator);
         _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, region_size_bytes);
         _partitions.increase_capacity(ShenandoahFreeSetPartitionId::Mutator, region_size_bytes);
       }
@@ -3679,7 +3682,14 @@ void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* 
     }
   }
   r->reset_forwarding_table();
-  if (r->is_empty()) {
+#define KELVIN_NOISE
+#ifdef KELVIN_NOISE
+  log_info(gc)(" early recycled region %zu has bottom: " PTR_FORMAT ", top: " PTR_FORMAT ", end: " PTR_FORMAT ", %s, %s",
+               r->index(), p2i(r->bottom()), p2i(r->top()), p2i(r->end()),
+               (r->is_empty()? "is empty": "is not empty"),
+               (r->is_trash()? "is trash": "is not trash"));
+#endif
+  if (r->is_empty() || r->is_trash()) {
     _partitions.increase_empty_region_counts(p, 1);
     emptied_regions++;
   }
@@ -3691,6 +3701,7 @@ void ShenandoahFreeSet::finish_cset_region_recycling() {
   size_t released_regions = 0;
   size_t released_bytes   = 0;
   size_t emptied_regions  = 0;
+  size_t early_recycled_allocation_regions = 0;
   size_t num_regions = _heap->num_regions();
 
 #ifdef KELVIN_FWT
@@ -3707,7 +3718,7 @@ void ShenandoahFreeSet::finish_cset_region_recycling() {
     ShenandoahHeapRegion* r = _heap->get_region(idx);
     if (!cset->use_forward_table(r)) continue;
 
-    finish_recycle_of_one_cset_region(r, released_regions, released_bytes, emptied_regions);
+    finish_recycle_of_one_cset_region(r, released_regions, released_bytes, emptied_regions, early_recycled_allocation_regions);
   }
 
   // We're no longer allocating from early recycled regions.
@@ -3720,12 +3731,17 @@ void ShenandoahFreeSet::finish_cset_region_recycling() {
   log_info(gc)("Released FWT tails for %zu regions, freeing %zu%s", released_regions,
                byte_size_in_proper_unit(released_bytes), proper_unit_for_byte_size(released_bytes));
   recompute_total_used</* UsedByMutatorChanged */ true,
-                       /* UsedByCollectorChanged */ false,
+                       /* UsedByCollectorChanged */ true,
                        /* UsedByOldCollectorChanged */ true>();
-  if (emptied_regions > 0) {
-    recompute_total_affiliated</* MutatorEmptiesChanged */ true, /* CollectorEmptiesChanged */ false,
-                               /* OldCollectorEmptiesChanged */ false, /* MutatorSizeChanged */ false,
-                               /* CollectorSizeChanged */ false, /* OldCollectorSizeChanged */ false,
+#ifdef KELVIN_NOISE
+  log_info(gc)("After processing all cset regions, emptied_regions: %zu, early_recycled_allocation_regions: %zu",
+               emptied_regions, early_recycled_allocation_regions);
+#endif
+  if (emptied_regions + early_recycled_allocation_regions > 0) {
+    // The early recycled cset regions may have originated in young or old.  Recompute everything.
+    recompute_total_affiliated</* MutatorEmptiesChanged */ true, /* CollectorEmptiesChanged */ true,
+                               /* OldCollectorEmptiesChanged */ true, /* MutatorSizeChanged */ true,
+                               /* CollectorSizeChanged */ true, /* OldCollectorSizeChanged */ true,
                                /* AffiliatedChangesAreYoungNeutral */ false,
                                /* AffiliatedChangesAreGlobalNeutral */ false,
                                /* UnaffiliatedChangesAreYoungNeutral */ false>();
