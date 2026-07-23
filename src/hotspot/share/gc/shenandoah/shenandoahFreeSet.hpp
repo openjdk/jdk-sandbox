@@ -319,12 +319,7 @@ public:
   }
 
   inline void increase_humongous_waste(ShenandoahFreeSetPartitionId which_partition, size_t bytes);
-  inline void decrease_humongous_waste(ShenandoahFreeSetPartitionId which_partition, size_t bytes) {
-    shenandoah_assert_heaplocked();
-    assert (which_partition < NumPartitions, "Partition must be valid");
-    assert(_humongous_waste[int(which_partition)] >= bytes, "Cannot decrease waste beyond what is there");
-    _humongous_waste[int(which_partition)] -= bytes;
-  }
+  inline void decrease_humongous_waste(ShenandoahFreeSetPartitionId which_partition, size_t bytes);
 
   inline size_t get_humongous_waste(ShenandoahFreeSetPartitionId which_partition);
 
