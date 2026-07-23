@@ -229,7 +229,8 @@ public interface QuicTLSAdapter {
      * by adding {@code 0x100} and send it in a {@code CONNECTION_CLOSE} frame
      * of type {@code 0x1c}.
      * @param code        the TLS alert code
-     * @param closeReason the exception related to the alert
+     * @param closeReason the exception related to the alert, may be {@code null}
+     * @throws IllegalArgumentException if code is not between 0 and 255 inclusive
      */
     void cryptoError(int code, Exception closeReason);
 }

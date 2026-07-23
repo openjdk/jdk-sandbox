@@ -552,7 +552,14 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, QuicTLSAdapter {
 
     @Override
     public void cryptoError(int code, Exception closeReason) {
+        if (code < 0 || code > 255) {
+            throw new IllegalArgumentException(code + " is not a valid alert code");
+        }
         if (cryptoError == null) {
+            if (closeReason == null) {
+                closeReason = new SSLHandshakeException("TLS handshake failed with " +
+                        QuicTransportErrors.toString(BASE_CRYPTO_ERROR + code));
+            }
             cryptoError = new QuicTransportException(closeReason.getMessage(),
                     recvKeySpace, 0,
                     BASE_CRYPTO_ERROR + code, closeReason);
