@@ -27,7 +27,10 @@
 #include "gc/shenandoah/shenandoahHeapRegion.hpp"
 #include "gc/shenandoah/shenandoahMarkingContext.hpp"
 #include "memory/resourceArea.hpp"
+#include "oops/markWord.hpp"
+#include "runtime/prefetch.inline.hpp"
 #include "utilities/bitMap.inline.hpp"
+#include "utilities/powerOfTwo.hpp"
 
 HeapWord* CompactFwdTableEntry::_heap_base = nullptr;
 bool ShenandoahForwardingTable::_compact = false;
@@ -147,7 +150,19 @@ void ShenandoahForwardingTable::set_marked_entries_used(BitMap& used) {
   constexpr size_t entry_words = sizeof(Entry) / sizeof(HeapWord*);
   HeapWord* cb = (table_start < top) ? ctx->get_next_marked_addr(table_start, top) : top;
   while (cb < top) {
-    assert(*reinterpret_cast<uintptr_t*>(cb) != 0, "preserved mark word must be non-zero at " PTR_FORMAT, p2i(cb));
+    // These slots overlay live object headers, which the forwardee path tells from real
+    // entries by value alone (see forwardee()). That needs a forwarding pointer here, not
+    // a plain header carrying klass bits, which under +UseCompactObjectHeaders would alias
+    // ENTRY_MARKER. Assert it, so relaxing that cannot break it quietly.
+    DEBUG_ONLY(markWord const mark = markWord(*reinterpret_cast<uintptr_t*>(cb));)
+    DEBUG_ONLY(void* const fwdptr = mark.clear_lock_bits().to_pointer();)
+    assert(mark.is_marked(), "preserved header at " PTR_FORMAT " in region %zu must be a forwarding "
+           "pointer, got " PTR_FORMAT, p2i(cb), _region->index(), p2i(mark.to_pointer()));
+    // A null forwardee reads back as "not forwarded" and carries no klass bits either,
+    // so accept it; a non-null one must be a real heap address.
+    assert(fwdptr == nullptr || ShenandoahHeap::heap()->is_in(fwdptr),
+           "preserved header at " PTR_FORMAT " in region %zu must forward into the heap, got " PTR_FORMAT,
+           p2i(cb), _region->index(), p2i(fwdptr));
     size_t slot = (cb - table_start) / entry_words;
     used.set_bit(slot);
     HeapWord* const slot_base = table_start + slot * entry_words;
@@ -172,19 +187,62 @@ void ShenandoahForwardingTable::clear_unused_slots(const BitMap& used) {
 }
 
 template<class Entry>
-void ShenandoahForwardingTable::enter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee) {
+ShenandoahForwardingTable::ForwardingBuffer<Entry>::ForwardingBuffer(ShenandoahForwardingTable& fwt, BitMap& used)
+  : _fwt(fwt), _used(used), _slots(nullptr), _dist(0), _pos(0) {
+  uint const requested = static_cast<uint>(ShenandoahMarkScanPrefetch);
+  _dist = (requested > 0) ? static_cast<int>(round_up_power_of_2(requested)) : 0;
+  if (_dist > 0) {
+    _slots = NEW_RESOURCE_ARRAY(Slot, _dist);
+  }
+}
+
+template<class Entry>
+void ShenandoahForwardingTable::ForwardingBuffer<Entry>::flush(int slot) {
+  Slot& oldest = _slots[slot];
+  _fwt.insert_forwarding<Entry>(_used, oldest._index, oldest._entry);
+}
+
+template<class Entry>
+void ShenandoahForwardingTable::ForwardingBuffer<Entry>::finish() {
+  int const in_flight = MIN2(_pos, _dist);
+  for (int pos = _pos - in_flight; pos < _pos; pos++) {
+    flush(pos & (_dist - 1));
+  }
+  _slots = nullptr;
+  _dist = 0;
+  _pos = 0;
+}
+
+template<class Entry>
+void ShenandoahForwardingTable::ForwardingBuffer<Entry>::enter(HeapWord* original, HeapWord* forwardee) {
+  size_t index = _fwt.index_of(original);
+  if (_dist == 0) {
+    _fwt.insert_forwarding<Entry>(_used, index, Entry(_fwt._region->bottom(), original, forwardee));
+    return;
+  }
+  Prefetch::write(reinterpret_cast<Entry*>(_fwt._table) + index, 0);
+  int const slot = _pos & (_dist - 1);
+  if (_pos++ >= _dist) {
+    flush(slot);
+  }
+  Slot& newest = _slots[slot];
+  new (&newest._entry) Entry(_fwt._region->bottom(), original, forwardee);
+  newest._index = index;
+}
+
+template<class Entry>
+void ShenandoahForwardingTable::insert_forwarding(BitMap& used, size_t index, const Entry& entry) {
   Entry* table = reinterpret_cast<Entry*>(_table);
-  size_t index = index_of(original);
   DEBUG_ONLY(size_t const first_index = index;)
-  HeapWord* region_base = _region->bottom();
+  DEBUG_ONLY(HeapWord* const region_base = _region->bottom();)
   while (used.at(index)) {
-    assert(!table[index].is_original(region_base, original), "occupied slot must not match the original being entered");
+    assert(!table[index].is_original(region_base, entry.original(region_base)), "occupied slot must not match the original being entered");
     if (++index == _num_entries) {
       index = 0;
     }
     assert(index != first_index, "must find a usable slot, _num_entries: %lu, actual forwardings: %lu, live_words: %lu", _num_entries, _num_actual_forwardings, _num_live_words);
   }
-  new (&table[index]) Entry(region_base, original, forwardee);
+  new (&table[index]) Entry(entry);
   used.set_bit(index);
   _num_actual_forwardings++;
   assert(_num_actual_forwardings <= _num_expected_forwardings, "must not exceed number of forwardings");
@@ -201,14 +259,18 @@ void ShenandoahForwardingTable::log_stats() const {
 
 template<class Entry>
 void ShenandoahForwardingTable::fill_forwardings(BitMap& used) {
+  ForwardingBuffer<Entry> buffer(*this, used);
+
   class FillForwardingsClosure {
-    ShenandoahForwardingTable& _table;
-    BitMap&   _used;
+    ForwardingBuffer<Entry>& _buffer;
     HeapWord* const _fwt_start;
     size_t    const _region_idx;
+
   public:
-    FillForwardingsClosure(ShenandoahForwardingTable& t, BitMap& used, HeapWord* fwt_start, size_t region_idx)
-      : _table(t), _used(used), _fwt_start(fwt_start), _region_idx(region_idx) {}
+    FillForwardingsClosure(ForwardingBuffer<Entry>& buffer,
+                           HeapWord* fwt_start, size_t region_idx)
+      : _buffer(buffer), _fwt_start(fwt_start), _region_idx(region_idx) {}
+
     void do_object(oop obj) {
       HeapWord* original = cast_from_oop<HeapWord*>(obj);
       HeapWord* forwardee = cast_from_oop<HeapWord*>(ShenandoahForwarding::get_forwardee_raw(obj));
@@ -222,11 +284,12 @@ void ShenandoahForwardingTable::fill_forwardings(BitMap& used) {
                         p2i(original), _region_idx);
       }
 #endif
-      _table.enter_forwarding<Entry>(_used, original, forwardee);
+      _buffer.enter(original, forwardee);
     }
-  } cl(*this, used, start(), _region->index());
+  } cl(buffer, start(), _region->index());
 
   ShenandoahHeap::heap()->marked_object_iterate(_region, &cl);
+  buffer.finish();
   assert(_num_actual_forwardings == _num_expected_forwardings, "must enter exact number of forwardings, actual: %lu, expected: %lu", _num_actual_forwardings, _num_expected_forwardings);
   log_stats<Entry>();
 }

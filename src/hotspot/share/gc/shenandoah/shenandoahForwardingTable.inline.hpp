@@ -88,6 +88,9 @@ HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
 
  HeapWord* const region_base = _region->bottom();
 
+ // Some slots overlay live object headers. Those read as used, so the probe walks past
+ // them, and can never match: such a header is a forwarding pointer, i.e. a lock-bit-tagged
+ // heap address, so it has neither ENTRY_MARKER (compact) nor an aligned original (wide).
  while (table[index].is_used()) {
   if (table[index].is_original(region_base, original)) {
    HeapWord* result = table[index].forwardee();
