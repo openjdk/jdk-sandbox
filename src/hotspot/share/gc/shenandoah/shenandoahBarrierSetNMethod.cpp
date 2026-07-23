@@ -91,7 +91,7 @@ void ShenandoahBarrierSetNMethod::finalize_relocations(nmethod* nm) {
   while (iter.next()) {
     if (iter.type() == relocInfo::patchable_barrier_type) {
       patchable_barrier_Relocation* r = iter.patchable_barrier_reloc();
-      if (r->target_offset() == 0) {
+      if (!r->is_target_offset_resolved()) {
         address pc = r->addr();
         address target = ShenandoahBarrierSetAssembler::parse_jump_address(pc);
         r->set_target_offset(target - nm->code_begin());

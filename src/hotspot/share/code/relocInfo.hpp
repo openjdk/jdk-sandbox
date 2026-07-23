@@ -1075,6 +1075,8 @@ class barrier_Relocation : public Relocation {
 
 class patchable_barrier_Relocation : public Relocation {
  private:
+  static const int32_t unresolved = INT32_MAX;
+
   int32_t _target_offset;
   uint16_t _metadata;
 
@@ -1084,16 +1086,23 @@ class patchable_barrier_Relocation : public Relocation {
   }
 
   patchable_barrier_Relocation(uint16_t metadata) : Relocation(relocInfo::patchable_barrier_type),
-    _target_offset(0), _metadata(metadata) { }
+    _target_offset(unresolved), _metadata(metadata) { }
 
   void pack_data_to(CodeSection* dest) override;
   void unpack_data() override;
 
   void copy_into(RelocationHolder& holder) const override;
 
-  uint16_t metadata() const { return _metadata; }
-  int32_t target_offset() const { return _target_offset; }
-
+  uint16_t metadata() const {
+    return _metadata;
+  }
+  bool is_target_offset_resolved() const {
+    return _target_offset != unresolved;
+  }
+  int32_t target_offset() const {
+    assert(is_target_offset_resolved(), "Should be");
+    return _target_offset;
+  }
   void set_target_offset(int32_t target_offset);
 
  private:

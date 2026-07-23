@@ -585,11 +585,13 @@ void patchable_barrier_Relocation::unpack_data() {
 }
 
 void patchable_barrier_Relocation::set_target_offset(int32_t target_offset) {
+  assert(!is_target_offset_resolved(), "Should be");
   assert(datalen() == 3, "Should be short+int fields");
   short* d = data();
   d[0] = relocInfo::data0_from_int(target_offset);
   d[1] = relocInfo::data1_from_int(target_offset);
   _target_offset = target_offset;
+  assert(is_target_offset_resolved(), "Should be");
 }
 
 //// miscellaneous methods
