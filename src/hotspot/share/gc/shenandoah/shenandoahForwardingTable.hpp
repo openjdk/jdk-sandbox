@@ -104,6 +104,29 @@ class ShenandoahForwardingTable {
   size_t _num_actual_forwardings;
   size_t _num_live_words;
 
+  // Software write-prefetch buffering.
+  template<class Entry>
+  class ForwardingBuffer {
+    struct Slot {
+      Entry  _entry;
+      size_t _index;
+    };
+
+    ShenandoahForwardingTable& _fwt;
+    BitMap& _used;
+    Slot* _slots;
+    int _dist;
+    int _pos;
+
+    void flush(int slot);
+
+  public:
+    ForwardingBuffer(ShenandoahForwardingTable& fwt, BitMap& used);
+
+    void enter(HeapWord* original, HeapWord* forwardee);
+    void finish();
+  };
+
   template<class Entry>
   bool build(size_t num_forwardings);
 
@@ -121,7 +144,7 @@ class ShenandoahForwardingTable {
   size_t index_of(HeapWord* original) const;
 
   template<class Entry>
-  void enter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee);
+  void insert_forwarding(BitMap& used, size_t index, const Entry& entry);
 
   template<class Entry>
   void fill_forwardings(BitMap& used);
