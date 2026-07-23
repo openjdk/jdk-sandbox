@@ -39,7 +39,7 @@ public:
   ShenandoahBarrierSetNMethod(ShenandoahHeap* heap) : _heap(heap) {
   }
 
-  virtual bool nmethod_entry_barrier(nmethod* nm);
+  bool nmethod_entry_barrier(nmethod* nm) override;
 
   void finalize_relocations(nmethod* nm) override;
 };
