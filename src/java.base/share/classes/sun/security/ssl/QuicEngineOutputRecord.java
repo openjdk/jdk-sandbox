@@ -31,6 +31,7 @@ import javax.crypto.SecretKey;
 import javax.net.ssl.QuicTLSAdapter;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.security.GeneralSecurityException;
 import java.util.Arrays;
 import java.util.LinkedList;
 
@@ -112,10 +113,14 @@ final class QuicEngineOutputRecord extends OutputRecord {
 
     @Override
     void changeT13WriteCiphers(SSLTrafficKeyDerivation kdg, HandshakeContext hc,
-             SecretKey writeSecret, boolean useChangeCipherSpec) {
+             SecretKey writeSecret, boolean useChangeCipherSpec) throws IOException {
         recordLock.lock();
         try {
-            fragmenter.changePacketSpace(writeSecret, hc.negotiatedCipherSuite.name());
+            fragmenter.changePacketSpace(writeSecret, hc.negotiatedCipherSuite.name(), hc);
+        } catch (GeneralSecurityException gse) {
+            // unlikely
+            throw hc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                    "Cipher derivation failed", gse);
         } finally {
             recordLock.unlock();
         }
@@ -143,6 +148,7 @@ final class QuicEngineOutputRecord extends OutputRecord {
 
     // buffered record fragment
     private static class HandshakeMemo {
+        public HandshakeContext hc;
         int acquireOffset;
         SecretKey nextKey;
         String nextCipherSuite;
@@ -164,11 +170,13 @@ final class QuicEngineOutputRecord extends OutputRecord {
             handshakeMemos.add(memo);
         }
 
-        void changePacketSpace(SecretKey baseSecret, String cipherSuite) {
+        void changePacketSpace(SecretKey baseSecret, String cipherSuite,
+                HandshakeContext hc) throws GeneralSecurityException {
             HandshakeMemo lastMemo = handshakeMemos.peekLast();
             if (lastMemo != null) {
                 lastMemo.nextKey = baseSecret;
                 lastMemo.nextCipherSuite = cipherSuite;
+                lastMemo.hc = hc;
             } else {
                 currentPacketSpace++;
                 switch(currentPacketSpace) {
@@ -182,7 +190,7 @@ final class QuicEngineOutputRecord extends OutputRecord {
             }
         }
 
-        Ciphertext acquireCiphertext(ByteBuffer dstBuf) {
+        Ciphertext acquireCiphertext(ByteBuffer dstBuf) throws IOException {
             HandshakeMemo hsMemo = handshakeMemos.pollFirst();
             if (hsMemo == null) {
                 return null;
@@ -194,15 +202,18 @@ final class QuicEngineOutputRecord extends OutputRecord {
                 handshakeMemos.addFirst(hsMemo);
             } else if (hsMemo.nextKey != null) {
                 currentPacketSpace++;
-                switch(currentPacketSpace) {
-                    case 1->
-                            quicTLSAdapter.deriveHandshakeWriteSecrets(
-                                    hsMemo.nextKey, hsMemo.nextCipherSuite);
-                    case 2->
-                            quicTLSAdapter.deriveApplicationWriteSecrets(
-                                    hsMemo.nextKey, hsMemo.nextCipherSuite);
-                    default ->
-                            throw new AssertionError("Unexpected key epoch");
+                try {
+                    switch (currentPacketSpace) {
+                        case 1 -> quicTLSAdapter.deriveHandshakeWriteSecrets(
+                                hsMemo.nextKey, hsMemo.nextCipherSuite);
+                        case 2 -> quicTLSAdapter.deriveApplicationWriteSecrets(
+                                hsMemo.nextKey, hsMemo.nextCipherSuite);
+                        default -> throw new AssertionError("Unexpected key epoch");
+                    }
+                } catch (GeneralSecurityException gse) {
+                    // unlikely
+                    throw hsMemo.hc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                            "Cipher derivation failed", gse);
                 }
             }
             return new Ciphertext(ContentType.HANDSHAKE.id,

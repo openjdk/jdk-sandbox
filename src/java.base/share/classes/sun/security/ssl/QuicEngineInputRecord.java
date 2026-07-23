@@ -32,6 +32,7 @@ import javax.net.ssl.QuicTLSAdapter;
 import javax.net.ssl.SSLProtocolException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 
 /**
@@ -98,17 +99,20 @@ final class QuicEngineInputRecord extends InputRecord implements SSLRecord {
 
     @Override
     void changeT13ReadCiphers(SSLTrafficKeyDerivation kdg, HandshakeContext hc,
-                              SecretKey readSecret) {
+                              SecretKey readSecret) throws IOException {
         epoch++;
-        switch (epoch) {
-            case 1->
-                    quicTLSAdapter.deriveHandshakeReadSecrets(readSecret,
-                            hc.negotiatedCipherSuite.name());
-            case 2->
-                    quicTLSAdapter.deriveApplicationReadSecrets(readSecret,
-                            hc.negotiatedCipherSuite.name());
-            default ->
-                    throw new AssertionError("Unexpected key epoch");
+        try {
+            switch (epoch) {
+                case 1 -> quicTLSAdapter.deriveHandshakeReadSecrets(readSecret,
+                        hc.negotiatedCipherSuite.name());
+                case 2 -> quicTLSAdapter.deriveApplicationReadSecrets(readSecret,
+                        hc.negotiatedCipherSuite.name());
+                default -> throw new AssertionError("Unexpected key epoch");
+            }
+        } catch (GeneralSecurityException gse) {
+            // unlikely
+            throw hc.conContext.fatal(Alert.HANDSHAKE_FAILURE,
+                    "Cipher derivation failed", gse);
         }
     }
 

@@ -67,7 +67,7 @@ sealed abstract class QuicKeyManager
         permits QuicKeyManager.HandshakeKeyManager,
         QuicKeyManager.InitialKeyManager, QuicKeyManager.OneRttKeyManager {
 
-    protected QuicWriteCipher deriveWriteCipher(QuicVersion quicVersion, SecretKey secret, QuicCipherSuite cipherSuite) throws IOException, GeneralSecurityException {
+    protected QuicWriteCipher deriveWriteCipher(QuicVersion quicVersion, SecretKey secret, QuicCipherSuite cipherSuite) throws GeneralSecurityException {
         final QuicKeys keys = deriveQuicKeys(quicVersion,
                 cipherSuite,
                 secret);
@@ -78,7 +78,7 @@ sealed abstract class QuicKeyManager
                 keys.hp, 0);
     }
 
-    protected QuicReadCipher deriveReadCipher(QuicVersion quicVersion, SecretKey secret, QuicCipherSuite cipherSuite) throws IOException, GeneralSecurityException {
+    protected QuicReadCipher deriveReadCipher(QuicVersion quicVersion, SecretKey secret, QuicCipherSuite cipherSuite) throws GeneralSecurityException {
         final QuicKeys keys = deriveQuicKeys(quicVersion,
                 cipherSuite,
                 secret);
@@ -173,7 +173,7 @@ sealed abstract class QuicKeyManager
 
     private static QuicKeys deriveQuicKeys(final QuicVersion quicVersion,
                                            final QuicCipherSuite cs, final SecretKey traffic_secret)
-            throws IOException {
+            throws GeneralSecurityException {
         final QuicTLSKeyDerivation kd = new QuicTLSKeyDerivation(cs,
                 traffic_secret);
         final QuicTLSData tlsData = getQuicData(quicVersion);
@@ -186,7 +186,7 @@ sealed abstract class QuicKeyManager
     // Used in 1RTT when advancing the keyphase.  quic_hp is not advanced.
     private static QuicKeys deriveQuicKeys(final QuicVersion quicVersion,
             final QuicCipherSuite cs, final SecretKey traffic_secret,
-            final SecretKey quic_hp) throws IOException {
+            final SecretKey quic_hp) throws GeneralSecurityException {
         final QuicTLSKeyDerivation kd = new QuicTLSKeyDerivation(cs,
                 traffic_secret);
         final QuicTLSData tlsData = getQuicData(quicVersion);
@@ -413,7 +413,7 @@ sealed abstract class QuicKeyManager
         }
 
         public void deriveWriteKeys(QuicVersion quicVersion, SecretKey secret, QuicCipherSuite cipherSuite)
-                throws IOException, GeneralSecurityException {
+                throws GeneralSecurityException {
             final QuicWriteCipher writeCipher = deriveWriteCipher(quicVersion, secret, cipherSuite);
             CipherPair cp = cipherPair;
             if (cp == null) {
@@ -426,7 +426,7 @@ sealed abstract class QuicKeyManager
         }
 
         public void deriveReadKeys(QuicVersion quicVersion, SecretKey secret, QuicCipherSuite cipherSuite)
-                throws IOException, GeneralSecurityException {
+                throws GeneralSecurityException {
             final QuicReadCipher readCipher = deriveReadCipher(quicVersion, secret, cipherSuite);
             CipherPair cp = cipherPair;
             if (cp == null) {
@@ -645,7 +645,7 @@ sealed abstract class QuicKeyManager
                 try {
                     currentSeries = generateNextKeys(
                             this.negotiatedVersion, currentSeries);
-                } catch (GeneralSecurityException | IOException e) {
+                } catch (GeneralSecurityException e) {
                     throw new QuicTransportException("Failed to update keys",
                             ONE_RTT, 0, QuicTransportErrors.INTERNAL_ERROR.code(), e);
                 }
@@ -815,8 +815,7 @@ sealed abstract class QuicKeyManager
 
         void deriveReadKeys(final QuicVersion version,
                             final SecretKey secret,
-                            QuicCipherSuite cipherSuite) throws IOException,
-                GeneralSecurityException {
+                            QuicCipherSuite cipherSuite) throws GeneralSecurityException {
             this.negotiatedVersion = version;
             final QuicReadCipher readCipher = deriveReadCipher(version,
                     secret,
@@ -853,8 +852,7 @@ sealed abstract class QuicKeyManager
 
         void deriveWriteKeys(final QuicVersion version,
                              final SecretKey secret,
-                             QuicCipherSuite cipherSuite) throws IOException,
-                GeneralSecurityException {
+                             QuicCipherSuite cipherSuite) throws GeneralSecurityException {
             this.negotiatedVersion = version;
             final QuicWriteCipher writeCipher = deriveWriteCipher(version,
                     secret,
@@ -891,7 +889,7 @@ sealed abstract class QuicKeyManager
 
         private static QuicWriteCipher generateNextWriteCipher(
                 final QuicVersion quicVersion, final QuicWriteCipher current)
-                throws IOException, GeneralSecurityException {
+                throws GeneralSecurityException {
             final QuicTLSKeyDerivation kd =
                     new QuicTLSKeyDerivation(current.getCipherSuite(),
                             current.getBaseSecret());
@@ -913,7 +911,7 @@ sealed abstract class QuicKeyManager
 
         private static QuicReadCipher generateNextReadCipher(
                 final QuicVersion quicVersion, final QuicReadCipher current)
-                throws IOException, GeneralSecurityException {
+                throws GeneralSecurityException {
             final QuicTLSKeyDerivation kd =
                     new QuicTLSKeyDerivation(current.getCipherSuite(),
                             current.getBaseSecret());
@@ -935,7 +933,7 @@ sealed abstract class QuicKeyManager
 
         private KeySeries generateNextKeys(final QuicVersion version,
                 final KeySeries currentSeries)
-                throws GeneralSecurityException, IOException {
+                throws GeneralSecurityException {
             this.keySeriesLock.lock();
             try {
                 // nothing to do if some other thread
@@ -1057,34 +1055,26 @@ sealed abstract class QuicKeyManager
             this.secret = Objects.requireNonNull(secret);
         }
 
-        public SecretKey deriveKey(final String algorithm) throws IOException {
+        public SecretKey deriveKey(final String algorithm) throws GeneralSecurityException {
             final HkdfLabel hkdfLabel = HkdfLabel.fromLabel(algorithm);
-            try {
-                final KDF hkdf = KDF.getInstance(this.cs.hkdfAlgorithm);
-                final int keyLength = getKeyLength(hkdfLabel);
-                final byte[] hkdfInfo =
-                        createHkdfInfo(hkdfLabel.tls13LabelBytes, keyLength);
-                final String keyAlgo = getKeyAlgorithm(hkdfLabel);
-                return hkdf.deriveKey(keyAlgo,
-                        HKDFParameterSpec.expandOnly(
-                                secret, hkdfInfo, keyLength));
-            } catch (GeneralSecurityException gse) {
-                throw new SSLHandshakeException("Could not derive key", gse);
-            }
+            final KDF hkdf = KDF.getInstance(this.cs.hkdfAlgorithm);
+            final int keyLength = getKeyLength(hkdfLabel);
+            final byte[] hkdfInfo =
+                    createHkdfInfo(hkdfLabel.tls13LabelBytes, keyLength);
+            final String keyAlgo = getKeyAlgorithm(hkdfLabel);
+            return hkdf.deriveKey(keyAlgo,
+                    HKDFParameterSpec.expandOnly(
+                            secret, hkdfInfo, keyLength));
         }
 
-        public byte[] deriveData(final String algorithm) throws IOException {
+        public byte[] deriveData(final String algorithm) throws GeneralSecurityException {
             final HkdfLabel hkdfLabel = HkdfLabel.fromLabel(algorithm);
-            try {
-                final KDF hkdf = KDF.getInstance(this.cs.hkdfAlgorithm);
-                final int keyLength = getKeyLength(hkdfLabel);
-                final byte[] hkdfInfo =
-                        createHkdfInfo(hkdfLabel.tls13LabelBytes, keyLength);
-                return hkdf.deriveData(HKDFParameterSpec.expandOnly(
-                        secret, hkdfInfo, keyLength));
-            } catch (GeneralSecurityException gse) {
-                throw new SSLHandshakeException("Could not derive key", gse);
-            }
+            final KDF hkdf = KDF.getInstance(this.cs.hkdfAlgorithm);
+            final int keyLength = getKeyLength(hkdfLabel);
+            final byte[] hkdfInfo =
+                    createHkdfInfo(hkdfLabel.tls13LabelBytes, keyLength);
+            return hkdf.deriveData(HKDFParameterSpec.expandOnly(
+                    secret, hkdfInfo, keyLength));
         }
 
         private int getKeyLength(final HkdfLabel hkdfLabel) {

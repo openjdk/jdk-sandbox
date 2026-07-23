@@ -79,6 +79,7 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, QuicTLSAdapter {
     private volatile ByteBuffer localQuicTransportParameters;
     private volatile QuicTransportParametersConsumer
             remoteQuicTransportParametersConsumer;
+    private volatile boolean remoteQuicTransportParametersConsumed;
 
     // keymanagers for individual keyspaces
     private final InitialKeyManager initialKeyManager = new InitialKeyManager();
@@ -433,55 +434,54 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, QuicTLSAdapter {
     }
 
     @Override
-    public void deriveHandshakeReadSecrets(SecretKey secretKey, String cipherSuite) {
+    public void deriveHandshakeReadSecrets(SecretKey secretKey, String cipherSuite)
+            throws GeneralSecurityException {
+        if (recvKeySpace != INITIAL) {
+            throw new IllegalStateException("Unexpected key space: " + recvKeySpace);
+        }
         recvKeySpace = HANDSHAKE;
         QuicCipherSuite cs = QuicCipherSuite.valueOf(cipherSuite);
         final QuicVersion quicVersion = getNegotiatedVersion();
-        try {
-            this.handshakeKeyManager.deriveReadKeys(quicVersion,
-                    secretKey, cs);
-        } catch (IOException | GeneralSecurityException e) {
-            throw new RuntimeException(e);
-        }
+        this.handshakeKeyManager.deriveReadKeys(quicVersion, secretKey, cs);
     }
 
     @Override
-    public void deriveHandshakeWriteSecrets(SecretKey secretKey, String cipherSuite) {
+    public void deriveHandshakeWriteSecrets(SecretKey secretKey, String cipherSuite)
+            throws GeneralSecurityException {
+        if (sendKeySpace != INITIAL) {
+            throw new IllegalStateException("Unexpected key space: " + sendKeySpace);
+        }
         sendKeySpace = HANDSHAKE;
         QuicCipherSuite cs = QuicCipherSuite.valueOf(cipherSuite);
         final QuicVersion quicVersion = getNegotiatedVersion();
-        try {
-            this.handshakeKeyManager.deriveWriteKeys(quicVersion,
-                    secretKey, cs);
-        } catch (IOException | GeneralSecurityException e) {
-            throw new RuntimeException(e);
-        }
+        this.handshakeKeyManager.deriveWriteKeys(quicVersion, secretKey, cs);
     }
 
     @Override
-    public void deriveApplicationReadSecrets(SecretKey secretKey, String cipherSuite) {
+    public void deriveApplicationReadSecrets(SecretKey secretKey, String cipherSuite)
+            throws GeneralSecurityException {
+        if (recvKeySpace == ONE_RTT) {
+            throw new IllegalStateException("Unexpected key space: " + recvKeySpace);
+        }
         recvKeySpace = ONE_RTT;
         QuicCipherSuite cs = QuicCipherSuite.valueOf(cipherSuite);
         final QuicVersion quicVersion = getNegotiatedVersion();
-        try {
-            this.oneRttKeyManager.deriveReadKeys(quicVersion,
-                    secretKey, cs);
-        } catch (IOException | GeneralSecurityException e) {
-            throw new RuntimeException(e);
-        }
+        this.oneRttKeyManager.deriveReadKeys(quicVersion, secretKey, cs);
     }
 
     @Override
-    public void deriveApplicationWriteSecrets(SecretKey secretKey, String cipherSuite) {
+    public void deriveApplicationWriteSecrets(SecretKey secretKey, String cipherSuite)
+            throws GeneralSecurityException {
+        if (sendKeySpace == ONE_RTT) {
+            throw new IllegalStateException("Unexpected key space: " + sendKeySpace);
+        }
+        if (!remoteQuicTransportParametersConsumed) {
+            throw new IllegalStateException("Remote transport parameters not available");
+        }
         sendKeySpace = ONE_RTT;
         QuicCipherSuite cs = QuicCipherSuite.valueOf(cipherSuite);
         final QuicVersion quicVersion = getNegotiatedVersion();
-        try {
-            this.oneRttKeyManager.deriveWriteKeys(quicVersion,
-                    secretKey, cs);
-        } catch (IOException | GeneralSecurityException e) {
-            throw new RuntimeException(e);
-        }
+        this.oneRttKeyManager.deriveWriteKeys(quicVersion, secretKey, cs);
     }
 
     @Override
@@ -537,6 +537,11 @@ public final class QuicTLSEngineImpl implements QuicTLSEngine, QuicTLSAdapter {
     @Override
     public void remoteQuicTransportParameters(ByteBuffer parameters) throws IOException {
         try {
+            Objects.requireNonNull(parameters, "Null parameters");
+            if (remoteQuicTransportParametersConsumed) {
+                throw new IllegalStateException("Remote transport parameters already provided");
+            }
+            remoteQuicTransportParametersConsumed = true;
             remoteQuicTransportParametersConsumer.accept(parameters);
         } catch (QuicTransportException e) {
             // TODO rework error handling; terminate the connection within the callback

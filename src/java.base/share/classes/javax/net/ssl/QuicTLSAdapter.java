@@ -27,6 +27,7 @@ package javax.net.ssl;
 import javax.crypto.SecretKey;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.security.GeneralSecurityException;
 
 /**
  * This interface is implemented by QUIC transport implementations
@@ -90,8 +91,15 @@ public interface QuicTLSAdapter {
      *
      * @param secretKey   the base secret used for deriving the handshake read keys
      * @param cipherSuite the selected cipher suite
+     * @throws NullPointerException if any of the parameters is {@code null}
+     * @throws IllegalArgumentException if the {@code cipherSuite}
+     *          is not {@linkplain #getSupportedCipherSuites() supported}
+     * @throws IllegalStateException if handshake or application read secrets
+     *          have already been derived
+     * @throws GeneralSecurityException if secret derivation fails
      */
-    void deriveHandshakeReadSecrets(SecretKey secretKey, String cipherSuite);
+    void deriveHandshakeReadSecrets(SecretKey secretKey, String cipherSuite)
+            throws GeneralSecurityException;
 
     /**
      * Called by the {@link SSLEngine} when the write secrets associated
@@ -108,8 +116,15 @@ public interface QuicTLSAdapter {
      *
      * @param secretKey   the base secret used for deriving the handshake write keys
      * @param cipherSuite the selected cipher suite
+     * @throws NullPointerException if any of the parameters is {@code null}
+     * @throws IllegalArgumentException if the {@code cipherSuite}
+     *          is not {@linkplain #getSupportedCipherSuites() supported}
+     * @throws IllegalStateException if handshake or application write secrets
+     *          have already been derived
+     * @throws GeneralSecurityException if secret derivation fails
      */
-    void deriveHandshakeWriteSecrets(SecretKey secretKey, String cipherSuite);
+    void deriveHandshakeWriteSecrets(SecretKey secretKey, String cipherSuite)
+            throws GeneralSecurityException;
 
     /**
      * Called by the {@link SSLEngine} when the read secrets associated
@@ -131,8 +146,15 @@ public interface QuicTLSAdapter {
      *
      * @param secretKey   the base secret used for deriving the 1-RTT read keys
      * @param cipherSuite the selected cipher suite
+     * @throws NullPointerException if any of the parameters is {@code null}
+     * @throws IllegalArgumentException if the {@code cipherSuite}
+     *          is not {@linkplain #getSupportedCipherSuites() supported}
+     * @throws IllegalStateException if application read secrets
+     *          have already been derived
+     * @throws GeneralSecurityException if secret derivation fails
      */
-    void deriveApplicationReadSecrets(SecretKey secretKey, String cipherSuite);
+    void deriveApplicationReadSecrets(SecretKey secretKey, String cipherSuite)
+            throws GeneralSecurityException;
 
     /**
      * Called by the {@link SSLEngine} when the write secrets associated
@@ -149,8 +171,16 @@ public interface QuicTLSAdapter {
      *
      * @param secretKey   the base secret used for deriving the 1-RTT write keys
      * @param cipherSuite the selected cipher suite
+     * @throws NullPointerException if any of the parameters is {@code null}
+     * @throws IllegalArgumentException if the {@code cipherSuite}
+     *          is not {@linkplain #getSupportedCipherSuites() supported}
+     * @throws IllegalStateException if application write secrets
+     *          have already been derived, or if remote transport parameters
+     *          have not been {@linkplain #remoteQuicTransportParameters(ByteBuffer) received}
+     * @throws GeneralSecurityException if secret derivation fails
      */
-    void deriveApplicationWriteSecrets(SecretKey secretKey, String cipherSuite);
+    void deriveApplicationWriteSecrets(SecretKey secretKey, String cipherSuite)
+            throws GeneralSecurityException;
 
     /**
      * Called by the {@link SSLEngine} to retrieve the names
@@ -184,6 +214,9 @@ public interface QuicTLSAdapter {
      *                   parameters. This buffer is only valid for the duration
      *                   of this callback.
      * @throws IOException when parameters are invalid
+     * @throws NullPointerException if {@code parameters} is null
+     * @throws IllegalStateException if remote transport parameters
+     *          have been received before
      */
     void remoteQuicTransportParameters(ByteBuffer parameters) throws IOException;
 
