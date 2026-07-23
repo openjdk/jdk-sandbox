@@ -163,6 +163,7 @@ public abstract class SSLContextSpi {
      * @throws  IllegalStateException if the {@code SSLContextSpi}
      *          implementation requires initialization
      *          and the {@code engineInit()} has not been called
+     * @throws  NullPointerException if {@code quicTLSAdapter} is {@code null}
      *
      * @see     SSLContext#createSSLEngine(QuicTLSAdapter)
      * @since   28
@@ -190,6 +191,7 @@ public abstract class SSLContextSpi {
      *         and the {@code engineInit()} has not been called
      * @throws UnsupportedOperationException if the underlying provider
      *         does not implement the operation.
+     * @throws NullPointerException if {@code quicTLSAdapter} is {@code null}
      *
      * @see     SSLContext#createSSLEngine(String, int, QuicTLSAdapter)
      * @since   28

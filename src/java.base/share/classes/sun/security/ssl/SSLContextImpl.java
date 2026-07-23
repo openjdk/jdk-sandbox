@@ -188,6 +188,7 @@ public abstract class SSLContextImpl extends SSLContextSpi {
         if (!isInitialized) {
             throw new IllegalStateException("SSLContext is not initialized");
         }
+        Objects.requireNonNull(quicTLSAdapter);
         return createSSLEngineImpl(quicTLSAdapter);
     }
 
@@ -196,6 +197,7 @@ public abstract class SSLContextImpl extends SSLContextSpi {
         if (!isInitialized) {
             throw new IllegalStateException("SSLContext is not initialized");
         }
+        Objects.requireNonNull(quicTLSAdapter);
         return createSSLEngineImpl(host, port, quicTLSAdapter);
     }
 
