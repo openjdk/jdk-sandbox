@@ -774,7 +774,7 @@ void ShenandoahBarrierStubC2::patchable_jump(MacroAssembler& masm, const char gc
   if (output->in_scratch_emit_size()) {
     // We piggyback on scratch_emit_size mode to compute the slowpath stub size.
     // Avoid binding entry() or trusting needs_far_jump at this time.
-    // We know the patched check is exactly 5 bytes long.
+    // We know the patchable check is exactly 5 bytes long.
     __ nop(5);
     return;
   }
