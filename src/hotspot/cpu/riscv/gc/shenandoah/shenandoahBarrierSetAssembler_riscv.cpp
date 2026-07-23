@@ -45,6 +45,7 @@
 #endif
 #ifdef COMPILER2
 #include "gc/shenandoah/c2/shenandoahBarrierSetC2.hpp"
+#include "opto/output.hpp"
 #endif
 
 #define __ masm->
@@ -676,6 +677,15 @@ void ShenandoahBarrierStubC2::cardtable(MacroAssembler& masm, Address address, R
 }
 
 void ShenandoahBarrierStubC2::patchable_jump(MacroAssembler& masm, const char gc_state, bool jump_when_state, Label* L_target, bool needs_far_jump) {
+  PhaseOutput* const output = Compile::current()->output();
+  if (output->in_scratch_emit_size()) {
+    // Avoid binding L_target in scratch emits.
+    // We know the patched check is exactly one incompressible instruction long.
+    Assembler::IncompressibleScope scope(&masm);
+    __ nop();
+    return;
+  }
+
   // Emit the unconditional branch in the first version of the method.
   // Let the rest of runtime figure out how to manage it.
   __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::encode_to_reloc(gc_state, jump_when_state)));
