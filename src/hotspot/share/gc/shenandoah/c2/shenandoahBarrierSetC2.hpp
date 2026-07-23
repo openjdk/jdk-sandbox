@@ -170,8 +170,6 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   bool is_special_register(Register reg);
   Register select_temp_register(bool& selected_live, Register skip_reg1 = noreg, Register skip_reg2 = noreg);
 
-  int max_branch_reach();
-
   void maybe_far_jump_if_zero(MacroAssembler& masm, Register reg);
 
   void patchable_jump(MacroAssembler& masm, const char gc_state, bool jump_when_state, Label* L_target, bool needs_far_jump);

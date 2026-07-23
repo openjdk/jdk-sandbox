@@ -763,8 +763,16 @@ bool ShenandoahBarrierSetAssembler::is_patchable_jump(address pc, address target
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
   assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
+  PhaseOutput* const output = Compile::current()->output();
 
-  __ bind(*entry());
+  // We piggyback on scratch_emit_size mode to compute the slowpath stub size.
+  // We'll use that information to decide whether we need a far jump to the
+  // stub entry point or not. In scratch_emit_size mode we don't bind entry()
+  // because otherwise it will be rebound when we later emit the instructions
+  // for real.
+  if (!output->in_scratch_emit_size()) {
+    __ bind(*entry());
+  }
 
   // If we need to load ourselves, do it here.
   if (_do_load) {
@@ -975,10 +983,43 @@ bool ShenandoahBarrierStubC2::is_special_register(Register r) {
   return true;
 }
 
-int ShenandoahBarrierStubC2::max_branch_reach() {
-  // For cbz/cbnz, the target range is 1M. For b, the range is 128M.
-  // Choose the lowest range and subtract 2K to be ultra conservative.
-  return (int)(1*M - 2*K);
+static ShenandoahBarrierSetC2State* barrier_set_state() {
+  return reinterpret_cast<ShenandoahBarrierSetC2State*>(Compile::current()->barrier_set_state());
+}
+
+static int get_stub_size(ShenandoahBarrierStubC2* stub) {
+  PhaseOutput* const output = Compile::current()->output();
+  assert(output->in_scratch_emit_size(), "only used when in scratch_emit_size.");
+  BufferBlob* const blob = output->scratch_buffer_blob();
+  CodeBuffer cb(blob->content_begin(), (address)output->scratch_locs_memory() - blob->content_begin());
+  MacroAssembler masm(&cb);
+  stub->emit_code(masm);
+  return cb.insts_size();
+}
+
+void ShenandoahBarrierStubC2::post_init() {
+  // If we are in scratch emit mode we assume worst case, and force the use of
+  // far branches.
+  PhaseOutput* const output = Compile::current()->output();
+  ShenandoahBarrierSetC2State* state = barrier_set_state();
+  if (output->in_scratch_emit_size()) {
+    state->inc_stubs_current_total_size(get_stub_size(this));
+    _needs_far_jump = true;
+    return;
+  }
+
+  // The logic implemented in this stub only uses short jumps (cbz, cbnz) if
+  // the aggregation of all relevant code sections of a method is less than 1MB
+  // - 2KB. We could be more aggressive and try and compute the distance
+  // between the fastpath branch and the stub entry but in practice not many
+  // methods reach the 1MB size.
+  const BufferSizingData* sizing = output->buffer_sizing_data();
+  const int code_size = sizing->_code + state->stubs_current_total_size();
+
+  // Maximum backward range is 1M. Maximum forward reach is 1M - 4bytes.
+  // Subtract 2K to be ultra conservative.
+  const int cond_branch_max_reach = (int)(1*M - 2*K);
+  _needs_far_jump = code_size >= cond_branch_max_reach;
 }
 
 #endif // COMPILER2

@@ -45,7 +45,6 @@
 #endif
 #ifdef COMPILER2
 #include "gc/shenandoah/c2/shenandoahBarrierSetC2.hpp"
-#include "opto/output.hpp"
 #endif
 
 #define __ masm->
@@ -677,16 +676,6 @@ void ShenandoahBarrierStubC2::cardtable(MacroAssembler& masm, Address address, R
 }
 
 void ShenandoahBarrierStubC2::patchable_jump(MacroAssembler& masm, const char gc_state, bool jump_when_state, Label* L_target, bool needs_far_jump) {
-  PhaseOutput* const output = Compile::current()->output();
-  if (output->in_scratch_emit_size()) {
-    // We piggyback on scratch_emit_size mode to compute the slowpath stub size.
-    // Avoid binding entry() or trusting needs_far_jump at this time.
-    // We know the patched check is exactly one incompressible instruction long.
-    Assembler::IncompressibleScope scope(&masm);
-    __ nop();
-    return;
-  }
-
   // Emit the unconditional branch in the first version of the method.
   // Let the rest of runtime figure out how to manage it.
   __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::encode_to_reloc(gc_state, jump_when_state)));
@@ -916,11 +905,8 @@ bool ShenandoahBarrierStubC2::is_special_register(Register r) {
   return true;
 }
 
-int ShenandoahBarrierStubC2::max_branch_reach() {
-  // RISC-V code already assumes the target range is within 1M, using j()-s
-  // all over the place. Therefore, there is no practical reason to cap the
-  // max branch reach here. TODO: This needs to be addressed generically.
-  return -1;
+void ShenandoahBarrierStubC2::post_init() {
+  // Do nothing.
 }
 
 #endif // COMPILER2

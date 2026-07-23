@@ -45,7 +45,6 @@
 #endif
 #ifdef COMPILER2
 #include "gc/shenandoah/c2/shenandoahBarrierSetC2.hpp"
-#include "opto/output.hpp"
 #endif
 
 #define __ masm->
@@ -770,15 +769,6 @@ void ShenandoahBarrierStubC2::cardtable(MacroAssembler& masm, Address addr, Regi
 }
 
 void ShenandoahBarrierStubC2::patchable_jump(MacroAssembler& masm, const char gc_state, bool jump_when_state, Label* L_target, bool needs_far_jump) {
-  PhaseOutput* const output = Compile::current()->output();
-  if (output->in_scratch_emit_size()) {
-    // We piggyback on scratch_emit_size mode to compute the slowpath stub size.
-    // Avoid binding entry() or trusting needs_far_jump at this time.
-    // We know the patchable check is exactly 5 bytes long.
-    __ nop(5);
-    return;
-  }
-
   // Emit the unconditional branch in the first version of the method.
   // Let the rest of runtime figure out how to manage it.
   __ relocate(patchable_barrier_Relocation::spec(ShenandoahNMethod::encode_to_reloc(gc_state, jump_when_state)));
@@ -1091,6 +1081,10 @@ bool ShenandoahBarrierStubC2::is_special_register(Register r) {
   return r == rsp || r == rbp || r == r12_heapbase || r == r15_thread;
 }
 
+void ShenandoahBarrierStubC2::post_init() {
+  // Do nothing.
+}
+
 void ShenandoahBarrierStubC2::maybe_far_jump_if_zero(MacroAssembler& masm, Register reg) {
   if (_narrow) {
     __ testl(reg, reg);
@@ -1098,11 +1092,6 @@ void ShenandoahBarrierStubC2::maybe_far_jump_if_zero(MacroAssembler& masm, Regis
     __ testq(reg, reg);
   }
   __ jcc(Assembler::zero, *continuation());
-}
-
-int ShenandoahBarrierStubC2::max_branch_reach() {
-  // Unlimited reach.
-  return -1;
 }
 
 #endif // COMPILER2
