@@ -980,7 +980,7 @@ void ShenandoahHeapRegion::decrement_humongous_waste() {
   assert(is_humongous(), "Should only use this for humongous regions");
   size_t waste_bytes = free();
   if (waste_bytes > 0) {
-#define KELVIN_HUMONGOUS
+#undef KELVIN_HUMONGOUS
 #ifdef KELVIN_HUMONGOUS
     log_info(gc)("ShenHeapRegion::decrement_humongous_waste() identifies %zu bytes in region %zu",
                  waste_bytes, index());

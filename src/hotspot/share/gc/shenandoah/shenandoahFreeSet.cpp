@@ -379,7 +379,7 @@ void ShenandoahRegionPartitions::establish_mutator_intervals(idx_t mutator_leftm
 	       _capacity[int(ShenandoahFreeSetPartitionId::Mutator)], total_mutator_regions);
 #endif
 
-#define KELVIN_HUMONGOUS
+#undef KELVIN_HUMONGOUS
 #ifdef KELVIN_HUMONGOUS
   log_info(gc)("establish_mutator_intervals() sets _humongous_waste[Mutator] to %zu", mutator_humongous_waste_bytes);
 #endif
@@ -489,7 +489,7 @@ void ShenandoahRegionPartitions::decrease_humongous_waste(ShenandoahFreeSetParti
   shenandoah_assert_heaplocked();
   assert (which_partition < NumPartitions, "Partition must be valid");
   assert(_humongous_waste[int(which_partition)] >= bytes, "Cannot decrease waste beyond what is there");
-#define KELVIN_HUMONGOUS_HPP
+#undef KELVIN_HUMONGOUS_HPP
 #ifdef KELVIN_HUMONGOUS_HPP
   log_info(gc)("decrease_humongous_waste decreases waste by %zu for partion %s: %zu",
                bytes, partition_name(which_partition), _humongous_waste[int(which_partition)]);
@@ -3715,7 +3715,7 @@ void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* 
     }
   }
   r->reset_forwarding_table();
-#define KELVIN_NOISE
+#undef KELVIN_NOISE
 #ifdef KELVIN_NOISE
   log_info(gc)(" early recycled region %zu has bottom: " PTR_FORMAT ", top: " PTR_FORMAT ", end: " PTR_FORMAT ", %s, %s",
                r->index(), p2i(r->bottom()), p2i(r->top()), p2i(r->end()),

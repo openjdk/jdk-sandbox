@@ -297,7 +297,7 @@ void ShenandoahInPlacePromoter::promote_humongous(ShenandoahHeapRegion* region) 
     }
 
     ShenandoahFreeSet* freeset = _heap->free_set();
-#define KELVIN_HUMONGOUS
+#undef KELVIN_HUMONGOUS
 #ifdef KELVIN_HUMONGOUS
     log_info(gc)("promote_humongous() identifies %zu bytes for promotion starting at region %zu",
                  humongous_waste, region->index());
