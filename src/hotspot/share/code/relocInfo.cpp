@@ -589,6 +589,7 @@ void patchable_barrier_Relocation::set_target_offset(int32_t target_offset) {
   short* d = data();
   d[0] = relocInfo::data0_from_int(target_offset);
   d[1] = relocInfo::data1_from_int(target_offset);
+  _target_offset = target_offset;
 }
 
 //// miscellaneous methods
