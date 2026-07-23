@@ -1272,10 +1272,18 @@ void ShenandoahHeap::concurrent_prepare_for_update_refs() {
 
 void ShenandoahHeap::op_final_roots() {
 #ifdef ASSERT
-  for (JavaThreadIteratorWithHandle jtiwh; JavaThread* jt = jtiwh.next();) {
-    StackWatermark* sw = StackWatermarkSet::get(jt, StackWatermarkKind::gc);
-    assert(sw == nullptr || sw->processing_completed(),
-           "Cannot turn off weak roots before stack watermark processing is complete");
+  // Check if stack watermark machinery is in safe state:
+  //  1. With evac-in-progress, we are about to supersede evac processing with new epoch.
+  //     op_thread_roots() should have completed the stack watermark processing before
+  //     we reach here.
+  //  2. Without evac-in-progress, we are in abbreviated cycle, and we are switching
+  //     to a new epoch that *also* does not change any oops, which is safe.
+  if (is_evacuation_in_progress()) {
+    for (JavaThreadIteratorWithHandle jtiwh; JavaThread* jt = jtiwh.next();) {
+      StackWatermark* sw = StackWatermarkSet::get(jt, StackWatermarkKind::gc);
+      assert(sw == nullptr || sw->processing_completed(),
+             "Cannot turn off weak roots before stack watermark processing is complete");
+    }
   }
 #endif
 
