@@ -1271,6 +1271,14 @@ void ShenandoahHeap::concurrent_prepare_for_update_refs() {
 }
 
 void ShenandoahHeap::op_final_roots() {
+#ifdef ASSERT
+  for (JavaThreadIteratorWithHandle jtiwh; JavaThread* jt = jtiwh.next();) {
+    StackWatermark* sw = StackWatermarkSet::get(jt, StackWatermarkKind::gc);
+    assert(sw == nullptr || sw->processing_completed(),
+           "Cannot turn off weak roots before stack watermark processing is complete");
+  }
+#endif
+
   set_gc_state_at_safepoint(WEAK_ROOTS, false);
 
   // Arm the nmethods to change the barriers.
