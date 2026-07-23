@@ -124,7 +124,7 @@ void ShenandoahNMethod::parse(nmethod* nm, GrowableArray<oop*>& oops, bool& has_
         patchable_barrier_Relocation* r = iter.patchable_barrier_reloc();
 
         ShenandoahNMethodBarrier b;
-        b._rel_pc = pointer_delta(r->addr(), code_begin, 1);
+        b._rel_pc = checked_cast<int32_t>(pointer_delta(r->addr(), code_begin, 1));
         b._rel_target_pc = r->target_offset();
         b._gc_state = decode_reloc_gc_state(r->metadata());
         b._jump_when_state = decode_reloc_jump_when_state(r->metadata());
