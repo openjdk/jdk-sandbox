@@ -32,7 +32,9 @@ import javax.crypto.SecretKey;
 import javax.crypto.ShortBufferException;
 import javax.crypto.spec.SecretKeySpec;
 import javax.net.ssl.SSLContext;
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.security.GeneralSecurityException;
 import java.security.NoSuchAlgorithmException;
 import java.util.HexFormat;
 import java.util.function.IntFunction;
@@ -167,7 +169,7 @@ public class Quicv2PacketEncryptionTest {
 
     @Test
     public void testEncryptClientInitialPacket() throws Exception {
-        QuicTLSEngine clientEngine = getQuicV2Engine(SSLContext.getDefault(), true);
+        QuicTLSEngine clientEngine = getQuicEngine(SSLContext.getDefault(), true);
         ByteBuffer dcid = ByteBuffer.wrap(HexFormat.of().parseHex(INITIAL_DCID));
         clientEngine.deriveInitialKeys(QUIC_V2, dcid);
         final int packetLen = INITIAL_C_PAYLOAD_OFFSET + INITIAL_C_PAYLOAD_LENGTH + 16;
@@ -187,7 +189,7 @@ public class Quicv2PacketEncryptionTest {
 
     @Test
     public void testDecryptClientInitialPacket() throws Exception {
-        QuicTLSEngine serverEngine = getQuicV2Engine(SSLContext.getDefault(), false);
+        QuicTLSEngine serverEngine = getQuicEngine(SSLContext.getDefault(), false);
         ByteBuffer dcid = ByteBuffer.wrap(HexFormat.of().parseHex(INITIAL_DCID));
         serverEngine.deriveInitialKeys(QUIC_V2, dcid);
 
@@ -205,24 +207,23 @@ public class Quicv2PacketEncryptionTest {
 
     @Test
     public void testDecryptClientInitialPacketBadTag() throws Exception {
+        QuicTLSEngine serverEngine = getQuicEngine(SSLContext.getDefault(), false);
+        ByteBuffer dcid = ByteBuffer.wrap(HexFormat.of().parseHex(INITIAL_DCID));
+        serverEngine.deriveInitialKeys(QUIC_V2, dcid);
+        ByteBuffer packet = ByteBuffer.wrap(HexFormat.of().parseHex(ENCRYPTED_C_PAYLOAD));
+        unprotect(QuicTLSEngine.KeySpace.INITIAL, packet, INITIAL_C_PN_OFFSET, INITIAL_C_PAYLOAD_OFFSET - INITIAL_C_PN_OFFSET, serverEngine, 0x0f);
+        ByteBuffer src = packet.asReadOnlyBuffer();
+        packet.position(INITIAL_C_PAYLOAD_OFFSET);
+        // change one byte of AEAD tag
+        packet.put(packet.limit() - 1, (byte)0);
         Assertions.assertThrows(AEADBadTagException.class, () -> {
-            QuicTLSEngine serverEngine = getQuicV2Engine(SSLContext.getDefault(), false);
-            ByteBuffer dcid = ByteBuffer.wrap(HexFormat.of().parseHex(INITIAL_DCID));
-            serverEngine.deriveInitialKeys(QUIC_V2, dcid);
-            ByteBuffer packet = ByteBuffer.wrap(HexFormat.of().parseHex(ENCRYPTED_C_PAYLOAD));
-            unprotect(QuicTLSEngine.KeySpace.INITIAL, packet, INITIAL_C_PN_OFFSET, INITIAL_C_PAYLOAD_OFFSET - INITIAL_C_PN_OFFSET, serverEngine, 0x0f);
-            ByteBuffer src = packet.asReadOnlyBuffer();
-            packet.position(INITIAL_C_PAYLOAD_OFFSET);
-            // change one byte of AEAD tag
-            packet.put(packet.limit() - 1, (byte)0);
             serverEngine.decryptPacket(QuicTLSEngine.KeySpace.INITIAL, INITIAL_C_PN, -1, src, INITIAL_C_PAYLOAD_OFFSET, packet);
-            fail("Decryption should have failed");
         });
     }
 
     @Test
     public void testEncryptServerInitialPacket() throws Exception {
-        QuicTLSEngine serverEngine = getQuicV2Engine(SSLContext.getDefault(), false);
+        QuicTLSEngine serverEngine = getQuicEngine(SSLContext.getDefault(), false);
         ByteBuffer dcid = ByteBuffer.wrap(HexFormat.of().parseHex(INITIAL_DCID));
         serverEngine.deriveInitialKeys(QUIC_V2, dcid);
 
@@ -243,7 +244,7 @@ public class Quicv2PacketEncryptionTest {
 
     @Test
     public void testDecryptServerInitialPacket() throws Exception {
-        QuicTLSEngine clientEngine = getQuicV2Engine(SSLContext.getDefault(), true);
+        QuicTLSEngine clientEngine = getQuicEngine(SSLContext.getDefault(), true);
         ByteBuffer dcid = ByteBuffer.wrap(HexFormat.of().parseHex(INITIAL_DCID));
         clientEngine.deriveInitialKeys(QUIC_V2, dcid);
 
@@ -262,7 +263,7 @@ public class Quicv2PacketEncryptionTest {
     @Test
     public void testDecryptServerInitialPacketTwice() throws Exception {
         // verify that decrypting the same packet twice does not throw
-        QuicTLSEngine clientEngine = getQuicV2Engine(SSLContext.getDefault(), true);
+        QuicTLSEngine clientEngine = getQuicEngine(SSLContext.getDefault(), true);
         ByteBuffer dcid = ByteBuffer.wrap(HexFormat.of().parseHex(INITIAL_DCID));
         clientEngine.deriveInitialKeys(QUIC_V2, dcid);
 
@@ -285,7 +286,7 @@ public class Quicv2PacketEncryptionTest {
 
     @Test
     public void testSignRetry() throws NoSuchAlgorithmException, ShortBufferException, QuicTransportException {
-        QuicTLSEngine clientEngine = getQuicV2Engine(SSLContext.getDefault(), true);
+        QuicTLSEngine clientEngine = getQuicEngine(SSLContext.getDefault(), true);
         ByteBuffer dcid = ByteBuffer.wrap(HexFormat.of().parseHex(INITIAL_DCID));
 
         ByteBuffer packet = ByteBuffer.allocate(SIGNED_RETRY.length() / 2);
@@ -302,7 +303,7 @@ public class Quicv2PacketEncryptionTest {
 
     @Test
     public void testVerifyRetry() throws NoSuchAlgorithmException, AEADBadTagException, QuicTransportException {
-        QuicTLSEngine clientEngine = getQuicV2Engine(SSLContext.getDefault(), true);
+        QuicTLSEngine clientEngine = getQuicEngine(SSLContext.getDefault(), true);
         ByteBuffer dcid = ByteBuffer.wrap(HexFormat.of().parseHex(INITIAL_DCID));
 
         ByteBuffer packet = ByteBuffer.wrap(HexFormat.of().parseHex(SIGNED_RETRY));
@@ -311,25 +312,22 @@ public class Quicv2PacketEncryptionTest {
     }
 
     @Test
-    public void testVerifyBadRetry() throws NoSuchAlgorithmException, AEADBadTagException, QuicTransportException {
+    public void testVerifyBadRetry() throws Exception {
+        QuicTLSEngine clientEngine = getQuicEngine(SSLContext.getDefault(), true);
+        ByteBuffer dcid = ByteBuffer.wrap(HexFormat.of().parseHex(INITIAL_DCID));
+        ByteBuffer packet = ByteBuffer.wrap(HexFormat.of().parseHex(SIGNED_RETRY));
+        // change one byte of AEAD tag
+        packet.put(packet.limit() - 1, (byte)0);
         Assertions.assertThrows(AEADBadTagException.class, () -> {
-            QuicTLSEngine clientEngine = getQuicV2Engine(SSLContext.getDefault(), true);
-            ByteBuffer dcid = ByteBuffer.wrap(HexFormat.of().parseHex(INITIAL_DCID));
-            ByteBuffer packet = ByteBuffer.wrap(HexFormat.of().parseHex(SIGNED_RETRY));
-            // change one byte of AEAD tag
-            packet.put(packet.limit() - 1, (byte)0);
             clientEngine.verifyRetryPacket(QUIC_V2, dcid, packet);
-            fail("Verification should have failed");
         });
     }
 
     @Test
     public void testEncryptChaCha() throws Exception {
-        QuicTLSEngineImpl clientEngine = (QuicTLSEngineImpl) getQuicV2Engine(SSLContext.getDefault(), true);
+        QuicTLSEngineImpl clientEngine = (QuicTLSEngineImpl) getQuicEngine(SSLContext.getDefault(), true);
         SecretKey key = new SecretKeySpec(HexFormat.of().parseHex(ONERTT_SECRET), 0, 32, "ChaCha20-Poly1305");
-        clientEngine.versionNegotiated(QUIC_V2);
-        clientEngine.deriveApplicationReadSecrets(key, "TLS_CHACHA20_POLY1305_SHA256");
-        clientEngine.deriveApplicationWriteSecrets(key, "TLS_CHACHA20_POLY1305_SHA256");
+        deriveV2Keys(clientEngine, key);
 
         final int packetLen = ONERTT_PAYLOAD_OFFSET + ONERTT_PAYLOAD_LENGTH + 16;
         final ByteBuffer packet = ByteBuffer.allocate(packetLen);
@@ -346,14 +344,19 @@ public class Quicv2PacketEncryptionTest {
         assertEquals(ENCRYPTED_ONERTT_PAYLOAD, HexFormat.of().formatHex(packet.array()));
     }
 
+    private static void deriveV2Keys(QuicTLSEngineImpl engine, SecretKey key) throws GeneralSecurityException, IOException {
+        engine.versionNegotiated(QUIC_V2);
+        engine.setRemoteQuicTransportParametersConsumer(parameters -> {});
+        engine.remoteQuicTransportParameters(ByteBuffer.allocate(0));
+        engine.deriveApplicationReadSecrets(key, "TLS_CHACHA20_POLY1305_SHA256");
+        engine.deriveApplicationWriteSecrets(key, "TLS_CHACHA20_POLY1305_SHA256");
+    }
+
     @Test
     public void testDecryptChaCha() throws Exception {
-        QuicTLSEngineImpl serverEngine = (QuicTLSEngineImpl) getQuicV2Engine(SSLContext.getDefault(), false);
-        // mark the TLS handshake as FINISHED
+        QuicTLSEngineImpl serverEngine = (QuicTLSEngineImpl) getQuicEngine(SSLContext.getDefault(), false);
         SecretKey key = new SecretKeySpec(HexFormat.of().parseHex(ONERTT_SECRET), 0, 32, "ChaCha20-Poly1305");
-        serverEngine.versionNegotiated(QUIC_V2);
-        serverEngine.deriveApplicationReadSecrets(key, "TLS_CHACHA20_POLY1305_SHA256");
-        serverEngine.deriveApplicationWriteSecrets(key, "TLS_CHACHA20_POLY1305_SHA256");
+        deriveV2Keys(serverEngine, key);
 
         ByteBuffer packet = ByteBuffer.wrap(HexFormat.of().parseHex(ENCRYPTED_ONERTT_PAYLOAD));
         unprotect(QuicTLSEngine.KeySpace.ONE_RTT, packet, ONERTT_PN_OFFSET, ONERTT_PAYLOAD_OFFSET - ONERTT_PN_OFFSET, serverEngine, 0x1f);
@@ -370,12 +373,9 @@ public class Quicv2PacketEncryptionTest {
     @Test
     public void testDecryptChaChaTwice() throws Exception {
         // verify that decrypting the same packet twice does not throw
-        QuicTLSEngineImpl serverEngine = (QuicTLSEngineImpl) getQuicV2Engine(SSLContext.getDefault(), false);
-        // mark the TLS handshake as FINISHED
+        QuicTLSEngineImpl serverEngine = (QuicTLSEngineImpl) getQuicEngine(SSLContext.getDefault(), false);
         SecretKey key = new SecretKeySpec(HexFormat.of().parseHex(ONERTT_SECRET), 0, 32, "ChaCha20-Poly1305");
-        serverEngine.versionNegotiated(QUIC_V2);
-        serverEngine.deriveApplicationReadSecrets(key, "TLS_CHACHA20_POLY1305_SHA256");
-        serverEngine.deriveApplicationWriteSecrets(key, "TLS_CHACHA20_POLY1305_SHA256");
+        deriveV2Keys(serverEngine, key);
 
         // attempt 1
         ByteBuffer packet = ByteBuffer.wrap(HexFormat.of().parseHex(ENCRYPTED_ONERTT_PAYLOAD));
@@ -397,21 +397,17 @@ public class Quicv2PacketEncryptionTest {
 
     @Test
     public void testDecryptChaChaBadTag() throws Exception {
+        QuicTLSEngineImpl serverEngine = (QuicTLSEngineImpl) getQuicEngine(SSLContext.getDefault(), false);
+        SecretKey key = new SecretKeySpec(HexFormat.of().parseHex(ONERTT_SECRET), 0, 32, "ChaCha20-Poly1305");
+        deriveV2Keys(serverEngine, key);
+        ByteBuffer packet = ByteBuffer.wrap(HexFormat.of().parseHex(ENCRYPTED_ONERTT_PAYLOAD));
+        unprotect(QuicTLSEngine.KeySpace.ONE_RTT, packet, ONERTT_PN_OFFSET, ONERTT_PAYLOAD_OFFSET - ONERTT_PN_OFFSET, serverEngine, 0x1f);
+        ByteBuffer src = packet.asReadOnlyBuffer();
+        packet.position(ONERTT_PAYLOAD_OFFSET);
+        // change one byte of AEAD tag
+        packet.put(packet.limit() - 1, (byte)0);
         Assertions.assertThrows(AEADBadTagException.class, () -> {
-            QuicTLSEngineImpl serverEngine = (QuicTLSEngineImpl) getQuicV2Engine(SSLContext.getDefault(), false);
-            // mark the TLS handshake as FINISHED
-            SecretKey key = new SecretKeySpec(HexFormat.of().parseHex(ONERTT_SECRET), 0, 32, "ChaCha20-Poly1305");
-            serverEngine.versionNegotiated(QUIC_V2);
-            serverEngine.deriveApplicationReadSecrets(key, "TLS_CHACHA20_POLY1305_SHA256");
-            serverEngine.deriveApplicationWriteSecrets(key, "TLS_CHACHA20_POLY1305_SHA256");
-            ByteBuffer packet = ByteBuffer.wrap(HexFormat.of().parseHex(ENCRYPTED_ONERTT_PAYLOAD));
-            unprotect(QuicTLSEngine.KeySpace.ONE_RTT, packet, ONERTT_PN_OFFSET, ONERTT_PAYLOAD_OFFSET - ONERTT_PN_OFFSET, serverEngine, 0x1f);
-            ByteBuffer src = packet.asReadOnlyBuffer();
-            packet.position(ONERTT_PAYLOAD_OFFSET);
-            // change one byte of AEAD tag
-            packet.put(packet.limit() - 1, (byte)0);
             serverEngine.decryptPacket(QuicTLSEngine.KeySpace.ONE_RTT, ONERTT_PN, 0, src, ONERTT_PAYLOAD_OFFSET, packet);
-            fail("Decryption should have failed");
         });
     }
 
@@ -444,8 +440,7 @@ public class Quicv2PacketEncryptionTest {
         }
     }
 
-    // returns a QuicTLSEngine with only Quic version 2 enabled
-    private QuicTLSEngine getQuicV2Engine(SSLContext context, boolean mode) {
+    private QuicTLSEngine getQuicEngine(SSLContext context, boolean mode) {
         final QuicTLSContext quicTLSContext = new QuicTLSContext(context);
         final QuicTLSEngine engine = quicTLSContext.createEngine();
         engine.setUseClientMode(mode);
