@@ -76,6 +76,13 @@ public:
                                                Register tmp, Label& slow_path);
   virtual void check_oop(MacroAssembler* masm, Register obj, Register tmp1, Register tmp2, Label& L_error);
 
+  // Barrier hotpatching
+  static address parse_jump_address(address pc);
+  static void insert_patchable_nop(address pc);
+  static bool is_patchable_nop(address pc);
+  static void insert_patchable_jump(address pc, address target_pc);
+  static bool is_patchable_jump(address pc, address target_pc);
+
 #ifdef COMPILER1
   void keepalive_barrier_c1_stub(LIR_Assembler* ce, ShenandoahKeepaliveBarrierStub* stub);
   void keepalive_barrier_c1_runtime_stub(StubAssembler* sasm);
@@ -85,13 +92,6 @@ public:
 #endif
 
 #ifdef COMPILER2
-  // Barrier hotpatching
-  static address parse_jump_address(address pc);
-  static void insert_patchable_nop(address pc);
-  static bool is_patchable_nop(address pc);
-  static void insert_patchable_jump(address pc, address target_pc);
-  static bool is_patchable_jump(address pc, address target_pc);
-
   // Entry points from Matcher
   void load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address addr, Register tmp1, Register tmp2, bool is_narrow, bool is_acquire);
   void store_c2(const MachNode* node, MacroAssembler* masm, Address dst, bool dst_narrow, Register src, bool src_narrow, Register tmp1, Register tmp2, Register tmp3, bool is_volatile);

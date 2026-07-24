@@ -581,6 +581,51 @@ void ShenandoahBarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssemb
 
 #undef __
 
+address ShenandoahBarrierSetAssembler::parse_jump_address(address pc) {
+  NativeInstruction* ni = nativeInstruction_at(pc);
+  assert(ni->is_jump(), "Must be a jump");
+  NativeJump* jmp = nativeJump_at(pc);
+  return jmp->jump_destination();
+}
+
+void ShenandoahBarrierSetAssembler::insert_patchable_nop(address pc) {
+  *(pc + 0) = 0x0F;
+  *(pc + 1) = 0x1F;
+  *(pc + 2) = 0x44;
+  *(pc + 3) = 0x00;
+  *(pc + 4) = 0x00;
+}
+
+bool ShenandoahBarrierSetAssembler::is_patchable_nop(address pc) {
+  if (*(pc + 0) != 0x0F) return false;
+  if (*(pc + 1) != 0x1F) return false;
+  if (*(pc + 2) != 0x44) return false;
+  if (*(pc + 3) != 0x00) return false;
+  if (*(pc + 4) != 0x00) return false;
+  return true;
+}
+
+void ShenandoahBarrierSetAssembler::insert_patchable_jump(address pc, address target_pc) {
+  int32_t disp = checked_cast<int32_t>((intptr_t)target_pc - ((intptr_t)pc + 5));
+
+  *(pc + 0) = 0xE9;
+  *(pc + 1) = (disp >>  0) & 0xFF;
+  *(pc + 2) = (disp >>  8) & 0xFF;
+  *(pc + 3) = (disp >> 16) & 0xFF;
+  *(pc + 4) = (disp >> 24) & 0xFF;
+}
+
+bool ShenandoahBarrierSetAssembler::is_patchable_jump(address pc, address target_pc) {
+  int32_t disp = checked_cast<int32_t>((intptr_t)target_pc - ((intptr_t)pc + 5));
+
+  if (*(pc + 0) != 0xE9) return false;
+  if (*(pc + 1) != ((disp >>  0) & 0xFF)) return false;
+  if (*(pc + 2) != ((disp >>  8) & 0xFF)) return false;
+  if (*(pc + 3) != ((disp >> 16) & 0xFF)) return false;
+  if (*(pc + 4) != ((disp >> 24) & 0xFF)) return false;
+  return true;
+}
+
 #ifdef COMPILER1
 
 #define __ ce->masm()->
@@ -790,50 +835,6 @@ void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char
   __ bind(*continuation());
 }
 
-address ShenandoahBarrierSetAssembler::parse_jump_address(address pc) {
-  NativeInstruction* ni = nativeInstruction_at(pc);
-  assert(ni->is_jump(), "Must be a jump");
-  NativeJump* jmp = nativeJump_at(pc);
-  return jmp->jump_destination();
-}
-
-void ShenandoahBarrierSetAssembler::insert_patchable_nop(address pc) {
-  *(pc + 0) = 0x0F;
-  *(pc + 1) = 0x1F;
-  *(pc + 2) = 0x44;
-  *(pc + 3) = 0x00;
-  *(pc + 4) = 0x00;
-}
-
-bool ShenandoahBarrierSetAssembler::is_patchable_nop(address pc) {
-  if (*(pc + 0) != 0x0F) return false;
-  if (*(pc + 1) != 0x1F) return false;
-  if (*(pc + 2) != 0x44) return false;
-  if (*(pc + 3) != 0x00) return false;
-  if (*(pc + 4) != 0x00) return false;
-  return true;
-}
-
-void ShenandoahBarrierSetAssembler::insert_patchable_jump(address pc, address target_pc) {
-  int32_t disp = checked_cast<int32_t>((intptr_t)target_pc - ((intptr_t)pc + 5));
-
-  *(pc + 0) = 0xE9;
-  *(pc + 1) = (disp >>  0) & 0xFF;
-  *(pc + 2) = (disp >>  8) & 0xFF;
-  *(pc + 3) = (disp >> 16) & 0xFF;
-  *(pc + 4) = (disp >> 24) & 0xFF;
-}
-
-bool ShenandoahBarrierSetAssembler::is_patchable_jump(address pc, address target_pc) {
-  int32_t disp = checked_cast<int32_t>((intptr_t)target_pc - ((intptr_t)pc + 5));
-
-  if (*(pc + 0) != 0xE9) return false;
-  if (*(pc + 1) != ((disp >>  0) & 0xFF)) return false;
-  if (*(pc + 2) != ((disp >>  8) & 0xFF)) return false;
-  if (*(pc + 3) != ((disp >> 16) & 0xFF)) return false;
-  if (*(pc + 4) != ((disp >> 24) & 0xFF)) return false;
-  return true;
-}
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);

@@ -119,7 +119,6 @@ void ShenandoahNMethod::parse(nmethod* nm, GrowableArray<oop*>& oops, bool& has_
         }
         break;
       }
-#ifdef COMPILER2
       case relocInfo::patchable_barrier_type: {
         patchable_barrier_Relocation* r = iter.patchable_barrier_reloc();
 
@@ -131,7 +130,6 @@ void ShenandoahNMethod::parse(nmethod* nm, GrowableArray<oop*>& oops, bool& has_
         barriers.push(b);
         break;
       }
-#endif
       default:
         // We do not care about other relocations.
         break;
@@ -186,7 +184,6 @@ bool ShenandoahNMethod::handle_barriers(nmethod* nm) {
 }
 
 bool ShenandoahNMethod::patch_barrier(address pc, address target_pc, bool should_jump) {
-#ifdef COMPILER2
   // Use precise instruction rewrite code, and only when it recognizes the current insns.
   // This patching code is non-atomic, but it runs in two safe contexts:
   //   a) For new nmethods that are not yet executing;
@@ -215,9 +212,6 @@ bool ShenandoahNMethod::patch_barrier(address pc, address target_pc, bool should
       "Should be patchable nop");
   }
   return patched;
-#else
-  return false;
-#endif
 }
 
 #ifdef ASSERT

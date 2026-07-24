@@ -86,7 +86,6 @@ bool ShenandoahBarrierSetNMethod::nmethod_entry_barrier(nmethod* nm) {
 }
 
 void ShenandoahBarrierSetNMethod::finalize_relocations(nmethod* nm) {
-#ifdef COMPILER2
   RelocIterator iter(nm);
   while (iter.next()) {
     if (iter.type() == relocInfo::patchable_barrier_type) {
@@ -101,5 +100,4 @@ void ShenandoahBarrierSetNMethod::finalize_relocations(nmethod* nm) {
       }
     }
   }
-#endif
 }

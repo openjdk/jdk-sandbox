@@ -495,6 +495,38 @@ void ShenandoahBarrierSetAssembler::gen_write_ref_array_post_barrier(MacroAssemb
 
 #undef __
 
+address ShenandoahBarrierSetAssembler::parse_jump_address(address pc) {
+  NativeInstruction* ni = nativeInstruction_at(pc);
+  assert(ni->is_jump(), "Must be a jump");
+  NativeJump* jmp = nativeJump_at(pc);
+  return jmp->jump_destination();
+}
+
+static uint32_t encode_patchable_nop() {
+  return 0x00000013;
+}
+
+static uint32_t encode_patchable_jump(address pc, address target_pc) {
+  int32_t disp = checked_cast<int32_t>((intptr_t)target_pc - (intptr_t)pc);
+  return Assembler::encode_jal(x0, disp);
+}
+
+void ShenandoahBarrierSetAssembler::insert_patchable_nop(address pc) {
+  *((uint32_t*)pc) = encode_patchable_nop();
+}
+
+void ShenandoahBarrierSetAssembler::insert_patchable_jump(address pc, address target_pc) {
+  *((uint32_t*)pc) = encode_patchable_jump(pc, target_pc);
+}
+
+bool ShenandoahBarrierSetAssembler::is_patchable_nop(address pc) {
+  return *((uint32_t*)pc) == encode_patchable_nop();
+}
+
+bool ShenandoahBarrierSetAssembler::is_patchable_jump(address pc, address target_pc) {
+  return *((uint32_t*)pc) == encode_patchable_jump(pc, target_pc);
+}
+
 #ifdef COMPILER1
 
 #define __ ce->masm()->
@@ -696,38 +728,6 @@ void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
   patchable_jump_if_gc_state(masm, test_state, entry());
   __ bind(*continuation());
-}
-
-address ShenandoahBarrierSetAssembler::parse_jump_address(address pc) {
-  NativeInstruction* ni = nativeInstruction_at(pc);
-  assert(ni->is_jump(), "Must be a jump");
-  NativeJump* jmp = nativeJump_at(pc);
-  return jmp->jump_destination();
-}
-
-static uint32_t encode_patchable_nop() {
-  return 0x00000013;
-}
-
-static uint32_t encode_patchable_jump(address pc, address target_pc) {
-  int32_t disp = checked_cast<int32_t>((intptr_t)target_pc - (intptr_t)pc);
-  return Assembler::encode_jal(x0, disp);
-}
-
-void ShenandoahBarrierSetAssembler::insert_patchable_nop(address pc) {
-  *((uint32_t*)pc) = encode_patchable_nop();
-}
-
-void ShenandoahBarrierSetAssembler::insert_patchable_jump(address pc, address target_pc) {
-  *((uint32_t*)pc) = encode_patchable_jump(pc, target_pc);
-}
-
-bool ShenandoahBarrierSetAssembler::is_patchable_nop(address pc) {
-  return *((uint32_t*)pc) == encode_patchable_nop();
-}
-
-bool ShenandoahBarrierSetAssembler::is_patchable_jump(address pc, address target_pc) {
-  return *((uint32_t*)pc) == encode_patchable_jump(pc, target_pc);
 }
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
