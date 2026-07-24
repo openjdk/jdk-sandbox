@@ -25,7 +25,7 @@
 #ifndef CPU_ZERO_GC_SHENANDOAH_SHENANDOAHBARRIERSETASSEMBLER_ZERO_HPP
 #define CPU_ZERO_GC_SHENANDOAH_SHENANDOAHBARRIERSETASSEMBLER_ZERO_HPP
 
-#include "utilities/debug.hpp"
+#include "utilities/globalDefinitions.hpp"
 
 class ShenandoahBarrierSetAssembler {
 public:
