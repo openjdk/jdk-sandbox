@@ -578,7 +578,7 @@ void patchable_barrier_Relocation::pack_data_to(CodeSection* dest) {
 }
 
 void patchable_barrier_Relocation::unpack_data() {
-  assert(datalen() == 3, "Should be short+int fields");
+  assert(datalen() == 3, "Should be int+short fields");
   short* d = data();
   _target_offset = relocInfo::jint_from_data(&d[0]);
   _metadata = checked_cast<uint16_t>(d[2]);
@@ -586,7 +586,7 @@ void patchable_barrier_Relocation::unpack_data() {
 
 void patchable_barrier_Relocation::set_target_offset(int32_t target_offset) {
   assert(!is_target_offset_resolved(), "Should be");
-  assert(datalen() == 3, "Should be short+int fields");
+  assert(datalen() == 3, "Should be int+short fields");
   short* d = data();
   d[0] = relocInfo::data0_from_int(target_offset);
   d[1] = relocInfo::data1_from_int(target_offset);
