@@ -364,7 +364,7 @@ public:
   }
 
   // Returns bytes of humongous waste
-  inline size_t humongous_waste(ShenandoahFreeSetPartitionId which_partition) const {
+  size_t humongous_waste(ShenandoahFreeSetPartitionId which_partition) const {
     assert (which_partition < NumPartitions, "selected free set must be valid");
     // This may be called with or without the global heap lock.  Changes to _humongous_waste[] are always made with heap lock.
     return _humongous_waste[int(which_partition)];

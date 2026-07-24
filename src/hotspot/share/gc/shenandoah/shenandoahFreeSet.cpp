@@ -379,10 +379,6 @@ void ShenandoahRegionPartitions::establish_mutator_intervals(idx_t mutator_leftm
 	       _capacity[int(ShenandoahFreeSetPartitionId::Mutator)], total_mutator_regions);
 #endif
 
-#undef KELVIN_HUMONGOUS
-#ifdef KELVIN_HUMONGOUS
-  log_info(gc)("establish_mutator_intervals() sets _humongous_waste[Mutator] to %zu", mutator_humongous_waste_bytes);
-#endif
   _humongous_waste[int(ShenandoahFreeSetPartitionId::Mutator)] = mutator_humongous_waste_bytes;
   _available[int(ShenandoahFreeSetPartitionId::Mutator)] =
     _capacity[int(ShenandoahFreeSetPartitionId::Mutator)] - _used[int(ShenandoahFreeSetPartitionId::Mutator)];
@@ -404,9 +400,6 @@ void ShenandoahRegionPartitions::establish_mutator_intervals(idx_t mutator_leftm
 #ifdef KELVIN_CAPACITY
   log_info(gc)("establish_mutator_intervals() _capacity[Collector] is %zu (0 regions)",
 	       _capacity[int(ShenandoahFreeSetPartitionId::Collector)]);
-#endif
-#ifdef KELVIN_HUMONGOUS
-  log_info(gc)("establish_mutator_intervals() sets _humongous_waste[Collector] to 0");
 #endif
   _humongous_waste[int(ShenandoahFreeSetPartitionId::Collector)] = 0;
   _available[int(ShenandoahFreeSetPartitionId::Collector)] = 0;
@@ -439,10 +432,6 @@ void ShenandoahRegionPartitions::establish_old_collector_intervals(idx_t old_col
 #ifdef KELVIN_CAPACITY
   log_info(gc)("establish_old_collector_intervals() _capacity[OldCollector] is %zu (%zu regions)",
 	       _capacity[int(ShenandoahFreeSetPartitionId::OldCollector)], total_old_collector_region_count);
-#endif
-#ifdef KELVIN_HUMONGOUS
-  log_info(gc)("establish_old_collector_intervals() sets _humongous_waste[OldCollector] to %zu",
-               old_collector_humongous_waste_bytes);
 #endif
   _humongous_waste[int(ShenandoahFreeSetPartitionId::OldCollector)] = old_collector_humongous_waste_bytes;
   _available[int(ShenandoahFreeSetPartitionId::OldCollector)] =
@@ -479,21 +468,12 @@ void ShenandoahRegionPartitions::increase_humongous_waste(ShenandoahFreeSetParti
   shenandoah_assert_heaplocked();
   assert (which_partition < NumPartitions, "Partition must be valid");
   _humongous_waste[int(which_partition)] += bytes;
-#ifdef KELVIN_HUMONGOUS
-  log_info(gc)("increase_humongous_waste adds %zu, _humongous_waste[%s]: %zu",
-               bytes, partition_name(which_partition), _humongous_waste[int(which_partition)]);
-#endif
 }
 
 void ShenandoahRegionPartitions::decrease_humongous_waste(ShenandoahFreeSetPartitionId which_partition, size_t bytes) {
   shenandoah_assert_heaplocked();
   assert (which_partition < NumPartitions, "Partition must be valid");
   assert(_humongous_waste[int(which_partition)] >= bytes, "Cannot decrease waste beyond what is there");
-#undef KELVIN_HUMONGOUS_HPP
-#ifdef KELVIN_HUMONGOUS_HPP
-  log_info(gc)("decrease_humongous_waste decreases waste by %zu for partion %s: %zu",
-               bytes, partition_name(which_partition), _humongous_waste[int(which_partition)]);
-#endif
   _humongous_waste[int(which_partition)] -= bytes;
 }
 
@@ -595,24 +575,29 @@ size_t ShenandoahRegionPartitions::get_available(ShenandoahFreeSetPartitionId wh
 }
 
 void ShenandoahRegionPartitions::increase_region_counts(ShenandoahFreeSetPartitionId which_partition, size_t regions) {
+  assert (which_partition < NumPartitions, "Partition must be valid");
   _region_counts[int(which_partition)] += regions;
 }
 
 void ShenandoahRegionPartitions::decrease_region_counts(ShenandoahFreeSetPartitionId which_partition, size_t regions) {
+  assert (which_partition < NumPartitions, "Partition must be valid");
   assert(_region_counts[int(which_partition)] >= regions, "Cannot remove more regions than are present");
   _region_counts[int(which_partition)] -= regions;
 }
 
 void ShenandoahRegionPartitions::increase_empty_region_counts(ShenandoahFreeSetPartitionId which_partition, size_t regions) {
+  assert (which_partition < NumPartitions, "Partition must be valid");
   _empty_region_counts[int(which_partition)] += regions;
 }
 
 void ShenandoahRegionPartitions::decrease_empty_region_counts(ShenandoahFreeSetPartitionId which_partition, size_t regions) {
+  assert (which_partition < NumPartitions, "Partition must be valid");
   assert(_empty_region_counts[int(which_partition)] >= regions, "Cannot remove more regions than are present");
   _empty_region_counts[int(which_partition)] -= regions;
 }
 
 void ShenandoahRegionPartitions::one_region_is_no_longer_empty(ShenandoahFreeSetPartitionId partition) {
+  assert (partition < NumPartitions, "Partition must be valid");
   decrease_empty_region_counts(partition, (size_t) 1);
 }
 
@@ -2602,9 +2587,6 @@ HeapWord* ShenandoahFreeSet::allocate_contiguous(ShenandoahAllocRequest& req, bo
   if (waste_bytes > 0) {
     req.set_waste(waste_bytes / HeapWordSize);
     if (is_humongous) {
-#ifdef KELVIN_HUMONGOUS
-      log_info(gc)("allocate_contigous has humongous waste %zu", waste_bytes);
-#endif
       _partitions.increase_humongous_waste(ShenandoahFreeSetPartitionId::Mutator, waste_bytes);
       _total_humongous_waste += waste_bytes;
     }
@@ -2978,7 +2960,6 @@ void ShenandoahFreeSet::find_regions_with_alloc_capacity(size_t &young_trashed_r
 
   idx_t rightmost_idx = (mutator_leftmost == max_regions)? -1: (idx_t) mutator_rightmost;
   idx_t rightmost_empty_idx = (mutator_leftmost_empty == max_regions)? -1: (idx_t) mutator_rightmost_empty;
-
   _partitions.establish_mutator_intervals(mutator_leftmost, rightmost_idx, mutator_leftmost_empty, rightmost_empty_idx,
                                           total_mutator_regions + young_cset_regions, mutator_empty, mutator_regions,
                                           mutator_used + young_cset_regions * region_size_bytes, mutator_humongous_waste);
@@ -3025,9 +3006,6 @@ void ShenandoahFreeSet::transfer_humongous_regions_from_mutator_to_old_collector
   shenandoah_assert_heaplocked();
   size_t region_size_bytes = ShenandoahHeapRegion::region_size_bytes();
 
-#ifdef KELVIN_HUMONGOUS
-  log_info(gc)("transfer_humongous_regions_from_mutator_to_old_collector transfers humongous waste: %zu", humongous_waste_bytes);
-#endif
   _partitions.decrease_humongous_waste(ShenandoahFreeSetPartitionId::Mutator, humongous_waste_bytes);
   _partitions.decrease_used(ShenandoahFreeSetPartitionId::Mutator, xfer_regions * region_size_bytes);
   _partitions.decrease_capacity(ShenandoahFreeSetPartitionId::Mutator, xfer_regions * region_size_bytes);
@@ -3035,7 +3013,7 @@ void ShenandoahFreeSet::transfer_humongous_regions_from_mutator_to_old_collector
   _partitions.increase_capacity(ShenandoahFreeSetPartitionId::OldCollector, xfer_regions * region_size_bytes);
   _partitions.increase_humongous_waste(ShenandoahFreeSetPartitionId::OldCollector, humongous_waste_bytes);
 #ifdef KELVIN_USED
-  log_info(gc)("transfer_humongous_regions_from_mutator_to_old_collector() is increasing used for OldCollecor: %zu",
+  log_info(gc)("transfer_humongous_regions_from_mutator_to_old_collector() is increasing used for OldCollector: %zu",
                xfer_regions * region_size_bytes);
 #endif
   _partitions.increase_used(ShenandoahFreeSetPartitionId::OldCollector, xfer_regions * region_size_bytes);
@@ -3684,11 +3662,10 @@ void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* 
     //
     // Before integration of PR31797, if this were to happen, the degen cycle would escalate to FULL GC, and there would
     // be no early recycling of regions.
-    //
-    // Bottom line: Kelvin believes it is safe to assume that if we reach here, the region was early recycled.
     if (ShenandoahRecycleFWTBodies) {
       size_t early_recycle_allocated = (r->top() - r->bottom()) * HeapWordSize;
       size_t region_size_bytes = ShenandoahHeapRegion::region_size_bytes();
+      p = ShenandoahFreeSetPartitionId::Mutator;
       if (early_recycle_allocated > 0) {
         assert(r->is_regular() || r->is_regular_pinned(), "Should be made regular before we get here");
 #ifdef KELVIN_RECYCLE
@@ -3715,6 +3692,7 @@ void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* 
     }
   }
   r->reset_forwarding_table();
+
 #undef KELVIN_NOISE
 #ifdef KELVIN_NOISE
   log_info(gc)(" early recycled region %zu has bottom: " PTR_FORMAT ", top: " PTR_FORMAT ", end: " PTR_FORMAT ", %s, %s",
@@ -3722,7 +3700,7 @@ void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* 
                (r->is_empty()? "is empty": "is not empty"),
                (r->is_trash()? "is trash": "is not trash"));
 #endif
-  if (r->is_empty() || r->is_trash()) {
+  if ((p != ShenandoahFreeSetPartitionId::NotFree) && (r->is_empty() || r->is_trash())) {
     _partitions.increase_empty_region_counts(p, 1);
     emptied_regions++;
   }
@@ -3760,7 +3738,6 @@ void ShenandoahFreeSet::finish_cset_region_recycling() {
   dump_used("finish_cset_region_recycling() before clearing early recycle totals", &_partitions, this);
 #endif
   clear_early_recycling_totals();
-
   log_info(gc)("Released FWT tails for %zu regions, freeing %zu%s", released_regions,
                byte_size_in_proper_unit(released_bytes), proper_unit_for_byte_size(released_bytes));
   recompute_total_used</* UsedByMutatorChanged */ true,
@@ -4397,9 +4374,6 @@ void ShenandoahFreeSet::decrease_humongous_waste_for_regular_bypass(ShenandoahHe
   assert(_partitions.membership(r->index()) == ShenandoahFreeSetPartitionId::NotFree, "Humongous regions should be NotFree");
   ShenandoahFreeSetPartitionId p =
     r->is_old()? ShenandoahFreeSetPartitionId::OldCollector: ShenandoahFreeSetPartitionId::Mutator;
-#ifdef KELVIN_HUMONGOUS
-  log_info(gc)("decrease_humongous_waste_for_regular_bypass has waste: %zu", waste);
-#endif
   _partitions.decrease_humongous_waste(p, waste);
   if (waste >= PLAB::min_size() * HeapWordSize) {
     _partitions.decrease_used(p, waste);

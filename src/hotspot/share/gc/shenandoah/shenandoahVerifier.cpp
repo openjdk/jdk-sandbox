@@ -418,11 +418,6 @@ public:
       if (r->is_humongous()) {
         _used += _region_size_bytes;
         _garbage += _region_size_bytes - r->get_live_data_bytes();
-#undef KELVIN_HUMONGOUS
-#ifdef KELVIN_HUMONGOUS
-        log_info(gc)("Verification says region %zu, which %s, has humongous waste %zu",
-                     r->index(), r->is_young()? "young": "not young", r->free());
-#endif
         _humongous_waste += r->free();
       } else {
         size_t alloc_capacity = r->free();
