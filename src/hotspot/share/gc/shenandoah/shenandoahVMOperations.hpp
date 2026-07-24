@@ -36,6 +36,7 @@ class ShenandoahFullGC;
 // VM_ShenandoahOperation
 //   - VM_ShenandoahInitMark: initiate concurrent marking
 //   - VM_ShenandoahFinalMarkStartEvac: finish up concurrent marking, and start evacuation
+//   - VM_ShenandoahFinalRoots: finish up roots processing
 //   - VM_ShenandoahInitUpdateRefs: initiate update references
 //   - VM_ShenandoahFinalUpdateRefs: finish up update references
 //   - VM_ShenandoahFinalVerify: final verification at the end of the cycle
