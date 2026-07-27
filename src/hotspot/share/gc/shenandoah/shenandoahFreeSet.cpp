@@ -1852,6 +1852,15 @@ HeapWord* ShenandoahFreeSet::allocate_single(ShenandoahAllocRequest& req, bool& 
 }
 
 #ifdef KELVIN_FWT
+#define DUMP_USED
+#endif
+
+#undef KELVIN_AFFILIATED
+#ifdef KELVIN_AFFILIATED
+#define DUMP_USED
+#endif
+
+#ifdef DUMP_USED
 static void dump_used(const char* msg, ShenandoahRegionPartitions* p, ShenandoahFreeSet* free_set) {
   log_info(gc)("dump_used(%s)", msg);
   log_info(gc)("            _used[Mutator]: %zu", p->get_used(ShenandoahFreeSetPartitionId::Mutator));
@@ -3651,6 +3660,10 @@ void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* 
   log_info(gc)("finish_recycle_of_one_cset_region(index: %zu), fwt_size:: %zu, available: %zu, region_free: %zu",
                r->index(), tail, available, region_free);
 #endif
+#ifdef KELVIN_AFFILIATED
+  log_info(gc)("finish_recycle_of_one_cset_region(index: %zu), fwt_size:: %zu, available: %zu, region_free: %zu",
+               r->index(), tail, available, region_free);
+#endif
   assert(p == ShenandoahFreeSetPartitionId::NotFree, "Early recycled regions are not in free-set partitions");
   if (tail > 0) {
     // Some regions that would otherwise qualify to be early recycled are not recycled due to pinning.
@@ -3693,17 +3706,20 @@ void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* 
   }
   r->reset_forwarding_table();
 
-#undef KELVIN_NOISE
-#ifdef KELVIN_NOISE
+#ifdef KELVIN_AFFILIATED
   log_info(gc)(" early recycled region %zu has bottom: " PTR_FORMAT ", top: " PTR_FORMAT ", end: " PTR_FORMAT ", %s, %s",
                r->index(), p2i(r->bottom()), p2i(r->top()), p2i(r->end()),
                (r->is_empty()? "is empty": "is not empty"),
                (r->is_trash()? "is trash": "is not trash"));
 #endif
-  if ((p != ShenandoahFreeSetPartitionId::NotFree) && (r->is_empty() || r->is_trash())) {
+  if ((p != ShenandoahFreeSetPartitionId::NotFree) && r->is_empty()) {
+    // For proper accounting, trash regions must remain as affiliated until they are recycled.
     _partitions.increase_empty_region_counts(p, 1);
     emptied_regions++;
   }
+#ifdef KELVIN_AFFILIATED
+  dump_used("After finish_recycle_of_one_cset_region()", &_partitions, this);
+#endif
 }
 
 void ShenandoahFreeSet::finish_cset_region_recycling() {
@@ -3719,6 +3735,10 @@ void ShenandoahFreeSet::finish_cset_region_recycling() {
   dump_used("finish_cset_region_recycling() at end of update-refs", &_partitions, this);
 #endif
 
+#ifdef KELVIN_AFFILIATED
+  log_info(gc)("finish_cset_region_recycling() has %zu unaffiliated young regions", young_unaffiliated_regions());
+  dump_used("finish_cset_region_recycling() at end of update-refs", &_partitions, this);
+#endif
   // KELVIN TODO
   //  MAYBE WE CAN ITERATE OVER THE SMALLER NUMBER OF REGIONS IN THE EARLY_RECYCLED_REGIONS ARRAY.
   //  PROBABLY NOT, BECAUSE SOME CSET REGIONS MAY FAIL TO QUALIFY FOR EARLY RECYCLING.
@@ -3738,8 +3758,10 @@ void ShenandoahFreeSet::finish_cset_region_recycling() {
   dump_used("finish_cset_region_recycling() before clearing early recycle totals", &_partitions, this);
 #endif
   clear_early_recycling_totals();
-  log_info(gc)("Released FWT tails for %zu regions, freeing %zu%s", released_regions,
-               byte_size_in_proper_unit(released_bytes), proper_unit_for_byte_size(released_bytes));
+  log_info(gc)("Released FWT tails for %zu regions, freeing %zu%s (emptied regions: %zu, early allocated regions: %zu)",
+               released_regions,
+               byte_size_in_proper_unit(released_bytes), proper_unit_for_byte_size(released_bytes),
+               emptied_regions, early_recycled_allocation_regions);
   recompute_total_used</* UsedByMutatorChanged */ true,
                        /* UsedByCollectorChanged */ true,
                        /* UsedByOldCollectorChanged */ true>();
@@ -3756,7 +3778,7 @@ void ShenandoahFreeSet::finish_cset_region_recycling() {
                                /* AffiliatedChangesAreGlobalNeutral */ false,
                                /* UnaffiliatedChangesAreYoungNeutral */ false>();
   }
-#ifdef KELVIN_FWT
+#ifdef KELVIN_AFFILIATED
   dump_used("At end of finish_cset_region_recycling()", &_partitions, this);
 #endif
 }
