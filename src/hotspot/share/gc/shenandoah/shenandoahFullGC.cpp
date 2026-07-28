@@ -739,6 +739,7 @@ void ShenandoahFullGC::phase2_calculate_target_addresses(ShenandoahHeapRegionSet
     // Early-recycled FWT regions can hold live objects,
     // let them be iterated by marked_object_iterate().
     heap->collection_set()->clear();
+    heap->free_set()->clear_early_recycling_totals();
   }
 
   // Compute the new addresses for regular objects

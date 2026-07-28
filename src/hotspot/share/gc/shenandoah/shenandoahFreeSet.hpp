@@ -493,7 +493,8 @@ private:
     if (UsedByMutatorChanged || UsedByCollectorChanged || UsedByOldCollectorChanged) {
       shenandoah_assert_heaplocked();
       _total_global_used = _total_young_used + _total_old_used;
-#ifdef KELVIN_AFFILIATED_HPP
+#undef KELVIN_GLOBAL_USED_HPP
+#ifdef KELVIN_GLOBAL_USED_HPP
       log_info(gc)("recompute _total_global_used %zu from _total_young_used %zu + _total_old_used %zu",
                    _total_global_used, _total_young_used, _total_old_used);
 #endif
@@ -558,7 +559,6 @@ private:
   size_t _early_recycled_retired_used;
 
   void initialize_recycled_region_arrays();
-  void clear_early_recycling_totals();
 
   void insert_tlab_region(ShenandoahHeapRegion* r, size_t max_tlab_size);
   void insert_shared_alloc_region(ShenandoahHeapRegion* r);
@@ -844,7 +844,7 @@ public:
 
   // Return bytes used by global
   inline size_t global_used() {
-#ifdef KELVIN_AFFILIATED_HPP
+#ifdef KELVIN_GLOBAL_USED_HPP
     log_info(gc)("global_used() returns %zu", _total_global_used);
 #endif
     return _total_global_used;
@@ -951,6 +951,9 @@ public:
 
   // Release the reserved FWT tails of reusable CSet regions, after update-refs.
   void finish_cset_region_recycling();
+
+  // Reset all tallies describing early-recycle region status.
+  void clear_early_recycling_totals();
 
   void transfer_humongous_regions_from_mutator_to_old_collector(size_t xfer_regions, size_t humongous_waste_words);
 

@@ -1855,6 +1855,11 @@ HeapWord* ShenandoahFreeSet::allocate_single(ShenandoahAllocRequest& req, bool& 
 #define DUMP_USED
 #endif
 
+#undef KELVIN_VERIFY
+#ifdef KELVIN_VERIFY
+#define DUMP_USED
+#endif
+
 #undef KELVIN_AFFILIATED
 #ifdef KELVIN_AFFILIATED
 #define DUMP_USED
@@ -3655,8 +3660,13 @@ void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* 
   size_t available = r->capacity() - tail;
   size_t min_size = PLAB::min_size() * HeapWordSize;
   size_t region_free = r->free();
+
+  assert(tail <= region_free, "Region free is how much memory can be allocated in this region after repurposing the fwt");
+
 #undef KELVIN_RECYCLE
-#ifdef KELVIN_RECYCLE
+
+#undef KELVIN_VERIFY
+#ifdef KELVIN_VERIFY
   log_info(gc)("finish_recycle_of_one_cset_region(index: %zu), fwt_size:: %zu, available: %zu, region_free: %zu",
                r->index(), tail, available, region_free);
 #endif
@@ -3685,8 +3695,13 @@ void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* 
         log_info(gc)("  assigning region %zu to the Mutator partition", r->index());
 #endif
         early_recycled_allocation_regions++;
+        size_t used_by = early_recycle_allocated;
+        if ((region_size_bytes - used_by) < PLAB::min_size() * HeapWordSize) {
+          // If this region is essentially "used up", count the waste as used
+          used_by = region_size_bytes;
+        }
         _partitions.raw_assign_membership(r->index(), ShenandoahFreeSetPartitionId::Mutator);
-        _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, early_recycle_allocated);
+        _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, used_by);
         _partitions.increase_capacity(ShenandoahFreeSetPartitionId::Mutator, region_size_bytes);
       } else {
         // KELVIN NOT EXACTLY SURE WHY THIS CODE SEEMS TO BE
@@ -3717,7 +3732,7 @@ void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* 
     _partitions.increase_empty_region_counts(p, 1);
     emptied_regions++;
   }
-#ifdef KELVIN_AFFILIATED
+#ifdef KELVIN_VERIFY
   dump_used("After finish_recycle_of_one_cset_region()", &_partitions, this);
 #endif
 }
@@ -3731,7 +3746,8 @@ void ShenandoahFreeSet::finish_cset_region_recycling() {
   size_t early_recycled_allocation_regions = 0;
   size_t num_regions = _heap->num_regions();
 
-#ifdef KELVIN_FWT
+#undef KELVIN_VERIFY
+#ifdef KELVIN_VERIFY
   dump_used("finish_cset_region_recycling() at end of update-refs", &_partitions, this);
 #endif
 
@@ -3754,7 +3770,7 @@ void ShenandoahFreeSet::finish_cset_region_recycling() {
 
   // We're no longer allocating from early recycled regions.
   _allocating_from_early_recycled_regions = false;
-#ifdef KELVIN_FWT
+#ifdef KELVIN_VERIFY
   dump_used("finish_cset_region_recycling() before clearing early recycle totals", &_partitions, this);
 #endif
   clear_early_recycling_totals();
