@@ -3701,8 +3701,8 @@ void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* 
           used_by = region_size_bytes;
         }
         _partitions.raw_assign_membership(r->index(), ShenandoahFreeSetPartitionId::Mutator);
-        _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, used_by);
         _partitions.increase_capacity(ShenandoahFreeSetPartitionId::Mutator, region_size_bytes);
+        _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, used_by);
       } else {
         // KELVIN NOT EXACTLY SURE WHY THIS CODE SEEMS TO BE
         // NECESSARY.  I THINK IT'S BECAUSE WE HAVE MOVED THIS INTO
@@ -3712,8 +3712,8 @@ void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* 
                "Region should be affiliated young at start of update refs");
         assert(r->is_trash(), "Should be made trash before we get here");
         _partitions.raw_assign_membership(r->index(), ShenandoahFreeSetPartitionId::Mutator);
-        _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, region_size_bytes);
         _partitions.increase_capacity(ShenandoahFreeSetPartitionId::Mutator, region_size_bytes);
+        _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, region_size_bytes);
       }
       released_regions++;
       released_bytes += tail;
