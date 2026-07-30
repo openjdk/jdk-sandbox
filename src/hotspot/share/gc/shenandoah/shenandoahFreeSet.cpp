@@ -2006,9 +2006,6 @@ HeapWord* ShenandoahFreeSet::allocate_for_mutator(ShenandoahAllocRequest &req, b
     result = allocate_from_regions(iterator, req, in_new_region);
   }
   if (result != nullptr) {
-#ifdef KELVIN_FWT
-    dump_used("At return from allocate_for_mutator() after allocate_from_regions()", &_partitions, this);
-#endif
     return result;
   }
 
@@ -2303,10 +2300,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, Shenandoah
       return nullptr;
     }
   }
-
-  // Account FWT sentinels in req.waste().
   HeapWord* const old_top = r->top();
-
   // req.size() is in words, r->free() is in bytes.
   if (req.is_lab_alloc()) {
     size_t adjusted_size = req.size();
@@ -2344,7 +2338,6 @@ HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, Shenandoah
       }
       if (adjusted_size >= req.min_size()) {
         result = r->allocate(adjusted_size, req);
-        // In FWT regions we skip sentinenls.
         assert(result != nullptr || r->forwarding_table_start() != nullptr,
                "Allocation must succeed: free %zu, actual %zu", free, adjusted_size);
         if (result != nullptr) {
@@ -4951,20 +4944,26 @@ HeapWord* ShenandoahFreeSet::try_allocate_TLAB_in_early_recycled(ShenandoahHeapR
   // Use marking context to avoid full scan.
   const size_t min_fill       = ShenandoahHeap::min_fill_size();
   const size_t min_size       = req.min_size();
-  const size_t max_size       = size;
+  const size_t max_size       = req.size();
   HeapWord* orig_top = r->top();
   ShenandoahMarkingContext* ctx = _heap->marking_context();
   for (size_t pad = 0; pad <= ShenandoahRecycleFWTMaxTLABPad; pad++) {
     HeapWord* candidate_start = orig_top + pad;
-    if (candidate_start >= alloc_limit) {
+    if (candidate_start + min_size >= alloc_limit) {
       break;
     } else if ((pad == 0) || (pad > min_fill)) {
       if (!ctx->is_marked_ignore_tams(candidate_start)) {
         HeapWord* end_of_candidate_tlab = ctx->get_next_marked_addr_ignore_tams(candidate_start, alloc_limit);
         size_t candidate_tlab_size = end_of_candidate_tlab - candidate_start;
-        if (candidate_tlab_size >= min_size) {
+        size_t usable_free = candidate_tlab_size * HeapWordSize;
+        // Convert usable_free from unaligned bytes to aligned number of words
+        usable_free = align_down(usable_free >> LogHeapWordSize, MinObjAlignment);
+        if (usable_free >= min_size) {
           // Use the first fit within the allowed range of padding
-          size = (candidate_tlab_size < max_size)? candidate_tlab_size: max_size;
+          size = max_size;
+          if (size > usable_free) {
+            size = usable_free;
+          }
           if (pad > 0) {
             ShenandoahHeap::fill_with_object(orig_top, pad);
           }
