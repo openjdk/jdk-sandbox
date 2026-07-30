@@ -37,6 +37,7 @@
 #include "memory/resourceArea.hpp"
 #include "runtime/orderAccess.hpp"
 
+
 static const char* partition_name(ShenandoahFreeSetPartitionId t) {
   switch (t) {
     case ShenandoahFreeSetPartitionId::NotFree: return "NotFree";
@@ -1086,7 +1087,7 @@ void ShenandoahRegionPartitions::assert_bounds() {
 #endif
           }
         } else {
-          // Note that early recycled region are in the cset.
+          // Note that early recycled regions are in the cset.
           assert(r->is_cset() || (alloc_capacity < PLAB::min_size() * HeapWordSize),
                  "Expect retired remnant size to be smaller than min plab size");
           if (!r->was_early_recycled()) {
@@ -1096,6 +1097,10 @@ void ShenandoahRegionPartitions::assert_bounds() {
             // that it is not practical to recycle it.  During phases of GC that do not have forwarded, and during times
             // when GC is idle, we will retire regions that still have alloc_capacity if the alloc_capacity is smaller
             // than PLAB::min_size().
+#undef KELVIN_EARLY_RECYCLED
+#ifdef KELVIN_EARLY_RECYCLED
+            log_info(gc)("Region %zu was not early recycled, so not adding to early-recycled tallies", r->index());
+#endif
             alloc_capacity = 0;
           } else {
             // otherwise, we count used as size of forwarding table plus accumulated allocations.
@@ -1103,6 +1108,10 @@ void ShenandoahRegionPartitions::assert_bounds() {
                    "r->was_early_recycled() implies we are allocating from early-recycled regions");
             early_recycled_tally_capacity += _region_size_bytes;
             early_recycled_tally_used += _region_size_bytes - alloc_capacity;
+#ifdef KELVIN_EARLY_RECYCLED
+            log_info(gc)("Region %zu was early recycled, capacity increased by %zu, used by %zu",
+                         r->index(), _region_size_bytes, _region_size_bytes - alloc_capacity);
+#endif
           }
           if (r->is_old()) {
             regions[int(ShenandoahFreeSetPartitionId::OldCollector)]++;
@@ -1177,7 +1186,8 @@ void ShenandoahRegionPartitions::assert_bounds() {
     }
   }
 
-  assert(early_recycled_tally_capacity == early_recycled_region_capacity, "Tally should match early-recycled stats");
+  assert(early_recycled_tally_capacity == early_recycled_region_capacity,
+         "Tally (%zu) should match early-recycled stats (%zu)", early_recycled_tally_capacity, early_recycled_region_capacity);
   assert(early_recycled_tally_used <= early_recycled_tally_capacity, "Cannot use more than capacity");
   assert(early_recycled_tally_used == _free_set->early_recycled_retired_used() +
          _free_set->early_recycled_tlab_used() + _free_set->early_recycled_shared_alloc_used(),
@@ -1851,6 +1861,7 @@ HeapWord* ShenandoahFreeSet::allocate_single(ShenandoahAllocRequest& req, bool& 
   }
 }
 
+#undef KELVIN_FWT
 #ifdef KELVIN_FWT
 #define DUMP_USED
 #endif
@@ -3478,22 +3489,23 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
   bool reuse_body = ShenandoahRecycleFWTBodies && (available >= PLAB::min_size() * HeapWordSize);
 
   r->recycle_early(reuse_body);
-
   if (!reuse_body) {
     if (ShenandoahRecycleFWTBodies) {
-      log_info(gc)(" region has only %zu available, so not going to make this free", available);
-      insert_retired_region(r);
+      log_info(gc)(" %s region has only %zu available, so not going to make this free: capacity: %zu, tail_bytes: %zu",
+                   r->is_young()? "young": "old", available, r->capacity(), r->fwt_tail_bytes());
+      // Since !reuse_body, this region is not recycled early, so it
+      // is not added to the retired regions.
+      // insert_retired_region(r);
     }
     return false;
-  }
-
-  size_t potential_tlab_size = early_recycled_tlab_available_size(r);
-  if (ShenandoahCSetRegionTLAB && (potential_tlab_size != 0)) {
-    insert_tlab_region(r, potential_tlab_size);
   } else {
-    insert_shared_alloc_region(r);
+    size_t potential_tlab_size = early_recycled_tlab_available_size(r);
+    if (ShenandoahCSetRegionTLAB && (potential_tlab_size != 0)) {
+      insert_tlab_region(r, potential_tlab_size);
+    } else {
+      insert_shared_alloc_region(r);
+    }
   }
-
   size_t region_size_bytes = ShenandoahHeapRegion::region_size_bytes();
   if (r->is_old()) {
     // Move this region from OldCollector capacity to Mutator capacity
@@ -3582,6 +3594,8 @@ void ShenandoahFreeSet::recycle_collection_set() {
   idx_t mutator_high_idx = -1;
 #endif
   size_t young_recycled_regions = 0;
+
+#undef KELVIN_FWT
 #ifdef KELVIN_FWT
   log_info(gc)("recycle_collection_set() at start of update refs");
   dump_used("At start of recycle_collection_set", &_partitions, this);
@@ -3643,6 +3657,7 @@ void ShenandoahFreeSet::recycle_collection_set() {
 #ifdef KELVIN_FWT
   dump_used("At end of recycle_collection_set", &_partitions, this);
 #endif
+#undef KELVIN_FWT
   log_info(gc)("Recycled %zu FWT cset regions (below-FWT space),"
                " added %zu%s to early-recycled region sets for tlabs: %zu, shared-allocs: %zu, retired: %zu",
                recycled_regions,
