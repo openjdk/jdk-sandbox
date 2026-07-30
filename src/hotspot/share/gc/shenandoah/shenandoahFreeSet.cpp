@@ -3670,7 +3670,8 @@ void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* 
   log_info(gc)("finish_recycle_of_one_cset_region(index: %zu), fwt_size:: %zu, available: %zu, region_free: %zu",
                r->index(), tail, available, region_free);
 #endif
-#ifdef KELVIN_AFFILIATED
+#undef KELVIN_USED
+#ifdef KELVIN_USED
   log_info(gc)("finish_recycle_of_one_cset_region(index: %zu), fwt_size:: %zu, available: %zu, region_free: %zu",
                r->index(), tail, available, region_free);
 #endif
@@ -3691,8 +3692,9 @@ void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* 
       p = ShenandoahFreeSetPartitionId::Mutator;
       if (early_recycle_allocated > 0) {
         assert(r->is_regular() || r->is_regular_pinned(), "Should be made regular before we get here");
-#ifdef KELVIN_RECYCLE
-        log_info(gc)("  assigning region %zu to the Mutator partition", r->index());
+#ifdef KELVIN_USED
+        log_info(gc)("  assigning region %zu to the Mutator partition, incrementing early_recycled_allocation_regions",
+                     r->index());
 #endif
         early_recycled_allocation_regions++;
         size_t used_by = early_recycle_allocated;
@@ -3704,13 +3706,16 @@ void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* 
         _partitions.increase_capacity(ShenandoahFreeSetPartitionId::Mutator, region_size_bytes);
         _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, used_by);
       } else {
-        // KELVIN NOT EXACTLY SURE WHY THIS CODE SEEMS TO BE
-        // NECESSARY.  I THINK IT'S BECAUSE WE HAVE MOVED THIS INTO
-        // THE YOUNG PARTITION SO EVEN THOUGH IT IS TRASH, ITS USAGE
-        // IS BILLED TO MUTATOR.
+        // KELVIN NOT EXACTLY SURE WHY THIS CODE SEEMS TO BE NECESSARY.  I THINK IT'S BECAUSE WE HAVE MOVED THIS INTO
+        // THE YOUNG PARTITION SO EVEN THOUGH IT IS TRASH, ITS USAGE IS BILLED TO MUTATOR.
         assert(r->affiliation() == ShenandoahAffiliation::YOUNG_GENERATION,
                "Region should be affiliated young at start of update refs");
         assert(r->is_trash(), "Should be made trash before we get here");
+#ifdef KELVIN_USED
+        log_info(gc)("  assigning region %zu to the Mutator partition, not incrementing early_recycled_allocation_regions",
+                     r->index());
+        log_info(gc)("  Nothing was allocated");
+#endif
         _partitions.raw_assign_membership(r->index(), ShenandoahFreeSetPartitionId::Mutator);
         _partitions.increase_capacity(ShenandoahFreeSetPartitionId::Mutator, region_size_bytes);
         _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, region_size_bytes);
@@ -3721,7 +3726,7 @@ void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* 
   }
   r->reset_forwarding_table();
 
-#ifdef KELVIN_AFFILIATED
+#ifdef KELVIN_USED
   log_info(gc)(" early recycled region %zu has bottom: " PTR_FORMAT ", top: " PTR_FORMAT ", end: " PTR_FORMAT ", %s, %s",
                r->index(), p2i(r->bottom()), p2i(r->top()), p2i(r->end()),
                (r->is_empty()? "is empty": "is not empty"),
@@ -3732,6 +3737,17 @@ void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* 
     _partitions.increase_empty_region_counts(p, 1);
     emptied_regions++;
   }
+  else if ((p != ShenandoahFreeSetPartitionId::NotFree) && r->is_trash()) {
+    // In this case, increment emptied_regions so that we recompute total_affiliated but do not adjust empty_region_counts(p)
+    emptied_regions++;
+  }
+#ifdef KELVIN_USED
+  else {
+    log_info(gc)(" Region %zu is not empty, partition is: %s", r->index(), partition_name(p));
+    log_info(gc)(" Did we increment early_recycled_allocation_regions, because we didn't increment emptied_regions?");
+  }
+#endif
+
 #ifdef KELVIN_VERIFY
   dump_used("After finish_recycle_of_one_cset_region()", &_partitions, this);
 #endif
