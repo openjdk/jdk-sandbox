@@ -453,6 +453,27 @@
           "an acceptable TLAB location.")                                   \
           range(0, 32768)                                                   \
                                                                             \
+  product(uintx, ShenandoahForwardingTableMaxPercent, 100, DIAGNOSTIC,     \
+          "Switch an evacuated cset region to a forwarding table only "    \
+          "when the table tail would occupy at most this percentage of "   \
+          "the region; denser regions keep mark-word forwarding. Lowering "\
+          "it trades early memory reuse for cheaper table builds and "     \
+          "shorter sentinel runs during TLAB carving. E.g. 10 keeps ~90% " \
+          "of the region as reusable body. The default 100 caps at the "   \
+          "physical fit limit only.")                                      \
+          range(0, 100)                                                    \
+                                                                            \
+  product(uintx, ShenandoahForwardingTableLoadFactorPercent, 60, DIAGNOSTIC,\
+          "Target load factor (percent) for forwarding tables: evacuated "  \
+          "objects are sized to fill at most this fraction of the table's "  \
+          "usable (non-header) slots. Lower values build sparser tables "    \
+          "with shorter open-addressing probe chains (cheaper resolve and "  \
+          "fill) but a larger tail, so fewer dense regions fit; higher "     \
+          "values pack tighter. Default 60 (1.667x) keeps the average "      \
+          "linear-probe chain under 2 for a successful lookup; 75 would be " \
+          "2.5, the historical 1.5x sizing ~67% gives 2.0.")                \
+          range(1, 100)                                                     \
+                                                                            \
   product(uintx, ShenandoahCriticalFreeThreshold, 1, EXPERIMENTAL,          \
           "How much of the heap needs to be free after recovery cycles, "   \
           "either Degenerated or Full GC to be claimed successful. If this "\

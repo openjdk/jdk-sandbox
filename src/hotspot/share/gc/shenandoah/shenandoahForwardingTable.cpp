@@ -59,15 +59,21 @@ static bool different_entries(HeapWord* a, HeapWord* b, size_t entry_size_in_wor
 
 template<class Entry>
 bool ShenandoahForwardingTable::initialize(size_t num_entries) {
-  // Try to find the minimum hashtable that satisfies a load-factor of 0.75.
-  // We know that we have num_entries live words that we can not use and we
-  // need num_entries * 1.5 usable entries.
+  // Find the minimum hashtable that satisfies the target load factor. Live
+  // object headers falling within the table's range are unusable slots; the
+  // search below grows the table to keep enough usable slots.
   constexpr size_t entry_words = sizeof(Entry) / sizeof(HeapWord*);
   HeapWord* const bottom =  _region->bottom();
   HeapWord* const top =  _region->top();
   HeapWord* const end = _region->end();
-  // We want 1.5x entries than expected forwardings, to maintain the 0.75 load-factor.
-  size_t const num_required_entries = num_entries + num_entries / 2;
+  // Usable slots to size for at the target load factor: ceil(num_entries * 100 / LF).
+  // Default LF = 60 -> 1.667x entries per forwarding, chosen to keep the average
+  // linear-probe chain under 2 for a successful lookup (~1.75; 0.75 would be 2.5,
+  // the historical 1.5x sizing ~2.0). A lower load factor yields a sparser table
+  // with shorter probe chains (cheaper resolve and fill) but a larger tail, so
+  // fewer dense regions fit; a higher one packs tighter.
+  size_t const load_factor = ShenandoahForwardingTableLoadFactorPercent;
+  size_t const num_required_entries = (num_entries * 100 + load_factor - 1) / load_factor;
   // Optimistic last possible table start. We don't need to search beyond that.
   HeapWord* const last_table_start = end - num_required_entries * entry_words;
   if (last_table_start < bottom) {
@@ -75,6 +81,22 @@ bool ShenandoahForwardingTable::initialize(size_t num_entries) {
                  _region->index(), num_required_entries, entry_words,
                  pointer_delta(end, bottom), num_entries);
     return false;
+  }
+  // Diagnostic knob: only switch to a forwarding table when its tail would
+  // occupy at most ShenandoahForwardingTableMaxPercent of the region. Denser
+  // regions keep mark-word forwarding: nothing to build here, and no sentinel
+  // run to skip during TLAB carving, at the cost of not early-reclaiming the
+  // body. 100 disables this check (physical fit only, enforced above); the
+  // default 93 keeps ~7% of the region as reusable body.
+  if (ShenandoahForwardingTableMaxPercent < 100) {
+    size_t const region_words = pointer_delta(end, bottom);
+    size_t const table_words = num_required_entries * entry_words;
+    if (table_words * 100 > region_words * ShenandoahForwardingTableMaxPercent) {
+      log_debug(gc)("Forwarding table skipped for region %zu: table %zu%% of region exceeds max %zu%% (num_forwardings=%zu)",
+                    _region->index(), table_words * 100 / region_words,
+                    (size_t)ShenandoahForwardingTableMaxPercent, num_entries);
+      return false;
+    }
   }
   // Count number of live words in the tail [last_table_start, top).
   ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
@@ -88,7 +110,7 @@ bool ShenandoahForwardingTable::initialize(size_t num_entries) {
     }
     limit = live;
   }
-  // Now try to find a lower bound that satisfies the 0.75 load-factor.
+  // Now try to find a lower bound that satisfies the target load factor.
   // Start at the last possible address.
   HeapWord* table_start = last_table_start;
   assert(table_start >= bottom, "table start must be in region");
@@ -349,6 +371,15 @@ bool ShenandoahForwardingTable::build(size_t num_entries) {
     fill_forwardings<Entry>(used);
     clear_unused_slots<Entry>(used);
     verify_forwardings<Entry>();
+  }
+  // Run at MaxPercent=100 with -Xlog:gc=debug to see the full distribution.
+  if (initialized && log_is_enabled(Debug, gc)) {
+    constexpr size_t entry_words = sizeof(Entry) / sizeof(HeapWord*);
+    size_t const region_words = pointer_delta(_region->end(), _region->bottom());
+    size_t const table_words = _num_entries * entry_words;
+    log_debug(gc)("FWT build region %zu: forwardings=%zu, slots=%zu, table=%zu%% of region",
+                  _region->index(), num_entries, _num_entries,
+                  table_words * 100 / region_words);
   }
   return initialized;
 }
