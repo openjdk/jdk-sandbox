@@ -4946,9 +4946,10 @@ HeapWord* ShenandoahFreeSet::try_allocate_TLAB_in_early_recycled(ShenandoahHeapR
   const size_t max_size       = req.size();
   HeapWord* orig_top = r->top();
   ShenandoahMarkingContext* ctx = _heap->marking_context();
+  HeapWord* candidate_limit = alloc_limit - min_size;
   for (size_t pad = 0; pad <= ShenandoahRecycleFWTMaxTLABPad; pad++) {
     HeapWord* candidate_start = orig_top + pad;
-    if (candidate_start + min_size >= alloc_limit) {
+    if (candidate_start > candidate_limit) {
       break;
     } else if ((pad == 0) || (pad > min_fill)) {
       if (!ctx->is_marked_ignore_tams(candidate_start)) {
@@ -4988,7 +4989,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_TLAB_in_early_recycled(ShenandoahHeapR
   return nullptr;
 }
 
-// Returns address of TLAB and adjusts top() if allocation is successful.
+// Returns address of allocated object and adjusts top() if allocation is successful.
 // Returns nullptr without modifying top() if allocation fails.
 HeapWord* ShenandoahFreeSet::try_allocate_shared_in_early_recycled(ShenandoahHeapRegion* r, size_t size, bool is_tlab_region) {
   assert(r->was_early_recycled(), "Precondition");
@@ -4997,23 +4998,28 @@ HeapWord* ShenandoahFreeSet::try_allocate_shared_in_early_recycled(ShenandoahHea
   HeapWord*     alloc_limit = fwt_start;
   HeapWord* orig_top = r->top();
   ShenandoahMarkingContext* ctx = _heap->marking_context();
-  for (size_t pad = 0; orig_top + pad + size <= alloc_limit; pad++) {
+  HeapWord* candidate_limit = alloc_limit - size;
+  for (size_t pad = 0; true; pad++) {
     HeapWord* candidate_start = orig_top + pad;
-    if (!ctx->is_marked_ignore_tams(candidate_start)) {
-      if (is_tlab_region) {
-        increase_early_recycled_tlab_regions_used((size + pad) * HeapWordSize);
-      } else {
-        increase_early_recycled_shared_alloc_regions_used((size + pad) * HeapWordSize);
+    if (candidate_start > candidate_limit) {
+      break;
+    } else if ((pad == 0) || (pad > min_fill)) {
+      if (!ctx->is_marked_ignore_tams(candidate_start)) {
+        if (is_tlab_region) {
+          increase_early_recycled_tlab_regions_used((size + pad) * HeapWordSize);
+        } else {
+          increase_early_recycled_shared_alloc_regions_used((size + pad) * HeapWordSize);
+        }
+        // This assignment may be redundant. Maybe we can optimize.
+        r->set_affiliation(ShenandoahAffiliation::YOUNG_GENERATION);
+        r->set_top(orig_top + size + pad);
+        log_debug(gc, alloc)("Share allocated %zu words at " PTR_FORMAT " in FWT region %zu"
+                             " [" PTR_FORMAT ", " PTR_FORMAT ")"
+                             " region=[" PTR_FORMAT ", " PTR_FORMAT ") fwt_start=" PTR_FORMAT,
+                             size, p2i(candidate_start), r->index(), p2i(candidate_start), p2i(candidate_start + size),
+                             p2i(r->bottom()), p2i(r->end()), p2i(fwt_start));
+        return candidate_start;
       }
-      // This assignment may be redundant. Maybe we can optimize.
-      r->set_affiliation(ShenandoahAffiliation::YOUNG_GENERATION);
-      r->set_top(orig_top + size + pad);
-      log_debug(gc, alloc)("Share allocated %zu words at " PTR_FORMAT " in FWT region %zu"
-                           " [" PTR_FORMAT ", " PTR_FORMAT ")"
-                           " region=[" PTR_FORMAT ", " PTR_FORMAT ") fwt_start=" PTR_FORMAT,
-                           size, p2i(candidate_start), r->index(), p2i(candidate_start), p2i(candidate_start + size),
-                           p2i(r->bottom()), p2i(r->end()), p2i(fwt_start));
-      return candidate_start;
     }
   }
   // We failed to find an eligible location for the requested allocation.
