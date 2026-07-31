@@ -85,6 +85,7 @@ HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
  Entry* table = reinterpret_cast<Entry*>(_table);
  size_t const start_index = index_of(original);
  size_t index = start_index;
+ uint probes = 0;
 
  HeapWord* const region_base = _region->bottom();
 
@@ -92,12 +93,16 @@ HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
  // them, and can never match: such a header is a forwarding pointer, i.e. a lock-bit-tagged
  // heap address, so it has neither ENTRY_MARKER (compact) nor an aligned original (wide).
  while (table[index].is_used()) {
+  probes++;
   if (table[index].is_original(region_base, original)) {
    HeapWord* result = table[index].forwardee();
    assert(result == original || ShenandoahHeap::heap()->is_in(cast_to_oop(result)),
           "FWT forwardee " PTR_FORMAT " for original " PTR_FORMAT " region=%zu is outside heap",
           p2i(result), p2i(original), _region->index());
    return result;
+  }
+  if (probes >= _max_collision_depth) {
+   break;
   }
   if (++index == _num_entries) {
    index = 0;

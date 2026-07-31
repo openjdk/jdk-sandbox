@@ -154,6 +154,7 @@ bool ShenandoahForwardingTable::initialize(size_t num_entries) {
   _num_expected_forwardings = num_entries;
   _num_actual_forwardings = 0;
   _num_live_words = unusable_entries;
+  _max_collision_depth = 0;
 
   assert((void*)(reinterpret_cast<Entry*>(_table) + _num_entries) == (void*)_region->end(), "table must be anchored at region end");
   log_develop_debug(gc)("Initialized forwarding table: table: " PTR_FORMAT ", num_entries: %lu, requested entries: %lu", p2i(_table), _num_entries, num_entries);
@@ -257,15 +258,20 @@ void ShenandoahForwardingTable::insert_forwarding(BitMap& used, size_t index, co
   Entry* table = reinterpret_cast<Entry*>(_table);
   DEBUG_ONLY(size_t const first_index = index;)
   DEBUG_ONLY(HeapWord* const region_base = _region->bottom();)
+  size_t depth = 1;
   while (used.at(index)) {
     assert(!table[index].is_original(region_base, entry.original(region_base)), "occupied slot must not match the original being entered");
     if (++index == _num_entries) {
       index = 0;
     }
     assert(index != first_index, "must find a usable slot, _num_entries: %lu, actual forwardings: %lu, live_words: %lu", _num_entries, _num_actual_forwardings, _num_live_words);
+    depth++;
   }
   new (&table[index]) Entry(entry);
   used.set_bit(index);
+  if (depth > _max_collision_depth) {
+    _max_collision_depth = depth;
+  }
   _num_actual_forwardings++;
   assert(_num_actual_forwardings <= _num_expected_forwardings, "must not exceed number of forwardings");
 }

@@ -103,6 +103,7 @@ class ShenandoahForwardingTable {
   size_t _num_expected_forwardings;
   size_t _num_actual_forwardings;
   size_t _num_live_words;
+  size_t _max_collision_depth;
 
   // Software write-prefetch buffering.
   template<class Entry>
@@ -168,7 +169,8 @@ public:
     _region(region), _table(nullptr), _num_entries(0),
     _num_expected_forwardings(0),
     _num_actual_forwardings(0),
-    _num_live_words(0) {}
+    _num_live_words(0),
+    _max_collision_depth(0) {}
 
   static bool use_compact() { return _compact; }
   static void initialize_globals();
