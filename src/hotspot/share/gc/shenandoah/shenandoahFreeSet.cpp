@@ -1131,10 +1131,6 @@ void ShenandoahRegionPartitions::assert_bounds() {
             young_retired_regions++;
             young_retired_used += _region_size_bytes - alloc_capacity;
             young_retired_capacity += _region_size_bytes;
-#ifdef KELVIN_FWT
-	    log_info(gc)(" young_retired_used incremented by %zu to %zu for NotFree regular young region %zd", 
-			 _region_size_bytes - alloc_capacity, young_retired_used, i);
-#endif
 #ifdef KELVIN_CAPACITY
 	    log_info(gc)(" young_retired_capacity incremented by %zu to %zu for NotFree regular young region %zd", 
 			 _region_size_bytes, young_retired_capacity,i);
@@ -1329,8 +1325,11 @@ void ShenandoahRegionPartitions::assert_bounds() {
 #endif
 
   assert(young_retired_regions * _region_size_bytes >= early_recycled_tally_capacity,
-         "Early recycled regions should be seen as young retired");
-  assert(young_retired_used >= early_recycled_tally_used, "young_retired_used must include early_recycled_tally_used");
+         "Early recycled region capacity (%zu) should be seen as young retired (regions: %zu, bytes: %zu)",
+         early_recycled_tally_capacity, young_retired_regions, young_retired_regions * _region_size_bytes);
+  assert(young_retired_used >= early_recycled_tally_used,
+         "young_retired_used (%zu) must include early_recycled_tally_used (%zu)",
+         young_retired_used, early_recycled_tally_used);
 
   // Subtract the early-recycled component from young_retired quantities.
   young_retired_regions -= early_recycled_tally_capacity / _region_size_bytes;
@@ -3486,9 +3485,7 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
     if (ShenandoahRecycleFWTBodies) {
       log_info(gc)(" %s region has only %zu available, so not going to make this free: capacity: %zu, tail_bytes: %zu",
                    r->is_young()? "young": "old", available, r->capacity(), r->fwt_tail_bytes());
-      // Since !reuse_body, this region is not recycled early, so it
-      // is not added to the retired regions.
-      // insert_retired_region(r);
+      // Since !reuse_body, this region is not recycled early, so it is not added to the retired regions.
     }
     return false;
   } else {
@@ -3501,13 +3498,15 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
   }
   size_t region_size_bytes = ShenandoahHeapRegion::region_size_bytes();
   if (r->is_old()) {
-    // Move this region from OldCollector capacity to Mutator capacity
-    // Even if this region had not been totally consumed, since the region had been retired, it is treated as entirely used.
+    // Move this region from OldCollector capacity to Mutator capacity.  Even if this region had not been totally consumed,
+    // since the region had been retired, it is treated as entirely used.
     _partitions.decrease_used(ShenandoahFreeSetPartitionId::OldCollector, region_size_bytes);
 #ifdef KELVIN_FWT
     log_info(gc)(" Decreasing OldCollector used by %zu for region %zu", region_size_bytes, r->index());
 #endif
     _partitions.decrease_capacity(ShenandoahFreeSetPartitionId::OldCollector, region_size_bytes);
+    // In subsequent accounting, this region is treated as YOUNG
+    r->set_affiliation(ShenandoahAffiliation::YOUNG_GENERATION);
 /*
  * Remove because early-recycled regions are not part of partition accounting
     _partitions.increase_capacity(ShenandoahFreeSetPartitionId::Mutator, region_size_bytes);
