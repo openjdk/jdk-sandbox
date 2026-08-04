@@ -82,43 +82,48 @@ inline size_t ShenandoahForwardingTable::index_of(HeapWord* original) const {
 
 template<class Entry>
 HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
- Entry* table = reinterpret_cast<Entry*>(_table);
- size_t const start_index = index_of(original);
- size_t index = start_index;
+  Entry* table = reinterpret_cast<Entry*>(_table);
+  size_t const start_index = index_of(original);
+  size_t index = start_index;
+  uint probes = 0;
 
- HeapWord* const region_base = _region->bottom();
- while (table[index].is_used()) {
-   // A mark word is considered used because it has non-zero value.  A mark word will not match original because:
-   //   1. With CompactFwdTableEntry, the mark word does not have ENTRY_MARKER bit set and the is_original() test
-   //      requires this bit to be set.
-   //   2. With non-compact FwdTableTnry, the mark word has "mark bits" set (0x07) and the original does not.
-   if (table[index].is_original(region_base, original)) {
-     HeapWord* result = table[index].forwardee();
+  HeapWord* const region_base = _region->bottom();
+  while (table[index].is_used()) {
+    probes++;
+    // A mark word is considered used because it has non-zero value.  A mark word will not match original because:
+    //   1. With CompactFwdTableEntry, the mark word does not have ENTRY_MARKER bit set and the is_original() test
+    //      requires this bit to be set.
+    //   2. With non-compact FwdTableTnry, the mark word has "mark bits" set (0x07) and the original does not.
+    if (table[index].is_original(region_base, original)) {
+      HeapWord* result = table[index].forwardee();
 #ifdef ASSERT
-     ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
-     assert(!ctx->is_marked_ignore_tams((HeapWord*) &table[index]),
-            "Do not expect forward entry is at forwarded markword location: " PTR_FORMAT,
-            p2i(* (HeapWord*) &table[index]));
+      ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
+      assert(!ctx->is_marked_ignore_tams((HeapWord*) &table[index]),
+             "Do not expect forward entry is at forwarded markword location: " PTR_FORMAT,
+             p2i(* (HeapWord*) &table[index]));
 #endif
-     assert(result == original || ShenandoahHeap::heap()->is_in(cast_to_oop(result)),
-            "FWT forwardee " PTR_FORMAT " for original " PTR_FORMAT " region=%zu is outside heap",
-            p2i(result), p2i(original), _region->index());
-     return result;
-   }
-   if (++index == _num_entries) {
-     index = 0;
-   }
-   if (index == start_index) {
-     break;
-   }
- }
+      assert(result == original || ShenandoahHeap::heap()->is_in(cast_to_oop(result)),
+             "FWT forwardee " PTR_FORMAT " for original " PTR_FORMAT " region=%zu is outside heap",
+             p2i(result), p2i(original), _region->index());
+      return result;
+    }
+    if (probes >= _max_collision_depth) {
+      break;
+    }
+    if (++index == _num_entries) {
+      index = 0;
+    }
+    if (index == start_index) {
+      break;
+    }
+  }
 
- // Full GC resets the marking bitmap but still consults forwardees left over from an abandoned concurrent GC effort
- // before it begins its sliding compaction GC.
- assert(ShenandoahHeap::heap()->is_full_gc_in_progress()
-        || !ShenandoahHeap::heap()->marking_context()->is_marked_ignore_tams(original),
-        "FWT probe miss for marked obj " PTR_FORMAT " region=%zu", p2i(original), _region->index());
- return original;
+  // Full GC resets the marking bitmap but still consults forwardees left over from an abandoned concurrent GC effort
+  // before it begins its sliding compaction GC.
+  assert(ShenandoahHeap::heap()->is_full_gc_in_progress()
+         || !ShenandoahHeap::heap()->marking_context()->is_marked_ignore_tams(original),
+         "FWT probe miss for marked obj " PTR_FORMAT " region=%zu", p2i(original), _region->index());
+  return original;
 }
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHFORWARDINGTABLE_INLINE_HPP
