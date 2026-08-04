@@ -952,6 +952,9 @@ public:
   // Release the reserved FWT tails of reusable CSet regions, after update-refs.
   void finish_cset_region_recycling();
 
+  // Set internal state to denote that we are no longer allocating from early recycled regions.
+  void stop_allocating_from_early_recycled_regions();
+
   // Reset all tallies describing early-recycle region status.
   void clear_early_recycling_totals();
 

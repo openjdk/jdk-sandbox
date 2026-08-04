@@ -180,6 +180,7 @@ void ShenandoahFullGC::do_it(GCCause::Cause gc_cause) {
     // a2. Cancel update-refs, if in progress
     if (heap->is_update_refs_in_progress()) {
       heap->set_update_refs_in_progress(false);
+      heap->free_set()->stop_allocating_from_early_recycled_regions();
     }
     assert(!heap->is_update_refs_in_progress(), "sanity");
 

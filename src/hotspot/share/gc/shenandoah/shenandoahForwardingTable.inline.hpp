@@ -1,5 +1,5 @@
 /*
-* Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
+ * Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -87,24 +87,30 @@ HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
  size_t index = start_index;
 
  HeapWord* const region_base = _region->bottom();
-
- // Some slots overlay live object headers. Those read as used, so the probe walks past
- // them, and can never match: such a header is a forwarding pointer, i.e. a lock-bit-tagged
- // heap address, so it has neither ENTRY_MARKER (compact) nor an aligned original (wide).
  while (table[index].is_used()) {
-  if (table[index].is_original(region_base, original)) {
-   HeapWord* result = table[index].forwardee();
-   assert(result == original || ShenandoahHeap::heap()->is_in(cast_to_oop(result)),
-          "FWT forwardee " PTR_FORMAT " for original " PTR_FORMAT " region=%zu is outside heap",
-          p2i(result), p2i(original), _region->index());
-   return result;
-  }
-  if (++index == _num_entries) {
-   index = 0;
-  }
-  if (index == start_index) {
-   break;
-  }
+   // A mark word is considered used because it has non-zero value.  A mark word will not match original because:
+   //   1. With CompactFwdTableEntry, the mark word does not have ENTRY_MARKER bit set and the is_original() test
+   //      requires this bit to be set.
+   //   2. With non-compact FwdTableTnry, the mark word has "mark bits" set (0x07) and the original does not.
+   if (table[index].is_original(region_base, original)) {
+     HeapWord* result = table[index].forwardee();
+#ifdef ASSERT
+     ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
+     assert(!ctx->is_marked_ignore_tams((HeapWord*) &table[index]),
+            "Do not expect forward entry is at forwarded markword location: " PTR_FORMAT,
+            p2i(* (HeapWord*) &table[index]));
+#endif
+     assert(result == original || ShenandoahHeap::heap()->is_in(cast_to_oop(result)),
+            "FWT forwardee " PTR_FORMAT " for original " PTR_FORMAT " region=%zu is outside heap",
+            p2i(result), p2i(original), _region->index());
+     return result;
+   }
+   if (++index == _num_entries) {
+     index = 0;
+   }
+   if (index == start_index) {
+     break;
+   }
  }
 
  // Full GC resets the marking bitmap but still consults forwardees left over from an abandoned concurrent GC effort

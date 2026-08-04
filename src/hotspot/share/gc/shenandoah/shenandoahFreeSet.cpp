@@ -1662,7 +1662,8 @@ HeapWord* ShenandoahFreeSet::allocate_with_affiliation(Iter& iterator,
                                                        bool& in_new_region) {
   assert(affiliation != ShenandoahAffiliation::FREE, "Must not");
   if (_allocating_from_early_recycled_regions) {
-    assert(affiliation == ShenandoahAffiliation::YOUNG_GENERATION, "Not YET allocating in early-recycled regions during evac");
+    assert(affiliation == ShenandoahAffiliation::YOUNG_GENERATION,
+           "Should not YET be _allocating_from_early_recycled_regions during evacuation");
     if (!req.is_lab_alloc()) {
       // Try to fill this shared-alloc request from an early-recycled shared-alloc region so that we can preserve
       // the non-early-recycled regions for TLAB allocations.
@@ -3781,6 +3782,7 @@ void ShenandoahFreeSet::finish_cset_region_recycling() {
   // KELVIN TODO
   //  MAYBE WE CAN ITERATE OVER THE SMALLER NUMBER OF REGIONS IN THE EARLY_RECYCLED_REGIONS ARRAY.
   //  PROBABLY NOT, BECAUSE SOME CSET REGIONS MAY FAIL TO QUALIFY FOR EARLY RECYCLING.
+  //  BUT WE SHOULD BE ABLE TO ITERATE OVER THE CSET.
 
   for (size_t idx = 0; idx < num_regions; idx++) {
     if (!cset->is_in(idx)) continue;
@@ -3820,6 +3822,11 @@ void ShenandoahFreeSet::finish_cset_region_recycling() {
 #ifdef KELVIN_AFFILIATED
   dump_used("At end of finish_cset_region_recycling()", &_partitions, this);
 #endif
+}
+
+void ShenandoahFreeSet::stop_allocating_from_early_recycled_regions() {
+  ShenandoahHeapLocker locker(_heap->lock());
+  _allocating_from_early_recycled_regions = false;
 }
 
 // Overwrite arguments to represent the amount of memory in each generation that is about to be recycled
