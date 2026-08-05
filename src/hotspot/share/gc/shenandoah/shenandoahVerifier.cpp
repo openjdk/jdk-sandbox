@@ -44,8 +44,8 @@
 #include "oops/compressedOops.inline.hpp"
 #include "runtime/atomic.hpp"
 #include "runtime/orderAccess.hpp"
-#include "runtime/threadSMR.hpp"
 #include "runtime/threads.hpp"
+#include "runtime/threadSMR.hpp"
 #include "utilities/align.hpp"
 
 // Avoid name collision on verify_oop (defined in macroAssembler_arm.hpp)
