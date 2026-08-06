@@ -76,14 +76,17 @@ inline uint64_t ShenandoahForwardingTable::hash(HeapWord* original, void* table)
  return FastHash::get_hash64(reinterpret_cast<uint64_t>(original), reinterpret_cast<uint64_t>(table));
 }
 
-inline size_t ShenandoahForwardingTable::index_of(HeapWord* original) const {
- return static_cast<size_t>(hash(original, _table) % _num_entries);
+inline void ShenandoahForwardingTable::probe_of(HeapWord* original, size_t& index, size_t& stride) const {
+ uint64_t const h = hash(original, _table);
+ index  = static_cast<size_t>(h % _num_entries);
+ stride = static_cast<size_t>((h >> 32) % (_num_entries - 1)) + 1;
 }
 
 template<class Entry>
 HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
   Entry* table = reinterpret_cast<Entry*>(_table);
-  size_t const start_index = index_of(original);
+  size_t start_index, stride;
+  probe_of(original, start_index, stride);
   size_t index = start_index;
   uint probes = 0;
 
@@ -110,8 +113,9 @@ HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
     if (probes >= _max_collision_depth) {
       break;
     }
-    if (++index == _num_entries) {
-      index = 0;
+    index += stride;
+    if (index >= _num_entries) {
+      index -= _num_entries;
     }
     if (index == start_index) {
       break;

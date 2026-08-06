@@ -251,7 +251,7 @@ ShenandoahForwardingTable::ForwardingBuffer<Entry>::ForwardingBuffer(ShenandoahF
 template<class Entry>
 void ShenandoahForwardingTable::ForwardingBuffer<Entry>::flush(int slot) {
   Slot& oldest = _slots[slot];
-  _fwt.insert_forwarding<Entry>(_used, oldest._index, oldest._entry);
+  _fwt.insert_forwarding<Entry>(_used, oldest._index, oldest._stride, oldest._entry);
 }
 
 template<class Entry>
@@ -267,9 +267,10 @@ void ShenandoahForwardingTable::ForwardingBuffer<Entry>::finish() {
 
 template<class Entry>
 void ShenandoahForwardingTable::ForwardingBuffer<Entry>::enter(HeapWord* original, HeapWord* forwardee) {
-  size_t index = _fwt.index_of(original);
+  size_t index, stride;
+  _fwt.probe_of(original, index, stride);
   if (_dist == 0) {
-    _fwt.insert_forwarding<Entry>(_used, index, Entry(_fwt._region->bottom(), original, forwardee));
+    _fwt.insert_forwarding<Entry>(_used, index, stride, Entry(_fwt._region->bottom(), original, forwardee));
     return;
   }
   Prefetch::write(reinterpret_cast<Entry*>(_fwt._table) + index, 0);
@@ -280,18 +281,20 @@ void ShenandoahForwardingTable::ForwardingBuffer<Entry>::enter(HeapWord* origina
   Slot& newest = _slots[slot];
   new (&newest._entry) Entry(_fwt._region->bottom(), original, forwardee);
   newest._index = index;
+  newest._stride = stride;
 }
 
 template<class Entry>
-void ShenandoahForwardingTable::insert_forwarding(BitMap& used, size_t index, const Entry& entry) {
+void ShenandoahForwardingTable::insert_forwarding(BitMap& used, size_t index, size_t stride, const Entry& entry) {
   Entry* table = reinterpret_cast<Entry*>(_table);
   DEBUG_ONLY(size_t const first_index = index;)
   DEBUG_ONLY(HeapWord* const region_base = _region->bottom();)
   size_t depth = 1;
   while (used.at(index)) {
     assert(!table[index].is_original(region_base, entry.original(region_base)), "occupied slot must not match the original being entered");
-    if (++index == _num_entries) {
-      index = 0;
+    index += stride;
+    if (index >= _num_entries) {
+      index -= _num_entries;
     }
     assert(index != first_index, "must find a usable slot, _num_entries: %lu, actual forwardings: %lu, live_words: %lu", _num_entries, _num_actual_forwardings, _num_live_words);
     depth++;
