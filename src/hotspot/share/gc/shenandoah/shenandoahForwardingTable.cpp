@@ -57,6 +57,31 @@ static bool different_entries(HeapWord* a, HeapWord* b, size_t entry_size_in_wor
   return aint / entry_size_in_words != bint / entry_size_in_words;
 }
 
+static bool is_prime(size_t n) {
+  if (n < 2)      return false;
+  if (n % 2 == 0) return n == 2;
+  if (n % 3 == 0) return n == 3;
+  //   6k+0 - divisible by 2 and 3
+  //   6k+1 - candidate (tested as d+2)
+  //   6k+2 - divisible by 2
+  //   6k+3 - divisible by 3
+  //   6k+4 - divisible by 2
+  //   6k+5 - candidate (tested as d)
+  for (size_t d = 5; d <= n / d; d += 6) {
+    if (n % d == 0 || n % (d + 2) == 0) return false;
+  }
+  return true;
+}
+
+static size_t prev_prime(size_t n) {
+  if (n < 2) return n;
+  if (n % 2 == 0) n--;
+  for (; n >= 3; n -= 2) {
+    if (is_prime(n)) return n;
+  }
+  return 2;
+}
+
 template<class Entry>
 bool ShenandoahForwardingTable::initialize(size_t num_entries) {
   // Find the minimum hashtable that satisfies the target load factor. Live
@@ -149,8 +174,12 @@ bool ShenandoahForwardingTable::initialize(size_t num_entries) {
     return false;
   }
   table_start = align_down(table_start, entry_words * HeapWordSize);
+  // Prime table size >= 2 (a modulus of 1 would break the double-hashing stride) for
+  // a later switch to double hashing.
+  size_t const prime_entries = MAX2(prev_prime((end - table_start) / entry_words), (size_t)2);
+  table_start = end - prime_entries * entry_words;
   _table = reinterpret_cast<Entry*>(table_start);
-  _num_entries = (end - table_start) / entry_words;
+  _num_entries = prime_entries;
   _num_expected_forwardings = num_entries;
   _num_actual_forwardings = 0;
   _num_live_words = unusable_entries;
