@@ -111,7 +111,6 @@ class ShenandoahForwardingTable {
     struct Slot {
       Entry  _entry;
       size_t _index;
-      size_t _stride;
     };
 
     ShenandoahForwardingTable& _fwt;
@@ -146,7 +145,13 @@ class ShenandoahForwardingTable {
   void probe_of(HeapWord* original, size_t& index, size_t& stride) const;
 
   template<class Entry>
-  void insert_forwarding(BitMap& used, size_t index, size_t stride, const Entry& entry);
+  size_t reserve_forwarding(BitMap& used, size_t index, size_t stride);
+
+  template<class Entry>
+  void prefetch_forwarding(size_t index) const;
+
+  template<class Entry>
+  void insert_forwarding(size_t index, const Entry& entry);
 
   template<class Entry>
   void fill_forwardings(BitMap& used);

@@ -250,9 +250,41 @@ ShenandoahForwardingTable::ForwardingBuffer<Entry>::ForwardingBuffer(ShenandoahF
 }
 
 template<class Entry>
+size_t ShenandoahForwardingTable::reserve_forwarding(BitMap& used, size_t index, size_t stride) {
+  DEBUG_ONLY(size_t const first_index = index;)
+  size_t depth = 1;
+  while (used.at(index)) {
+    index += stride;
+    if (index >= _num_entries) {
+      index -= _num_entries;
+    }
+    assert(index != first_index, "must find a usable slot, _num_entries: %zu, actual forwardings: %zu, live_words: %zu",
+           _num_entries, _num_actual_forwardings, _num_live_words);
+    depth++;
+  }
+  used.set_bit(index);
+  if (depth > _max_collision_depth) {
+    _max_collision_depth = depth;
+  }
+  _num_actual_forwardings++;
+  assert(_num_actual_forwardings <= _num_expected_forwardings, "must not exceed number of forwardings");
+  return index;
+}
+
+template<class Entry>
+void ShenandoahForwardingTable::prefetch_forwarding(size_t index) const {
+  Prefetch::write(reinterpret_cast<Entry*>(_table) + index, 0);
+}
+
+template<class Entry>
+void ShenandoahForwardingTable::insert_forwarding(size_t index, const Entry& entry) {
+  new (reinterpret_cast<Entry*>(_table) + index) Entry(entry);
+}
+
+template<class Entry>
 void ShenandoahForwardingTable::ForwardingBuffer<Entry>::flush(int slot) {
   Slot& oldest = _slots[slot];
-  _fwt.insert_forwarding<Entry>(_used, oldest._index, oldest._stride, oldest._entry);
+  _fwt.insert_forwarding<Entry>(oldest._index, oldest._entry);
 }
 
 template<class Entry>
@@ -270,43 +302,20 @@ template<class Entry>
 void ShenandoahForwardingTable::ForwardingBuffer<Entry>::enter(HeapWord* original, HeapWord* forwardee) {
   size_t index, stride;
   _fwt.probe_of(original, index, stride);
+  Entry const entry(_fwt._region->bottom(), original, forwardee);
+  index = _fwt.reserve_forwarding<Entry>(_used, index, stride);
   if (_dist == 0) {
-    _fwt.insert_forwarding<Entry>(_used, index, stride, Entry(_fwt._region->bottom(), original, forwardee));
+    _fwt.insert_forwarding<Entry>(index, entry);
     return;
   }
-  Prefetch::write(reinterpret_cast<Entry*>(_fwt._table) + index, 0);
+  _fwt.prefetch_forwarding<Entry>(index);
   int const slot = _pos & (_dist - 1);
   if (_pos++ >= _dist) {
     flush(slot);
   }
   Slot& newest = _slots[slot];
-  new (&newest._entry) Entry(_fwt._region->bottom(), original, forwardee);
+  new (&newest._entry) Entry(entry);
   newest._index = index;
-  newest._stride = stride;
-}
-
-template<class Entry>
-void ShenandoahForwardingTable::insert_forwarding(BitMap& used, size_t index, size_t stride, const Entry& entry) {
-  Entry* table = reinterpret_cast<Entry*>(_table);
-  DEBUG_ONLY(size_t const first_index = index;)
-  DEBUG_ONLY(HeapWord* const region_base = _region->bottom();)
-  size_t depth = 1;
-  while (used.at(index)) {
-    assert(!table[index].is_original(region_base, entry.original(region_base)), "occupied slot must not match the original being entered");
-    index += stride;
-    if (index >= _num_entries) {
-      index -= _num_entries;
-    }
-    assert(index != first_index, "must find a usable slot, _num_entries: %lu, actual forwardings: %lu, live_words: %lu", _num_entries, _num_actual_forwardings, _num_live_words);
-    depth++;
-  }
-  new (&table[index]) Entry(entry);
-  used.set_bit(index);
-  if (depth > _max_collision_depth) {
-    _max_collision_depth = depth;
-  }
-  _num_actual_forwardings++;
-  assert(_num_actual_forwardings <= _num_expected_forwardings, "must not exceed number of forwardings");
 }
 
 template<class Entry>
