@@ -180,6 +180,7 @@ bool ShenandoahForwardingTable::initialize(size_t num_entries) {
   table_start = end - prime_entries * entry_words;
   _table = reinterpret_cast<Entry*>(table_start);
   _num_entries = prime_entries;
+  assert(_num_entries <= max_juint, "num_entries %zu must fit in 32 bits for the multiply-shift probe reduction", _num_entries);
   _num_expected_forwardings = num_entries;
   _num_actual_forwardings = 0;
   _num_live_words = unusable_entries;
