@@ -1682,8 +1682,12 @@ HeapWord* ShenandoahFreeSet::allocate_with_affiliation(Iter& iterator,
             if (potential_tlab_size > PLAB::min_size()) {
               remove_shared_alloc_region(i);
               insert_tlab_region(r, potential_tlab_size);
+            } else {
+              // Otherwise, this region continues to serve as a shared-alloc region.  But we may want to adjust its
+              // position in the heap.  This region's allocatable memory has shrunk. It's allocatable is still smaller than
+              // parent's, so only need to heapify downward.
+              heapify_shared_alloc_regions_downward(i);
             }
-            // Otherwise, this region continues to serve as a shared-alloc region.
           }
           // Note: Since the current implementation only supports Mutator allocations, there's no need to register
           //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
@@ -1924,8 +1928,12 @@ HeapWord* ShenandoahFreeSet::allocate_for_mutator(ShenandoahAllocRequest &req, b
             if (potential_tlab_size > PLAB::min_size()) {
               remove_shared_alloc_region(i);
               insert_tlab_region(r, potential_tlab_size);
+            } else {
+              // Otherwise, this region continues to serve as a shared-alloc region.  But we may want to adjust its
+              // position in the heap.  This region's allocatable memory has shrunk. It's allocatable is still smaller than
+              // parent's, so only need to heapify downward.
+              heapify_shared_alloc_regions_downward(i);
             }
-            // Otherwise, this region continues to serve as a shared-alloc region.
           }
           // Note: Since the current implementation only supports Mutator allocations, there's no need to register
           //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
@@ -4865,14 +4873,14 @@ void ShenandoahFreeSet::heapify_shared_alloc_regions_downward(size_t index) {
 }
 
 void ShenandoahFreeSet::insert_shared_alloc_region(ShenandoahHeapRegion* r) {
-  size_t orig_shared_alloc_words = (r->end() - r->bottom()) - r->fwt_tail_bytes() / HeapWordSize;
+  size_t shared_allocatable_words = (r->end() - r->top()) - r->fwt_tail_bytes() / HeapWordSize;
   if (_early_recycled_shared_alloc_regions - _early_recycled_shared_alloc_regions_count <=
       _early_recycled_retired_regions + _early_recycled_retired_regions_count) {
     shift_retired_regions_up();
   }
   _early_recycled_shared_alloc_used += (r->top() - r->bottom()) * HeapWordSize + r->fwt_tail_bytes();
   _early_recycled_shared_alloc_regions[-_early_recycled_shared_alloc_regions_count] = r;
-  _early_recycled_shared_alloc_regions_data[-_early_recycled_shared_alloc_regions_count++] = orig_shared_alloc_words;
+  _early_recycled_shared_alloc_regions_data[-_early_recycled_shared_alloc_regions_count++] = shared_allocatable_words;
   heapify_shared_alloc_regions_upward(_early_recycled_shared_alloc_regions_count - 1);
 }
 
