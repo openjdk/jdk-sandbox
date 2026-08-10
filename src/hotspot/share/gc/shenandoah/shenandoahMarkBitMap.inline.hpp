@@ -336,5 +336,101 @@ inline void ShenandoahMarkBitMap::clear_range_of_words(idx_t beg, idx_t end) {
   clear_range_of_words(_map, beg, end);
 }
 
+inline size_t ShenandoahMarkBitMap::bitmap_words_in_range(const HeapWord* start, const HeapWord* end) const {
+  assert((reinterpret_cast<uintptr_t>(start) & ((0x2 << LogMinObjAlignment) - 1)) == 0, "start must be aligned");
+  assert((reinterpret_cast<uintptr_t>(end) & ((0x2 << LogMinObjAlignment) - 1)) == 0, "end must be aligned");
+  assert(end >= start, "Precondition");
+  if (end == start) {
+    return 0;
+  } else {
+    size_t const start_addr_offset = address_to_index(start);
+    const bm_word_t* start_addr = word_addr(start_addr_offset);
+    size_t const end_addr_offset = address_to_index(end);
+    const bm_word_t* end_addr = word_addr(end_addr_offset);
+    size_t end_bit = bit_in_word(end_addr_offset);
+    if (end_bit == 0) {
+      end_addr--;
+    }
+    return 1 + end_addr - start_addr;
+  }
+}
+
+inline size_t ShenandoahMarkBitMap::first_bitmap_word_in_range(const HeapWord* start, const HeapWord* end) const {
+  assert((reinterpret_cast<uintptr_t>(start) & ((0x2 << LogMinObjAlignment) - 1)) == 0, "start must be aligned");
+  assert((reinterpret_cast<uintptr_t>(end) & ((0x2 << LogMinObjAlignment) - 1)) == 0, "end must be aligned");
+  assert(end > start, "Precondition");
+  size_t const start_addr_offset = address_to_index(start);
+  const bm_word_t* start_addr = word_addr(start_addr_offset);
+
+  bm_word_t raw_word = *start_addr;
+  size_t start_bit = bit_in_word(start_addr_offset);
+  if (start_bit != 0) {
+    // mask off the bits that precede first bit
+    bm_word_t mask = ~((((bm_word_t) 0x1) << start_bit) - 1);
+    raw_word &= mask;
+  }
+
+  size_t const end_addr_offset = address_to_index(end);
+  const bm_word_t* end_addr = word_addr(end_addr_offset);
+  size_t end_bit = bit_in_word(end_addr_offset);
+  if (end_bit == 0) {
+    end_addr--;
+    end_bit = BitsPerWord;
+  }
+
+  if (end_addr == start_addr) {
+    // The range is spanned by a single word.  Mask off the bits that follow last bit
+    if (end_bit < BitsPerWord) {
+      bm_word_t mask = ((((bm_word_t) 0x1) << end_bit) - 1);
+      raw_word &= mask;
+    }
+    // Else, we don't ignore any of this word's high-order bits.
+  }
+  return raw_word;
+}
+
+inline size_t ShenandoahMarkBitMap::last_bitmap_word_in_range(const HeapWord* start, const HeapWord* end) const {
+  assert((reinterpret_cast<uintptr_t>(start) & ((0x2 << LogMinObjAlignment) - 1)) == 0, "start must be aligned");
+  assert((reinterpret_cast<uintptr_t>(end) & ((0x2 << LogMinObjAlignment) - 1)) == 0, "end must be aligned");
+  assert(end > start, "Precondition");
+  size_t const start_addr_offset = address_to_index(start);
+  const bm_word_t* start_addr = word_addr(start_addr_offset);
+  size_t const end_addr_offset = address_to_index(end);
+  const bm_word_t* end_addr = word_addr(end_addr_offset);
+  size_t end_bit = bit_in_word(end_addr_offset);
+  if (end_bit == 0) {
+    end_addr--;
+    end_bit = BitsPerWord;
+  }
+  bm_word_t raw_word = *end_addr;
+  if (end_addr == start_addr) {
+    return first_bitmap_word_in_range(start, end);
+  }
+  if (end_bit < BitsPerWord) {
+    // Mask off the bits that follow last bit
+    bm_word_t mask = ((((bm_word_t) 0x1) << end_bit) - 1);
+    raw_word &= mask;
+  }
+  // Else, we don't ignore any of this word's high-order bits.
+  return raw_word;
+}
+
+inline size_t ShenandoahMarkBitMap::get_bitmap_word_in_range(const HeapWord* start, const HeapWord* end, size_t number) const {
+  assert((reinterpret_cast<uintptr_t>(start) & ((0x2 << LogMinObjAlignment) - 1)) == 0, "start must be aligned");
+  assert((reinterpret_cast<uintptr_t>(end) & ((0x2 << LogMinObjAlignment) - 1)) == 0, "end must be aligned");
+  assert(end > start, "Precondition");
+  size_t words_in_range = bitmap_words_in_range(start, end);
+  assert(number < words_in_range, "Precondition");
+
+  size_t const start_addr_offset = address_to_index(start);
+  const bm_word_t* start_addr = word_addr(start_addr_offset);
+  if (number == 0) {
+    return first_bitmap_word_in_range(start, end);
+  } else if (number + 1 == words_in_range) {
+    return last_bitmap_word_in_range(start, end);
+  } else {
+    return start_addr[number];
+  }
+}
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHMARKBITMAP_INLINE_HPP

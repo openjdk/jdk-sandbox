@@ -51,10 +51,18 @@ void ShenandoahForwardingTable::initialize_globals() {
   }
 }
 
-static bool different_entries(HeapWord* a, HeapWord* b, size_t entry_size_in_words) {
-  uintptr_t aint = reinterpret_cast<uintptr_t>(a) / HeapWordSize;
-  uintptr_t bint = reinterpret_cast<uintptr_t>(b) / HeapWordSize;
-  return aint / entry_size_in_words != bint / entry_size_in_words;
+// Return true if the two addresses a and b correspond to different entries within the associated forwarding table.
+template<class Entry>
+static inline bool different_entries(HeapWord* a, HeapWord* b) {
+  if constexpr (std::is_same_v<Entry, FwdTableEntry>) {
+    constexpr size_t entry_words = sizeof(FwdTableEntry) / sizeof(HeapWord*);
+    uintptr_t aint = reinterpret_cast<uintptr_t>(a) / HeapWordSize;
+    uintptr_t bint = reinterpret_cast<uintptr_t>(b) / HeapWordSize;
+    return aint / entry_words != bint / entry_words;
+  } else {
+    assert((std::is_same_v<Entry, CompactFwdTableEntry>) && (sizeof(CompactFwdTableEntry) == HeapWordSize), "sanity");
+    return a != b;
+  }
 }
 
 static bool is_prime(size_t n) {
@@ -98,11 +106,13 @@ bool ShenandoahForwardingTable::initialize(size_t num_entries) {
   // with shorter probe chains (cheaper resolve and fill) but a larger tail, so
   // fewer dense regions fit; a higher one packs tighter.
   size_t const load_factor = ShenandoahForwardingTableLoadFactorPercent;
+  // num_required_entries is the number of usable entries in order to honor requested load factor
   size_t const num_required_entries = (num_entries * 100 + load_factor - 1) / load_factor;
-  // Optimistic last possible table start. We don't need to search beyond that.
+  // Optimistic last possible table start (assuming no unusable entries). We don't need to search beyond that.
   HeapWord* const last_table_start = end - num_required_entries * entry_words;
   if (last_table_start < bottom) {
-    log_info(gc)("Forwarding table build failed for region %zu: required=%zu entries of %zu words exceed region_words=%zu (num_forwardings=%zu)",
+    log_info(gc)("Forwarding table build failed for region %zu: "
+                 "required=%zu entries of %zu words exceed region_words=%zu (num_forwardings=%zu)",
                  _region->index(), num_required_entries, entry_words,
                  pointer_delta(end, bottom), num_entries);
     return false;
@@ -125,57 +135,43 @@ bool ShenandoahForwardingTable::initialize(size_t num_entries) {
   }
   // Count number of live words in the tail [last_table_start, top).
   ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
-  size_t unusable_entries = 0;
-  HeapWord* limit = top;
-  while (last_table_start < limit) {
-    HeapWord* live = ctx->get_last_marked_addr(last_table_start, limit);
-    if (live >= limit) break;  // No more live objects in range
-    if (different_entries(live, limit, entry_words)) {
-      unusable_entries++;
-    }
-    limit = live;
+  size_t unusable_entries;
+  if (last_table_start >= top) {
+    unusable_entries = 0;
+  } else {
+    unusable_entries = ctx->count_mark_bit_conflicts<entry_words>(last_table_start, top);
   }
-  // Now try to find a lower bound that satisfies the target load factor.
-  // Start at the last possible address.
+  // Now try to find a lower bound that satisfies the target load factor.  Start at the last possible address.
   HeapWord* table_start = last_table_start;
   assert(table_start >= bottom, "table start must be in region");
   size_t num_table_entries = (end - table_start) / entry_words;
+
   while (table_start > bottom && num_table_entries - unusable_entries < num_required_entries) {
-    HeapWord* prev_live = ctx->get_last_marked_addr(bottom, table_start);
-    if (prev_live >= table_start) {
-      // No more live objects found. Use bottom as table_start.
-      table_start = bottom;
-      assert(table_start >= bottom, "table start must be in region");
+    size_t growth = num_required_entries + unusable_entries - num_table_entries;
+    HeapWord* new_table_start = table_start - growth * entry_words;
+    if (new_table_start < bottom) {
+      table_start = bottom;     // Force loop to abort with failure condition.
+      break;
     } else {
-      if (different_entries(prev_live, table_start, entry_words)) {
-        unusable_entries++;
-      }
-      table_start = prev_live;
-      assert(table_start >= bottom, "table start must be in region");
+      unusable_entries += ctx->count_mark_bit_conflicts<entry_words>(new_table_start, table_start);
+      table_start = new_table_start;
+      num_table_entries = (end - table_start) / entry_words;
     }
-    num_table_entries = (end - table_start) / entry_words;
-  }
-
-  assert(table_start >= bottom, "table start must be in region");
-
-  // We may have overshot a little, adjust for optimum lower boundary.
-  if (num_table_entries > (unusable_entries + num_required_entries)) {
-    size_t adjust = num_table_entries - unusable_entries - num_required_entries;
-    HeapWord* old_start = table_start;
-    table_start += adjust * entry_words;
-    num_table_entries -= adjust;
-    assert(table_start >= bottom, "table start must be in region: adjust: %lu, old table start: " PTR_FORMAT ", new table start: " PTR_FORMAT ", bottom: " PTR_FORMAT, adjust, p2i(old_start), p2i(table_start), p2i(bottom));
   }
 
   if (num_table_entries - unusable_entries < num_required_entries) {
-    log_info(gc)("Forwarding table build failed for region %zu: table_entries=%zu unusable=%zu required=%zu num_forwardings=%zu region_words=%zu",
+    log_info(gc)("Forwarding table build failed for region %zu: "
+                 "table_entries=%zu unusable=%zu required=%zu num_forwardings=%zu region_words=%zu",
                  _region->index(), num_table_entries, unusable_entries, num_required_entries, num_entries,
                  pointer_delta(end, bottom));
     return false;
   }
   table_start = align_down(table_start, entry_words * HeapWordSize);
+
   // Prime table size >= 2 (a modulus of 1 would break the double-hashing stride) for
   // a later switch to double hashing.
+  // Kelvin TODO: choosing the next smaller prime seems to violate our intended load factor.  Shouldn't we look for next
+  // larger rather than next smaller?
   size_t const prime_entries = MAX2(prev_prime((end - table_start) / entry_words), (size_t)2);
   table_start = end - prime_entries * entry_words;
   _table = reinterpret_cast<Entry*>(table_start);
@@ -493,13 +489,6 @@ void ShenandoahForwardingTable::add_marks_above_tams() {
   ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
   HeapWord* TAMS = ctx->top_at_mark_start(_region);
   HeapWord* region_base = _region->bottom();
-#undef KELVIN_MARK_BITMAP
-#ifdef KELVIN_MARK_BITMAP
-  log_info(gc)("KELVIN extending bitmap for region %zu, [" PTR_FORMAT ", " PTR_FORMAT "], TAMS: " PTR_FORMAT,
-               _region->index(), p2i(_region->bottom()), p2i(_region->end()), p2i(TAMS));
-  size_t newly_marked = 0;
-  size_t already_marked = 0;
-#endif
   for (size_t i = 0; i < _num_entries; i++) {
     if (table[i].is_used()) {
       HeapWord* original = table[i].original(region_base);
@@ -507,19 +496,9 @@ void ShenandoahForwardingTable::add_marks_above_tams() {
         bool was_upgraded;
         oop obj = cast_to_oop(original);
         ctx->mark_strong_ignore_tams(obj, was_upgraded);
-#ifdef KELVIN_MARK_BITMAP
-        if (was_upgraded) {
-          newly_marked++;
-        } else {
-          already_marked++;
-        }
-#endif
       }
     }
   }
-#ifdef KELVIN_MARK_BITMAP
-  log_info(gc)(" added %zu mark bits, supplementing %zu originally marked_bits", newly_marked, already_marked);
-#endif
 }
 
 void ShenandoahForwardingTable::extend_mark_bitmaps() {

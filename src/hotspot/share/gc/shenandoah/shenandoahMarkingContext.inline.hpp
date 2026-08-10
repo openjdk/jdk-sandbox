@@ -147,4 +147,71 @@ inline void ShenandoahMarkingContext::reset_top_bitmap(ShenandoahHeapRegion* r) 
   _top_bitmaps[r->index()] = r->bottom();
 }
 
+inline size_t ShenandoahMarkingContext::count_bits(ShenandoahMarkBitMap::bm_word_t word) const {
+#if defined(__GNUC__) || defined(__clang__)
+  return __builtin_popcountll(word);
+#elif defined(_MSC_VER)
+  return __popcnt64(word);
+#else
+  // Fallback for other compilers
+  return std::bitset<64>(word).count(); 
+#endif
+}
+
+template<size_t ENTRY_WORDS>
+inline size_t ShenandoahMarkingContext::count_conflicts_in_one_word(ShenandoahMarkBitMap::bm_word_t word) const {
+  if (ENTRY_WORDS == 1) {
+    // For each marked object, there are two consecutive bits representing a strong and weak mark respectively
+    ShenandoahMarkBitMap::bm_word_t shifted_word = word >> 1;
+    ShenandoahMarkBitMap::bm_word_t any_mark_word = (shifted_word | word) & 0x5555555555555555;
+    return count_bits(any_mark_word);
+  } else if (ENTRY_WORDS == 2) {
+    // For each marked object, there are two consecutive bits representing a strong and weak mark respectively
+    ShenandoahMarkBitMap::bm_word_t shifted_word = word >> 1;
+    ShenandoahMarkBitMap::bm_word_t any_mark_word = (shifted_word | word) & 0x5555555555555555;
+    size_t total_markwords = count_bits(any_mark_word);
+    // Figure out how many of these mark words correspond to a single slot.
+    // consecutive_ones is 1 if this word and the next word are both marked.
+    size_t consecutive_ones = word & (word >> 2);
+    // aligned_conflicts is 1 if this word and the next word are both marked, and this word is the start of an entry.
+    size_t aligned_conflicts = consecutive_ones & 0x1111111111111111;
+    size_t overcounted_bits = count_bits(aligned_conflicts);
+    return total_markwords - overcounted_bits;
+  } else {
+    assert(false, "count_coflicts_in_one_word() is not implemented for ENTRY_WORDS = %zu", ENTRY_WORDS);
+  }
+}
+
+template<size_t ENTRY_WORDS>
+inline size_t ShenandoahMarkingContext::count_mark_bit_conflicts(const HeapWord* start, const HeapWord* end) const {
+  // Assume mark bits are valid for this entire range, even above "TAMS".
+  // Figure out how many words we are processing.
+  size_t num_bitmap_words = _mark_bit_map.bitmap_words_in_range(start, end);
+  if (num_bitmap_words == 0) {
+    return 0;
+  } else if (num_bitmap_words == 1) {
+    ShenandoahMarkBitMap::bm_word_t only_word = _mark_bit_map.first_bitmap_word_in_range(start, end);
+    size_t count = count_conflicts_in_one_word<ENTRY_WORDS>(only_word);
+    return count;
+  } else {
+    ShenandoahMarkBitMap::bm_word_t first_word = _mark_bit_map.first_bitmap_word_in_range(start, end);
+    size_t conflicts = 0;
+    size_t count = count_conflicts_in_one_word<ENTRY_WORDS>(first_word);
+    conflicts += count;
+    ShenandoahMarkBitMap::bm_word_t last_word = _mark_bit_map.last_bitmap_word_in_range(start, end);
+    count = count_conflicts_in_one_word<ENTRY_WORDS>(last_word);
+    conflicts += count;
+    if (num_bitmap_words == 2) {
+      return conflicts;
+    } else {
+      for (size_t i = 1; i < num_bitmap_words - 1; i++) {
+        ShenandoahMarkBitMap::bm_word_t other_word = _mark_bit_map.get_bitmap_word_in_range(start, end, i);
+        count = count_conflicts_in_one_word<ENTRY_WORDS>(other_word);
+        conflicts += count;
+      }
+      return conflicts;
+    }
+  }
+}
+
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHMARKINGCONTEXT_INLINE_HPP

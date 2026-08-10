@@ -115,14 +115,7 @@ static _metadata safe_load_metadata(oop obj) {
   {
     ShenandoahHeap* _h = ShenandoahHeap::heap();
     if (_h->collection_set()->use_forward_table(obj)) {
-      ShenandoahHeapRegion* _r = _h->heap_region_containing(obj);
-      HeapWord* _addr = cast_from_oop<HeapWord*>(obj);
-      assert(_addr < _r->forwarding_table_start(),
-             "klass() on oop inside FWT area: " PTR_FORMAT, p2i(_addr));
-      CSetState _cs = _h->collection_set()->cset_state(obj);
-      oop _fwd = (_cs == CSetState::FWDTABLE_COMPACT) ? _r->forwardee_compact(obj) : _r->forwardee_wide(obj);
-      assert(_fwd == obj,
-             "klass() on unresolved FWT object: " PTR_FORMAT, p2i(_addr));
+      assert(false, "Do not use mark word when forward_table() is active");
     }
   }
 #endif

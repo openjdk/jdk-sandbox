@@ -95,6 +95,18 @@ public:
 
   bool is_bitmap_clear() const;
   bool is_bitmap_range_within_region_clear(const HeapWord* start, const HeapWord* end) const;
+
+  inline size_t count_bits(ShenandoahMarkBitMap::bm_word_t word) const;
+
+  template<size_t ENTRY_WORDS>
+  inline size_t count_conflicts_in_one_word(ShenandoahMarkBitMap::bm_word_t word) const;
+
+  // In the range between start and end, how many forward-table entry slots collide with mark words, assuming each
+  // entry consumes ENTRY_WORDS heap words? start and end are assumed to represent an integral number of aligned
+  // entries.  In the case that multiple marked objects are contained within a single forward table entry, this counts
+  // as a single conflict.  The current implementation only works for ENTRY_WORDS equal to 1 or 2.
+  template<size_t ENTRY_WORDS>
+  inline size_t count_mark_bit_conflicts(const HeapWord* start, const HeapWord* end) const;
 };
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHMARKINGCONTEXT_HPP

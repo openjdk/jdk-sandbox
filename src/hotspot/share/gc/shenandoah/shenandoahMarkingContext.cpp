@@ -24,6 +24,11 @@
  *
  */
 
+#include <cstdint>
+#ifdef _MSC_VER
+#include <intrin.h>
+#endif
+
 #include "gc/shared/markBitMap.inline.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahMarkingContext.hpp"
@@ -101,3 +106,4 @@ void ShenandoahMarkingContext::clear_bitmap(ShenandoahHeapRegion* r) {
   assert(is_bitmap_range_within_region_clear(bottom, r->end()),
          "Region %zu should have no marks in bitmap", r->index());
 }
+

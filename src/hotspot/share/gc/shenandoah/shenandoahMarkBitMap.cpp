@@ -186,7 +186,6 @@ void ShenandoahMarkBitMap::clear_range_large(MemRegion mr) {
   size_t end = address_to_index(intersection.end());
   clear_large_range(beg, end);
 }
-
 #ifdef ASSERT
 void ShenandoahMarkBitMap::check_mark(HeapWord* addr) const {
   assert(ShenandoahHeap::heap()->is_in_reserved(addr),

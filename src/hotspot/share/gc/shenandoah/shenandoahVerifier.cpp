@@ -401,30 +401,17 @@ public:
   };
 
   void heap_region_do(ShenandoahHeapRegion* r) override {
-#undef KELVIN_VERIFY
     if (r->is_cset() || r->is_trash()) {
       // Count the entire cset or trashed (formerly cset) region as used
       // Note: Immediate garbage trash regions were never in the cset.
-#ifdef KELVIN_VERIFY
-      log_info(gc)("CalcRegionStats:heap_region_do(%zu) is %s, is %s, used: %zu, live_bytes: %zu, garbage: %zu",
-                   r->index(), r->is_cset()? "cset": "not cset", r->is_trash()? "trash": "not trash",
-                   _region_size_bytes, r->get_live_data_bytes(), _region_size_bytes - r->get_live_data_bytes());
-#endif
       _used += _region_size_bytes;
       _garbage += _region_size_bytes - r->get_live_data_bytes();
       if (r->is_trash()) {
         _trashed_regions++;
-#ifdef KELVIN_VERIFY
-        log_info(gc)(" incrementing _trashed_regions to %zu for %s region %zu", _trashed_regions, r->is_young()? "young": "old", r->index());
-#endif
         _trashed_used += _region_size_bytes;
       }
     } else {
       if (r->is_humongous()) {
-#ifdef KELVIN_VERIFY
-      log_info(gc)("CalcRegionStats:heap_region_do(%zu) is humongous, used: %zu, garbage: %zu, humongous_waste: %zu",
-                   r->index(), _region_size_bytes, _region_size_bytes - r->get_live_data_bytes(), r->free());
-#endif
         _used += _region_size_bytes;
         _garbage += _region_size_bytes - r->get_live_data_bytes();
         _humongous_waste += r->free();
@@ -432,28 +419,17 @@ public:
         size_t alloc_capacity = r->free();
         if (alloc_capacity < _min_free_size) {
           // this region has been retired already, count it as entirely consumed
-#ifdef KELVIN_VERIFY
-          log_info(gc)("CalcRegionStats:heap_region_do(regular region %zu) is expanding used by %zu for KELVIN waste",
-                       r->index(), alloc_capacity);
-#endif
           alloc_capacity = 0;
         }
         size_t bytes_used_in_region = _region_size_bytes - alloc_capacity;
         size_t bytes_garbage_in_region = bytes_used_in_region - r->get_live_data_bytes();
         size_t waste_bytes = r->free();
-#ifdef KELVIN_VERIFY
-        log_info(gc)("CalcRegionStats:heap_region_do(%zu) is regular, used: %zu, live: %zu, garbage: %zu",
-                     r->index(), bytes_used_in_region, r->get_live_data_bytes(), bytes_garbage_in_region);
-#endif
         _used += bytes_used_in_region;
         _garbage += bytes_garbage_in_region;
       }
     }
     _committed += r->is_committed() ? _region_size_bytes : 0;
     _regions++;
-#ifdef KELVIN_VERIFY
-    log_info(gc)(" incrementing _regions to %zu for %s region %zu", _regions, r->is_young()? "young": "old", r->index());
-#endif
     log_debug(gc)("ShenandoahCalculateRegionStatsClosure: adding %zu for %s Region %zu, yielding: %zu",
             r->used(), (r->is_humongous() ? "humongous" : "regular"), r->index(), _used);
 
@@ -519,10 +495,6 @@ class ShenandoahGenerationStatsClosure : public ShenandoahHeapRegionClosure {
     guarantee(stats_used == generation_used,
               "%s: generation (%s) used size must be consistent: generation-used: " PROPERFMT ", regions-used: " PROPERFMT,
               label, generation->name(), PROPERFMTARGS(generation_used), PROPERFMTARGS(stats_used));
-#ifdef KELVIN_VERIFY
-    log_info(gc)(" in validate_usage(), adjust_for_trash: %s, stats.regions(): %zu, status.trashed_regions(): %zu, generation_used: %zu",
-                 adjust_for_trash? "true": "false", stats.regions(), stats.trashed_regions(), generation_used_regions);
-#endif
 
     size_t stats_regions = adjust_for_trash? stats.regions() - stats.trashed_regions(): stats.regions();
     guarantee(stats_regions == generation_used_regions,
@@ -964,23 +936,11 @@ void ShenandoahVerifier::verify_at_safepoint(ShenandoahGeneration* generation,
     }
     if (sizeness != _verify_size_disable) {
       size_t cl_size = (sizeness == _verify_size_exact_including_trash)? cl.used(): cl.used_after_recycle();
-#undef KELVIN_VERIFY
-#ifdef KELVIN_VERIFY
-      log_info(gc)("verify_at_safepoint: sizeness: %d, c.used: %zu, cl.used_after_recycle: %zu",
-                   sizeness, cl.used(), cl.used_after_recycle());
-#endif
-#ifdef KELVIN_ORIGINAL
       guarantee(cl_size == heap_used,
                 "%s: heap used size must be consistent: heap-used = %zu%s, regions-used = %zu%s",
                 label,
                 byte_size_in_proper_unit(heap_used), proper_unit_for_byte_size(heap_used),
                 byte_size_in_proper_unit(cl_size), proper_unit_for_byte_size(cl_size));
-#else
-      guarantee(cl_size == heap_used,
-                "%s: heap used size must be consistent: heap-used = %zu, regions-used = %zu",
-                label,
-                heap_used, cl_size);
-#endif
     }
     size_t heap_committed = _heap->committed();
     guarantee(cl.committed() == heap_committed,
@@ -1028,17 +988,8 @@ void ShenandoahVerifier::verify_at_safepoint(ShenandoahGeneration* generation,
       ShenandoahGenerationStatsClosure::validate_usage(true, true, label, _heap->global_generation(), cl._global);
     } else if (sizeness == _verify_size_exact || sizeness == _verify_size_exact_including_trash) {
       bool adjust_trash = (sizeness == _verify_size_exact);
-#ifdef KELVIN_VERIFY
-      log_info(gc)("validate_usage() for old gen, adjust_trash: %s", adjust_trash? "true": "false");
-#endif
       ShenandoahGenerationStatsClosure::validate_usage(false, adjust_trash, label, _heap->old_generation(), cl._old);
-#ifdef KELVIN_VERIFY
-      log_info(gc)("validate_usage() for young gen, adjust_trash: %s", adjust_trash? "true": "false");
-#endif
       ShenandoahGenerationStatsClosure::validate_usage(false, adjust_trash, label, _heap->young_generation(), cl._young);
-#ifdef KELVIN_VERIFY
-      log_info(gc)("validate_usage() for global gen, adjust_trash: %s", adjust_trash? "true": "false");
-#endif
       ShenandoahGenerationStatsClosure::validate_usage(false, adjust_trash, label, _heap->global_generation(), cl._global);
     }
     // else: sizeness must equal _verify_size_disable

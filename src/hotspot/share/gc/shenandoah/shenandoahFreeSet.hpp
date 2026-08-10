@@ -458,11 +458,6 @@ private:
       size_t used_by_mutator = _partitions.used_by(ShenandoahFreeSetPartitionId::Mutator);
       size_t used_by_collector = _partitions.used_by(ShenandoahFreeSetPartitionId::Collector);
       _total_young_used = used_by_mutator + used_by_collector;
-#undef KELVIN_AFFILIATED_HPP
-#ifdef KELVIN_AFFILIATED_HPP
-      log_info(gc)("recompute _total_young_used: %zu from used_by[Mutator]: %zu plus used_by[Collector]: %zu",
-                   _total_young_used, used_by_mutator, used_by_collector);
-#endif
     }
   }
 
@@ -474,11 +469,6 @@ private:
       shenandoah_assert_heaplocked();
       size_t used_by_old_collector = _partitions.used_by(ShenandoahFreeSetPartitionId::OldCollector);
       _total_old_used = used_by_old_collector;
-#undef KELVIN_AFFILIATED_HPP
-#ifdef KELVIN_AFFILIATED_HPP
-      log_info(gc)("recompute _total_old_used: %zu from used_by[OldCollector]: %zu",
-                   _total_old_used, used_by_old_collector);
-#endif
     }
   }
 
@@ -493,11 +483,6 @@ private:
     if (UsedByMutatorChanged || UsedByCollectorChanged || UsedByOldCollectorChanged) {
       shenandoah_assert_heaplocked();
       _total_global_used = _total_young_used + _total_old_used;
-#undef KELVIN_GLOBAL_USED_HPP
-#ifdef KELVIN_GLOBAL_USED_HPP
-      log_info(gc)("recompute _total_global_used %zu from _total_young_used %zu + _total_old_used %zu",
-                   _total_global_used, _total_young_used, _total_old_used);
-#endif
     }
   }
 
@@ -658,19 +643,10 @@ private:
       size_t mutator_capacity = _partitions.get_capacity(ShenandoahFreeSetPartitionId::Mutator);
       size_t collector_capacity = _partitions.get_capacity(ShenandoahFreeSetPartitionId::Collector);
       _young_affiliated_regions = (mutator_capacity + collector_capacity) / region_size_bytes - _young_unaffiliated_regions;
-#ifdef KELVIN_AFFILIATED_HPP
-      log_info(gc)("recompute _young_affiliated_regions: %zu from (capacity[Mutator]: %zu + capacity[Collector]:%zu) and unaffiliated: %zu",
-                   _young_affiliated_regions, mutator_capacity, collector_capacity, _young_unaffiliated_regions);
-#endif
     }
     if (OldCollectorSizeChanged || OldCollectorEmptiesChanged) {
       _old_affiliated_regions = (_partitions.get_capacity(ShenandoahFreeSetPartitionId::OldCollector) / region_size_bytes -
                                  _partitions.get_empty_region_counts(ShenandoahFreeSetPartitionId::OldCollector));
-#ifdef KELVIN_AFFILIATED_HPP
-      log_info(gc)("recompute _old_affiliated_regions: %zu from capacity[OldCollector]: %zu and unaffiliated: %zu",
-                   _old_affiliated_regions, _partitions.get_capacity(ShenandoahFreeSetPartitionId::OldCollector),
-                   _partitions.get_empty_region_counts(ShenandoahFreeSetPartitionId::OldCollector));
-#endif
     }
     if (!AffiliatedChangesAreGlobalNeutral &&
         (MutatorEmptiesChanged || CollectorEmptiesChanged || OldCollectorEmptiesChanged)) {
@@ -681,10 +657,6 @@ private:
         (MutatorSizeChanged || CollectorSizeChanged || MutatorEmptiesChanged || CollectorEmptiesChanged ||
          OldCollectorSizeChanged || OldCollectorEmptiesChanged)) {
       _global_affiliated_regions = _young_affiliated_regions + _old_affiliated_regions;
-#ifdef KELVIN_AFFILIATED_HPP
-      log_info(gc)("recompute _global_affiliated_regions: %zu young_affiliated: %zu and old_affiliated: %zu",
-                   _global_affiliated_regions, _young_affiliated_regions, _old_affiliated_regions);
-#endif
     }
 #ifdef ASSERT
     if (ShenandoahHeap::heap()->mode()->is_generational()) {
@@ -822,9 +794,6 @@ public:
 
   // Return bytes used by old
   inline size_t old_used() {
-#ifdef KELVIN_AFFILIATED_HPP
-    log_info(gc)("old_used() returns %zu", _total_old_used);
-#endif
     return _total_old_used;
   }
 
@@ -836,17 +805,11 @@ public:
 
   // Return bytes used by young
   inline size_t young_used() {
-#ifdef KELVIN_AFFILIATED_HPP
-    log_info(gc)("young_used() returns %zu", _total_young_used);
-#endif
     return _total_young_used;
   }
 
   // Return bytes used by global
   inline size_t global_used() {
-#ifdef KELVIN_GLOBAL_USED_HPP
-    log_info(gc)("global_used() returns %zu", _total_global_used);
-#endif
     return _total_global_used;
   }
 
@@ -874,23 +837,14 @@ public:
   }
 
   inline size_t young_affiliated_regions() {
-#ifdef KELVIN_AFFILIATED_HPP
-    log_info(gc)("young_affiliated_regions() returns %zu", _young_affiliated_regions);
-#endif
     return _young_affiliated_regions;
   }
 
   inline size_t old_affiliated_regions() {
-#ifdef KELVIN_AFFILIATED_HPP
-    log_info(gc)("old_affiliated_regions() returns %zu", _old_affiliated_regions);
-#endif
     return _old_affiliated_regions;
   }
 
   inline size_t global_affiliated_regions() {
-#ifdef KELVIN_AFFILIATED_HPP
-    log_info(gc)("global_affiliated_regions() returns %zu", _global_affiliated_regions);
-#endif
     return _global_affiliated_regions;
   }
 

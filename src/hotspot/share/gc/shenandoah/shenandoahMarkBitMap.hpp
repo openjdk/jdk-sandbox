@@ -199,6 +199,11 @@ public:
   HeapWord* get_prev_marked_addr(const HeapWord* limit,
                                  const HeapWord* addr) const;
 
+  inline size_t bitmap_words_in_range(const HeapWord* start, const HeapWord* end) const;
+  inline size_t first_bitmap_word_in_range(const HeapWord* start, const HeapWord* end) const;
+  inline size_t last_bitmap_word_in_range(const HeapWord* start, const HeapWord* end) const;
+  inline size_t get_bitmap_word_in_range(const HeapWord* start, const HeapWord* end, size_t number) const;
+
   bm_word_t inverted_bit_mask_for_range(idx_t beg, idx_t end) const;
   void  clear_range_within_word    (idx_t beg, idx_t end);
   void clear_range (idx_t beg, idx_t end);
