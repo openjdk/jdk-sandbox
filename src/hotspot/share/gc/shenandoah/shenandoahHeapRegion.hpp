@@ -248,7 +248,7 @@ private:
   HeapWord* const _end;
 
   // Rarely updated fields
-  HeapWord* _new_top;
+  HeapWord* _alt_top;
   double _empty_time;
 
   HeapWord* _top_before_promoted;
@@ -474,8 +474,10 @@ public:
   HeapWord* top() const         { return _top;     }
   void set_top(HeapWord* v)     { _top = v;        }
 
-  HeapWord* new_top() const     { return _new_top; }
-  void set_new_top(HeapWord* v) { _new_top = v;    }
+  // Alternative top represents an alternative perspective of top during certain transitions, such as when a
+  // region is being promoted in place or early recycled.
+  HeapWord* alt_top() const     { return _alt_top; }
+  void set_alt_top(HeapWord* v) { _alt_top = v;    }
 
   HeapWord* bottom() const      { return _bottom;  }
   HeapWord* end() const         { return _end;     }

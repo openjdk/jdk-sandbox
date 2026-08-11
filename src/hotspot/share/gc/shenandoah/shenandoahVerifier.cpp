@@ -579,7 +579,7 @@ private:
     // KELVIN HACK: if this works, let's find a better mechanism to avoid strcmp
     if (_heap->collection_set()->use_forward_table(r) && 
         (!strcmp(_phase, "Before Updating References") || !strcmp(_phase, "Before Full GC"))) {
-      verify(r, _heap->marking_context()->top_at_mark_start(r) <= r->new_top(),
+      verify(r, _heap->marking_context()->top_at_mark_start(r) <= r->alt_top(),
              "Complete TAMS should not be larger than top");
     } else {
       verify(r, _heap->marking_context()->top_at_mark_start(r) <= r->top(),

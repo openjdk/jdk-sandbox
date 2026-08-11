@@ -65,7 +65,7 @@ ShenandoahHeapRegion::ShenandoahHeapRegion(HeapWord* start, size_t index, bool c
   _index(index),
   _bottom(start),
   _end(start + RegionSizeWords),
-  _new_top(nullptr),
+  _alt_top(nullptr),
   _empty_time(os::elapsedTime()),
   _top_before_promoted(nullptr),
   _top_at_evac_start(start),

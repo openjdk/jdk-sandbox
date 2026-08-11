@@ -3005,8 +3005,8 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
          "Cset region must not already be in a free partition");
 
   {
-    // We've saved away the original value of top in the new_top field.
-    HeapWord* top = r->new_top();
+    // We've saved away the original value of top in the alt_top field.
+    HeapWord* top = r->alt_top();
 #ifdef ASSERT
     HeapWord* bottom = r->bottom();
     ShenandoahMarkingContext* ctx = _heap->marking_context();

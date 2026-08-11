@@ -334,7 +334,7 @@ public:
 
   void finish() {
     assert(_to_region != nullptr, "should not happen");
-    _to_region->set_new_top(_compact_point);
+    _to_region->set_alt_top(_compact_point);
   }
 
   bool is_compact_same_region() {
@@ -466,7 +466,7 @@ void ShenandoahPrepareForCompactionTask::prepare_for_compaction(ClosureType& cl,
   // Mark all remaining regions as empty
   for (int pos = cl.empty_regions_pos(); pos < empty_regions.length(); ++pos) {
     ShenandoahHeapRegion* r = empty_regions.at(pos);
-    r->set_new_top(r->bottom());
+    r->set_alt_top(r->bottom());
   }
 }
 
@@ -490,7 +490,7 @@ void ShenandoahFullGC::calculate_target_humongous_objects() {
   log_debug(gc)("Full GC calculating target humongous objects from end %zu", to_end);
   for (size_t c = heap->num_regions(); c > 0; c--) {
     ShenandoahHeapRegion *r = heap->get_region(c - 1);
-    if (r->is_humongous_continuation() || (r->new_top() == r->bottom())) {
+    if (r->is_humongous_continuation() || (r->alt_top() == r->bottom())) {
       // To-region candidate: record this, and continue scan
       to_begin = r->index();
       continue;
@@ -540,7 +540,7 @@ public:
 
     // Record current region occupancy: this communicates empty regions are free
     // to the rest of Full GC code.
-    r->set_new_top(r->top());
+    r->set_alt_top(r->top());
   }
 };
 
@@ -920,7 +920,7 @@ public:
       if (r->has_live()) {
         _heap->marked_object_iterate(r, &cl);
       }
-      r->set_top(r->new_top());
+      r->set_top(r->alt_top());
       r = slice.next();
     }
   }

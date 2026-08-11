@@ -217,7 +217,7 @@ void ShenandoahPrepareForGenerationalCompactionObjectClosure::finish_old_region(
   if (_old_to_region != nullptr) {
     log_debug(gc)("Planned compaction into Old Region %zu, used: %zu tabulated by worker %u",
             _old_to_region->index(), _old_compact_point - _old_to_region->bottom(), _worker_id);
-    _old_to_region->set_new_top(_old_compact_point);
+    _old_to_region->set_alt_top(_old_compact_point);
     _old_to_region = nullptr;
   }
 }
@@ -226,7 +226,7 @@ void ShenandoahPrepareForGenerationalCompactionObjectClosure::finish_young_regio
   if (_young_to_region != nullptr) {
     log_debug(gc)("Worker %u planned compaction into Young Region %zu, used: %zu",
             _worker_id, _young_to_region->index(), _young_compact_point - _young_to_region->bottom());
-    _young_to_region->set_new_top(_young_compact_point);
+    _young_to_region->set_alt_top(_young_compact_point);
     _young_to_region = nullptr;
   }
 }
