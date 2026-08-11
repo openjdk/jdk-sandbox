@@ -120,6 +120,11 @@ inline void ShenandoahHeap::non_conc_update_with_forwarded(T* p, ShenandoahCSetM
         return;
       case CSetState::IN_CSET:
         fwd = ShenandoahForwarding::get_forwardee(obj);
+        // Corner case: when evacuation fails, there are objects in collection set that are not really forwarded.
+        // We still update them (uselessly) to simplify the common path.
+
+        // This assert is not valid within forwarded regions.
+        shenandoah_assert_marked_except(p, obj, cancelled_gc());
         break;
       case CSetState::FWDTABLE_COMPACT:
         fwd = heap_region_containing(obj)->forwardee_compact(obj);
@@ -129,12 +134,6 @@ inline void ShenandoahHeap::non_conc_update_with_forwarded(T* p, ShenandoahCSetM
         break;
       default: ShouldNotReachHere();
     }
-    // Corner case: when evacuation fails, there are objects in collection
-    // set that are not really forwarded. We can still go and try and update them
-    // (uselessly) to simplify the common path.
-    shenandoah_assert_marked_except(p, obj, cancelled_gc());
-    //shenandoah_assert_not_in_cset_except(p, fwd, cancelled_gc());
-
     // Unconditionally store the update: no concurrent updates expected.
     RawAccess<IS_NOT_NULL>::oop_store(p, fwd);
   }
