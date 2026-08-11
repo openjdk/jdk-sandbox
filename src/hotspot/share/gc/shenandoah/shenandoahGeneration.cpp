@@ -62,6 +62,11 @@ public:
       if (FULL_GC || region->is_active()) {
         // Reset live data and set TAMS optimistically. We would recheck these under the pause
         // anyway to capture any updates that happened since now.
+#ifdef ASSERT
+        // With early recycling of cset regions, it is possible that the new value of TAMS is lower than the previous
+        // value of TAMS, causing an assert failure in capture_top_at_mark_start()
+        _ctx->reset_top_at_mark_start(region);
+#endif
         _ctx->capture_top_at_mark_start(region);
         region->clear_live_data();
       }

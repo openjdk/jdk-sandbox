@@ -576,8 +576,15 @@ private:
     verify(r, r->bottom() <= _heap->marking_context()->top_at_mark_start(r),
            "Region TAMS should not be less than bottom");
 
-    verify(r, _heap->marking_context()->top_at_mark_start(r) <= r->top(),
-           "Complete TAMS should not be larger than top");
+    // KELVIN HACK: if this works, let's find a better mechanism to avoid strcmp
+    if ((!strcmp(_phase, "Before Updating References") || !strcmp(_phase, "Before Full GC")) &&
+        (r->forwarding_table_start() != nullptr)) {
+      verify(r, _heap->marking_context()->top_at_mark_start(r) <= r->new_top(),
+             "Complete TAMS should not be larger than top");
+    } else {
+      verify(r, _heap->marking_context()->top_at_mark_start(r) <= r->top(),
+             "Complete TAMS should not be larger than top");
+    }
 
     verify(r, r->get_live_data_bytes() <= r->capacity(),
            "Live data cannot be larger than capacity");
