@@ -576,32 +576,34 @@ private:
     verify(r, r->bottom() <= _heap->marking_context()->top_at_mark_start(r),
            "Region TAMS should not be less than bottom");
 
-    verify(r, _heap->marking_context()->top_at_mark_start(r) <= r->top(),
-           "Complete TAMS should not be larger than top");
-
     verify(r, r->get_live_data_bytes() <= r->capacity(),
            "Live data cannot be larger than capacity");
-
-    verify(r, r->garbage() <= r->capacity(),
-           "Garbage cannot be larger than capacity");
 
     verify(r, r->used() <= r->capacity(),
            "Used cannot be larger than capacity");
 
-    verify(r, r->get_shared_allocs() <= r->capacity(),
-           "Shared alloc count should not be larger than capacity");
+    if (!_heap->collection_set()->use_forward_table(r)) {
+      verify(r, _heap->marking_context()->top_at_mark_start(r) <= r->top(),
+             "Complete TAMS should not be larger than top");
 
-    verify(r, r->get_tlab_allocs() <= r->capacity(),
-           "TLAB alloc count should not be larger than capacity");
+      verify(r, r->garbage() <= r->capacity(),
+             "Garbage cannot be larger than capacity");
 
-    verify(r, r->get_gclab_allocs() <= r->capacity(),
-           "GCLAB alloc count should not be larger than capacity");
+      verify(r, r->get_shared_allocs() <= r->capacity(),
+             "Shared alloc count should not be larger than capacity");
 
-    verify(r, r->get_plab_allocs() <= r->capacity(),
-           "PLAB alloc count should not be larger than capacity");
+      verify(r, r->get_tlab_allocs() <= r->capacity(),
+             "TLAB alloc count should not be larger than capacity");
 
-    verify(r, r->get_shared_allocs() + r->get_tlab_allocs() + r->get_gclab_allocs() + r->get_plab_allocs() == r->used(),
-           "Accurate accounting: shared + TLAB + GCLAB + PLAB = used");
+      verify(r, r->get_gclab_allocs() <= r->capacity(),
+             "GCLAB alloc count should not be larger than capacity");
+
+      verify(r, r->get_plab_allocs() <= r->capacity(),
+             "PLAB alloc count should not be larger than capacity");
+
+      verify(r, r->get_shared_allocs() + r->get_tlab_allocs() + r->get_gclab_allocs() + r->get_plab_allocs() == r->used(),
+             "Accurate accounting: shared + TLAB + GCLAB + PLAB = used");
+    }
 
     verify(r, !r->is_empty() || !r->has_live(),
            "Empty regions should not have live data");
