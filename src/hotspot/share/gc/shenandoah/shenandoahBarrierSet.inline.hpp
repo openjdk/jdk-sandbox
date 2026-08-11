@@ -109,27 +109,33 @@ inline oop ShenandoahBarrierSet::load_reference_barrier_mutator(oop obj, T* load
   }
 
   oop fwd;
-  switch (_cset_map.cset_state(obj)) {
-    case CSetState::NOT_IN_CSET:
-      ShouldNotReachHere();
-    case CSetState::IN_CSET: {
-      fwd = ShenandoahForwarding::get_forwardee_mutator(obj);
-      if (obj == fwd) {
-        assert(_heap->is_evacuation_in_progress(), "evac should be in progress");
-        Thread* const t = Thread::current();
-        ShenandoahEvacOOMScope scope(t);
-        fwd = _heap->evacuate_object(obj, t);
+  if (on_weak || on_phantom) {
+    // Weak/phantom loads can observe marked but not forwarded objects (JVMTI/JFR).
+    // Use the general barrier which is FWT aware.
+    fwd = load_reference_barrier(obj);
+  } else {
+    switch (_cset_map.cset_state(obj)) {
+      case CSetState::NOT_IN_CSET:
+        ShouldNotReachHere();
+      case CSetState::IN_CSET: {
+        fwd = ShenandoahForwarding::get_forwardee_mutator(obj);
+        if (obj == fwd) {
+          assert(_heap->is_evacuation_in_progress(), "evac should be in progress");
+          Thread* const t = Thread::current();
+          ShenandoahEvacOOMScope scope(t);
+          fwd = _heap->evacuate_object(obj, t);
+        }
+        break;
       }
-      break;
+      case CSetState::FWDTABLE_COMPACT:
+        fwd = ShenandoahHeap::heap()->heap_region_containing(obj)->forwardee_compact(obj);
+        break;
+      case CSetState::FWDTABLE_WIDE:
+        fwd = ShenandoahHeap::heap()->heap_region_containing(obj)->forwardee_wide(obj);
+        break;
+      default:
+        ShouldNotReachHere();
     }
-    case CSetState::FWDTABLE_COMPACT:
-      fwd = ShenandoahHeap::heap()->heap_region_containing(obj)->forwardee_compact(obj);
-      break;
-    case CSetState::FWDTABLE_WIDE:
-      fwd = ShenandoahHeap::heap()->heap_region_containing(obj)->forwardee_wide(obj);
-      break;
-    default:
-      ShouldNotReachHere();
   }
 
   if (load_addr != nullptr && fwd != obj) {
