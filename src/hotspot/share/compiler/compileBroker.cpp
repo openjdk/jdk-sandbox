@@ -188,6 +188,7 @@ uint CompileBroker::_sum_osr_bytes_compiled         = 0;
 uint CompileBroker::_sum_standard_bytes_compiled    = 0;
 uint CompileBroker::_sum_nmethod_size               = 0;
 uint CompileBroker::_sum_nmethod_code_size          = 0;
+uint CompileBroker::_largest_nmethod_code_size      = 0;
 
 jlong CompileBroker::_peak_compilation_time        = 0;
 
@@ -344,6 +345,8 @@ void CompileQueue::add(CompileTask* task) {
 
   // Mark the method as being in the compile queue.
   task->method()->set_queued_for_compilation();
+
+  task->mark_queued(os::elapsed_counter());
 
   if (CIPrintCompileQueue) {
     print_tty();
@@ -2402,7 +2405,7 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
     }
   }
 
-  DirectivesStack::release(directive);
+  task->mark_finished(os::elapsed_counter());
 
   methodHandle method(thread, task->method());
 
@@ -2410,15 +2413,11 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
 
   collect_statistics(thread, time, task);
 
-  if (PrintCompilation && PrintCompilation2) {
-    tty->print("%7d ", (int) tty->time_stamp().milliseconds());  // print timestamp
-    tty->print("%4d ", compile_id);    // print compilation number
-    tty->print("%s ", (is_osr ? "%" : " "));
-    if (task->is_success()) {
-      tty->print("size: %d(%d) ", task->nm_total_size(), task->nm_insts_size());
-    }
-    tty->print_cr("time: %d inlined: %d bytes", (int)time.milliseconds(), task->num_inlined_bytecodes());
+  if (PrintCompilation2 || directive->PrintCompilation2Option) {
+    ResourceMark rm;
+    task->print_post(tty);
   }
+  DirectivesStack::release(directive);
 
   Log(compilation, codecache) log;
   if (log.is_debug()) {
@@ -2614,7 +2613,7 @@ void CompileBroker::collect_statistics(CompilerThread* thread, elapsedTimer time
       }
 
       // Collect statistic per compiler
-      AbstractCompiler* comp = compiler(comp_level);
+      AbstractCompiler* comp = task->compiler();
       if (comp) {
         CompilerStatistics* stats = comp->stats();
         if (is_osr) {
@@ -2654,6 +2653,7 @@ void CompileBroker::collect_statistics(CompilerThread* thread, elapsedTimer time
     // Collect counts of successful compilations
     _sum_nmethod_size      += task->nm_total_size();
     _sum_nmethod_code_size += task->nm_insts_size();
+    _largest_nmethod_code_size = MAX2(_largest_nmethod_code_size, (uint) task->nm_insts_size());
     _total_compile_count++;
 
     if (UsePerfData) {
@@ -2741,6 +2741,7 @@ void CompileBroker::print_times(bool per_compiler, bool aggregate) {
   uint total_invalidated_count = CompileBroker::_total_invalidated_count;
 
   uint nmethods_code_size = CompileBroker::_sum_nmethod_code_size;
+  uint largest_nmethod_code_size = CompileBroker::_largest_nmethod_code_size;
   uint nmethods_size = CompileBroker::_sum_nmethod_size;
 
   tty->cr();
@@ -2794,6 +2795,7 @@ void CompileBroker::print_times(bool per_compiler, bool aggregate) {
   uint bps = tcs == 0.0 ? 0 : (uint)(tcb / tcs);
   tty->print_cr("  Average compilation speed : %8u bytes/s", bps);
   tty->cr();
+  tty->print_cr("  largest nmethod code size : %8u bytes", largest_nmethod_code_size);
   tty->print_cr("  nmethod code size         : %8u bytes", nmethods_code_size);
   tty->print_cr("  nmethod total size        : %8u bytes", nmethods_size);
 }

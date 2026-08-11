@@ -37,21 +37,21 @@ public class Hello {
 EOF
 
 run_with() {
-        P=$*
-        for I in `seq 1 3`; do
-                echo -n " run $I: "
-		$P -Xcomp -XX:+CITime Hello.java 2>&1 | grep "Tier4"
-        done
+  P=$*
+  for I in `seq 1 3`; do
+    echo -n " run $I: "
+    $P -Xcomp -XX:+CITime Hello.java 2>&1 | grep "Tier4"
+  done
 }
 
 if [ "x" != "x$J_ML" ]; then
-	echo
-	echo "Mainline: No barriers"
-	run_with $J_ML $OPTS
+  echo
+  echo "Mainline: No barriers"
+  run_with $J_ML $OPTS
 
-	echo
-	echo "Mainline: All barriers"
-	run_with $J_ML $OPTS_ALL
+  echo
+  echo "Mainline: All barriers"
+  run_with $J_ML $OPTS_ALL
 fi
 
 echo
@@ -63,15 +63,5 @@ echo "LBE: All barriers"
 run_with $J_LBE $OPTS_ALL
 
 echo
-echo "LBE: All barriers, hot-patchable GC state checks in fast-path"
-run_with $J_LBE $OPTS_ALL -XX:+ShenandoahGCStateCheckHotpatch
-
-echo
-echo "LBE: All barriers, remove GC state checks in fast-path"
-run_with $J_LBE $OPTS_ALL -XX:+ShenandoahGCStateCheckRemove
-
-echo
-echo "LBE: All barriers, remove both fast- and slow-path"
-run_with $J_LBE $OPTS_ALL -XX:+ShenandoahSkipBarriers
-
-
+echo "LBE: All barriers, no barrier elision"
+run_with $J_LBE $OPTS_ALL -XX:-ShenandoahElideBarriers

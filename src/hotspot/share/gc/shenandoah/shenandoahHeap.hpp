@@ -118,9 +118,23 @@ public:
   virtual bool is_thread_safe() { return false; }
 };
 
-typedef ShenandoahLock    ShenandoahHeapLock;
-typedef ShenandoahLocker  ShenandoahHeapLocker;
-typedef Stack<oop, mtGC>  ShenandoahScanObjectStack;
+typedef ShenandoahLock                       ShenandoahHeapLock;
+// ShenandoahHeapLocker implements locker to assure mutually exclusive access to the global heap data structures.
+// Asserts in the implementation detect potential deadlock usage with regards the rebuild lock that is present
+// in ShenandoahFreeSet.  Whenever both locks are acquired, this lock should be acquired before the
+// ShenandoahFreeSet rebuild lock.
+class ShenandoahHeapLocker : public StackObj {
+private:
+  ShenandoahHeapLock* _lock;
+public:
+  ShenandoahHeapLocker(ShenandoahHeapLock* lock, bool allow_block_for_safepoint = false);
+
+  ~ShenandoahHeapLocker() {
+    _lock->unlock();
+  }
+};
+
+typedef Stack<oop, mtGC>                     ShenandoahScanObjectStack;
 
 // Shenandoah GC is low-pause concurrent GC that uses a load reference barrier
 // for concurent evacuation and a snapshot-at-the-beginning write barrier for
@@ -183,6 +197,7 @@ public:
   ShenandoahHeap(ShenandoahCollectorPolicy* policy);
   jint initialize() override;
   void post_initialize() override;
+  virtual void initialize_generations();
   void initialize_mode();
   virtual void initialize_heuristics();
 
@@ -289,13 +304,11 @@ public:
 
   void heap_region_iterate(ShenandoahHeapRegionClosure* blk) const;
   void parallel_heap_region_iterate(ShenandoahHeapRegionClosure* blk) const;
+  void heap_region_iterator(ShenandoahHeapRegionClosure* blk) const;
 
   inline ShenandoahMmuTracker* mmu_tracker() { return &_mmu_tracker; };
 
 // ---------- GC state machinery
-//
-// Important: Do not change the values of these flags. AArch64 GC barriers
-// depend on the flags having specific values.
 //
 // GC state describes the important parts of collector state, that may be
 // used to make barrier selection decisions in the native and generated code.
@@ -387,6 +400,8 @@ public:
   bool has_changed() {
     return _heap_changed.try_unset();
   }
+
+  virtual void start_idle_span();
 
   void set_concurrent_young_mark_in_progress(bool in_progress);
   void set_concurrent_old_mark_in_progress(bool in_progress);
@@ -556,7 +571,7 @@ public:
     return _evac_tracker;
   }
 
-  void on_cycle_start(GCCause::Cause cause, ShenandoahGeneration* generation);
+  void on_cycle_start(GCCause::Cause cause, ShenandoahGeneration* generation, bool is_degenerated, bool is_out_of_cycle);
   void on_cycle_end(ShenandoahGeneration* generation);
 
   ShenandoahVerifier*        verifier();
@@ -701,6 +716,7 @@ private:
 public:
   HeapWord* allocate_memory(ShenandoahAllocRequest& request);
   HeapWord* mem_allocate(size_t size) override;
+  oop array_allocate(Klass* klass, size_t size, int length, bool do_zero, TRAPS) override;
   MetaWord* satisfy_failed_metadata_allocation(ClassLoaderData* loader_data,
                                                size_t size,
                                                Metaspace::MetadataType mdtype) override;

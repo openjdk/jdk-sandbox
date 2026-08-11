@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018, 2021, Red Hat, Inc. All rights reserved.
  * Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -83,16 +84,20 @@ public:
 #endif
 
 #ifdef COMPILER2
+  // Barrier hotpatching
+  static address parse_stub_address(address pc);
+  static void patch_branch_to_nop(address pc);
+  static void patch_nop_to_branch(address pc, address stub_addr);
+
   // Entry points from Matcher
-  void load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src);
+  void load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src, bool narrow);
   void store_c2(const MachNode* node, MacroAssembler* masm,
                 Address dst, bool dst_narrow, Register src, bool src_narrow, Register tmp);
-  void cae_c2(const MachNode* node, MacroAssembler* masm, Register res, Address addr, Register oldval, Register newval,
-              Register tmp1, Register tmp2, bool exchange, bool maybe_null, bool narrow);
-  void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register newval, Address addr, Register tmp);
-
-  void gc_state_check_c2(MacroAssembler* masm, const char test_state, BarrierStubC2* slow_stub);
+  void compare_and_set_c2(const MachNode* node, MacroAssembler* masm, Register res, Address addr, Register oldval, Register newval,
+                          Register tmp, bool narrow);
+  void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register newval, Address addr, Register tmp, bool narrow);
   void card_barrier_c2(MacroAssembler* masm, Address dst, Register tmp);
+  virtual void try_resolve_weak_handle_in_c2(MacroAssembler* masm, Register obj, Label& slowpath);
 #endif
 };
 

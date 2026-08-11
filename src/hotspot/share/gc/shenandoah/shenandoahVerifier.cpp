@@ -577,8 +577,8 @@ private:
            "Region TAMS should not be less than bottom");
 
     // KELVIN HACK: if this works, let's find a better mechanism to avoid strcmp
-    if ((!strcmp(_phase, "Before Updating References") || !strcmp(_phase, "Before Full GC")) &&
-        (r->forwarding_table_start() != nullptr)) {
+    if (_heap->collection_set()->use_forward_table(r) && 
+        (!strcmp(_phase, "Before Updating References") || !strcmp(_phase, "Before Full GC"))) {
       verify(r, _heap->marking_context()->top_at_mark_start(r) <= r->new_top(),
              "Complete TAMS should not be larger than top");
     } else {
@@ -589,26 +589,28 @@ private:
     verify(r, r->get_live_data_bytes() <= r->capacity(),
            "Live data cannot be larger than capacity");
 
-    verify(r, r->garbage() <= r->capacity(),
-           "Garbage cannot be larger than capacity");
-
     verify(r, r->used() <= r->capacity(),
            "Used cannot be larger than capacity");
 
-    verify(r, r->get_shared_allocs() <= r->capacity(),
-           "Shared alloc count should not be larger than capacity");
+    if (!_heap->collection_set()->use_forward_table(r)) {
+      verify(r, r->garbage() <= r->capacity(),
+             "Garbage cannot be larger than capacity");
 
-    verify(r, r->get_tlab_allocs() <= r->capacity(),
-           "TLAB alloc count should not be larger than capacity");
+      verify(r, r->get_shared_allocs() <= r->capacity(),
+             "Shared alloc count should not be larger than capacity");
 
-    verify(r, r->get_gclab_allocs() <= r->capacity(),
-           "GCLAB alloc count should not be larger than capacity");
+      verify(r, r->get_tlab_allocs() <= r->capacity(),
+             "TLAB alloc count should not be larger than capacity");
 
-    verify(r, r->get_plab_allocs() <= r->capacity(),
-           "PLAB alloc count should not be larger than capacity");
+      verify(r, r->get_gclab_allocs() <= r->capacity(),
+             "GCLAB alloc count should not be larger than capacity");
 
-    verify(r, r->get_shared_allocs() + r->get_tlab_allocs() + r->get_gclab_allocs() + r->get_plab_allocs() == r->used(),
-           "Accurate accounting: shared + TLAB + GCLAB + PLAB = used");
+      verify(r, r->get_plab_allocs() <= r->capacity(),
+             "PLAB alloc count should not be larger than capacity");
+
+      verify(r, r->get_shared_allocs() + r->get_tlab_allocs() + r->get_gclab_allocs() + r->get_plab_allocs() == r->used(),
+             "Accurate accounting: shared + TLAB + GCLAB + PLAB = used");
+    }
 
     verify(r, !r->is_empty() || !r->has_live(),
            "Empty regions should not have live data");
@@ -1096,7 +1098,7 @@ void ShenandoahVerifier::verify_at_safepoint(ShenandoahGeneration* generation,
   log_info(gc)("Verify %s, Level %zd (%zu reachable, %zu marked)",
                label, ShenandoahVerifyLevel, count_reachable, count_marked);
 
-  FREE_C_HEAP_ARRAY(ShenandoahLivenessData, ld);
+  FREE_C_HEAP_ARRAY(ld);
 }
 
 void ShenandoahVerifier::verify_generic(ShenandoahGeneration* generation, VerifyOption vo) {
@@ -1268,7 +1270,7 @@ void ShenandoahVerifier::verify_before_update_refs(ShenandoahGeneration* generat
   );
 }
 
-// We have not yet cleanup (reclaimed) the collection set
+// We have not yet cleaned up (reclaimed) the collection set
 void ShenandoahVerifier::verify_after_update_refs(ShenandoahGeneration* generation) {
   verify_at_safepoint(
           generation,
@@ -1282,6 +1284,23 @@ void ShenandoahVerifier::verify_after_update_refs(ShenandoahGeneration* generati
                                        // expect generation and heap sizes to match exactly, including trash
           _verify_size_exact_including_trash,
           _verify_gcstate_stable       // update refs had cleaned up forwarded objects
+  );
+}
+
+// We have not yet cleaned up (reclaimed) the collection set
+void ShenandoahVerifier::verify_after_gc(ShenandoahGeneration* generation) {
+  verify_at_safepoint(
+          generation,
+          "After GC",
+          _verify_remembered_disable,  // do not verify remembered set
+          _verify_forwarded_none,      // no forwarded references
+          _verify_marked_complete,     // bitmaps might be stale, but alloc-after-mark should be well
+          _verify_cset_none,           // no cset references, all updated
+          _verify_liveness_disable,    // no reliable liveness data anymore
+          _verify_regions_nocset,      // no cset regions, trash regions have appeared
+                                       // expect generation and heap sizes to match exactly, including trash
+          _verify_size_exact_including_trash,
+          _verify_gcstate_stable       // GC state was turned off
   );
 }
 
