@@ -220,8 +220,14 @@ void ShenandoahDegenGC::op_degenerated() {
 
           for (size_t i = 0; i < heap->num_regions(); i++) {
             ShenandoahHeapRegion* r = heap->get_region(i);
-            if (r->is_active() && r->top() > r->get_update_watermark()) {
-              r->set_update_watermark_at_safepoint(r->top());
+            if (r->is_active()) {
+              if (heap->collection_set()->use_forward_table(r)) {
+                if (r->new_top() > r->get_update_watermark()) {
+                  r->set_update_watermark_at_safepoint(r->new_top());
+                }
+              } else if (r->top() > r->get_update_watermark()) {
+                r->set_update_watermark_at_safepoint(r->top());
+              }
             }
           }
         }

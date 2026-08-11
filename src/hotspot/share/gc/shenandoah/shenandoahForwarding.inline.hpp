@@ -43,11 +43,16 @@ inline oop ShenandoahForwarding::get_forwardee_raw_unchecked(oop obj) {
   // On this path, we can encounter the "marked" object, but with null
   // fwdptr. That object is still not forwarded, and we need to return
   // the object itself.
-  // We cannot assert the below here, because that region forwarding state might
-  // be switched to FWD_TABLE concurrently. However, that is fine, we don't overwrite
-  // the header-based forwarding until we've seen a handshake, at which point the
-  // region forwarding state is stable (and we should not get here).
-  // assert(!ShenandoahHeap::heap()->collection_set()->use_forward_table(obj), "Must not call with forwarding table");
+
+  // The intent is that we never call this function if forwarding table is active for the region that holds obj.
+  // However, there may be a "race" during which the forwarding table has been enabled but allocations within the
+  // region have not yet begun. A handshake attempts to notify all threads that forwarding table is in force.
+#ifdef ASSERT
+  ShenandoahHeap* heap = ShenandoahHeap::heap();
+  ShenandoahHeapRegion* region = heap->heap_region_containing(obj);
+  assert(!heap->collection_set()->use_forward_table(obj) || (region->top() == region->bottom()),
+         "Do not use mark-word forwarding if we are allocating in early-recycled region");
+#endif
   markWord mark = obj->mark();
   if (mark.is_marked()) {
     HeapWord* fwdptr = (HeapWord*) mark.clear_lock_bits().to_pointer();
@@ -113,10 +118,10 @@ static _metadata safe_load_metadata(oop obj) {
   markWord mark = obj->mark();
 #ifndef PRODUCT
   {
-    ShenandoahHeap* _h = ShenandoahHeap::heap();
-    if (_h->collection_set()->use_forward_table(obj)) {
-      assert(false, "Do not use mark word when forward_table() is active");
-    }
+    ShenandoahHeap* heap = ShenandoahHeap::heap();
+    ShenandoahHeapRegion* region = heap->heap_region_containing(obj);
+    assert(!heap->collection_set()->use_forward_table(obj) || (region->top() == region->bottom()),
+           "Do not use mark-word forwarding if we are allocating in early-recycled region");
   }
 #endif
   if (mark.is_forwarded()) {

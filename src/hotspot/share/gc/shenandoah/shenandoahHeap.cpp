@@ -1447,6 +1447,11 @@ bool ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t nu
   }
   bool use_fwd_table = r->build_forwarding_table(num_forwardings);
   if (use_fwd_table) {
+    // rebuild_forwarding_table() makes use of the original top(). We set top here to help us identify that a forwarded region
+    // has not yet had any allocations. As long as an early-recycled region has not experienced memory allocations, it
+    // is still legal, though perhaps not advisable, to use mark-word forwarding.
+    r->set_new_top(r->top());
+    r->set_top(r->bottom());
     // Got to make sure that everybody sees the table before turning on
     // use_forward_table. A single rendezvous after evacuation (see
     // evacuate_collection_set) brings every thread onto the tables.

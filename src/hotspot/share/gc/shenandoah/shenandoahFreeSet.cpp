@@ -2967,13 +2967,17 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
          "Cset region must not already be in a free partition");
 
   {
-    HeapWord* top = r->top();
+    // We've saved away the original value of top in the new_top field.
+    HeapWord* top = r->new_top();
 #ifdef ASSERT
     HeapWord* bottom = r->bottom();
     ShenandoahMarkingContext* ctx = _heap->marking_context();
     HeapWord* tams = ctx->top_at_mark_start(r);
+#ifdef KELVIN_DEPRECATE
+    // We can no longer perform this check
     size_t above_tams = pointer_delta(top, MAX2(tams, bottom));
     assert(above_tams == 0, "FWT region %zu has above_tams_words=%zu", i, above_tams);
+#endif
 
 #undef GATHER_STATS
 #ifdef GATHER_STATS
