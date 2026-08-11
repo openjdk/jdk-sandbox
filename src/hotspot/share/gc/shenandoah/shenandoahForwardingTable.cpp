@@ -236,16 +236,6 @@ void ShenandoahForwardingTable::clear_unused_slots(const BitMap& used) {
 }
 
 template<class Entry>
-ShenandoahForwardingTable::ForwardingBuffer<Entry>::ForwardingBuffer(ShenandoahForwardingTable& fwt, BitMap& used)
-  : _fwt(fwt), _used(used), _slots(nullptr), _dist(0), _pos(0) {
-  uint const requested = static_cast<uint>(ShenandoahMarkScanPrefetch);
-  _dist = (requested > 0) ? static_cast<int>(round_up_power_of_2(requested)) : 0;
-  if (_dist > 0) {
-    _slots = NEW_RESOURCE_ARRAY(Slot, _dist);
-  }
-}
-
-template<class Entry>
 size_t ShenandoahForwardingTable::reserve_forwarding(BitMap& used, size_t index, size_t stride) {
   DEBUG_ONLY(size_t const first_index = index;)
   size_t depth = 1;
@@ -268,50 +258,17 @@ size_t ShenandoahForwardingTable::reserve_forwarding(BitMap& used, size_t index,
 }
 
 template<class Entry>
-void ShenandoahForwardingTable::prefetch_forwarding(size_t index) const {
-  Prefetch::write(reinterpret_cast<Entry*>(_table) + index, 0);
-}
-
-template<class Entry>
 void ShenandoahForwardingTable::insert_forwarding(size_t index, const Entry& entry) {
   new (reinterpret_cast<Entry*>(_table) + index) Entry(entry);
 }
 
 template<class Entry>
-void ShenandoahForwardingTable::ForwardingBuffer<Entry>::flush(int slot) {
-  Slot& oldest = _slots[slot];
-  _fwt.insert_forwarding<Entry>(oldest._index, oldest._entry);
-}
-
-template<class Entry>
-void ShenandoahForwardingTable::ForwardingBuffer<Entry>::finish() {
-  int const in_flight = MIN2(_pos, _dist);
-  for (int pos = _pos - in_flight; pos < _pos; pos++) {
-    flush(pos & (_dist - 1));
-  }
-  _slots = nullptr;
-  _dist = 0;
-  _pos = 0;
-}
-
-template<class Entry>
-void ShenandoahForwardingTable::ForwardingBuffer<Entry>::enter(HeapWord* original, HeapWord* forwardee) {
+void ShenandoahForwardingTable::enter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee) {
   size_t index, stride;
-  _fwt.probe_of(original, index, stride);
-  Entry const entry(_fwt._region->bottom(), original, forwardee);
-  index = _fwt.reserve_forwarding<Entry>(_used, index, stride);
-  if (_dist == 0) {
-    _fwt.insert_forwarding<Entry>(index, entry);
-    return;
-  }
-  _fwt.prefetch_forwarding<Entry>(index);
-  int const slot = _pos & (_dist - 1);
-  if (_pos++ >= _dist) {
-    flush(slot);
-  }
-  Slot& newest = _slots[slot];
-  new (&newest._entry) Entry(entry);
-  newest._index = index;
+  probe_of(original, index, stride);
+  Entry const entry(_region->bottom(), original, forwardee);
+  index = reserve_forwarding<Entry>(used, index, stride);
+  insert_forwarding<Entry>(index, entry);
 }
 
 template<class Entry>
@@ -325,17 +282,16 @@ void ShenandoahForwardingTable::log_stats() const {
 
 template<class Entry>
 void ShenandoahForwardingTable::fill_forwardings(BitMap& used) {
-  ForwardingBuffer<Entry> buffer(*this, used);
-
   class FillForwardingsClosure {
-    ForwardingBuffer<Entry>& _buffer;
+    ShenandoahForwardingTable& _fwt;
+    BitMap&         _used;
     HeapWord* const _fwt_start;
     size_t    const _region_idx;
 
   public:
-    FillForwardingsClosure(ForwardingBuffer<Entry>& buffer,
+    FillForwardingsClosure(ShenandoahForwardingTable& fwt, BitMap& used,
                            HeapWord* fwt_start, size_t region_idx)
-      : _buffer(buffer), _fwt_start(fwt_start), _region_idx(region_idx) {}
+      : _fwt(fwt), _used(used), _fwt_start(fwt_start), _region_idx(region_idx) {}
 
     void do_object(oop obj) {
       HeapWord* original = cast_from_oop<HeapWord*>(obj);
@@ -350,12 +306,11 @@ void ShenandoahForwardingTable::fill_forwardings(BitMap& used) {
                         p2i(original), _region_idx);
       }
 #endif
-      _buffer.enter(original, forwardee);
+      _fwt.enter_forwarding<Entry>(_used, original, forwardee);
     }
-  } cl(buffer, start(), _region->index());
+  } cl(*this, used, start(), _region->index());
 
   ShenandoahHeap::heap()->marked_object_iterate(_region, &cl);
-  buffer.finish();
   assert(_num_actual_forwardings == _num_expected_forwardings, "must enter exact number of forwardings, actual: %lu, expected: %lu", _num_actual_forwardings, _num_expected_forwardings);
   log_stats<Entry>();
 }
