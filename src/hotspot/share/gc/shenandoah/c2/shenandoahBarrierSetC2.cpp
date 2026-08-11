@@ -159,6 +159,10 @@ Node* ShenandoahBarrierSetC2::atomic_xchg_at_resolved(C2AtomicParseAccess& acces
 }
 
 void ShenandoahBarrierSetC2::refine_store(const Node* n) {
+  if (!ShenandoahElideBarriers) {
+    return;
+  }
+
   MemNode* store = n->as_Store();
   const Node* newval = n->in(MemNode::ValueIn);
   assert(newval != nullptr, "");
@@ -254,6 +258,10 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* n) {
 }
 
 void ShenandoahBarrierSetC2::refine_load(Node* n) {
+  if (!ShenandoahElideBarriers) {
+    return;
+  }
+
   MemNode* load = n->as_Load();
 
   uint8_t barrier_data = load->barrier_data();
@@ -350,6 +358,10 @@ void ShenandoahBarrierSetC2::elide_dominated_barrier(MachNode* mach) const {
 }
 
 void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
+  if (!ShenandoahElideBarriers) {
+    return;
+  }
+
   ResourceMark rm;
   Compile* const C = Compile::current();
   PhaseCFG* const cfg = C->cfg();
@@ -407,9 +419,7 @@ void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
           break;
         }
 
-        // Dominating atomics have dealt with false positives, and made the card
-        // table updates for a location. Even though CAS barriers are conditional,
-        // they perform all needed barriers when memory access is successful.
+        // Dominating atomics have dealt with everything as both loads and stores.
         // Therefore, subsequent barriers are no longer required.
         case Op_CompareAndExchangeN:
         case Op_CompareAndExchangeP:
@@ -749,6 +759,7 @@ void ShenandoahBarrierSetC2::emit_stubs(CodeBuffer& cb) const {
   MacroAssembler masm(&cb);
   GrowableArray<ShenandoahBarrierStubC2*>* const stubs = barrier_set_state()->stubs();
   barrier_set_state()->set_stubs_start_offset(masm.offset());
+  barrier_set_state()->set_save_slots_stack_offset(Compile::current()->output()->gc_barrier_save_slots_offset_in_bytes());
 
   // Stub generation uses nested skipped counters that can double-count.
   // Calculate the actual skipped amount by the real PC before/after stub generation.
@@ -762,7 +773,6 @@ void ShenandoahBarrierSetC2::emit_stubs(CodeBuffer& cb) const {
       ciEnv::current()->record_failure("CodeCache is full");
       return;
     }
-
     stubs->at(i)->emit_code(masm);
   }
 
@@ -797,16 +807,61 @@ int ShenandoahBarrierStubC2::stubs_start_offset() {
   return barrier_set_state()->stubs_start_offset();
 }
 
+int ShenandoahBarrierStubC2::save_slots_stack_offset() {
+  return barrier_set_state()->save_slots_stack_offset();
+}
+
+int ShenandoahBarrierStubC2::push_save_slot() {
+  assert(_save_slots_idx < ShenandoahBarrierSetC2::bsc2()->reserved_slots(), "Enough slots are reserved");
+  return save_slots_stack_offset() + (_save_slots_idx++) * sizeof(address);
+}
+
+int ShenandoahBarrierStubC2::pop_save_slot() {
+  assert(_save_slots_idx > 0, "About to underflow");
+  return save_slots_stack_offset() + (--_save_slots_idx) * sizeof(address);
+}
+
 ShenandoahBarrierStubC2* ShenandoahBarrierStubC2::create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load, int offset) {
   auto* stub = new (Compile::current()->comp_arena()) ShenandoahBarrierStubC2(node, obj, addr, narrow, do_load, offset);
   ShenandoahBarrierStubC2::register_stub(stub);
   return stub;
 }
 
-ShenandoahBarrierStubC2* ShenandoahBarrierStubC2::create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load) {
-  auto* stub = new (Compile::current()->comp_arena()) ShenandoahBarrierStubC2(node, obj, addr, narrow, do_load);
-  ShenandoahBarrierStubC2::register_stub(stub);
-  return stub;
+address ShenandoahBarrierStubC2::keepalive_runtime_entry_addr() {
+#if defined(AMD64) || defined(AARCH64) || defined(RISCV64)
+  return SharedRuntime::shenandoah_keepalive();
+#endif
+  assert(false, "sanity");
+  return nullptr;
+}
+
+address ShenandoahBarrierStubC2::lrb_runtime_entry_addr() {
+  bool is_strong  = (_node->barrier_data() & ShenandoahBitStrong)  != 0;
+  bool is_weak    = (_node->barrier_data() & ShenandoahBitWeak)    != 0;
+  bool is_phantom = (_node->barrier_data() & ShenandoahBitPhantom) != 0;
+
+// TODO: Remove once platforms migrate to runtime stubs.
+#if defined(AMD64) || defined(AARCH64) || defined(RISCV64)
+  if (_narrow) {
+    if (is_strong) {
+      return SharedRuntime::shenandoah_lrb_strong_narrow();
+    } else if (is_weak) {
+      return SharedRuntime::shenandoah_lrb_weak_narrow();
+    } else if (is_phantom) {
+      return SharedRuntime::shenandoah_lrb_phantom_narrow();
+    }
+  } else {
+    if (is_strong) {
+      return SharedRuntime::shenandoah_lrb_strong();
+    } else if (is_weak) {
+      return SharedRuntime::shenandoah_lrb_weak();
+    } else if (is_phantom) {
+      return SharedRuntime::shenandoah_lrb_phantom();
+    }
+  }
+#endif
+  assert(false, "sanity");
+  return nullptr;
 }
 
 bool ShenandoahBarrierSetC2State::needs_liveness_data(const MachNode* mach) const {

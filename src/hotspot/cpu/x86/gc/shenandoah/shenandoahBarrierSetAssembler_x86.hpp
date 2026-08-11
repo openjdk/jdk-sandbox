@@ -84,6 +84,11 @@ public:
 #endif
 
 #ifdef COMPILER2
+  // Barrier hotpatching
+  static address parse_stub_address(address pc);
+  static void patch_branch_to_nop(address pc);
+  static void patch_nop_to_branch(address pc, address stub_addr);
+
   // Entry points from Matcher
   void load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address src, bool narrow);
   void store_c2(const MachNode* node, MacroAssembler* masm,
@@ -91,8 +96,6 @@ public:
   void compare_and_set_c2(const MachNode* node, MacroAssembler* masm, Register res, Address addr, Register oldval, Register newval,
                           Register tmp, bool narrow);
   void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register newval, Address addr, Register tmp, bool narrow);
-
-  void gc_state_check_c2(MacroAssembler* masm, const char test_state, BarrierStubC2* slow_stub);
   void card_barrier_c2(MacroAssembler* masm, Address dst, Register tmp);
   virtual void try_resolve_weak_handle_in_c2(MacroAssembler* masm, Register obj, Label& slowpath);
 #endif
