@@ -146,7 +146,7 @@ public:
   static void verify_gc_barrier_assert(bool cond, const char* msg, uint8_t bd, Node* n);
 #endif
 
-  int reserved_slots() const { return 4; }
+  int reserved_slots() const { return ShenandoahReservedStackSlots; }
   int estimate_stub_size() const /* override */;
   void emit_stubs(CodeBuffer& cb) const /* override */;
   void late_barrier_analysis() const /* override*/ {
@@ -173,11 +173,11 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   const bool _needs_load_ref_barrier;
   const bool _needs_load_ref_weak_barrier;
   const bool _needs_keep_alive_barrier;
-  const int _fastpath_branch_offset;
-  bool _use_trampoline;
-  Label _trampoline_entry;
-  bool _do_emit_actual;
+  bool _use_double_jumps;
   int  _save_slots_idx;
+
+  GrowableArray<Register> _live_gp;
+  bool _has_live_vector_registers;
 
   static void register_stub(ShenandoahBarrierStubC2* stub);
   static void inc_trampoline_stubs_count();
@@ -193,9 +193,9 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   bool push_save_register_if_live(MacroAssembler& masm, Register reg);
   int push_save_slot();
   int pop_save_slot();
+  int fast_save_slots_available();
 
-  int count_live(int type);
-
+  bool has_save_space_for_live_gp_registers(bool skip_crarg0, bool skip_crarg1, bool skip_rax);
   bool has_live_vector_registers();
   bool is_live(Register reg);
   Register select_temp_register(bool& selected_live, Address addr, Register reg1);
@@ -206,8 +206,17 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   void keepalive(MacroAssembler& masm, Register obj, Register tmp, Label* L_done = nullptr);
   void lrb(MacroAssembler& masm, Register obj, Address addr, Register tmp, Label* L_done = nullptr);
 
-  address keepalive_runtime_entry_addr();
-  address lrb_runtime_entry_addr();
+  void save_live_gp_regs(MacroAssembler& masm, bool skip_crarg0, bool skip_crarg1, bool skip_rax);
+  void restore_live_gp_regs(MacroAssembler& masm, bool skip_crarg0, bool skip_crarg1, bool skip_rax);
+
+  enum SaveMode {
+    Nothing,
+    GP,
+    All
+  };
+
+  address keepalive_runtime_entry_addr(SaveMode mode = SaveMode::All);
+  address lrb_runtime_entry_addr(SaveMode mode = SaveMode::All);
 
   void post_init(int offset);
 
@@ -222,11 +231,9 @@ public:
     _needs_load_ref_barrier(needs_load_ref_barrier(node)),
     _needs_load_ref_weak_barrier(needs_load_ref_barrier_weak(node)),
     _needs_keep_alive_barrier(needs_keep_alive_barrier(node)),
-    _fastpath_branch_offset(offset),
-    _use_trampoline(),
-    _trampoline_entry(),
-    _do_emit_actual(),
-    _save_slots_idx(0) {
+    _use_double_jumps(),
+    _save_slots_idx(0),
+    _has_live_vector_registers() {
     assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
     post_init(offset);
   }

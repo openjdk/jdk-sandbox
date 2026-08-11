@@ -190,7 +190,7 @@ void ShenandoahBarrierSetC2::refine_store(const Node* n) {
   store->set_barrier_data(barrier_data);
 }
 
-bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* n) {
+bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* root) {
   // Check if all outs feed into nodes that do not expose the oops to the rest
   // of the runtime system. In this case, we can elide the LRB barrier. We bail
   // out with false at the first sight of trouble.
@@ -198,7 +198,7 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* n) {
   ResourceMark rm;
   VectorSet visited;
   Node_List worklist;
-  worklist.push(n);
+  worklist.push(root);
 
   while (worklist.size() > 0) {
     Node* n = worklist.pop();
@@ -209,6 +209,23 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* n) {
     for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
       Node* out = n->fast_out(i);
       switch (out->Opcode()) {
+        case Op_EncodeP:
+        case Op_DecodeN:
+        case Op_CastPP:
+        case Op_CheckCastPP:
+        case Op_AddP: {
+          // Transitive node, check if any other outs are doing anything troublesome.
+          worklist.push(out);
+          break;
+        }
+
+        case Op_LoadRange:
+        case Op_LoadKlass: {
+          // Loads of stable metadata values from the object.
+          // These are the same in all copies.
+          break;
+        }
+
         case Op_CmpN: {
           if (out->in(1) == n &&
               out->in(2)->Opcode() == Op_ConN &&
@@ -219,6 +236,7 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* n) {
             return false;
           }
         }
+
         case Op_CmpP: {
           if (out->in(1) == n &&
               out->in(2)->Opcode() == Op_ConP &&
@@ -229,12 +247,7 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* n) {
             return false;
           }
         }
-        case Op_DecodeN:
-        case Op_CastPP: {
-          // Check if any other outs are escaping.
-          worklist.push(out);
-          break;
-        }
+
         case Op_CallStaticJava: {
           if (out->as_CallStaticJava()->is_uncommon_trap()) {
             // Local feeds into uncommon trap. Deopt machinery handles barriers itself.
@@ -246,7 +259,6 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* n) {
 
         default: {
           // Paranoidly distrust any other nodes.
-          // TODO: Check if there are other patterns that benefit from this elision.
           return false;
         }
       }
@@ -423,6 +435,8 @@ void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
         // Therefore, subsequent barriers are no longer required.
         case Op_CompareAndExchangeN:
         case Op_CompareAndExchangeP:
+        case Op_WeakCompareAndSwapN:
+        case Op_WeakCompareAndSwapP:
         case Op_CompareAndSwapN:
         case Op_CompareAndSwapP:
         case Op_GetAndSetP:
@@ -833,62 +847,95 @@ ShenandoahBarrierStubC2* ShenandoahBarrierStubC2::create(const MachNode* node, R
   return stub;
 }
 
-address ShenandoahBarrierStubC2::keepalive_runtime_entry_addr() {
-  bool has_live_vectors = has_live_vector_registers();
-  if (has_live_vectors) {
-    return SharedRuntime::shenandoah_keepalive_vectors();
-  } else {
-    return SharedRuntime::shenandoah_keepalive();
+address ShenandoahBarrierStubC2::keepalive_runtime_entry_addr(SaveMode save_mode) {
+  switch (save_mode) {
+    case SaveMode::Nothing:
+      return SharedRuntime::shenandoah_keepalive_none();
+    case SaveMode::GP:
+      return SharedRuntime::shenandoah_keepalive_gp();
+    case SaveMode::All:
+      return SharedRuntime::shenandoah_keepalive_all();
   }
   ShouldNotReachHere();
   return nullptr;
 }
 
-address ShenandoahBarrierStubC2::lrb_runtime_entry_addr() {
+address ShenandoahBarrierStubC2::lrb_runtime_entry_addr(SaveMode save_mode) {
   bool is_strong  = (_node->barrier_data() & ShenandoahBitStrong)  != 0;
   bool is_weak    = (_node->barrier_data() & ShenandoahBitWeak)    != 0;
   bool is_phantom = (_node->barrier_data() & ShenandoahBitPhantom) != 0;
-  bool save_vectors = !ShenandoahFasterRuntimeStubs || has_live_vector_registers();
 
-  if (save_vectors) {
-    if (_narrow) {
-      if (is_strong) {
-        return SharedRuntime::shenandoah_lrb_strong_narrow_vectors();
-      } else if (is_weak) {
-        return SharedRuntime::shenandoah_lrb_weak_narrow_vectors();
-      } else if (is_phantom) {
-        return SharedRuntime::shenandoah_lrb_phantom_narrow_vectors();
+  switch (save_mode) {
+    case SaveMode::Nothing: {
+      if (_narrow) {
+        if (is_strong) {
+          return SharedRuntime::shenandoah_lrb_strong_narrow_none();
+        } else if (is_weak) {
+          return SharedRuntime::shenandoah_lrb_weak_narrow_none();
+        } else if (is_phantom) {
+          return SharedRuntime::shenandoah_lrb_phantom_narrow_none();
+        }
+      } else {
+        if (is_strong) {
+          return SharedRuntime::shenandoah_lrb_strong_none();
+        } else if (is_weak) {
+          return SharedRuntime::shenandoah_lrb_weak_none();
+        } else if (is_phantom) {
+          return SharedRuntime::shenandoah_lrb_phantom_none();
+        }
       }
-    } else {
-      if (is_strong) {
-        return SharedRuntime::shenandoah_lrb_strong_vectors();
-      } else if (is_weak) {
-        return SharedRuntime::shenandoah_lrb_weak_vectors();
-      } else if (is_phantom) {
-        return SharedRuntime::shenandoah_lrb_phantom_vectors();
-      }
+      break;
     }
-  } else {
-    if (_narrow) {
-      if (is_strong) {
-        return SharedRuntime::shenandoah_lrb_strong_narrow();
-      } else if (is_weak) {
-        return SharedRuntime::shenandoah_lrb_weak_narrow();
-      } else if (is_phantom) {
-        return SharedRuntime::shenandoah_lrb_phantom_narrow();
+
+    case SaveMode::GP: {
+      if (_narrow) {
+        if (is_strong) {
+          return SharedRuntime::shenandoah_lrb_strong_narrow_gp();
+        } else if (is_weak) {
+          return SharedRuntime::shenandoah_lrb_weak_narrow_gp();
+        } else if (is_phantom) {
+          return SharedRuntime::shenandoah_lrb_phantom_narrow_gp();
+        }
+      } else {
+        if (is_strong) {
+          return SharedRuntime::shenandoah_lrb_strong_gp();
+        } else if (is_weak) {
+          return SharedRuntime::shenandoah_lrb_weak_gp();
+        } else if (is_phantom) {
+          return SharedRuntime::shenandoah_lrb_phantom_gp();
+        }
       }
-    } else {
-      if (is_strong) {
-        return SharedRuntime::shenandoah_lrb_strong();
-      } else if (is_weak) {
-        return SharedRuntime::shenandoah_lrb_weak();
-      } else if (is_phantom) {
-        return SharedRuntime::shenandoah_lrb_phantom();
+      break;
+    }
+
+    case SaveMode::All: {
+      if (_narrow) {
+        if (is_strong) {
+          return SharedRuntime::shenandoah_lrb_strong_narrow_all();
+        } else if (is_weak) {
+          return SharedRuntime::shenandoah_lrb_weak_narrow_all();
+        } else if (is_phantom) {
+          return SharedRuntime::shenandoah_lrb_phantom_narrow_all();
+        }
+      } else {
+        if (is_strong) {
+          return SharedRuntime::shenandoah_lrb_strong_all();
+        } else if (is_weak) {
+          return SharedRuntime::shenandoah_lrb_weak_all();
+        } else if (is_phantom) {
+          return SharedRuntime::shenandoah_lrb_phantom_all();
+        }
       }
+      break;
     }
   }
+
   ShouldNotReachHere();
   return nullptr;
+}
+
+int ShenandoahBarrierStubC2::fast_save_slots_available() {
+   return MIN2(ShenandoahFastSaveSlots, (ShenandoahBarrierSetC2::bsc2()->reserved_slots() - _save_slots_idx));
 }
 
 bool ShenandoahBarrierSetC2State::needs_liveness_data(const MachNode* mach) const {

@@ -3606,47 +3606,54 @@ RuntimeStub* SharedRuntime::generate_jfr_return_lease() {
 
 #endif // INCLUDE_JFR
 
-RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address stub_addr, bool has_return, bool save_vectors) {
+RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address stub_addr, bool has_return, bool save_registers, bool save_vectors) {
   const char* name = SharedRuntime::stub_name(stub_id);
 
   CodeBuffer code(name, 2048, 64);
   MacroAssembler* masm = new MacroAssembler(&code);
   address start = __ pc();
 
-  int frame_size_in_words;
-  OopMap* map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words, save_vectors);
+  // Set up the frame and optionally save the registers.
+  // Arch-specific calling convention allows us to skip callee-saved registers.
+  // At this level, we do not know which registers are callee-saved anymore, so
+  // we save/restore all registers. We have already filtered easy cases of small
+  // number of callee-saved registers before calling this stub.
+  int frame_size_in_words = 0;
+  OopMap* map = nullptr;
+  if (save_registers) {
+    map = RegisterSaver::save_live_registers(masm, 0, &frame_size_in_words, save_vectors);
+  } else {
+    frame_size_in_words = 2; // link and return address
+    map = new OopMap(frame_size_in_words, 0);
+    __ enter();
+  }
   address frame_complete_pc = __ pc();
 
-  address post_call_pc;
-
   // Call the runtime. This is what MacroAssember::call_VM_leaf does,
-  // but we also want to have exact post-call PC for oop map location.
-  {
-    Label L_stack_aligned, L_end;
+  // but we are sure about stack alignment at this point. We also want
+  // to the exact post-call PC for oop map location.
 
-    #ifdef _WIN64
-      // Windows always allocates space for it's register args
-      __ subptr(rsp, frame::arg_reg_save_area_bytes);
-    #endif
+#ifdef _WIN64
+  // Windows always allocates space for it's register args
+  __ subptr(rsp, frame::arg_reg_save_area_bytes);
+#endif
 
-    __ testptr(rsp, 15);
-    __ jccb(Assembler::zero, L_stack_aligned);
-      __ subptr(rsp, 8);
-      __ call(RuntimeAddress(stub_addr));
-      post_call_pc = __ pc();
-      __ addptr(rsp, 8);
-      __ jmpb(L_end);
-    __ bind(L_stack_aligned);
-      __ call(RuntimeAddress(stub_addr));
-      post_call_pc = __ pc();
-    __ bind(L_end);
+#ifdef ASSERT
+  Label L_done;
+  __ testptr(rsp, 15);
+  __ jccb(Assembler::zero, L_done);
+    __ stop("Unaligned stack");
+  __ bind(L_done);
+#endif
 
-    #ifdef _WIN64
-      __ addptr(rsp, frame::arg_reg_save_area_bytes);
-    #endif
-  }
+  __ call(RuntimeAddress(stub_addr));
+  address post_call_pc = __ pc();
 
-  if (has_return) {
+#ifdef _WIN64
+  __ addptr(rsp, frame::arg_reg_save_area_bytes);
+#endif
+
+  if (save_registers && has_return) {
     // RegisterSaver would clobber the call result when restoring.
     // Carry the result out of this stub by overwriting saved register.
     __ movptr(Address(rsp, RegisterSaver::rax_offset_in_bytes()), rax);
@@ -3655,7 +3662,11 @@ RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address s
   OopMapSet* oop_maps = new OopMapSet();
   oop_maps->add_gc_map(post_call_pc - start, map);
 
-  RegisterSaver::restore_live_registers(masm, save_vectors);
+  if (save_registers) {
+    RegisterSaver::restore_live_registers(masm, save_vectors);
+  } else {
+    __ leave();
+  }
   __ ret(0);
 
   return RuntimeStub::new_runtime_stub(name,

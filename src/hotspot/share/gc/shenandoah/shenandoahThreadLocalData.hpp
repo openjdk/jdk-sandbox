@@ -49,6 +49,7 @@ private:
 
   // Quickened version of GC state, use single bit to check the group of states
   char _gc_state_fast;
+  char _gc_state_array[8];
 
   // Evacuation OOM state
   uint8_t                 _oom_scope_nesting_level;
@@ -117,6 +118,18 @@ public:
     return data(thread)->_satb_mark_queue;
   }
 
+  static char gc_state_to_gc_state_array_index(char gc_state) {
+    if (gc_state == FORWARDED)                    return 0;
+    if (gc_state == MARKING)                      return 1;
+    if (gc_state == WEAK)                         return 2;
+    if (gc_state == FORWARDED_OR_MARKING)         return 3;
+    if (gc_state == FORWARDED_OR_WEAK)            return 4;
+    if (gc_state == MARKING_OR_WEAK)              return 5;
+    if (gc_state == FORWARDED_OR_MARKING_OR_WEAK) return 6;
+    ShouldNotReachHere();
+    return 0;
+  }
+
   static char gc_state_to_fast_bit(char gc_state) {
     if (gc_state == FORWARDED)                    return FORWARDED_BITPOS;
     if (gc_state == MARKING)                      return MARKING_BITPOS;
@@ -145,9 +158,21 @@ public:
     return fast;
   }
 
+  static void set_gc_state_array(Thread* thread, char gc_state) {
+    data(thread)->_gc_state_array[0] = (gc_state & FORWARDED) > 0;
+    data(thread)->_gc_state_array[1] = (gc_state & MARKING) > 0;
+    data(thread)->_gc_state_array[2] = (gc_state & WEAK) > 0;
+    data(thread)->_gc_state_array[3] = (gc_state & FORWARDED_OR_MARKING) > 0;
+    data(thread)->_gc_state_array[4] = (gc_state & FORWARDED_OR_WEAK) > 0;
+    data(thread)->_gc_state_array[5] = (gc_state & MARKING_OR_WEAK) > 0;
+    data(thread)->_gc_state_array[6] = (gc_state & FORWARDED_OR_MARKING_OR_WEAK) > 0;
+  }
+
   static void set_gc_state(Thread* thread, char gc_state, char gc_state_fast) {
     data(thread)->_gc_state = gc_state;
     data(thread)->_gc_state_fast = gc_state_fast;
+
+    set_gc_state_array(thread, gc_state);
   }
 
   static void set_gc_state(Thread* thread, char gc_state) {
@@ -263,6 +288,10 @@ public:
 
   static ByteSize gc_state_fast_offset() {
     return Thread::gc_data_offset() + byte_offset_of(ShenandoahThreadLocalData, _gc_state_fast);
+  }
+
+  static ByteSize gc_state_array_byte_offset() {
+    return Thread::gc_data_offset() + byte_offset_of(ShenandoahThreadLocalData, _gc_state_array);
   }
 
   static ByteSize card_table_offset() {

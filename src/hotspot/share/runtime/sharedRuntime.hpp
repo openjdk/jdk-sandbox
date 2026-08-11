@@ -104,7 +104,7 @@ class SharedRuntime: AllStatic {
   // For c2: call to runtime to return a buffer lease.
   static RuntimeStub* generate_jfr_return_lease();
 #endif
-  static RuntimeStub* generate_gc_slow_call_blob(StubId stub_id, address stub_addr, bool has_return, bool save_vectors);
+  static RuntimeStub* generate_gc_slow_call_blob(StubId stub_id, address stub_addr, bool has_return, bool save_registers, bool save_vectors);
 
   static void init_adapter_library();
 
@@ -309,74 +309,109 @@ class SharedRuntime: AllStatic {
     return _jfr_return_lease_blob->entry_point();
   }
 #endif
-  static address shenandoah_keepalive() {
-    assert(_shenandoah_keepalive_blob != nullptr, "");
-    return _shenandoah_keepalive_blob->entry_point();
+  static address shenandoah_keepalive_none() {
+    assert(     _shenandoah_keepalive_none_blob != nullptr, "");
+    return      _shenandoah_keepalive_none_blob->entry_point();
   }
 
-  static address shenandoah_lrb_strong() {
-    assert(_shenandoah_lrb_strong_blob != nullptr, "");
-    return _shenandoah_lrb_strong_blob->entry_point();
+  static address shenandoah_lrb_strong_none() {
+    assert(     _shenandoah_lrb_strong_none_blob != nullptr, "");
+    return      _shenandoah_lrb_strong_none_blob->entry_point();
   }
 
-  static address shenandoah_lrb_weak() {
-    assert(_shenandoah_lrb_weak_blob != nullptr, "");
-    return _shenandoah_lrb_weak_blob->entry_point();
+  static address shenandoah_lrb_weak_none() {
+    assert(     _shenandoah_lrb_weak_none_blob != nullptr, "");
+    return      _shenandoah_lrb_weak_none_blob->entry_point();
   }
 
-  static address shenandoah_lrb_phantom() {
-    assert(_shenandoah_lrb_phantom_narrow_blob != nullptr, "");
-    return _shenandoah_lrb_phantom_narrow_blob->entry_point();
+  static address shenandoah_lrb_phantom_none() {
+    assert(     _shenandoah_lrb_phantom_none_blob != nullptr, "");
+    return      _shenandoah_lrb_phantom_none_blob->entry_point();
   }
 
-  static address shenandoah_lrb_strong_narrow() {
-    assert(_shenandoah_lrb_strong_narrow_blob != nullptr, "");
-    return _shenandoah_lrb_strong_narrow_blob->entry_point();
+  static address shenandoah_lrb_strong_narrow_none() {
+    assert(     _shenandoah_lrb_strong_narrow_none_blob != nullptr, "");
+    return      _shenandoah_lrb_strong_narrow_none_blob->entry_point();
   }
 
-  static address shenandoah_lrb_weak_narrow() {
-    assert(_shenandoah_lrb_weak_narrow_blob != nullptr, "");
-    return _shenandoah_lrb_weak_narrow_blob->entry_point();
+  static address shenandoah_lrb_weak_narrow_none() {
+    assert(     _shenandoah_lrb_weak_narrow_none_blob != nullptr, "");
+    return      _shenandoah_lrb_weak_narrow_none_blob->entry_point();
   }
 
-  static address shenandoah_lrb_phantom_narrow() {
-    assert(_shenandoah_lrb_phantom_narrow_blob != nullptr, "");
-    return _shenandoah_lrb_phantom_narrow_blob->entry_point();
+  static address shenandoah_lrb_phantom_narrow_none() {
+    assert(     _shenandoah_lrb_phantom_narrow_none_blob != nullptr, "");
+    return      _shenandoah_lrb_phantom_narrow_none_blob->entry_point();
   }
 
-  static address shenandoah_keepalive_vectors() {
-    assert(_shenandoah_keepalive_vectors_blob != nullptr, "");
-    return _shenandoah_keepalive_vectors_blob->entry_point();
+  static address shenandoah_keepalive_gp() {
+    assert(     _shenandoah_keepalive_gp_blob != nullptr, "");
+    return      _shenandoah_keepalive_gp_blob->entry_point();
   }
 
-  static address shenandoah_lrb_strong_vectors() {
-    assert(_shenandoah_lrb_strong_vectors_blob != nullptr, "");
-    return _shenandoah_lrb_strong_vectors_blob->entry_point();
+  static address shenandoah_lrb_strong_gp() {
+    assert(     _shenandoah_lrb_strong_gp_blob != nullptr, "");
+    return      _shenandoah_lrb_strong_gp_blob->entry_point();
   }
 
-  static address shenandoah_lrb_weak_vectors() {
-    assert(_shenandoah_lrb_weak_vectors_blob != nullptr, "");
-    return _shenandoah_lrb_weak_vectors_blob->entry_point();
+  static address shenandoah_lrb_weak_gp() {
+    assert(     _shenandoah_lrb_weak_gp_blob != nullptr, "");
+    return      _shenandoah_lrb_weak_gp_blob->entry_point();
   }
 
-  static address shenandoah_lrb_phantom_vectors() {
-    assert(_shenandoah_lrb_phantom_narrow_vectors_blob != nullptr, "");
-    return _shenandoah_lrb_phantom_narrow_vectors_blob->entry_point();
+  static address shenandoah_lrb_phantom_gp() {
+    assert(     _shenandoah_lrb_phantom_gp_blob != nullptr, "");
+    return      _shenandoah_lrb_phantom_gp_blob->entry_point();
   }
 
-  static address shenandoah_lrb_strong_narrow_vectors() {
-    assert(_shenandoah_lrb_strong_narrow_vectors_blob != nullptr, "");
-    return _shenandoah_lrb_strong_narrow_vectors_blob->entry_point();
+  static address shenandoah_lrb_strong_narrow_gp() {
+    assert(     _shenandoah_lrb_strong_narrow_gp_blob != nullptr, "");
+    return      _shenandoah_lrb_strong_narrow_gp_blob->entry_point();
   }
 
-  static address shenandoah_lrb_weak_narrow_vectors() {
-    assert(_shenandoah_lrb_weak_narrow_vectors_blob != nullptr, "");
-    return _shenandoah_lrb_weak_narrow_vectors_blob->entry_point();
+  static address shenandoah_lrb_weak_narrow_gp() {
+    assert(     _shenandoah_lrb_weak_narrow_gp_blob != nullptr, "");
+    return      _shenandoah_lrb_weak_narrow_gp_blob->entry_point();
   }
 
-  static address shenandoah_lrb_phantom_narrow_vectors() {
-    assert(_shenandoah_lrb_phantom_narrow_vectors_blob != nullptr, "");
-    return _shenandoah_lrb_phantom_narrow_vectors_blob->entry_point();
+  static address shenandoah_lrb_phantom_narrow_gp() {
+    assert(     _shenandoah_lrb_phantom_narrow_gp_blob != nullptr, "");
+    return      _shenandoah_lrb_phantom_narrow_gp_blob->entry_point();
+  }
+
+  static address shenandoah_keepalive_all() {
+    assert(     _shenandoah_keepalive_all_blob != nullptr, "");
+    return      _shenandoah_keepalive_all_blob->entry_point();
+  }
+
+  static address shenandoah_lrb_strong_all() {
+    assert(     _shenandoah_lrb_strong_all_blob != nullptr, "");
+    return      _shenandoah_lrb_strong_all_blob->entry_point();
+  }
+
+  static address shenandoah_lrb_weak_all() {
+    assert(     _shenandoah_lrb_weak_all_blob != nullptr, "");
+    return      _shenandoah_lrb_weak_all_blob->entry_point();
+  }
+
+  static address shenandoah_lrb_phantom_all() {
+    assert(     _shenandoah_lrb_phantom_all_blob != nullptr, "");
+    return      _shenandoah_lrb_phantom_all_blob->entry_point();
+  }
+
+  static address shenandoah_lrb_strong_narrow_all() {
+    assert(     _shenandoah_lrb_strong_narrow_all_blob != nullptr, "");
+    return      _shenandoah_lrb_strong_narrow_all_blob->entry_point();
+  }
+
+  static address shenandoah_lrb_weak_narrow_all() {
+    assert(     _shenandoah_lrb_weak_narrow_all_blob != nullptr, "");
+    return      _shenandoah_lrb_weak_narrow_all_blob->entry_point();
+  }
+
+  static address shenandoah_lrb_phantom_narrow_all() {
+    assert(     _shenandoah_lrb_phantom_narrow_all_blob != nullptr, "");
+    return      _shenandoah_lrb_phantom_narrow_all_blob->entry_point();
   }
 
   // Counters
