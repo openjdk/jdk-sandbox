@@ -540,6 +540,43 @@ bool MachNode::rematerialize() const {
   return true;
 }
 
+//------------------------------is_CAS---------------------------------------
+// return true if opcode is one of the possible CompareAndSwapX
+// values otherwise false.
+bool MachNode::is_CAS(bool maybe_volatile) const {
+  switch(this->ideal_Opcode()) {
+    // We handle these
+    case Op_CompareAndSwapI:
+    case Op_CompareAndSwapL:
+    case Op_CompareAndSwapP:
+    case Op_CompareAndSwapN:
+    case Op_CompareAndSwapB:
+    case Op_CompareAndSwapS:
+    case Op_GetAndSetI:
+    case Op_GetAndSetL:
+    case Op_GetAndSetP:
+    case Op_GetAndSetN:
+    case Op_GetAndAddI:
+    case Op_GetAndAddL:
+      return true;
+    case Op_CompareAndExchangeI:
+    case Op_CompareAndExchangeN:
+    case Op_CompareAndExchangeB:
+    case Op_CompareAndExchangeS:
+    case Op_CompareAndExchangeL:
+    case Op_CompareAndExchangeP:
+    case Op_WeakCompareAndSwapB:
+    case Op_WeakCompareAndSwapS:
+    case Op_WeakCompareAndSwapI:
+    case Op_WeakCompareAndSwapL:
+    case Op_WeakCompareAndSwapP:
+    case Op_WeakCompareAndSwapN:
+      return maybe_volatile;
+    default:
+      return false;
+  }
+}
+
 #ifndef PRODUCT
 //------------------------------dump_spec--------------------------------------
 // Print any per-operand special info

@@ -48,6 +48,7 @@ ShenandoahBarrierSetC2* ShenandoahBarrierSetC2::bsc2() {
 ShenandoahBarrierSetC2State::ShenandoahBarrierSetC2State(Arena* comp_arena) :
     BarrierSetC2State(comp_arena),
     _stubs(new (comp_arena) GrowableArray<ShenandoahBarrierStubC2*>(comp_arena, 8,  0, nullptr)),
+    _trampoline_stubs_count(0),
     _stubs_start_offset(0) {
 }
 
@@ -271,57 +272,6 @@ void ShenandoahBarrierSetC2::refine_load(Node* n) {
   load->set_barrier_data(barrier_data);
 }
 
-void ShenandoahBarrierSetC2::final_refinement(Compile* C) const {
-  ResourceMark rm;
-  VectorSet visited;
-  Node_List worklist;
-  worklist.push(C->root());
-  while (worklist.size() > 0) {
-    Node* n = worklist.pop();
-    if (visited.test_set(n->_idx)) {
-      continue;
-    }
-
-    // Do another pass to catch new opportunities after post-expansion optimizations.
-    switch(n->Opcode()) {
-      case Op_StoreP:
-      case Op_StoreN: {
-        refine_store(n);
-        break;
-      }
-      case Op_LoadN:
-      case Op_LoadP: {
-        refine_load(n);
-        break;
-      }
-    }
-
-    // If there are no real barrier flags on the node, strip away additional fluff.
-    // Matcher does not care about this, and we would like to avoid invoking "barrier_data() != 0"
-    // rules when the only flags are the irrelevant fluff.
-    if (n->is_LoadStore()) {
-      LoadStoreNode* load_store = n->as_LoadStore();
-      uint8_t barrier_data = load_store->barrier_data();
-      if ((barrier_data & ShenandoahBitsReal) == 0) {
-        load_store->set_barrier_data(0);
-      }
-    } else if (n->is_Mem()) {
-      MemNode* mem = n->as_Mem();
-      uint8_t barrier_data = mem->barrier_data();
-      if ((barrier_data & ShenandoahBitsReal) == 0) {
-        mem->set_barrier_data(0);
-      }
-    }
-
-    for (uint j = 0; j < n->req(); j++) {
-      Node* in = n->in(j);
-      if (in != nullptr) {
-        worklist.push(in);
-      }
-    }
-  }
-}
-
 bool ShenandoahBarrierSetC2::expand_barriers(Compile* C, PhaseIterGVN& igvn) const {
   ResourceMark rm;
   VectorSet visited;
@@ -366,6 +316,31 @@ void ShenandoahBarrierSetC2::eliminate_gc_barrier_data(Node* node) const {
   }
 }
 
+// If there are no real barrier flags on the node, strip away additional fluff.
+// Matcher does not care about this, and we would like to avoid invoking "barrier_data() != 0"
+// rules when the only flags are the irrelevant fluff.
+void ShenandoahBarrierSetC2::strip_extra_data(const Node* n) const {
+  if (n->is_LoadStore()) {
+    LoadStoreNode* load_store = n->as_LoadStore();
+    uint8_t barrier_data = load_store->barrier_data();
+    if ((barrier_data & ShenandoahBitsReal) == 0) {
+      load_store->set_barrier_data(0);
+    }
+  } else if (n->is_Mem()) {
+    MemNode* mem = n->as_Mem();
+    uint8_t barrier_data = mem->barrier_data();
+    if ((barrier_data & ShenandoahBitsReal) == 0) {
+      mem->set_barrier_data(0);
+    }
+  }
+}
+
+void ShenandoahBarrierSetC2::strip_extra_data(Node_List& accesses) const {
+  for (uint c = 0; c < accesses.size(); c++) {
+    strip_extra_data(accesses.at(c));
+  }
+}
+
 void ShenandoahBarrierSetC2::eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) const {
   eliminate_gc_barrier_data(node);
 }
@@ -379,7 +354,7 @@ void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
   Compile* const C = Compile::current();
   PhaseCFG* const cfg = C->cfg();
 
-  Node_List loads, stores, atomics;
+  Node_List all_loads, loads, stores, atomics;
   Node_List load_dominators, store_dominators, atomic_dominators;
 
   for (uint i = 0; i < cfg->number_of_blocks(); ++i) {
@@ -408,6 +383,9 @@ void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
         // to deal with dying referents.
         case Op_LoadP:
         case Op_LoadN: {
+          if (mach->barrier_data() != 0) {
+            all_loads.push(mach);
+          }
           if ((mach->barrier_data() & ShenandoahBitStrong) != 0) {
             loads.push(mach);
             load_dominators.push(mach);
@@ -457,16 +435,22 @@ void ShenandoahBarrierSetC2::analyze_dominating_barriers() const {
   elide_dominated_barriers(loads, load_dominators);
   elide_dominated_barriers(stores, store_dominators);
   elide_dominated_barriers(atomics, atomic_dominators);
+
+  // Also clean up extra metadata on these nodes. Dominance analysis likely left
+  // many non-elided barriers with extra metadata, which can be stripped away.
+  strip_extra_data(all_loads);
+  strip_extra_data(stores);
+  strip_extra_data(atomics);
 }
 
 uint ShenandoahBarrierSetC2::estimated_barrier_size(const Node* node) const {
-  uint8_t bd = MemNode::barrier_data(node);
-  assert(bd != 0, "Checked by caller");
-  if ((bd & ShenandoahBitElided) != 0) {
-    return 0;
-  }
-  // GC state check is ~4 fast-path nodes: Cmp, Bool, If, If-Proj.
-  return 4;
+  // Barrier impact on fast-path is driven by GC state checks emitted very late.
+  // These checks are tight load-test-branch sequences, with no impact on C2 graph
+  // size. Limiting unrolling in presence of GC barriers might turn some loops
+  // tighter than with default unrolling, which may benefit performance due to denser
+  // code. Testing shows it is still counter-productive.
+  // Therefore, we report zero barrier size to let C2 do its normal thing.
+  return 0;
 }
 
 bool ShenandoahBarrierSetC2::array_copy_requires_gc_barriers(bool tightly_coupled_alloc, BasicType type, bool is_clone, bool is_clone_instance, ArrayCopyPhase phase) const {
@@ -678,7 +662,7 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
     return;
   }
 
-  // Final refinement might have removed the remaining auxiliary flags, making some accesses completely blank.
+  // Optimizations might have removed the remaining auxiliary flags, making some accesses completely blank.
   bool accept_blank = (phase == BeforeCodeGen);
   bool expect_load_barriers       = !accept_blank && ShenandoahLoadRefBarrier;
   bool expect_store_barriers      = !accept_blank && (ShenandoahSATBBarrier || ShenandoahCardBarrier);
@@ -793,35 +777,41 @@ void ShenandoahBarrierSetC2::emit_stubs(CodeBuffer& cb) const {
   masm.flush();
 }
 
-void ShenandoahBarrierStubC2::register_stub() {
+void ShenandoahBarrierStubC2::register_stub(ShenandoahBarrierStubC2* stub) {
   if (!Compile::current()->output()->in_scratch_emit_size()) {
-    barrier_set_state()->stubs()->append(this);
+    barrier_set_state()->stubs()->append(stub);
   }
 }
 
-ShenandoahLoadBarrierStubC2* ShenandoahLoadBarrierStubC2::create(const MachNode* node, Register dst, Address addr) {
-  auto* stub = new (Compile::current()->comp_arena()) ShenandoahLoadBarrierStubC2(node, dst, addr.base(), addr);
-  stub->register_stub();
+void ShenandoahBarrierStubC2::inc_trampoline_stubs_count() {
+  if (!Compile::current()->output()->in_scratch_emit_size()) {
+    barrier_set_state()->inc_trampoline_stubs_count();
+  }
+}
+
+int ShenandoahBarrierStubC2::trampoline_stubs_count() {
+  return barrier_set_state()->trampoline_stubs_count();
+}
+
+int ShenandoahBarrierStubC2::stubs_start_offset() {
+  return barrier_set_state()->stubs_start_offset();
+}
+
+ShenandoahBarrierStubC2* ShenandoahBarrierStubC2::create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load, int offset) {
+  auto* stub = new (Compile::current()->comp_arena()) ShenandoahBarrierStubC2(node, obj, addr, narrow, do_load, offset);
+  ShenandoahBarrierStubC2::register_stub(stub);
   return stub;
 }
 
-ShenandoahStoreBarrierStubC2* ShenandoahStoreBarrierStubC2::create(const MachNode* node, Address addr, bool dst_narrow, Register src, bool src_narrow, Register tmp) {
-  auto* stub = new (Compile::current()->comp_arena()) ShenandoahStoreBarrierStubC2(node, addr.base(), addr, dst_narrow, src, src_narrow, tmp);
-  stub->register_stub();
-  return stub;
-}
-
-ShenandoahCASBarrierStubC2* ShenandoahCASBarrierStubC2::create(const MachNode* node, Address addr, Register expected, Register new_val, Register result, Register tmp1, Register tmp2, bool narrow, bool cae, bool maybe_null, bool acquire, bool release, bool weak) {
-  auto* stub = new (Compile::current()->comp_arena()) ShenandoahCASBarrierStubC2(node, addr.base(), addr, expected, new_val, result, tmp1, tmp1, narrow, cae, maybe_null, acquire, release, weak);
-  stub->register_stub();
+ShenandoahBarrierStubC2* ShenandoahBarrierStubC2::create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load) {
+  auto* stub = new (Compile::current()->comp_arena()) ShenandoahBarrierStubC2(node, obj, addr, narrow, do_load);
+  ShenandoahBarrierStubC2::register_stub(stub);
   return stub;
 }
 
 bool ShenandoahBarrierSetC2State::needs_liveness_data(const MachNode* mach) const {
-  // Must ask all stubs!
-  return ShenandoahLoadBarrierStubC2::needs_barrier(mach) ||
-         ShenandoahStoreBarrierStubC2::needs_barrier(mach) ||
-         ShenandoahCASBarrierStubC2::needs_barrier(mach);
+  // Nodes that require slow-path stubs need liveness data.
+  return ShenandoahBarrierStubC2::needs_slow_barrier(mach);
 }
 
 bool ShenandoahBarrierSetC2State::needs_livein_data() const {

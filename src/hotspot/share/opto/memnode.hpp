@@ -26,6 +26,7 @@
 #ifndef SHARE_OPTO_MEMNODE_HPP
 #define SHARE_OPTO_MEMNODE_HPP
 
+#include "memory/allocation.hpp"
 #include "opto/multnode.hpp"
 #include "opto/node.hpp"
 #include "opto/opcodes.hpp"
@@ -45,6 +46,8 @@ private:
   bool _mismatched_access; // Mismatched access from unsafe: byte read in integer array for instance
   bool _unsafe_access;     // Access of unsafe origin.
   uint8_t _barrier_data;   // Bit field with barrier information
+
+  friend class AccessAnalyzer;
 
 protected:
 #ifdef ASSERT
@@ -129,6 +132,8 @@ public:
   // Return the barrier data of n, if available, or 0 otherwise.
   static uint8_t barrier_data(const Node* n);
 
+  static MemOrd memory_order(const Node* n);
+
   // Map a load or store opcode to its corresponding store opcode.
   // (Return -1 if unknown.)
   virtual int store_Opcode() const { return -1; }
@@ -170,6 +175,45 @@ public:
   static void dump_adr_type(const TypePtr* adr_type, outputStream* st);
   virtual void dump_spec(outputStream *st) const;
 #endif
+};
+
+// Analyze a MemNode to try to prove that it is independent from other memory accesses
+class AccessAnalyzer : StackObj {
+private:
+  PhaseValues* const _phase;
+  MemNode* const _n;
+  Node* _base;
+  intptr_t _offset;
+  const int _memory_size;
+  bool _maybe_raw;
+  AllocateNode* _alloc;
+  const TypePtr* _adr_type;
+  int _alias_idx;
+
+public:
+  AccessAnalyzer(PhaseValues* phase, MemNode* n);
+
+  // The result of deciding whether a memory node 'other' writes into the memory which '_n'
+  // observes.
+  class AccessIndependence {
+  public:
+    // Whether 'other' writes into the memory which '_n' observes. This value is conservative, that
+    // is, it is only true when it is provable that the memory accessed by the nodes is
+    // non-overlapping.
+    bool independent;
+
+    // If 'independent' is true, this is the memory input of 'other' that corresponds to the memory
+    // location that '_n' observes. For example, if 'other' is a StoreNode, then 'mem' is its
+    // memory input, if 'other' is a MergeMemNode, then 'mem' is the memory input corresponding to
+    // the alias class of '_n'.
+    // If 'independent' is false,
+    // - 'mem' is non-nullptr if it seems that 'other' writes to the exact memory location '_n'
+    // observes.
+    // - 'mem' is nullptr otherwise.
+    Node* mem;
+  };
+
+  AccessIndependence detect_access_independence(Node* other) const;
 };
 
 //------------------------------LoadNode---------------------------------------
@@ -230,6 +274,9 @@ public:
   inline bool is_unsigned() const {
     int lop = Opcode();
     return (lop == Op_LoadUB) || (lop == Op_LoadUS);
+  }
+  inline MemOrd memory_order() const {
+    return _mo;
   }
 
   // Polymorphic factory method:
@@ -602,7 +649,9 @@ public:
     assert((_mo == unordered || _mo == release), "unexpected");
     return _mo == release;
   }
-
+  inline MemOrd memory_order() const {
+    return _mo;
+  }
   // Conservatively release stores of object references in order to
   // ensure visibility of object initialization.
   static inline MemOrd release_if_reference(const BasicType t) {

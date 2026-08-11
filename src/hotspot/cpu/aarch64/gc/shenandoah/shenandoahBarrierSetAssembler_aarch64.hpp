@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2018, 2021, Red Hat, Inc. All rights reserved.
  * Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -40,6 +41,65 @@ class MachNode;
 #endif // COMPILER2
 class StubCodeGenerator;
 
+// Barriers on aarch64 are implemented with a test-and-branch immediate instruction.
+// This immediate has a max delta of 32K. Because of this the branch is implemented with
+// a small jump, as follows:
+//      __ tbz(gcs, bits_to_check, L_short_branch);
+//      __ b(*stub->entry());
+//      __ bind(L_short_branch);
+//
+// If we can guarantee that the *stub->entry() label is within 32K we can replace the above
+// code with:
+//      __ tbnz(gcs, bits_to_check, *stub->entry());
+//
+// From the branch shortening part of PhaseOutput we get a pessimistic code size that the code
+// will not grow beyond.
+//
+// The stubs objects are created and registered when the barriers are emitted. The decision
+// between emitting the long branch or the test and branch is done at this point and uses the
+// pessimistic code size from branch shortening.
+//
+// After the code has been emitted the barrier set will emit all the stubs. When the stubs are
+// emitted we know the real code size. Because of this the trampoline jump can be skipped in
+// favour of emitting the stub directly if it does not interfere with the next trampoline stub.
+// (With respect to test and branch distance)
+//
+// The algorithm for emitting the load barrier branches and stubs now have three versions
+// depending on the distance between the barrier and the stub.
+// Version 1: Not Reachable with a test-and-branch immediate
+// Version 2: Reachable with a test-and-branch immediate via trampoline
+// Version 3: Reachable with a test-and-branch immediate without trampoline
+//
+//     +--------------------- Code ----------------------+
+//     |                      ***                        |
+//     | tbz(gcs, bits_to_check, L_short_branch);        |
+//     | b(stub1)                                        | (Version 1)
+//     | bind(L_short_branch);                           |
+//     |                      ***                        |
+//     | tbnz(gcs, bits_to_check, tramp)                 | (Version 2)
+//     |                      ***                        |
+//     | tbnz(gcs, bits_to_check, stub3)                 | (Version 3)
+//     |                      ***                        |
+//     +--------------------- Stub ----------------------+
+//     | tramp: b(stub2)                                 | (Trampoline slot)
+//     | stub3:                                          |
+//     |                  * Stub Code*                   |
+//     | stub1:                                          |
+//     |                  * Stub Code*                   |
+//     | stub2:                                          |
+//     |                  * Stub Code*                   |
+//     +-------------------------------------------------+
+//
+//  Version 1: Is emitted if the pessimistic distance between the branch instruction and the current
+//             trampoline slot cannot fit in a test and branch immediate.
+//
+//  Version 2: Is emitted if the distance between the branch instruction and the current trampoline
+//             slot can fit in a test and branch immediate. But emitting the stub directly would
+//             interfere with the next trampoline.
+//
+//  Version 3: Same as version two but emitting the stub directly (skipping the trampoline) does not
+//             interfere with the next trampoline.
+//
 class ShenandoahBarrierSetAssembler: public BarrierSetAssembler {
   friend class ShenandoahCASBarrierSlowStub;
 private:
@@ -66,13 +126,8 @@ private:
 public:
   virtual NMethodPatchingType nmethod_patching_type() { return NMethodPatchingType::conc_instruction_and_data_patch; }
 
-#ifdef COMPILER1
-  void gen_pre_barrier_stub(LIR_Assembler* ce, ShenandoahPreBarrierStub* stub);
-  void gen_load_reference_barrier_stub(LIR_Assembler* ce, ShenandoahLoadReferenceBarrierStub* stub);
-  void generate_c1_pre_barrier_runtime_stub(StubAssembler* sasm);
-  void generate_c1_load_reference_barrier_runtime_stub(StubAssembler* sasm, DecoratorSet decorators);
-#endif
-
+  void cmpxchg_oop(MacroAssembler* masm, Register addr, Register expected, Register new_val,
+                   bool acquire, bool release, bool is_cae, Register result);
   virtual void arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, bool is_oop,
                                   Register src, Register dst, Register count, RegSet saved_regs);
   virtual void arraycopy_epilogue(MacroAssembler* masm, DecoratorSet decorators, bool is_oop,
@@ -83,16 +138,26 @@ public:
                         Address dst, Register val, Register tmp1, Register tmp2, Register tmp3);
   virtual void try_resolve_jobject_in_native(MacroAssembler* masm, Register jni_env,
                                              Register obj, Register tmp, Label& slowpath);
-  void cmpxchg_oop(MacroAssembler* masm, Register addr, Register expected, Register new_val,
-                   bool acquire, bool release, bool is_cae, Register result);
-#ifdef COMPILER2
-  void store_c2(const MachNode* node, MacroAssembler* masm, Register dst, bool dst_narrow, Register src, bool src_narrow, bool is_volatile);
-  void cae_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval, Register newval, bool exchange, bool maybe_null, bool narrow, bool acquire, bool release, bool weak);
-  void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval, Register addr, bool acquire);
-  void load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Register addr, bool acquire);
 
+#ifdef COMPILER1
+  void gen_pre_barrier_stub(LIR_Assembler* ce, ShenandoahPreBarrierStub* stub);
+  void gen_load_reference_barrier_stub(LIR_Assembler* ce, ShenandoahLoadReferenceBarrierStub* stub);
+  void generate_c1_pre_barrier_runtime_stub(StubAssembler* sasm);
+  void generate_c1_load_reference_barrier_runtime_stub(StubAssembler* sasm, DecoratorSet decorators);
+#endif
+
+#ifdef COMPILER2
+  // Entry points from Matcher
+  void store_c2(const MachNode* node, MacroAssembler* masm, Address dst, bool dst_narrow, Register src,
+      bool src_narrow, Register tmp);
+  void compare_and_set_c2(const MachNode* node, MacroAssembler* masm, Register res, Register addr, Register oldval,
+      Register newval, Register tmp, bool exchange, bool maybe_null, bool narrow, bool weak);
+  void get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register preval, Register newval,
+      Register addr, Register tmp);
+  void load_c2(const MachNode* node, MacroAssembler* masm, Register dst, Address addr);
   void gc_state_check_c2(MacroAssembler* masm, Register rscratch, const unsigned char test_state, BarrierStubC2* slow_stub);
-  void card_barrier_c2(const MachNode* node, MacroAssembler* masm, Register addr, Register cond);
+  void card_barrier_c2(const MachNode* node, MacroAssembler* masm, Address addr);
+  virtual void try_resolve_weak_handle_in_c2(MacroAssembler* masm, Register obj, Register tmp, Label& slow_path);
 #endif
 };
 
