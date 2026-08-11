@@ -132,8 +132,6 @@ public:
   // Return the barrier data of n, if available, or 0 otherwise.
   static uint8_t barrier_data(const Node* n);
 
-  static MemOrd memory_order(const Node* n);
-
   // Map a load or store opcode to its corresponding store opcode.
   // (Return -1 if unknown.)
   virtual int store_Opcode() const { return -1; }
@@ -175,6 +173,14 @@ public:
   static void dump_adr_type(const TypePtr* adr_type, outputStream* st);
   virtual void dump_spec(outputStream *st) const;
 #endif
+
+  MemNode* clone_with_adr_type(const TypePtr* adr_type) const {
+    MemNode* new_node = clone()->as_Mem();
+#ifdef ASSERT
+    new_node->_adr_type = adr_type;
+#endif
+    return new_node;
+  }
 };
 
 // Analyze a MemNode to try to prove that it is independent from other memory accesses
@@ -260,6 +266,7 @@ protected:
   const Type* const _type;      // What kind of value is loaded?
 
   virtual Node* find_previous_arraycopy(PhaseValues* phase, Node* ld_alloc, Node*& mem, bool can_see_stored_value) const;
+  Node* can_see_stored_value_through_membars(Node* st, PhaseValues* phase) const;
 public:
 
   LoadNode(Node *c, Node *mem, Node *adr, const TypePtr* at, const Type *rt, MemOrd mo, ControlDependency control_dependency)
@@ -274,9 +281,6 @@ public:
   inline bool is_unsigned() const {
     int lop = Opcode();
     return (lop == Op_LoadUB) || (lop == Op_LoadUS);
-  }
-  inline MemOrd memory_order() const {
-    return _mo;
   }
 
   // Polymorphic factory method:
@@ -649,9 +653,7 @@ public:
     assert((_mo == unordered || _mo == release), "unexpected");
     return _mo == release;
   }
-  inline MemOrd memory_order() const {
-    return _mo;
-  }
+
   // Conservatively release stores of object references in order to
   // ensure visibility of object initialization.
   static inline MemOrd release_if_reference(const BasicType t) {
@@ -1320,11 +1322,26 @@ public:
   virtual int Opcode() const;
 };
 
+class MemBarStoreLoadNode : public MemBarNode {
+public:
+  MemBarStoreLoadNode(Compile* C, int alias_idx, Node* precedent)
+    : MemBarNode(C, alias_idx, precedent) {}
+  virtual int Opcode() const;
+};
+
 // Ordering between a volatile store and a following volatile load.
 // Requires multi-CPU visibility?
 class MemBarVolatileNode: public MemBarNode {
 public:
   MemBarVolatileNode(Compile* C, int alias_idx, Node* precedent)
+    : MemBarNode(C, alias_idx, precedent) {}
+  virtual int Opcode() const;
+};
+
+// A full barrier blocks all loads and stores from moving across it
+class MemBarFullNode : public MemBarNode {
+public:
+  MemBarFullNode(Compile* C, int alias_idx, Node* precedent)
     : MemBarNode(C, alias_idx, precedent) {}
   virtual int Opcode() const;
 };

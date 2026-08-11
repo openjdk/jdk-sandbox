@@ -82,6 +82,7 @@
 #include "utilities/copy.hpp"
 #include "utilities/dtrace.hpp"
 #include "utilities/events.hpp"
+#include "utilities/exceptions.hpp"
 #include "utilities/globalDefinitions.hpp"
 #include "utilities/hashTable.hpp"
 #include "utilities/macros.hpp"
@@ -183,13 +184,68 @@ void SharedRuntime::generate_stubs() {
 #if INCLUDE_SHENANDOAHGC
   if (UseShenandoahGC) {
     ResourceMark rm;
-    _shenandoah_keepalive_blob          = generate_shenandoah_stub(StubId::shared_shenandoah_keepalive_id);
-    _shenandoah_lrb_strong_blob         = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_strong_id);
-    _shenandoah_lrb_weak_blob           = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_weak_id);
-    _shenandoah_lrb_phantom_blob        = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_phantom_id);
-    _shenandoah_lrb_strong_narrow_blob  = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_strong_narrow_id);
-    _shenandoah_lrb_weak_narrow_blob    = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_weak_narrow_id);
-    _shenandoah_lrb_phantom_narrow_blob = generate_shenandoah_stub(StubId::shared_shenandoah_lrb_phantom_narrow_id);
+    _shenandoah_keepalive_blob = 
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_keepalive_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre),
+                                 /* has_return = */ false, /* save_vectors = */ false);
+    _shenandoah_keepalive_vectors_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_keepalive_vectors_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre),
+                                 /* has_return = */ false, /* save_vectors = */ true);
+
+    _shenandoah_lrb_strong_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_strong_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong),
+                                 /* has_return = */ true, /* save_vectors = */ false);
+    _shenandoah_lrb_strong_vectors_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_strong_vectors_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong),
+                                 /* has_return = */ true, /* save_vectors = */ true);
+
+    _shenandoah_lrb_strong_narrow_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_strong_narrow_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow),
+                                 /* has_return = */ true, /* save_vectors = */ false);
+    _shenandoah_lrb_strong_narrow_vectors_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_strong_narrow_vectors_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow),
+                                 /* has_return = */ true, /* save_vectors = */ true);
+
+    _shenandoah_lrb_weak_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_weak_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak),
+                                 /* has_return = */ true, /* save_vectors = */ false);
+    _shenandoah_lrb_weak_vectors_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_weak_vectors_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak),
+                                 /* has_return = */ true, /* save_vectors = */ true);
+
+    _shenandoah_lrb_weak_narrow_blob  =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_weak_narrow_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow),
+                                 /* has_return = */ true, /* save_vectors = */ false);
+    _shenandoah_lrb_weak_narrow_vectors_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_weak_narrow_vectors_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow),
+                                 /* has_return = */ true, /* save_vectors = */ true);
+
+    _shenandoah_lrb_phantom_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_phantom_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom),
+                                 /* has_return = */ true, /* save_vectors = */ false);
+    _shenandoah_lrb_phantom_vectors_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_phantom_vectors_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom),
+                                 /* has_return = */ true, /* save_vectors = */ true);
+
+    _shenandoah_lrb_phantom_narrow_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_phantom_narrow_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow),
+                                 /* has_return = */ true, /* save_vectors = */ false);
+    _shenandoah_lrb_phantom_narrow_vectors_blob =
+      generate_gc_slow_call_blob(StubId::shared_shenandoah_lrb_phantom_narrow_vectors_id,
+                                 CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow),
+                                 /* has_return = */ true, /* save_vectors = */ true);
   }
 #endif
 }
@@ -947,7 +1003,7 @@ void SharedRuntime::throw_StackOverflowError_common(JavaThread* current, bool de
   // bindings.
   current->clear_scopedValueBindings();
   // Increment counter for hs_err file reporting
-  AtomicAccess::inc(&Exceptions::_stack_overflow_errors);
+  Exceptions::increment_stack_overflow_errors();
   throw_and_post_jvmti_exception(current, exception);
 }
 

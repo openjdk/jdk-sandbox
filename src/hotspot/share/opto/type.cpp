@@ -732,6 +732,7 @@ void Type::Initialize_shared(Compile* current) {
   mreg2type[Op_VecY] = TypeVect::VECTY;
   mreg2type[Op_VecZ] = TypeVect::VECTZ;
 
+  BarrierSetC2::make_clone_type();
   LockNode::initialize_lock_Type();
   ArrayCopyNode::initialize_arraycopy_Type();
   OptoRuntime::initialize_types();
@@ -3481,7 +3482,7 @@ TypeOopPtr::TypeOopPtr(TYPES t, PTR ptr, ciKlass* k, const TypeInterfaces* inter
 #ifdef _LP64
   if (_offset > 0 || _offset == Type::OffsetTop || _offset == Type::OffsetBot) {
     if (_offset == oopDesc::klass_offset_in_bytes()) {
-      _is_ptr_to_narrowklass = UseCompressedClassPointers;
+      _is_ptr_to_narrowklass = true;
     } else if (klass() == nullptr) {
       // Array with unknown body type
       assert(this->isa_aryptr(), "only arrays without klass");

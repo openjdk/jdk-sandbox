@@ -101,6 +101,13 @@ class ShenandoahBarrierSetC2 : public BarrierSetC2 {
   static void refine_load(Node* node);
   static void refine_store(const Node* node);
 
+  static const TypeFunc* _write_barrier_pre_Type;
+  static const TypeFunc* _clone_barrier_Type;
+  static const TypeFunc* _load_reference_barrier_Type;
+  static void make_write_barrier_pre_Type();
+  static void make_clone_barrier_Type();
+  static void make_load_reference_barrier_Type();
+
 protected:
   virtual Node* load_at_resolved(C2Access& access, const Type* val_type) const;
   virtual Node* store_at_resolved(C2Access& access, C2AccessValue& val) const;
@@ -167,9 +174,9 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   const bool _needs_load_ref_weak_barrier;
   const bool _needs_keep_alive_barrier;
   const int _fastpath_branch_offset;
-  bool _test_and_branch_reachable;
-  bool _skip_trampoline;
-  Label _test_and_branch_reachable_entry;
+  bool _use_trampoline;
+  Label _trampoline_entry;
+  bool _do_emit_actual;
   int  _save_slots_idx;
 
   static void register_stub(ShenandoahBarrierStubC2* stub);
@@ -187,18 +194,21 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   int push_save_slot();
   int pop_save_slot();
 
+  int count_live(int type);
+
+  bool has_live_vector_registers();
   bool is_live(Register reg);
   Register select_temp_register(bool& selected_live, Address addr, Register reg1);
 
-  void keepalive(MacroAssembler& masm, Register obj, Register tmp1, Register tmp2);
-  void lrb(MacroAssembler& masm, Register obj, Address addr, Register tmp);
+  void load_and_decode(MacroAssembler& masm, Label& target_if_null);
+  void reencode_if_needed(MacroAssembler& masm);
+
+  void keepalive(MacroAssembler& masm, Register obj, Register tmp, Label* L_done = nullptr);
+  void lrb(MacroAssembler& masm, Register obj, Address addr, Register tmp, Label* L_done = nullptr);
 
   address keepalive_runtime_entry_addr();
   address lrb_runtime_entry_addr();
 
-  void emit_code_actual(MacroAssembler& masm);
-
-  int get_stub_size();
   void post_init(int offset);
 
 public:
@@ -213,9 +223,9 @@ public:
     _needs_load_ref_weak_barrier(needs_load_ref_barrier_weak(node)),
     _needs_keep_alive_barrier(needs_keep_alive_barrier(node)),
     _fastpath_branch_offset(offset),
-    _test_and_branch_reachable(),
-    _skip_trampoline(),
-    _test_and_branch_reachable_entry(),
+    _use_trampoline(),
+    _trampoline_entry(),
+    _do_emit_actual(),
     _save_slots_idx(0) {
     assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
     post_init(offset);

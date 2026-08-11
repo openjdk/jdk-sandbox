@@ -2909,54 +2909,15 @@ RuntimeStub* SharedRuntime::generate_jfr_return_lease() {
 
 #endif // INCLUDE_JFR
 
-#if INCLUDE_SHENANDOAHGC
-RuntimeStub* SharedRuntime::generate_shenandoah_stub(StubId stub_id) {
-  assert(UseShenandoahGC, "Only generate when Shenandoah is enabled");
-
+RuntimeStub* SharedRuntime::generate_gc_slow_call_blob(StubId stub_id, address stub_addr, bool has_return, bool save_vectors) {
   const char* name = SharedRuntime::stub_name(stub_id);
-  address stub_addr = nullptr;
-  bool returns_obj = true;
-
-  switch (stub_id) {
-    case StubId::shared_shenandoah_keepalive_id: {
-      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::write_barrier_pre);
-      returns_obj = false;
-      break;
-    }
-    case StubId::shared_shenandoah_lrb_strong_id: {
-      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong);
-      break;
-    }
-    case StubId::shared_shenandoah_lrb_weak_id: {
-      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak);
-      break;
-    }
-    case StubId::shared_shenandoah_lrb_phantom_id: {
-      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom);
-      break;
-    }
-    case StubId::shared_shenandoah_lrb_strong_narrow_id: {
-      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_strong_narrow);
-      break;
-    }
-    case StubId::shared_shenandoah_lrb_weak_narrow_id: {
-      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_weak_narrow);
-      break;
-    }
-    case StubId::shared_shenandoah_lrb_phantom_narrow_id: {
-      stub_addr = CAST_FROM_FN_PTR(address, ShenandoahRuntime::load_reference_barrier_phantom_narrow);
-      break;
-    }
-    default:
-      ShouldNotReachHere();
-  }
 
   CodeBuffer code(name, 2048, 64);
   MacroAssembler* masm = new MacroAssembler(&code);
   address start = __ pc();
 
   int frame_size_in_words;
-  RegisterSaver reg_save(true /* save_vectors */);
+  RegisterSaver reg_save(save_vectors);
   OopMap* map = reg_save.save_live_registers(masm, 0, &frame_size_in_words);
   address frame_complete_pc = __ pc();
 
@@ -2976,7 +2937,7 @@ RuntimeStub* SharedRuntime::generate_shenandoah_stub(StubId stub_id) {
     __ addptr(rsp, frame::arg_reg_save_area_bytes);
   #endif
 
-  if (returns_obj) {
+  if (has_return) {
     // RegisterSaver would clobber the call result when restoring.
     // Carry the result out of this stub by overwriting saved register.
     __ str(r0, Address(sp, reg_save.reg_offset_in_bytes(r0)));
@@ -2995,4 +2956,3 @@ RuntimeStub* SharedRuntime::generate_shenandoah_stub(StubId stub_id) {
                                        oop_maps,
                                        true);
 }
-#endif

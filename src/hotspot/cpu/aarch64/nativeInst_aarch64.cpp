@@ -211,7 +211,6 @@ void NativeMovRegMem::verify() {
 
 void NativeJump::verify() { ; }
 
-
 address NativeJump::jump_destination() const          {
   address dest = MacroAssembler::target_addr_for_insn(instruction_address());
 

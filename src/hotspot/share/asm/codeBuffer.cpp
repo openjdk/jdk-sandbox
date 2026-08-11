@@ -32,7 +32,6 @@
 #include "oops/methodCounters.hpp"
 #include "oops/methodData.hpp"
 #include "oops/oop.inline.hpp"
-#include "runtime/icache.hpp"
 #include "runtime/safepointVerifiers.hpp"
 #include "utilities/align.hpp"
 #include "utilities/copy.hpp"
@@ -745,9 +744,6 @@ void CodeBuffer::copy_code_to(CodeBlob* dest_blob) {
 
   // Done moving code bytes; were they the right size?
   assert((int)align_up(dest.total_content_size(), oopSize) == dest_blob->content_size(), "sanity");
-
-  // Flush generated code
-  ICache::invalidate_range(dest_blob->code_begin(), dest_blob->code_size());
 }
 
 // Move all my code into another code buffer.  Consult applicable
@@ -920,6 +916,7 @@ void CodeBuffer::expand(CodeSection* which_cs, csize_t amount) {
     assert(cb_sect->capacity() >= new_capacity[n], "big enough");
     address cb_start = cb_sect->start();
     cb_sect->set_end(cb_start + this_sect->size());
+    cb_sect->_skipped_instructions_size = this_sect->_skipped_instructions_size; // FIXME: Upstream this.
     if (this_sect->mark() == nullptr) {
       cb_sect->clear_mark();
     } else {

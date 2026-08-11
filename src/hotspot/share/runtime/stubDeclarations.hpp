@@ -115,6 +115,13 @@
   do_blob(shenandoah_lrb_strong, RuntimeStub)                          \
   do_blob(shenandoah_lrb_weak, RuntimeStub)                            \
   do_blob(shenandoah_lrb_phantom, RuntimeStub)                         \
+  do_blob(shenandoah_keepalive_vectors, RuntimeStub)                   \
+  do_blob(shenandoah_lrb_strong_narrow_vectors, RuntimeStub)           \
+  do_blob(shenandoah_lrb_weak_narrow_vectors, RuntimeStub)             \
+  do_blob(shenandoah_lrb_phantom_narrow_vectors, RuntimeStub)          \
+  do_blob(shenandoah_lrb_strong_vectors, RuntimeStub)                  \
+  do_blob(shenandoah_lrb_weak_vectors, RuntimeStub)                    \
+  do_blob(shenandoah_lrb_phantom_vectors, RuntimeStub)                 \
   /* other stubs */                                                    \
   SHARED_JFR_STUBS_DO(do_blob)                                         \
 
@@ -675,16 +682,6 @@
   do_entry(initial, dcbrt, dcbrt, dcbrt)                                \
   do_stub(initial, fmod)                                                \
   do_entry(initial, fmod, fmod, fmod)                                   \
-  /* following generic entries should really be x86_32 only */          \
-  do_stub(initial, dlibm_sin_cos_huge)                                  \
-  do_entry(initial, dlibm_sin_cos_huge, dlibm_sin_cos_huge,             \
-           dlibm_sin_cos_huge)                                          \
-  do_stub(initial, dlibm_reduce_pi04l)                                  \
-  do_entry(initial, dlibm_reduce_pi04l, dlibm_reduce_pi04l,             \
-           dlibm_reduce_pi04l)                                          \
-  do_stub(initial, dlibm_tan_cot_huge)                                  \
-  do_entry(initial, dlibm_tan_cot_huge, dlibm_tan_cot_huge,             \
-           dlibm_tan_cot_huge)                                          \
   /* merge in stubs and entries declared in arch header */              \
   STUBGEN_INITIAL_BLOBS_ARCH_DO(do_stub, do_arch_blob,                  \
                                 do_arch_entry, do_arch_entry_init)      \
