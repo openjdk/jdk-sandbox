@@ -157,14 +157,16 @@ void ShenandoahGenerationalEvacuationTask::evacuate_and_promote_regions() {
       size_t num_forwardings;
       {
         ShenandoahSuspendibleThreadSetJoiner stsj(_concurrent);
-        ShenandoahEvacOOMScope oom_evac_scope;
-        cl.set_region(r);
-        _heap->marked_object_iterate(r, &cl);
+        {
+          ShenandoahEvacOOMScope oom_evac_scope;
+          cl.set_region(r);
+          _heap->marked_object_iterate(r, &cl);
+          cl.finish_region(r);
+        }
+        num_forwardings = cl.num_forwardings();
         if (_heap->check_cancelled_gc_and_yield(_concurrent)) {
           break;
         }
-        cl.finish_region(r);
-        num_forwardings = cl.num_forwardings();
       }
       // Build the forwarding table outside the stsj+oom scope, after the
       // region's objects have been evacuated.

@@ -88,8 +88,8 @@ class ShenandoahBarrierSetC2 : public BarrierSetC2 {
 
   static bool can_remove_load_barrier(Node* node);
 
-  static void refine_load(Node* node);
-  static void refine_store(const Node* node);
+  static uint8_t refine_load(Node* node, uint8_t bd);
+  static uint8_t refine_store(Node* node, uint8_t bd);
 
   static const TypeFunc* _write_barrier_pre_Type;
   static const TypeFunc* _clone_barrier_Type;
@@ -97,6 +97,10 @@ class ShenandoahBarrierSetC2 : public BarrierSetC2 {
   static void make_write_barrier_pre_Type();
   static void make_clone_barrier_Type();
   static void make_load_reference_barrier_Type();
+
+  static bool is_Load(int opcode);
+  static bool is_Store(int opcode);
+  static bool is_LoadStore(int opcode);
 
 protected:
   virtual Node* load_at_resolved(C2Access& access, const Type* val_type) const;
@@ -143,7 +147,7 @@ public:
     analyze_dominating_barriers();
   }
 
-  void elide_dominated_barrier(MachNode* mach) const;
+  void elide_dominated_barrier(MachNode* mach, MachNode* dominator) const;
   void analyze_dominating_barriers() const;
   void strip_extra_data(const Node* node) const;
   void strip_extra_data(Node_List& accesses) const;
@@ -174,9 +178,6 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   bool is_live_register(Register reg);
   bool is_special_register(Register reg);
   Register select_temp_register(bool& selected_live);
-
-  void load_and_decode(MacroAssembler& masm, Label& target_if_null);
-  void reencode_if_needed(MacroAssembler& masm);
 
   void keepalive(MacroAssembler& masm, Label* L_done = nullptr);
   void lrb(MacroAssembler& masm, Label* L_done = nullptr);

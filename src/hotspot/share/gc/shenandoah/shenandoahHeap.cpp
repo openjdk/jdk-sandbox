@@ -1211,12 +1211,14 @@ private:
       {
         ShenandoahConcurrentEvacuateRegionObjectClosure cl(_sh, r);
         ShenandoahSuspendibleThreadSetJoiner stsj(_concurrent);
-        ShenandoahEvacOOMScope oom_evac_scope;
-        evacuate_region(r, cl);
+        {
+          ShenandoahEvacOOMScope oom_evac_scope;
+          evacuate_region(r, cl);
+        }
+        num_forwardings = cl.num_forwardings();
         if (_sh->check_cancelled_gc_and_yield(_concurrent)) {
           break;
         }
-        num_forwardings = cl.num_forwardings();
       }
       // Build the forwarding table outside the stsj+oom scope, after the
       // region's objects have been evacuated.
@@ -2396,6 +2398,11 @@ void ShenandoahHeap::stw_unload_classes(bool full_gc) {
   }
   // Resize and verify metaspace
   MetaspaceGC::compute_new_size();
+
+  if (mode()->is_generational()) {
+    old_generation()->set_parsable(false);
+  }
+
   DEBUG_ONLY(MetaspaceUtils::verify();)
 }
 
