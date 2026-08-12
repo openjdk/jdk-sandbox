@@ -91,7 +91,7 @@ void ShenandoahGenerationalEvacuationTask::work(uint worker_id) {
     ShenandoahConcurrentWorkerSession worker_session(worker_id);
     // Join the suspendible thread set only for the promote-only path
     // to avoid double-joining.
-    ShenandoahSuspendibleThreadSetJoiner stsj(_only_promote_regions);
+    SuspendibleThreadSetJoiner stsj(_only_promote_regions);
     do_work();
   } else {
     ShenandoahParallelWorkerSession worker_session(worker_id);
@@ -101,7 +101,6 @@ void ShenandoahGenerationalEvacuationTask::work(uint worker_id) {
 
 void ShenandoahGenerationalEvacuationTask::do_work() {
   if (_only_promote_regions) {
-    // No allocations will be made, do not enter oom-during-evac protocol.
     assert(_heap->collection_set()->is_empty(), "Should not have a collection set here");
     promote_regions();
   } else {
@@ -156,23 +155,20 @@ void ShenandoahGenerationalEvacuationTask::evacuate_and_promote_regions() {
       }
       size_t num_forwardings;
       {
-        ShenandoahSuspendibleThreadSetJoiner stsj(_concurrent);
-        {
-          ShenandoahEvacOOMScope oom_evac_scope;
-          cl.set_region(r);
-          _heap->marked_object_iterate(r, &cl);
-          cl.finish_region(r);
-        }
+        SuspendibleThreadSetJoiner stsj(_concurrent);
+        cl.set_region(r);
+        _heap->marked_object_iterate(r, &cl);
+        cl.finish_region(r);
         num_forwardings = cl.num_forwardings();
         if (_heap->check_cancelled_gc_and_yield(_concurrent)) {
           break;
         }
       }
-      // Build the forwarding table outside the stsj+oom scope, after the
+      // Build the forwarding table outside the stsj scope, after the
       // region's objects have been evacuated.
       _heap->finish_region_evacuation(r, num_forwardings, _concurrent);
     } else {
-      ShenandoahSuspendibleThreadSetJoiner stsj(_concurrent);
+      SuspendibleThreadSetJoiner stsj(_concurrent);
       promoter.maybe_promote_region(r);
       if (_heap->check_cancelled_gc_and_yield(_concurrent)) {
         break;

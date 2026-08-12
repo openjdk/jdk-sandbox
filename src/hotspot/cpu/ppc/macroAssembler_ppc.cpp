@@ -799,13 +799,7 @@ void MacroAssembler::save_nonvolatile_registers(Register dst, int offset, bool i
       }
     } else {
       for (int i = 20; i < 32; i++) {
-        if (PowerArchitecturePPC64 >= 9) {
-          stxv(as_VectorRegister(i)->to_vsr(), offset, dst);
-        } else {
-          Register spill_addr = R0;
-          addi(spill_addr, dst, offset);
-          stxvd2x(as_VectorRegister(i)->to_vsr(), spill_addr);
-        }
+        stxv(as_VectorRegister(i)->to_vsr(), offset, dst);
         offset += 16;
       }
     }
@@ -838,13 +832,7 @@ void MacroAssembler::restore_nonvolatile_registers(Register src, int offset, boo
       }
     } else {
       for (int i = 20; i < 32; i++) {
-        if (PowerArchitecturePPC64 >= 9) {
-          lxv(as_VectorRegister(i)->to_vsr(), offset, src);
-        } else {
-          Register spill_addr = R0;
-          addi(spill_addr, src, offset);
-          lxvd2x(as_VectorRegister(i)->to_vsr(), spill_addr);
-        }
+        lxv(as_VectorRegister(i)->to_vsr(), offset, src);
         offset += 16;
       }
     }
@@ -2800,7 +2788,7 @@ void MacroAssembler::compiler_fast_lock_object(ConditionRegister flag, Register 
       // Check if object matches.
       ld(tmp3, in_bytes(ObjectMonitor::object_offset()), monitor);
       BarrierSetAssembler* bs_asm = BarrierSet::barrier_set()->barrier_set_assembler();
-      bs_asm->try_resolve_weak_handle(this, tmp3, tmp2, slow_path);
+      bs_asm->try_peek_weak_handle_in_nmethod(this, tmp3, tmp3, tmp2, slow_path);
       cmpd(CR0, tmp3, obj);
       bne(CR0, slow_path);
 

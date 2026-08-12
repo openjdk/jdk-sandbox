@@ -49,9 +49,7 @@ private:
                     Register pre_val,
                     Register thread,
                     Register tmp1,
-                    Register tmp2,
-                    bool tosca_live,
-                    bool expand_call);
+                    Register tmp2);
 
   void card_barrier(MacroAssembler* masm, Register obj);
 
@@ -66,8 +64,6 @@ private:
 public:
   virtual NMethodPatchingType nmethod_patching_type() { return NMethodPatchingType::conc_instruction_and_data_patch; }
 
-  void cmpxchg_oop(MacroAssembler* masm, Register addr, Register expected, Register new_val,
-                   bool acquire, bool release, bool is_cae, Register result);
   virtual void arraycopy_prologue(MacroAssembler* masm, DecoratorSet decorators, bool is_oop,
                                   Register src, Register dst, Register count, RegSet saved_regs);
   virtual void arraycopy_epilogue(MacroAssembler* masm, DecoratorSet decorators, bool is_oop,
@@ -78,6 +74,10 @@ public:
                         Address dst, Register val, Register tmp1, Register tmp2, Register tmp3);
   virtual void try_resolve_jobject_in_native(MacroAssembler* masm, Register jni_env,
                                              Register obj, Register tmp, Label& slowpath);
+  virtual void try_peek_weak_handle_in_nmethod(MacroAssembler* masm, Register weak_handle, Register obj,
+                                               Register tmp, Label& slow_path);
+  void cmpxchg_oop(MacroAssembler* masm, Register addr, Register expected, Register new_val,
+                   bool acquire, bool release, bool is_cae, Register result);
 
 #ifdef COMPILER1
   void gen_pre_barrier_stub(LIR_Assembler* ce, ShenandoahPreBarrierStub* stub);

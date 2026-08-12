@@ -34,7 +34,6 @@
 #include "gc/shenandoah/shenandoahAsserts.hpp"
 #include "gc/shenandoah/shenandoahController.hpp"
 #include "gc/shenandoah/shenandoahCSetMap.hpp"
-#include "gc/shenandoah/shenandoahEvacOOMHandler.hpp"
 #include "gc/shenandoah/shenandoahEvacTracker.hpp"
 #include "gc/shenandoah/shenandoahGenerationType.hpp"
 #include "gc/shenandoah/shenandoahLock.hpp"
@@ -565,8 +564,6 @@ public:
 
   ShenandoahPhaseTimings*    phase_timings()     const { return _phase_timings;     }
 
-  ShenandoahEvacOOMHandler*  oom_evac_handler()        { return &_oom_evac_handler; }
-
   ShenandoahEvacuationTracker* evac_tracker() const {
     return _evac_tracker;
   }
@@ -801,7 +798,6 @@ public:
 private:
   ShenandoahCollectionSet* _collection_set;
   ShenandoahCSetMap _cset_map;
-  ShenandoahEvacOOMHandler _oom_evac_handler;
 
   oop try_evacuate_object(oop src, Thread* thread, ShenandoahHeapRegion* from_region, ShenandoahAffiliation target_gen);
 
@@ -823,15 +819,19 @@ public:
   inline bool in_collection_set_loc(void* loc) const;
 
   // Evacuates or promotes object src. Returns the evacuated object, either evacuated
-  // by this thread, or by some other thread.
+  // by this thread, or by some other thread. On allocation failure, installs the
+  // self-forwarded bit on src, flags src's region, and returns src.
   virtual oop evacuate_object(oop src, Thread* thread);
 
   // Build and install a FWT at the region tail post-evacuation; returns false on failure.
   bool finish_region_evacuation(ShenandoahHeapRegion* r, size_t num_forwardings, bool concurrent);
 
-  // Call before/after evacuation.
-  inline void enter_evacuation(Thread* t);
-  inline void leave_evacuation(Thread* t);
+  // Parallel scan of flagged cset regions to clear self-forwarded bits on live
+  // objects. Must be called at a safepoint; intended for the degenerated and
+  // full GC entry paths.
+  void un_self_forward_cset_regions();
+
+  DEBUG_ONLY(void assert_no_self_forwards() const;)
 
 // ---------- Helper functions
 //
