@@ -133,13 +133,13 @@ public:
   static void set_gc_state(Thread* thread, char gc_state) {
     ShenandoahThreadLocalData* d = data(thread);
     d->_gc_state = gc_state;
-    d->_gc_state_fast_array[POS_FORWARDED]              = (gc_state & FORWARDED) > 0;
-    d->_gc_state_fast_array[POS_MARKING]                = (gc_state & MARKING) > 0;
-    d->_gc_state_fast_array[POS_WEAK]                   = (gc_state & WEAK) > 0;
-    d->_gc_state_fast_array[POS_FORWARDED_MARKING]      = (gc_state & FORWARDED_MARKING) > 0;
-    d->_gc_state_fast_array[POS_FORWARDED_WEAK]         = (gc_state & FORWARDED_WEAK) > 0;
-    d->_gc_state_fast_array[POS_MARKING_WEAK]           = (gc_state & MARKING_WEAK) > 0;
-    d->_gc_state_fast_array[POS_FORWARDED_MARKING_WEAK] = (gc_state & FORWARDED_MARKING_WEAK) > 0;
+    d->_gc_state_fast_array[POS_FORWARDED]              = (gc_state & FORWARDED) != 0;
+    d->_gc_state_fast_array[POS_MARKING]                = (gc_state & MARKING) != 0;
+    d->_gc_state_fast_array[POS_WEAK]                   = (gc_state & WEAK) != 0;
+    d->_gc_state_fast_array[POS_FORWARDED_MARKING]      = (gc_state & FORWARDED_MARKING) != 0;
+    d->_gc_state_fast_array[POS_FORWARDED_WEAK]         = (gc_state & FORWARDED_WEAK) != 0;
+    d->_gc_state_fast_array[POS_MARKING_WEAK]           = (gc_state & MARKING_WEAK) != 0;
+    d->_gc_state_fast_array[POS_FORWARDED_MARKING_WEAK] = (gc_state & FORWARDED_MARKING_WEAK) != 0;
   }
 
   static char gc_state(Thread* thread) {

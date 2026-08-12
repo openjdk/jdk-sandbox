@@ -34,7 +34,7 @@ static const uint8_t ShenandoahBitKeepAlive = 1 << 3; // Barrier: KeepAlive (SAT
 static const uint8_t ShenandoahBitCardMark  = 1 << 4; // Barrier: CM
 static const uint8_t ShenandoahBitNotNull   = 1 << 5; // Metadata: src/dst is definitely not null
 static const uint8_t ShenandoahBitNative    = 1 << 6; // Metadata: access is in native, not in heap
-static const uint8_t ShenandoahBitElided    = 1 << 7; // Metadata: barrier is elided
+static const uint8_t ShenandoahBitElided    = 1 << 7; // Metadata: some part of the barrier is elided
 
 // Barrier data that implies real barriers, not additional metadata.
 static const uint8_t ShenandoahBitsReal = ShenandoahBitStrong | ShenandoahBitWeak | ShenandoahBitPhantom |
@@ -48,6 +48,7 @@ class ShenandoahBarrierSetC2State : public BarrierSetC2State {
   GrowableArray<ShenandoahBarrierStubC2*>* _stubs;
   int _trampoline_stubs_count;
   int _stubs_start_offset;
+  int _stubs_current_total_size;
 
 public:
   explicit ShenandoahBarrierSetC2State(Arena* comp_arena);
@@ -74,6 +75,15 @@ public:
 
   int stubs_start_offset() {
     return _stubs_start_offset;
+  }
+
+  int inc_stubs_current_total_size(int size) {
+    _stubs_current_total_size += size;
+    return _stubs_current_total_size;
+  }
+
+  int stubs_current_total_size() {
+    return _stubs_current_total_size;
   }
 };
 
@@ -112,9 +122,6 @@ public:
   virtual bool array_copy_requires_gc_barriers(bool tightly_coupled_alloc, BasicType type, bool is_clone,
       bool is_clone_instance, ArrayCopyPhase phase) const;
 
-  // Support for GC barriers emitted during parsing
-  virtual bool expand_barriers(Compile* C, PhaseIterGVN& igvn) const;
-
   // Support for macro expanded GC barriers
   virtual void eliminate_gc_barrier(PhaseMacroExpand* macro, Node* node) const;
   virtual void eliminate_gc_barrier_data(Node* node) const;
@@ -128,17 +135,16 @@ public:
   static void verify_gc_barrier_assert(bool cond, const char* msg, uint8_t bd, Node* n);
 #endif
 
-  int estimate_stub_size() const /* override */;
-  void emit_stubs(CodeBuffer& cb) const /* override */;
-  void late_barrier_analysis() const /* override*/ {
+  virtual int estimate_stub_size() const;
+  virtual void emit_stubs(CodeBuffer& cb) const;
+  virtual void late_barrier_analysis() const {
     compute_liveness_at_stubs();
     analyze_dominating_barriers();
   }
 
-  void elide_dominated_barrier(MachNode* mach, MachNode* dominator) const;
-  void analyze_dominating_barriers() const;
-  void strip_extra_data(const Node* node) const;
-  void strip_extra_data(Node_List& accesses) const;
+  virtual void elide_dominated_barrier(MachNode* mach, MachNode* dominator) const;
+  virtual void analyze_dominating_barriers() const;
+  virtual void final_refinement(Compile* C) const;
 
   virtual uint estimated_barrier_size(const Node* node) const;
 
@@ -147,10 +153,11 @@ public:
 
 class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   Register _obj;
-  Address  const _addr;
+  Address const _addr;
+  Register const _tmp1;
+  Register const _tmp2;
   const bool _do_load;
   const bool _narrow;
-  const bool _maybe_null;
   const bool _needs_load_ref_barrier;
   const bool _needs_load_ref_weak_barrier;
   const bool _needs_keep_alive_barrier;
@@ -161,38 +168,47 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   int available_gp_registers();
   bool is_live_register(Register reg);
   bool is_special_register(Register reg);
-  Register select_temp_register(bool& selected_live);
+  Register select_temp_register(bool& selected_live, Register skip_reg1 = noreg, Register skip_reg2 = noreg);
 
-  void keepalive(MacroAssembler& masm, Label* L_done = nullptr);
-  void lrb(MacroAssembler& masm, Label* L_done = nullptr);
+  void maybe_far_jump_if_zero(MacroAssembler& masm, Register reg);
+
+  void enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp);
+
+  void keepalive(MacroAssembler& masm, Label* L_done);
+  void lrb(MacroAssembler& masm);
+
+  static void cardtable(MacroAssembler& masm, Address addr, Register tmp1, Register tmp2);
 
   address keepalive_runtime_entry_addr();
   address lrb_runtime_entry_addr();
 
-  void maybe_far_jump_if_zero(MacroAssembler& masm, Register reg, Label* L_done);
+  static ShenandoahBarrierStubC2* create(const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load);
   void post_init();
 
-public:
-  ShenandoahBarrierStubC2(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load) :
+  ShenandoahBarrierStubC2(const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow, bool do_load) :
     BarrierStubC2(node),
     _obj(obj),
     _addr(addr),
+    _tmp1(tmp1),
+    _tmp2(tmp2),
     _do_load(do_load),
     _narrow(narrow),
-    _maybe_null(maybe_null(node)),
     _needs_load_ref_barrier(needs_load_ref_barrier(node)),
     _needs_load_ref_weak_barrier(needs_load_ref_barrier_weak(node)),
     _needs_keep_alive_barrier(needs_keep_alive_barrier(node)),
     _needs_far_jump() {
     assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
+    if (_tmp1 != noreg && _tmp2 != noreg) {
+      assert_different_registers(_tmp1, _tmp2, _obj, _addr.base(), _addr.index());
+    } else {
+      assert(_tmp1 == _tmp2, "should both be noreg");
+      assert_different_registers(_obj, _addr.base(), _addr.index());
+    }
     post_init();
   }
 
   static bool is_heap_access(const MachNode* node) {
     return (node->barrier_data() & ShenandoahBitNative) == 0;
-  }
-  static bool needs_slow_barrier(const MachNode* node) {
-    return needs_load_ref_barrier(node) || needs_keep_alive_barrier(node);
   }
   static bool needs_load_ref_barrier(const MachNode* node) {
     return (node->barrier_data() & (ShenandoahBitStrong | ShenandoahBitWeak | ShenandoahBitPhantom)) != 0;
@@ -206,13 +222,18 @@ public:
   static bool needs_card_barrier(const MachNode* node) {
     return (node->barrier_data() & ShenandoahBitCardMark) != 0;
   }
-  static bool maybe_null(const MachNode* node) {
-    return (node->barrier_data() & ShenandoahBitNotNull) == 0;
+
+public:
+  static bool needs_slow_barrier(const MachNode* node) {
+    return needs_load_ref_barrier(node) || needs_keep_alive_barrier(node);
   }
 
-  static ShenandoahBarrierStubC2* create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load);
-  void emit_code(MacroAssembler& masm);
+  static void load_post(MacroAssembler* masm, const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow);
+  static void store_pre(MacroAssembler* masm, const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow);
+  static void store_post(MacroAssembler* masm, const MachNode* node, Address addr, Register tmp1, Register tmp2);
+  static void load_store_pre(MacroAssembler* masm, const MachNode* node, Register obj, Address addr, Register tmp1, Register tmp2, bool narrow);
+  static void load_store_post(MacroAssembler* masm, const MachNode* node, Address addr, Register tmp1, Register tmp2);
 
-  void enter_if_gc_state(MacroAssembler& masm, const char test_state);
+  void emit_code(MacroAssembler& masm);
 };
 #endif // SHARE_GC_SHENANDOAH_C2_SHENANDOAHBARRIERSETC2_HPP

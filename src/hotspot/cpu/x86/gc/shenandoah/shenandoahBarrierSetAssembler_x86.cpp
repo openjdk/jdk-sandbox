@@ -918,15 +918,7 @@ void ShenandoahBarrierSetAssembler::load_c2(const MachNode* node, MacroAssembler
     __ movq(dst, src);
   }
 
-  // Post-barrier: LRB
-  if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
-    ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, dst, src, narrow, false);
-    char check = 0;
-    check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
-    check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
-    check |= ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node) ? ShenandoahHeap::WEAK_ROOTS : 0;
-    stub->enter_if_gc_state(*masm, check);
-  }
+  ShenandoahBarrierStubC2::load_post(masm, node, dst, src, noreg, noreg, narrow);
 }
 
 void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssembler* masm,
@@ -934,18 +926,12 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
                                              Register src, bool src_narrow,
                                              Register tmp) {
 
-  // Pre-barrier: SATB, keep-alive the current memory value.
-  if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
-    assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier(node), "Should not be required for stores");
-    ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, tmp, dst, dst_narrow, true);
-    stub->enter_if_gc_state(*masm, ShenandoahHeap::MARKING);
-  }
+  ShenandoahBarrierStubC2::store_pre(masm, node, tmp, dst, noreg, noreg, dst_narrow);
 
   // Need to encode into tmp, because we cannot clobber src.
-  // TODO: Maybe there is a matcher way to test that src is unused after this?
   if (dst_narrow && !src_narrow) {
     __ movq(tmp, src);
-    if (ShenandoahBarrierStubC2::maybe_null(node)) {
+    if ((node->barrier_data() & ShenandoahBitNotNull) == 0) {
       __ encode_heap_oop(tmp);
     } else {
       __ encode_heap_oop_not_null(tmp);
@@ -960,10 +946,7 @@ void ShenandoahBarrierSetAssembler::store_c2(const MachNode* node, MacroAssemble
     __ movq(dst, src);
   }
 
-  // Post-barrier: card updates.
-  if (ShenandoahBarrierStubC2::needs_card_barrier(node)) {
-    card_barrier_c2(masm, dst, tmp);
-  }
+  ShenandoahBarrierStubC2::store_post(masm, node, dst, tmp, noreg);
 }
 
 void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, MacroAssembler* masm,
@@ -978,21 +961,7 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
   assert_different_registers(oldval, tmp, addr.base(), addr.index());
   assert_different_registers(newval, tmp, addr.base(), addr.index());
 
-  // Pre-barrier covers several things:
-  //  a. Avoids false positives from CAS encountering to-space memory values.
-  //  b. Satisfies the need for LRB for the CAE result.
-  //  c. Records old value for the sake of SATB.
-  //
-  // (a) and (b) are covered because load barrier does memory location fixup.
-  // (c) is covered by KA on the current memory value.
-  if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
-    ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, tmp, addr, narrow, true);
-    char check = 0;
-    check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
-    check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
-    assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node), "Not supported for CAS");
-    stub->enter_if_gc_state(*masm, check);
-  }
+  ShenandoahBarrierStubC2::load_store_pre(masm, node, tmp, addr, noreg, noreg, narrow);
 
   // CAS!
   __ lock();
@@ -1007,29 +976,13 @@ void ShenandoahBarrierSetAssembler::compare_and_set_c2(const MachNode* node, Mac
     __ setcc(Assembler::equal, res);
   }
 
-  // Post-barrier deals with card updates.
-  if (ShenandoahBarrierStubC2::needs_card_barrier(node)) {
-    card_barrier_c2(masm, addr, tmp);
-  }
+  ShenandoahBarrierStubC2::load_store_post(masm, node, addr, tmp, noreg);
 }
 
 void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAssembler* masm, Register newval, Address addr, Register tmp, bool narrow) {
   assert_different_registers(newval, tmp, addr.base(), addr.index());
 
-  // Pre-barrier covers several things:
-  //  a. Satisfies the need for LRB for the GAS result.
-  //  b. Records old value for the sake of SATB.
-  //
-  // (a) is covered because load barrier does memory location fixup.
-  // (b) is covered by KA on the current memory value.
-  if (ShenandoahBarrierStubC2::needs_slow_barrier(node)) {
-    ShenandoahBarrierStubC2* const stub = ShenandoahBarrierStubC2::create(node, tmp, addr, narrow, true);
-    char check = 0;
-    check |= ShenandoahBarrierStubC2::needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
-    check |= ShenandoahBarrierStubC2::needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
-    assert(!ShenandoahBarrierStubC2::needs_load_ref_barrier_weak(node), "Not supported for GAS");
-    stub->enter_if_gc_state(*masm, check);
-  }
+  ShenandoahBarrierStubC2::load_store_pre(masm, node, tmp, addr, noreg, noreg, narrow);
 
   if (narrow) {
     __ xchgl(newval, addr);
@@ -1037,22 +990,19 @@ void ShenandoahBarrierSetAssembler::get_and_set_c2(const MachNode* node, MacroAs
     __ xchgq(newval, addr);
   }
 
-  // Post-barrier deals with card updates.
-  if (ShenandoahBarrierStubC2::needs_card_barrier(node)) {
-    card_barrier_c2(masm, addr, tmp);
-  }
+  ShenandoahBarrierStubC2::load_store_post(masm, node, addr, tmp, noreg);
 }
 
-void ShenandoahBarrierSetAssembler::card_barrier_c2(MacroAssembler* masm, Address dst, Register tmp) {
-  Assembler::InlineSkippedInstructionsCounter skip_counter(masm);
+#undef __
+#define __ masm.
 
-  // TODO: Might be a good place to implement some filters here.
-  // For example, G1 only flips card marks for stores within a single region.
+void ShenandoahBarrierStubC2::cardtable(MacroAssembler& masm, Address addr, Register tmp1, Register tmp2) {
+  Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
-  __ lea(tmp, dst);
-  __ shrptr(tmp, CardTable::card_shift());
-  __ addptr(tmp, Address(r15_thread, in_bytes(ShenandoahThreadLocalData::card_table_offset())));
-  Address card_address(tmp, 0);
+  __ lea(tmp1, addr);
+  __ shrptr(tmp1, CardTable::card_shift());
+  __ addptr(tmp1, Address(r15_thread, in_bytes(ShenandoahThreadLocalData::card_table_offset())));
+  Address card_address(tmp1, 0);
 
   assert(CardTable::dirty_card_val() == 0, "Encoding assumption");
   Label L_done;
@@ -1068,10 +1018,7 @@ void ShenandoahBarrierSetAssembler::card_barrier_c2(MacroAssembler* masm, Addres
   __ bind(L_done);
 }
 
-#undef __
-#define __ masm.
-
-void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state) {
+void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char test_state, Register tmp) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
 
   Address gc_state_fast(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(test_state)));
@@ -1082,8 +1029,12 @@ void ShenandoahBarrierStubC2::enter_if_gc_state(MacroAssembler& masm, const char
 
 void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   Assembler::InlineSkippedInstructionsCounter skip_counter(&masm);
+  assert(_needs_keep_alive_barrier || _needs_load_ref_barrier, "Why are you here?");
 
-  __ align(InteriorEntryAlignment);
+  // On x86, there is a significant penalty with unaligned branch target, for example
+  // when the target instruction straggles the fetch line. It makes (performance) sense
+  // to spend some code size to align the target better.
+  __ align(16);
   __ bind(*entry());
 
   // If we need to load ourselves, do it here.
@@ -1096,42 +1047,42 @@ void ShenandoahBarrierStubC2::emit_code(MacroAssembler& masm) {
   }
 
   // If the object is null, there is no point in applying barriers.
-  if (_narrow) {
-    __ testl(_obj, _obj);
-  } else {
-    __ testq(_obj, _obj);
+  maybe_far_jump_if_zero(masm, _obj);
+
+  // We need to make sure that loads done by callers survive across slow-path calls.
+  // For self-loads, we need to care about the case when both KA and LRB are enabled (rare).
+  bool needs_both_barriers = _needs_keep_alive_barrier && _needs_load_ref_barrier;
+  if (!_do_load || needs_both_barriers) {
+    preserve(_obj);
   }
-  __ jcc(Assembler::zero, *continuation());
 
-  // Go for barriers. If both KA and LRB are needed (rare), do additional gc-state
-  // checks to verify which one is currently needed. Note that KA and LRB are *not*
-  // exclusive, because we can have an overlapping marking/evac in generational mode.
-  if (_needs_keep_alive_barrier && _needs_load_ref_barrier) {
-    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-
-    Label L_skip_keepalive;
-    __ testb(gc_state, ShenandoahHeap::MARKING);
-    __ jcc(Assembler::zero, L_skip_keepalive);
+  // Go for barriers. Barriers can return straight to continuation, as long
+  // as another barrier is not needed.
+  if (needs_both_barriers) {
     keepalive(masm, nullptr);
-    __ bind(L_skip_keepalive);
-
-    __ testb(gc_state, ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0));
-    __ jcc(Assembler::zero, *continuation());
-    lrb(masm, continuation());
+    lrb(masm);
   } else if (_needs_keep_alive_barrier) {
     keepalive(masm, continuation());
   } else if (_needs_load_ref_barrier) {
-    lrb(masm, continuation());
+    lrb(masm);
   } else {
     ShouldNotReachHere();
   }
 }
 
 void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
+  Address gc_state_fast(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(ShenandoahHeap::MARKING)));
   Address index(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_index_offset()));
   Address buffer(r15_thread, in_bytes(ShenandoahThreadLocalData::satb_mark_queue_buffer_offset()));
 
-  Label L_pop_and_slow;
+  Label L_through, L_pop_and_slow;
+
+  // If another barrier is enabled as well, do a runtime check for a specific barrier.
+  if (_needs_load_ref_barrier) {
+    assert(L_done == nullptr, "L_done is always null when _needs_load_ref_barrier is true");
+    __ cmpb(gc_state_fast, 0);
+    __ jcc(Assembler::equal, L_through);
+  }
 
   // Need temp to work, allocate one now.
   bool tmp_live;
@@ -1148,15 +1099,14 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   __ movptr(index, tmp);
   __ addptr(tmp, buffer);
 
-  // If object is narrow, we need to unpack it before inserting into buffer,
-  // and pack it back. The packing is needed if the caller did the load,
-  // which means it is going to need it. It is also needed when subsequent LRB
-  // would unpack again.
+  // Store the object in queue.
+  // If object is narrow, we need to decode it before inserting.
+  // We can skip the re-encoding if we know that object is not preserved.
   if (_narrow) {
     __ decode_heap_oop_not_null(_obj);
   }
   __ movptr(Address(tmp, 0), _obj);
-  if (_narrow && ((L_done == nullptr) || !_do_load)) {
+  if (_narrow && is_preserved(_obj)) {
     __ encode_heap_oop_not_null(_obj);
   }
 
@@ -1165,11 +1115,10 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
     __ pop(tmp);
   }
 
-  Label L_fallthrough;
   if (L_done != nullptr) {
     __ jmp(*L_done);
   } else {
-    __ jmp(L_fallthrough);
+    __ jmp(L_through);
   }
 
   // Slow-path: call runtime to handle.
@@ -1193,26 +1142,34 @@ void ShenandoahBarrierStubC2::keepalive(MacroAssembler& masm, Label* L_done) {
   if (L_done != nullptr) {
     __ jmp(*L_done);
   } else {
-    __ bind(L_fallthrough);
+    __ bind(L_through);
   }
 }
 
-void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
-  assert(L_done != nullptr, "Must be set");
-
+void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm) {
   Label L_pop_and_slow, L_slow;
+
+  // If another barrier is enabled as well, do a runtime check for a specific barrier.
+  if (_needs_keep_alive_barrier) {
+    char state_to_check = ShenandoahHeap::HAS_FORWARDED | (_needs_load_ref_weak_barrier ? ShenandoahHeap::WEAK_ROOTS : 0);
+    Address gc_state_fast(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(state_to_check)));
+    __ cmpb(gc_state_fast, 0);
+    __ jcc(Assembler::equal, *continuation());
+  }
 
   // If weak references are being processed, weak/phantom loads need to go slow,
   // regardless of their cset status.
   if (_needs_load_ref_weak_barrier) {
-    Address gc_state(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_offset()));
-    __ testb(gc_state, ShenandoahHeap::WEAK_ROOTS);
-    __ jccb(Assembler::notZero, L_slow);
+    Address gc_state_fast(r15_thread, in_bytes(ShenandoahThreadLocalData::gc_state_fast_array_offset(ShenandoahHeap::WEAK_ROOTS)));
+    __ cmpb(gc_state_fast, 0);
+    __ jccb(Assembler::notEqual, L_slow);
   }
+
+  bool is_aot = AOTCodeCache::is_on_for_dump();
 
   // Need temp to work, allocate one now.
   bool tmp_live;
-  Register tmp = select_temp_register(tmp_live);
+  Register tmp = select_temp_register(tmp_live, /* skip_reg1 = */ is_aot ? rcx : noreg);
   if (tmp_live) {
     __ push(tmp);
   }
@@ -1223,27 +1180,35 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
   } else {
     __ movptr(tmp, _obj);
   }
-  __ shrptr(tmp, ShenandoahHeapRegion::region_size_bytes_shift_jint());
 
   Address cset_addr_arg;
   intptr_t cset_addr = reinterpret_cast<intptr_t>(ShenandoahHeap::in_cset_fast_test_addr());
-  if ((cset_addr >> 3) < INT32_MAX) {
-    // Cset bitmap is in the spot we tried to allocate it at, just use it as offset.
-    assert(is_aligned(cset_addr, 8), "Sanity");
-    cset_addr_arg = Address(tmp, checked_cast<int>(cset_addr >> 3), Address::times_8);
-  } else if (cset_addr < INT32_MAX) {
-    // Cset bitmap is not in the convenient spot, but still close enough.
-    __ addptr(tmp, checked_cast<int32_t>(cset_addr));
-    cset_addr_arg = Address(tmp, 0);
+  if (!is_aot && cset_addr < INT32_MAX) {
+    // Cset bitmap is at easily encodeable address. Just use it as displacement.
+    __ shrptr(tmp, ShenandoahHeapRegion::region_size_bytes_shift_jint());
+    cset_addr_arg = Address(tmp, checked_cast<int>(cset_addr));
   } else {
-    // Cset bitmap is way further than our encoding limit. Bite the bullet and add it fully.
     bool tmp2_live;
-    Register tmp2 = select_temp_register(tmp2_live);
+    Register tmp2 = select_temp_register(tmp2_live, /* skip_reg1 = */ tmp, /* skip_reg2 = */ is_aot ? rcx : noreg);
     if (tmp2_live) {
       __ push(tmp2);
     }
-    __ movptr(tmp2, checked_cast<int64_t>(cset_addr));
-    __ addptr(tmp, tmp2);
+    if (is_aot) {
+      // Generating AOT code, pull the cset bitmap and region shift from AOT table.
+      assert_different_registers(tmp, tmp2, rcx);
+      __ push(rcx);
+      __ lea(rcx, ExternalAddress(AOTRuntimeConstants::grain_shift_address()));
+      __ movl(rcx, Address(rcx));
+      __ shrptr(tmp);
+      __ pop(rcx);
+      __ lea(tmp2, ExternalAddress(AOTRuntimeConstants::cset_base_address()));
+      __ addptr(tmp, Address(tmp2));
+    } else {
+      // Cset bitmap is far away. Add its address fully.
+      __ shrptr(tmp, ShenandoahHeapRegion::region_size_bytes_shift_jint());
+      __ movptr(tmp2, cset_addr);
+      __ addptr(tmp, tmp2);
+    }
     if (tmp2_live) {
       __ pop(tmp2);
     }
@@ -1255,10 +1220,10 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
   if (tmp_live) {
     __ jccb(Assembler::notEqual, L_pop_and_slow);
     __ pop(tmp);
-    __ jmp(*L_done);
+    __ jmp(*continuation());
   } else {
     // Nothing else to do, jump back
-    __ jcc(Assembler::equal, *L_done);
+    __ jcc(Assembler::equal, *continuation());
   }
 
   // Slow path
@@ -1270,7 +1235,10 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
   __ bind(L_slow);
 
   // Obj is the result, need to temporarily stop preserving it.
-  dont_preserve(_obj);
+  bool is_obj_preserved = is_preserved(_obj);
+  if (is_obj_preserved) {
+    dont_preserve(_obj);
+  }
   {
     SaveLiveRegisters slr(&masm, this);
 
@@ -1295,13 +1263,17 @@ void ShenandoahBarrierStubC2::lrb(MacroAssembler& masm, Label* L_done) {
     __ call(RuntimeAddress(lrb_runtime_entry_addr()));
 
     // Save the result where needed.
-    if (_obj != rax) {
+    if (_narrow) {
+      __ movl(_obj, rax);
+    } else if (_obj != rax) {
       __ movptr(_obj, rax);
     }
   }
-  preserve(_obj);
+  if (is_obj_preserved) {
+    preserve(_obj);
+  }
 
-  __ jmp(*L_done);
+  __ jmp(*continuation());
 }
 
 int ShenandoahBarrierStubC2::available_gp_registers() {
@@ -1315,5 +1287,14 @@ bool ShenandoahBarrierStubC2::is_special_register(Register r) {
 void ShenandoahBarrierStubC2::post_init() {
   // Do nothing.
 }
-#undef __
-#endif
+
+void ShenandoahBarrierStubC2::maybe_far_jump_if_zero(MacroAssembler& masm, Register reg) {
+  if (_narrow) {
+    __ testl(reg, reg);
+  } else {
+    __ testq(reg, reg);
+  }
+  __ jcc(Assembler::zero, *continuation());
+}
+
+#endif // COMPILER2

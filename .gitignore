@@ -25,9 +25,6 @@ NashornProfile.txt
 /.lldbinit
 **/core.[0-9]*
 test/benchmarks/**/target
-*.sh
-.clangd
-debug/
 /src/hotspot/CMakeLists.txt
 /src/hotspot/compile_commands.json
 /src/hotspot/cmake-build-debug/
