@@ -200,6 +200,12 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* root) {
   // of the runtime system. In this case, we can elide the LRB barrier. We bail
   // out with false at the first sight of trouble.
 
+  // Reusing an early-recycled cset region destroys the from-space objects' mark words,
+  // so an unbarriered from-space source is not valid.
+  if (ShenandoahForwardingTables) {
+    return false;
+  }
+
   ResourceMark rm;
   VectorSet visited;
   Node_List worklist;
@@ -462,6 +468,13 @@ void ShenandoahBarrierSetC2::elide_dominated_barrier(MachNode* node, MachNode* d
         bd &= ~ShenandoahBitStrong;
       }
     }
+  }
+
+  if (ShenandoahForwardingTables) {
+    // A dominated load may still read an unfixed from-space ref (its field was not
+    // necessarily healed to to-space), which is only valid while from-space is intact.
+    // Reusing an early-recycled cset region destroys the from-space objects' mark words.
+    bd |= (orig_bd & ShenandoahBitStrong);
   }
 
   if (orig_bd != bd) {
