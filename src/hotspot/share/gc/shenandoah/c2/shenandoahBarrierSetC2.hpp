@@ -26,12 +26,6 @@
 #define SHARE_GC_SHENANDOAH_C2_SHENANDOAHBARRIERSETC2_HPP
 
 #include "gc/shared/c2/barrierSetC2.hpp"
-#include "gc/shared/gc_globals.hpp"
-#include "gc/shenandoah/shenandoahBarrierSetAssembler.hpp"
-#include "gc/shenandoah/shenandoahRuntime.hpp"
-#include "gc/shenandoah/shenandoahThreadLocalData.hpp"
-#include "opto/machnode.hpp"
-#include "utilities/growableArray.hpp"
 
 static const uint8_t ShenandoahBitStrong    = 1 << 0; // Barrier: LRB, strong
 static const uint8_t ShenandoahBitWeak      = 1 << 1; // Barrier: LRB, weak
@@ -47,6 +41,7 @@ static const uint8_t ShenandoahBitsReal = ShenandoahBitStrong | ShenandoahBitWea
                                           ShenandoahBitKeepAlive |
                                           ShenandoahBitCardMark;
 
+class MachNode;
 class ShenandoahBarrierStubC2;
 
 class ShenandoahBarrierSetC2State : public BarrierSetC2State {
@@ -90,13 +85,6 @@ class ShenandoahBarrierSetC2 : public BarrierSetC2 {
 
   static uint8_t refine_load(Node* node, uint8_t bd);
   static uint8_t refine_store(Node* node, uint8_t bd);
-
-  static const TypeFunc* _write_barrier_pre_Type;
-  static const TypeFunc* _clone_barrier_Type;
-  static const TypeFunc* _load_reference_barrier_Type;
-  static void make_write_barrier_pre_Type();
-  static void make_clone_barrier_Type();
-  static void make_load_reference_barrier_Type();
 
   static bool is_Load(int opcode);
   static bool is_Store(int opcode);
@@ -166,13 +154,9 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   const bool _needs_load_ref_barrier;
   const bool _needs_load_ref_weak_barrier;
   const bool _needs_keep_alive_barrier;
-  bool _use_double_jumps;
+  bool _needs_far_jump;
 
   static void register_stub(ShenandoahBarrierStubC2* stub);
-  static void inc_trampoline_stubs_count();
-  static int trampoline_stubs_count();
-  static int stubs_start_offset();
-  static int save_slots_stack_offset();
 
   int available_gp_registers();
   bool is_live_register(Register reg);
@@ -185,10 +169,11 @@ class ShenandoahBarrierStubC2 : public BarrierStubC2 {
   address keepalive_runtime_entry_addr();
   address lrb_runtime_entry_addr();
 
-  void post_init(int offset);
+  void maybe_far_jump_if_zero(MacroAssembler& masm, Register reg, Label* L_done);
+  void post_init();
 
 public:
-  ShenandoahBarrierStubC2(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load, int offset) :
+  ShenandoahBarrierStubC2(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load) :
     BarrierStubC2(node),
     _obj(obj),
     _addr(addr),
@@ -198,9 +183,9 @@ public:
     _needs_load_ref_barrier(needs_load_ref_barrier(node)),
     _needs_load_ref_weak_barrier(needs_load_ref_barrier_weak(node)),
     _needs_keep_alive_barrier(needs_keep_alive_barrier(node)),
-    _use_double_jumps() {
+    _needs_far_jump() {
     assert(!_narrow || is_heap_access(node), "Only heap accesses can be narrow");
-    post_init(offset);
+    post_init();
   }
 
   static bool is_heap_access(const MachNode* node) {
@@ -225,7 +210,7 @@ public:
     return (node->barrier_data() & ShenandoahBitNotNull) == 0;
   }
 
-  static ShenandoahBarrierStubC2* create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load, int offset = 0);
+  static ShenandoahBarrierStubC2* create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load);
   void emit_code(MacroAssembler& masm);
 
   void enter_if_gc_state(MacroAssembler& masm, const char test_state);

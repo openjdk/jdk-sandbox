@@ -225,8 +225,9 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* root) {
 
         case Op_LoadRange:
         case Op_LoadKlass: {
-          // Loads of stable metadata values from the object.
-          // These are the same in all copies.
+          // Loads of stable metadata values from the object. These are the same in all copies.
+          // Note that LoadNKlass is *not* safe: with +UCOH, it loads from mark word, which
+          // clashes with forwarding pointers.
           break;
         }
 
@@ -236,9 +237,14 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* root) {
               out->in(2)->get_narrowcon() == 0) {
             // Null check, no oop is exposed.
             break;
-          } else {
-            return false;
           }
+          if (out->in(2) == n &&
+              out->in(1)->Opcode() == Op_ConN &&
+              out->in(1)->get_narrowcon() == 0) {
+            // Null check, no oop is exposed.
+            break;
+          }
+          return false;
         }
 
         case Op_CmpP: {
@@ -247,18 +253,22 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* root) {
               out->in(2)->get_ptr() == 0) {
             // Null check, no oop is exposed.
             break;
-          } else {
-            return false;
           }
+          if (out->in(2) == n &&
+              out->in(1)->Opcode() == Op_ConP &&
+              out->in(1)->get_ptr() == 0) {
+            // Null check, no oop is exposed.
+            break;
+          }
+          return false;
         }
 
         case Op_CallStaticJava: {
           if (out->as_CallStaticJava()->is_uncommon_trap()) {
             // Local feeds into uncommon trap. Deopt machinery handles barriers itself.
             break;
-          } else {
-            return false;
           }
+          return false;
         }
 
         default: {
@@ -300,20 +310,22 @@ uint8_t ShenandoahBarrierSetC2::refine_store(Node* n, uint8_t bd) {
   const Node* newval = n->in(MemNode::ValueIn);
   assert(newval != nullptr, "Should be present");
   const Type* newval_bottom = newval->bottom_type();
-  TypePtr::PTR newval_type = newval_bottom->make_ptr()->ptr();
   if (!newval_bottom->isa_oopptr() &&
       !newval_bottom->isa_narrowoop() &&
-      newval_type != TypePtr::Null) {
+      newval_bottom != TypePtr::NULL_PTR) {
     assert(bd == 0, "Non-oop stores should have no barrier data");
     return bd;
   }
 
   // Type system tells us something about nullity?
-  if (newval_type == TypePtr::Null) {
+  const TypePtr* newval_type = newval_bottom->make_ptr();
+  assert(newval_type != nullptr, "Should have been filtered before");
+  TypePtr::PTR newval_type_ptr = newval_type->ptr();
+  if (newval_type_ptr == TypePtr::Null) {
     bd &= ~ShenandoahBitNotNull;
     // Card table barrier is not needed if we store null.
     bd &= ~ShenandoahBitCardMark;
-  } else if (newval_type == TypePtr::NotNull) {
+  } else if (newval_type_ptr == TypePtr::NotNull) {
     // Definitely not null.
     bd |= ShenandoahBitNotNull;
   }
@@ -665,11 +677,6 @@ void ShenandoahBarrierSetC2::print_barrier_data(outputStream* os, uint8_t data) 
     os->print("phantom ");
   }
 
-  if ((data & ShenandoahBitElided) != 0) {
-    data &= ~ShenandoahBitElided;
-    os->print("elided ");
-  }
-
   if ((data & ShenandoahBitKeepAlive) != 0) {
     data &= ~ShenandoahBitKeepAlive;
     os->print("keepalive ");
@@ -680,10 +687,21 @@ void ShenandoahBarrierSetC2::print_barrier_data(outputStream* os, uint8_t data) 
     os->print("cardmark ");
   }
 
+  if ((data & ShenandoahBitNative) != 0) {
+    data &= ~ShenandoahBitNative;
+    os->print("native ");
+  }
+
   if ((data & ShenandoahBitNotNull) != 0) {
     data &= ~ShenandoahBitNotNull;
     os->print("not-null ");
   }
+
+  if ((data & ShenandoahBitElided) != 0) {
+    data &= ~ShenandoahBitElided;
+    os->print("elided ");
+  }
+
   os->cr();
 
   if (data > 0) {
@@ -724,59 +742,69 @@ void ShenandoahBarrierSetC2::verify_gc_barriers(Compile* compile, CompilePhase p
   bool expect_load_store_barriers = !accept_blank && ShenandoahCASBarrier;
 
   Unique_Node_List wq;
-  Node_Stack phis(0);
-  VectorSet visited;
 
   wq.push(compile->root());
   for (uint next = 0; next < wq.size(); next++) {
     Node *n = wq.at(next);
     int opc = n->Opcode();
 
+    uint8_t bd = 0;
+    const TypePtr* adr_type = nullptr;
     if (is_Load(opc)) {
-      uint8_t bd = n->as_Load()->barrier_data();
-
-      const TypePtr* adr_type = n->as_Load()->adr_type();
-      if (adr_type->isa_oopptr() || adr_type->isa_narrowoop()) {
-        verify_gc_barrier_assert(!expect_load_barriers || (bd != 0), "Oop load should have barrier data", bd, n);
-
-        bool is_weak = ((bd & (ShenandoahBitWeak | ShenandoahBitPhantom)) != 0);
-        bool is_referent = adr_type->isa_instptr() &&
-            adr_type->is_instptr()->instance_klass()->is_subtype_of(Compile::current()->env()->Reference_klass()) &&
-            adr_type->is_instptr()->offset() == java_lang_ref_Reference::referent_offset();
-
-        verify_gc_barrier_assert(!is_weak || is_referent, "Weak load only for Reference.referent", bd, n);
-      } else if (adr_type->isa_rawptr() || adr_type->isa_klassptr()) {
-        // Some LoadP-s are used for T_ADDRESS loads from raw pointers. These are not oops.
-        // Some LoadP-s are used to load class data.
-        // TODO: Verify their barrier data.
-      } else {
-        verify_gc_barrier_assert(false, "Unclassified access type", bd, n);
-      }
+      bd = n->as_Load()->barrier_data();
+      adr_type = n->as_Load()->adr_type();
     } else if (is_Store(opc)) {
-      uint8_t bd = n->as_Store()->barrier_data();
-      const TypePtr* adr_type = n->as_Store()->adr_type();
-      if (adr_type->isa_oopptr() || adr_type->isa_narrowoop()) {
-        // Reference.clear stores null
-        bool is_referent = adr_type->isa_instptr() &&
-             adr_type->is_instptr()->instance_klass()->is_subtype_of(Compile::current()->env()->Reference_klass()) &&
-             adr_type->is_instptr()->offset() == java_lang_ref_Reference::referent_offset();
+      bd = n->as_Store()->barrier_data();
+      adr_type = n->as_Store()->adr_type();
+    } else if (is_LoadStore(opc)) {
+      bd = n->as_LoadStore()->barrier_data();
+      adr_type = n->as_LoadStore()->adr_type();
+    } else if (n->is_Mem()) {
+      bd = MemNode::barrier_data(n);
+      verify_gc_barrier_assert(bd == 0, "Other mem nodes should have no barrier data", bd, n);
+    }
 
-        const TypePtr* val_type = n->as_Store()->in(MemNode::Memory)->adr_type();
-        if (!is_referent && (val_type->isa_oopptr() || val_type->isa_narrowoop())) {
-          verify_gc_barrier_assert(!expect_store_barriers || (bd != 0), "Oop store should have barrier data", bd, n);
+    bool is_weak   = (bd & (ShenandoahBitWeak | ShenandoahBitPhantom)) != 0;
+    bool is_native = (bd & ShenandoahBitNative) != 0;
+
+    bool is_referent = adr_type != nullptr &&
+                       adr_type->isa_instptr() &&
+                       adr_type->is_instptr()->instance_klass()->is_subtype_of(Compile::current()->env()->Reference_klass()) &&
+                       adr_type->is_instptr()->offset() == java_lang_ref_Reference::referent_offset();
+
+    bool is_oop_addr = (adr_type != nullptr) && (adr_type->isa_oopptr() || adr_type->isa_narrowoop());
+    bool is_raw_addr = (adr_type != nullptr) && (adr_type->isa_rawptr() || adr_type->isa_klassptr());
+
+    if (is_oop_addr) {
+      if (is_Load(opc)) {
+        verify_gc_barrier_assert(!expect_load_barriers || (bd != 0), "Oop load should have barrier data", bd, n);
+        verify_gc_barrier_assert(!is_weak || is_referent, "Weak load only for Reference.referent", bd, n);
+      } else if (is_Store(opc)) {
+        // Reference.referent stores can be without barriers.
+        verify_gc_barrier_assert(!expect_store_barriers || is_referent || (bd != 0), "Oop store should have barrier data", bd, n);
+      } else if (is_LoadStore(opc)) {
+        verify_gc_barrier_assert(!expect_load_store_barriers || (bd != 0), "Oop load-store should have barrier data", bd, n);
+      }
+    } else if (is_raw_addr) {
+      if (is_native) {
+        if (is_Load(opc)) {
+          verify_gc_barrier_assert(!expect_load_barriers || (bd != 0), "Native oop load should have barrier data", bd, n);
         }
-      } else if (adr_type->isa_rawptr() || adr_type->isa_klassptr()) {
-        // Similar to LoadP-s, some of these accesses are raw, and some are handling oops.
-        // TODO: Verify their barrier data.
+        if (is_Store(opc)) {
+          verify_gc_barrier_assert(!expect_store_barriers || (bd != 0), "Native oop store should have barrier data", bd, n);
+        }
+        if (is_LoadStore(opc)) {
+          verify_gc_barrier_assert(!expect_load_store_barriers || (bd != 0), "Native oop load-store should have barrier data", bd, n);
+        }
       } else {
+        // Some Load/Stores are used for T_ADDRESS and/or raw stores, which are supposed not to have barriers.
+        // Some other Load/Stores are emitted for real oops, but on raw addresses via Unsafe.
+        // The distinction on this level is lost, so we cannot really verify this.
+      }
+    } else {
+      if (is_Load(opc) || is_Store(opc) || is_LoadStore(opc)) {
         verify_gc_barrier_assert(false, "Unclassified access type", bd, n);
       }
-    } else if (is_LoadStore(opc)) {
-      uint8_t bd = n->as_LoadStore()->barrier_data();
-      verify_gc_barrier_assert(!expect_load_store_barriers || (bd != 0), "Oop load-store should have barrier data", bd, n);
-    } else if (n->is_Mem()) {
-      uint8_t bd = MemNode::barrier_data(n); // FIXME: LOL HotSpot, why not n->as_Mem()? LoadStore is both is_Mem() and not as_Mem().
-      verify_gc_barrier_assert(bd == 0, "Other mem nodes should have no barrier data", bd, n);
     }
 
     for (DUIterator_Fast imax, i = n->fast_outs(imax); i < imax; i++) {
@@ -840,22 +868,8 @@ void ShenandoahBarrierStubC2::register_stub(ShenandoahBarrierStubC2* stub) {
   }
 }
 
-void ShenandoahBarrierStubC2::inc_trampoline_stubs_count() {
-  if (!Compile::current()->output()->in_scratch_emit_size()) {
-    barrier_set_state()->inc_trampoline_stubs_count();
-  }
-}
-
-int ShenandoahBarrierStubC2::trampoline_stubs_count() {
-  return barrier_set_state()->trampoline_stubs_count();
-}
-
-int ShenandoahBarrierStubC2::stubs_start_offset() {
-  return barrier_set_state()->stubs_start_offset();
-}
-
-ShenandoahBarrierStubC2* ShenandoahBarrierStubC2::create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load, int offset) {
-  auto* stub = new (Compile::current()->comp_arena()) ShenandoahBarrierStubC2(node, obj, addr, narrow, do_load, offset);
+ShenandoahBarrierStubC2* ShenandoahBarrierStubC2::create(const MachNode* node, Register obj, Address addr, bool narrow, bool do_load) {
+  auto* stub = new (Compile::current()->comp_arena()) ShenandoahBarrierStubC2(node, obj, addr, narrow, do_load);
   ShenandoahBarrierStubC2::register_stub(stub);
   return stub;
 }
