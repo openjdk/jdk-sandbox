@@ -154,18 +154,26 @@ union _metadata {
   narrowKlass _compressed_klass;
 };
 
+// In FWT regions mark words of evacuated objects are already destroyed, but
+// the Verifier still reads an object's klass to validate it. The valid klass
+// lives in the evacuated copy.
+static oop resolve_if_fwt(oop obj) {
+  ShenandoahHeap* heap = ShenandoahHeap::heap();
+  switch (heap->collection_set()->cset_state(obj)) {
+    case CSetState::FWDTABLE_COMPACT:
+      return heap->heap_region_containing(obj)->forwardee_compact(obj);
+    case CSetState::FWDTABLE_WIDE:
+      return heap->heap_region_containing(obj)->forwardee_wide(obj);
+    default:
+      return obj;
+  }
+}
+
 static _metadata safe_load_metadata(oop obj) {
+  obj = resolve_if_fwt(obj);
   _metadata klass_word = *(cast_from_oop<_metadata*>(obj) + 1);
   OrderAccess::loadload();
   markWord mark = obj->mark();
-#ifndef PRODUCT
-  {
-    ShenandoahHeap* heap = ShenandoahHeap::heap();
-    ShenandoahHeapRegion* region = heap->heap_region_containing(obj);
-    assert(!heap->collection_set()->use_forward_table(obj) || (region->top() == region->bottom()),
-           "Do not use mark-word forwarding if we are allocating in early-recycled region");
-  }
-#endif
   if (mark.is_forwarded()) {
     obj = mark.is_self_forwarded() ? obj : mark.forwardee();
     klass_word = *(cast_from_oop<_metadata*>(obj) + 1);
@@ -176,7 +184,7 @@ static _metadata safe_load_metadata(oop obj) {
 inline Klass* ShenandoahForwarding::klass(oop obj) {
   switch (ObjLayout::klass_mode()) {
     case ObjLayout::Compact: {
-      markWord mark = obj->mark();
+      markWord mark = resolve_if_fwt(obj)->mark();
       if (mark.is_marked()) {
         oop fwd = cast_to_oop(mark.clear_lock_bits().to_pointer());
         mark = fwd->mark();
