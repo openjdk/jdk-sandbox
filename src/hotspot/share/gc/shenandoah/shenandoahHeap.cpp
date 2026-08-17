@@ -800,10 +800,9 @@ bool ShenandoahHeap::is_in(const void* p) const {
   // Now check if we point to a live section in active region.
   ShenandoahHeapRegion* r = heap_region_containing(p);
   if (p >= r->top()) {
-    if (!_collection_set->is_reusable(r)) {
+    if (!_collection_set->is_reusable(r) && !r->is_cset()) {
       return false;
     }
-    // Partially recycled region whose body was freed for reuse.
     return true;
   }
 
