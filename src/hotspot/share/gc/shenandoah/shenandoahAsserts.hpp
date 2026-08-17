@@ -69,6 +69,8 @@ public:
   // Assert that marking is complete for the generation where this obj resides
   static void assert_mark_complete(HeapWord* obj, const char* file, int line);
   static void assert_in_cset(void* interior_loc, oop obj, const char* file, int line);
+  // verify that obj resides in a region that self-identifies as cset, even though object may be newly allocated
+  static void assert_in_cset_region(void* interior_loc, oop obj, const char* file, int line);
   static void assert_not_in_cset(void* interior_loc, oop obj, const char* file, int line);
   static void assert_not_in_cset_loc(void* interior_loc, const char* file, int line);
 
@@ -146,6 +148,8 @@ public:
   if (!(exception)) ShenandoahAsserts::assert_in_cset(interior_loc, obj, __FILE__, __LINE__)
 #define shenandoah_assert_in_cset(interior_loc, obj) \
                     ShenandoahAsserts::assert_in_cset(interior_loc, obj, __FILE__, __LINE__)
+#define shenandoah_assert_in_cset_region(interior_loc, obj) \
+                    ShenandoahAsserts::assert_in_cset_region(interior_loc, obj, __FILE__, __LINE__)
 
 #define shenandoah_assert_not_in_cset_if(interior_loc, obj, condition) \
   if (condition)    ShenandoahAsserts::assert_not_in_cset(interior_loc, obj, __FILE__, __LINE__)
@@ -265,6 +269,8 @@ public:
 #define shenandoah_not_implemented_return(v) \
                     { fatal("Deliberately not implemented."); return v; }
 
+private:
+  static bool is_newly_allocated_in_early_recycled_region(oop obj);
 };
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHASSERTS_HPP

@@ -812,10 +812,15 @@ public:
 
   ShenandoahCSetMap cset_map() const { return _cset_map; }
 
-  // Checks if object is in the collection set.
+  // Checks if object is in the collection set. This check is based solely on enclosing region. A more nuanced
+  // definition of in_collection_set() would distinguish newly allocated objects within early-recycled cset regions as
+  // not in the collection set.
   inline bool in_collection_set(oop obj) const;
 
-  // Checks if location is in the collection set. Can be interior pointer, not the oop itself.
+  // Checks if location is in the collection set. Can be interior pointer, not the oop itself. This check is based solely
+  // on enclosing region. A more nuanced definition of in_collection_set() would distinguish newly allocated objects within
+  // early-recycled cset regions as not in the collection set. We cannot implement the more nuanced definition without
+  // knowing the oop that encloses this object.
   inline bool in_collection_set_loc(void* loc) const;
 
   // Evacuates or promotes object src. Returns the evacuated object, either evacuated

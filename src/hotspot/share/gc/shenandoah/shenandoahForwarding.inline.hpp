@@ -158,21 +158,28 @@ union _metadata {
 // In FWT regions mark words of evacuated objects are already destroyed, but
 // the Verifier still reads an object's klass to validate it. The valid klass
 // lives in the evacuated copy.
-static oop resolve_if_fwt(oop obj) {
+static oop resolve_if_fwt(oop obj, bool& was_table_forwarded) {
   ShenandoahHeap* heap = ShenandoahHeap::heap();
   switch (heap->collection_set()->cset_state(obj)) {
     case CSetState::FWDTABLE_COMPACT:
+      was_table_forwarded = true;
       return heap->heap_region_containing(obj)->forwardee_compact(obj);
     case CSetState::FWDTABLE_WIDE:
+      was_table_forwarded = true;
       return heap->heap_region_containing(obj)->forwardee_wide(obj);
     default:
+      was_table_forwarded = false;
       return obj;
   }
 }
 
-static _metadata safe_load_metadata(oop obj) {
-  obj = resolve_if_fwt(obj);
+static _metadata safe_load_metadata(oop original_obj) {
+  bool was_table_forwarded;
+  oop obj = resolve_if_fwt(original_obj, was_table_forwarded);
   _metadata klass_word = *(cast_from_oop<_metadata*>(obj) + 1);
+  if (was_table_forwarded) {
+    return klass_word;
+  }
   OrderAccess::loadload();
   markWord mark = obj->mark();
 #ifndef PRODUCT
@@ -194,8 +201,9 @@ static _metadata safe_load_metadata(oop obj) {
 inline Klass* ShenandoahForwarding::klass(oop obj) {
   switch (ObjLayout::klass_mode()) {
     case ObjLayout::Compact: {
-      markWord mark = resolve_if_fwt(obj)->mark();
-      if (mark.is_marked()) {
+      bool was_table_forwarded;
+      markWord mark = resolve_if_fwt(obj, was_table_forwarded)->mark();
+      if (!was_table_forwarded && mark.is_marked()) {
         oop fwd = cast_to_oop(mark.clear_lock_bits().to_pointer());
         mark = fwd->mark();
       }

@@ -22,7 +22,6 @@
  *
  */
 
-
 #include "gc/shenandoah/shenandoahAsserts.hpp"
 #include "gc/shenandoah/shenandoahCollectionSet.hpp"
 #include "gc/shenandoah/shenandoahForwarding.hpp"
@@ -481,7 +480,46 @@ void ShenandoahAsserts::assert_mark_complete(HeapWord* obj, const char* file, in
   }
 }
 
+bool ShenandoahAsserts::is_newly_allocated_in_early_recycled_region(oop obj) {
+  ShenandoahHeap* heap = ShenandoahHeap::heap();
+  assert(heap->in_collection_set(obj), "Precondition");
+  ShenandoahHeapRegion* r = heap->heap_region_containing(obj);
+  ShenandoahCollectionSet* cset = heap->collection_set();
+  // Cset regions for which the forwarding table would be "too large" do not have forwarding tables
+  if (cset->use_forward_table(r)) {
+    oop fwd;
+    CSetState cset_state = cset->cset_map().cset_state(r);
+    if (cset_state == CSetState::FWDTABLE_COMPACT) {
+      fwd = r->forwardee_compact(obj);
+    } else {
+      assert(cset_state == CSetState::FWDTABLE_WIDE, "sanity");
+      fwd = r->forwardee_wide(obj);
+    }
+    if (fwd == obj) {
+      // Forwarding to self within a forward-table region means this is newly allocated
+      return true;
+    }
+  }
+  // Either this region does not have forward table, or it has a forward table and the forward table has entry for this object.
+  return false;
+}
+
 void ShenandoahAsserts::assert_in_cset(void* interior_loc, oop obj, const char* file, int line) {
+  //assert_correct(interior_loc, obj, file, line);
+
+  ShenandoahHeap* heap = ShenandoahHeap::heap();
+  if (!heap->in_collection_set(obj)) {
+    print_failure(_safe_all, obj, interior_loc, nullptr, "Shenandoah assert_in_cset failed",
+                  "Object should be in collection set",
+                  file, line);
+  } else if (is_newly_allocated_in_early_recycled_region(obj)) {
+    print_failure(_safe_all, obj, interior_loc, nullptr, "Shenandoah assert_in_cset failed",
+                  "Object should be in collection set",
+                  file, line);
+  }
+}
+
+void ShenandoahAsserts::assert_in_cset_region(void* interior_loc, oop obj, const char* file, int line) {
   //assert_correct(interior_loc, obj, file, line);
 
   ShenandoahHeap* heap = ShenandoahHeap::heap();
@@ -499,11 +537,15 @@ void ShenandoahAsserts::assert_not_in_cset(void* interior_loc, oop obj, const ch
   if (heap->in_collection_set(obj)) {
     ShenandoahHeapRegion* r = heap->heap_region_containing(obj);
     ShenandoahCollectionSet* cset = heap->collection_set();
-    if (!cset->use_forward_table(r)) {
+    if (!is_newly_allocated_in_early_recycled_region(obj)) {
       print_failure(_safe_all, obj, interior_loc, nullptr, "Shenandoah assert_not_in_cset failed",
                     "Object should not be in collection set",
                     file, line);
-    } else {
+    }
+#ifdef KELVIN_DEPRECATE
+    // kelvin says a newly allocated object within an early-recycled cset region is "not in cset" insofar as the
+    // intent of this assertion is concerned.
+    {
       HeapWord* obj_addr = cast_from_oop<HeapWord*>(obj);
       HeapWord* fwt_start = r->forwarding_table_start();
       if (obj_addr >= fwt_start) {
@@ -528,6 +570,7 @@ void ShenandoahAsserts::assert_not_in_cset(void* interior_loc, oop obj, const ch
         }
       }
     }
+#endif
   }
 }
 

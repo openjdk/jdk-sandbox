@@ -104,7 +104,9 @@ inline oop ShenandoahBarrierSet::load_reference_barrier_mutator(oop obj, T* load
       return obj;
     }
   } else {
-    shenandoah_assert_in_cset(load_addr, obj);
+    // Confirm that obj resides in a region that self-identifies as cset.  We may find out below that this object
+    // is newly allocated within that region, and thus not part of the evacuation set.
+    shenandoah_assert_in_cset_region(load_addr, obj);
   }
 
   oop fwd;

@@ -455,7 +455,7 @@ inline bool ShenandoahHeap::in_collection_set(oop p) const {
 
 inline bool ShenandoahHeap::in_collection_set_loc(void* p) const {
   assert(collection_set() != nullptr, "Sanity");
-    return _cset_map.is_in_loc(p);
+  return _cset_map.is_in_loc(p);
 }
 
 inline char ShenandoahHeap::gc_state() const {
