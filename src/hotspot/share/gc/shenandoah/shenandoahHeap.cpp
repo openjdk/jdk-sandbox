@@ -1472,6 +1472,9 @@ bool ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t nu
   if (!concurrent) {
     return false;
   }
+  if (r->is_old()) {
+    return false;
+  }
   // There shoud be no live objects.
   if (r->is_pinned() || r->was_promoted_in_place() || r->has_self_forwards()) {
     return false;
