@@ -26,6 +26,7 @@
 
 #include "gc/shared/tlab_globals.hpp"
 #include "gc/shenandoah/shenandoahAsserts.hpp"
+#include "gc/shenandoah/shenandoahBarrierSet.inline.hpp"
 #include "gc/shenandoah/shenandoahForwarding.inline.hpp"
 #include "gc/shenandoah/shenandoahGeneration.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
@@ -1358,7 +1359,7 @@ private:
       oop obj = CompressedOops::decode_raw_not_null(o);
       ShenandoahAsserts::assert_correct(p, obj, __FILE__, __LINE__);
 
-      oop fwd = ShenandoahForwarding::get_forwardee_raw_unchecked(obj);
+      oop fwd = ShenandoahBarrierSet::resolve_forwarded_not_null(obj);
       if (obj != fwd) {
         ShenandoahAsserts::print_failure(ShenandoahAsserts::_safe_all, obj, p, nullptr,
                                          "Verify Roots", "Should not be forwarded", __FILE__, __LINE__);
@@ -1389,14 +1390,14 @@ private:
 
       if (heap->in_collection_set(obj)) {
         bool fwt_new_alloc = heap->collection_set()->use_forward_table(obj) &&
-                             ShenandoahForwarding::get_forwardee_raw_unchecked(obj) == obj;
+                             ShenandoahBarrierSet::resolve_forwarded_not_null(obj) == obj;
         if (!fwt_new_alloc) {
           ShenandoahAsserts::print_failure(ShenandoahAsserts::_safe_all, obj, p, nullptr,
                   "Verify Roots In To-Space", "Should not be in collection set", __FILE__, __LINE__);
         }
       }
 
-      oop fwd = ShenandoahForwarding::get_forwardee_raw_unchecked(obj);
+      oop fwd = ShenandoahBarrierSet::resolve_forwarded_not_null(obj);
       if (obj != fwd) {
         ShenandoahAsserts::print_failure(ShenandoahAsserts::_safe_all, obj, p, nullptr,
                 "Verify Roots In To-Space", "Should not be forwarded", __FILE__, __LINE__);

@@ -23,6 +23,7 @@
  */
 
 #include "gc/shenandoah/shenandoahAsserts.hpp"
+#include "gc/shenandoah/shenandoahBarrierSet.inline.hpp"
 #include "gc/shenandoah/shenandoahCollectionSet.hpp"
 #include "gc/shenandoah/shenandoahForwarding.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
@@ -487,14 +488,7 @@ bool ShenandoahAsserts::is_newly_allocated_in_early_recycled_region(oop obj) {
   ShenandoahCollectionSet* cset = heap->collection_set();
   // Cset regions for which the forwarding table would be "too large" do not have forwarding tables
   if (cset->use_forward_table(r)) {
-    oop fwd;
-    CSetState cset_state = cset->cset_map().cset_state(r);
-    if (cset_state == CSetState::FWDTABLE_COMPACT) {
-      fwd = r->forwardee_compact(obj);
-    } else {
-      assert(cset_state == CSetState::FWDTABLE_WIDE, "sanity");
-      fwd = r->forwardee_wide(obj);
-    }
+    oop fwd = ShenandoahBarrierSet::resolve_forwarded_not_null(obj);
     if (fwd == obj) {
       // Forwarding to self within a forward-table region means this is newly allocated
       return true;
