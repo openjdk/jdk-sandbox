@@ -96,6 +96,8 @@ bool ShenandoahForwardingTable::initialize(size_t num_entries) {
   // object headers falling within the table's range are unusable slots; the
   // search below grows the table to keep enough usable slots.
   constexpr size_t entry_words = sizeof(Entry) / sizeof(HeapWord*);
+  // Entry aligned and suitable for count_mark_bit_conflicts().
+  size_t const entry_obj_align = MAX2(entry_words * HeapWordSize, (size_t)MinObjAlignmentInBytes);
   HeapWord* const bottom =  _region->bottom();
   HeapWord* const top =  _region->top();
   HeapWord* const end = _region->end();
@@ -109,7 +111,7 @@ bool ShenandoahForwardingTable::initialize(size_t num_entries) {
   // num_required_entries is the number of usable entries in order to honor requested load factor
   size_t const num_required_entries = (num_entries * 100 + load_factor - 1) / load_factor;
   // Optimistic last possible table start (assuming no unusable entries). We don't need to search beyond that.
-  HeapWord* const last_table_start = end - num_required_entries * entry_words;
+  HeapWord* const last_table_start = align_down(end - num_required_entries * entry_words, entry_obj_align);
   if (last_table_start < bottom) {
     log_info(gc)("Forwarding table build failed for region %zu: "
                  "required=%zu entries of %zu words exceed region_words=%zu (num_forwardings=%zu)",
@@ -148,7 +150,7 @@ bool ShenandoahForwardingTable::initialize(size_t num_entries) {
 
   while (table_start > bottom && num_table_entries - unusable_entries < num_required_entries) {
     size_t growth = num_required_entries + unusable_entries - num_table_entries;
-    HeapWord* new_table_start = table_start - growth * entry_words;
+    HeapWord* new_table_start = align_down(table_start - growth * entry_words, entry_obj_align);
     if (new_table_start < bottom) {
       table_start = bottom;     // Force loop to abort with failure condition.
       break;
