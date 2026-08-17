@@ -27,11 +27,14 @@
 #include "gc/shenandoah/shenandoahForwardingTable.hpp"
 
 #include "gc/shenandoah/shenandoahMarkingContext.inline.hpp"
+#include "utilities/align.hpp"
 #include "utilities/fastHash.hpp"
 
 inline bool FwdTableEntry::is_marked(ShenandoahMarkingContext* ctx) const {
- return ctx->is_marked_ignore_tams(cast_from_oop<HeapWord*>(cast_to_oop(&_original))) ||
-        ctx->is_marked_ignore_tams(cast_from_oop<HeapWord*>(cast_to_oop(&_forwardee)));
+ HeapWord* const orig_addr = cast_from_oop<HeapWord*>(cast_to_oop(&_original));
+ HeapWord* const fwd_addr  = cast_from_oop<HeapWord*>(cast_to_oop(&_forwardee));
+ return (is_object_aligned(orig_addr) && ctx->is_marked_ignore_tams(orig_addr)) ||
+        (is_object_aligned(fwd_addr)  && ctx->is_marked_ignore_tams(fwd_addr));
 }
 
 inline bool FwdTableEntry::is_original(HeapWord* region_base, HeapWord* original) {
@@ -69,7 +72,8 @@ inline bool CompactFwdTableEntry::is_original(HeapWord* region_base, HeapWord* o
 }
 
 inline bool CompactFwdTableEntry::is_marked(ShenandoahMarkingContext* ctx) const {
- return ctx->is_marked_ignore_tams(reinterpret_cast<HeapWord*>(const_cast<uint64_t*>(&_encoded)));
+ HeapWord* const addr = reinterpret_cast<HeapWord*>(const_cast<uint64_t*>(&_encoded));
+ return is_object_aligned(addr) && ctx->is_marked_ignore_tams(addr);
 }
 
 inline uint64_t ShenandoahForwardingTable::hash(HeapWord* original, void* table) {
@@ -101,7 +105,8 @@ HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
       HeapWord* result = table[index].forwardee();
 #ifdef ASSERT
       ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
-      assert(!ctx->is_marked_ignore_tams((HeapWord*) &table[index]),
+      assert(!is_object_aligned((HeapWord*) &table[index]) ||
+             !ctx->is_marked_ignore_tams((HeapWord*) &table[index]),
              "Do not expect forward entry is at forwarded markword location: " PTR_FORMAT,
              p2i(* (HeapWord*) &table[index]));
 #endif

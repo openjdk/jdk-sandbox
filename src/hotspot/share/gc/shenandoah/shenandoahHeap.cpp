@@ -800,10 +800,9 @@ bool ShenandoahHeap::is_in(const void* p) const {
   // Now check if we point to a live section in active region.
   ShenandoahHeapRegion* r = heap_region_containing(p);
   if (p >= r->top()) {
-    if (!_collection_set->is_reusable(r)) {
+    if (!_collection_set->is_reusable(r) && !r->is_cset()) {
       return false;
     }
-    // Partially recycled region whose body was freed for reuse.
     return true;
   }
 
@@ -1470,6 +1469,9 @@ bool ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t nu
   }
   // STW GC uses mark-word forwarding.
   if (!concurrent) {
+    return false;
+  }
+  if (r->is_old()) {
     return false;
   }
   // There shoud be no live objects.
