@@ -52,7 +52,12 @@ class ShenandoahCSetMap {
   ShenandoahCSetMap(size_t region_size_bytes_shift, char* map, char* heap_base) :
     _region_size_bytes_shift(region_size_bytes_shift),
     _cset_map(reinterpret_cast<CSetState*>(map + ((uintx)heap_base >> region_size_bytes_shift))),
-    _biased_cset_map(reinterpret_cast<CSetState*>(map)) {}
+    _biased_cset_map(reinterpret_cast<CSetState*>(map)) {
+#undef KELVIN_DESPERATE_MEASURES
+#ifdef KELVIN_DESPERATE_MEASURES
+    log_info(gc)("bias offset is %zu", ((uintx)heap_base >> region_size_bytes_shift));
+#endif
+}
 
 public:
   ShenandoahCSetMap() : _region_size_bytes_shift(0), _cset_map(nullptr), _biased_cset_map(nullptr) {}

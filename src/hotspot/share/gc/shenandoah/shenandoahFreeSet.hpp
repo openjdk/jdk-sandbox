@@ -928,7 +928,7 @@ public:
   // for evacuation, invoke this to make regions available for mutator allocations.
   void move_regions_from_collector_to_mutator(size_t cset_regions);
 
-  // Admit reusable CSet regions' freed bodies into the Mutator free set, before update-refs.
+  // Admit reusable CSet regions' freed bodies into the Mutator free set at start of update-refs.
   void recycle_collection_set();
 
   void finish_recycle_of_one_cset_region(ShenandoahHeapRegion* r, size_t& released_regions,

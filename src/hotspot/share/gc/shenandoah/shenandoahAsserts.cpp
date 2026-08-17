@@ -24,6 +24,7 @@
 
 
 #include "gc/shenandoah/shenandoahAsserts.hpp"
+#include "gc/shenandoah/shenandoahCollectionSet.hpp"
 #include "gc/shenandoah/shenandoahForwarding.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahHeapRegionSet.inline.hpp"
@@ -232,9 +233,10 @@ void ShenandoahAsserts::assert_correct(void* interior_loc, oop obj, const char* 
 
   if (heap->collection_set()->use_forward_table(obj)) {
     ShenandoahHeapRegion* fwt_r = heap->heap_region_containing(obj);
+    oop fwd_check = ShenandoahBarrierSet::resolve_forwarded_not_null(obj);
     HeapWord* obj_addr = cast_from_oop<HeapWord*>(obj);
     if (obj_addr >= fwt_r->forwarding_table_start()) {
-      oop fwd_check = ShenandoahBarrierSet::resolve_forwarded_not_null(obj);
+      // Since obj_addr >= start of fwd table, this must be a previously allocated object, and it should have been forwarded.
       if (fwd_check == obj) {
         print_failure(_safe_oop, obj, interior_loc, nullptr, "Shenandoah assert_correct failed",
                       "Object in FWT tail has not been evacuated",
@@ -298,10 +300,41 @@ void ShenandoahAsserts::assert_correct(void* interior_loc, oop obj, const char* 
 
   const Klass* obj_klass = nullptr;
   narrowKlass nk = 0;
-  if (!extract_klass_safely(obj, nk, obj_klass)) {
-    print_failure(_safe_oop, obj, interior_loc, nullptr, "Shenandoah assert_correct failed",
-                  "Object klass pointer invalid",
-                  file,line);
+  if (heap->collection_set()->use_forward_table(obj)) {
+    if (!extract_klass_safely(fwd, nk, obj_klass)) {
+      print_failure(_safe_oop, obj, interior_loc, nullptr, "Shenandoah assert_correct failed",
+                    "Object klass pointer invalid",
+                    file,line);
+    }
+  } else {
+    // There can be a race here because forweard-tables come into
+    // existence asynchronously, as we finish building the forward table for a newly evacuated cset
+    // region.  However, we cannot start allocating within a region that previously had not safepoint
+    // until every thread passes through a safepoint (or at minimum, a handshake).
+    //
+    // So even though the forwwarding status might change, between test above and here, it should not
+    // change allocation.
+
+    // maybe the problem is that already forwarded and allocated in this region even before the if-test,
+    // but I didn't see it.
+
+    // Changes to top hapen under global heap lock
+    // Changes to use_forward_table happen asynchronously
+
+    // This assert has never failed.
+#ifdef ASSERT
+    ShenandoahHeapRegion* r = heap->heap_region_containing(obj);
+    HeapWord* bottom = r->bottom();
+    HeapWord* top = r->top();
+    assert(!heap->collection_set()->use_forward_table(obj) || (bottom == top),
+           "Expect no race on this condition for obj " PTR_FORMAT " in region %zu with bottom " PTR_FORMAT " and top " PTR_FORMAT,
+           p2i(obj), r->index(), p2i(bottom), p2i(top));
+#endif
+    if (!extract_klass_safely(obj, nk, obj_klass)) {
+      print_failure(_safe_oop, obj, interior_loc, nullptr, "Shenandoah assert_correct failed",
+                    "Object klass pointer invalid",
+                    file,line);
+    }
   }
 
   if (obj_klass == nullptr) {
@@ -465,7 +498,8 @@ void ShenandoahAsserts::assert_not_in_cset(void* interior_loc, oop obj, const ch
   ShenandoahHeap* heap = ShenandoahHeap::heap();
   if (heap->in_collection_set(obj)) {
     ShenandoahHeapRegion* r = heap->heap_region_containing(obj);
-    if (r->forwarding_table_start() == nullptr) {
+    ShenandoahCollectionSet* cset = heap->collection_set();
+    if (!cset->use_forward_table(r)) {
       print_failure(_safe_all, obj, interior_loc, nullptr, "Shenandoah assert_not_in_cset failed",
                     "Object should not be in collection set",
                     file, line);
@@ -476,6 +510,22 @@ void ShenandoahAsserts::assert_not_in_cset(void* interior_loc, oop obj, const ch
         print_failure(_safe_all, obj, interior_loc, nullptr, "Shenandoah assert_not_in_cset failed",
                       "Object points into FWT area",
                       file, line);
+      } else {
+        oop fwd;
+        CSetState cset_state = cset->cset_map().cset_state(obj);
+        if (cset_state == CSetState::FWDTABLE_COMPACT) {
+          fwd = r->forwardee_compact(obj);
+        } else {
+          assert(cset_state == CSetState::FWDTABLE_WIDE, "sanity");
+          fwd = r->forwardee_wide(obj);
+        }
+        // We expect fwd is nullptr, because we expect it to be newly allocated.  If not nullptr, this is an object that
+        // was present in the cset.
+        if (fwd != nullptr) {
+          print_failure(_safe_all, obj, interior_loc, nullptr, "Shenandoah assert_not_in_cset failed",
+                        "Object points into FWT area",
+                        file, line);
+        }
       }
     }
   }
@@ -483,11 +533,15 @@ void ShenandoahAsserts::assert_not_in_cset(void* interior_loc, oop obj, const ch
 
 void ShenandoahAsserts::assert_not_in_cset_loc(void* interior_loc, const char* file, int line) {
   ShenandoahHeap* heap = ShenandoahHeap::heap();
-  if (heap->in_collection_set_loc(interior_loc) && (heap->heap_region_containing(interior_loc)->forwarding_table_start() == nullptr)) {
+  ShenandoahCollectionSet* cset = heap->collection_set();
+  ShenandoahHeapRegion* region = heap->heap_region_containing(interior_loc);
+  if (heap->in_collection_set_loc(interior_loc) && !cset->use_forward_table(region)) {
+    // The interior location resides within a CSET region, and this CSET region does not support early-recycling.
     print_failure(_safe_unknown, nullptr, interior_loc, nullptr, "Shenandoah assert_not_in_cset_loc failed",
                   "Interior location should not be in collection set",
                   file, line);
   }
+  // Otherwise, we're not sure if the enclosing object was pre-existing or newly allocated, so we assume the best.
 }
 
 void ShenandoahAsserts::assert_in_young(void* interior_loc, oop obj, const char* file, int line) {

@@ -233,8 +233,10 @@ bool ShenandoahConcurrentGC::collect(GCCause::Cause cause) {
       vmop_entry_init_update_refs();
     }
 
+#ifdef KELVIN_DEPRECATE
     // Recycle the memory below the FWT in cset regions.
     entry_recycle_collection_set();
+#endif
 
     entry_update_refs();
     if (check_cancellation_and_abort(ShenandoahDegenPoint::_degenerated_update_refs)) {
@@ -609,6 +611,7 @@ void ShenandoahConcurrentGC::entry_update_thread_roots() {
   op_update_thread_roots();
 }
 
+#ifdef KELVIN_DEPRECATE
 void ShenandoahConcurrentGC::entry_recycle_collection_set() {
   ShenandoahHeap* const heap = ShenandoahHeap::heap();
   TraceCollectorStats tcs(heap->monitoring_support()->concurrent_collection_counters());
@@ -619,6 +622,7 @@ void ShenandoahConcurrentGC::entry_recycle_collection_set() {
 
   op_recycle_collection_set();
 }
+#endif
 
 void ShenandoahConcurrentGC::entry_update_refs() {
   ShenandoahHeap* const heap = ShenandoahHeap::heap();
@@ -1218,11 +1222,13 @@ void ShenandoahConcurrentGC::op_update_thread_roots() {
   }
 }
 
+#ifdef KELVIN_DEPRECATE
 void ShenandoahConcurrentGC::op_recycle_collection_set() {
   ShenandoahHeap* const heap = ShenandoahHeap::heap();
   ShenandoahHeapLocker locker(heap->lock());
   heap->free_set()->recycle_collection_set();
 }
+#endif
 
 void ShenandoahConcurrentGC::op_final_update_refs() {
   ShenandoahHeap* const heap = ShenandoahHeap::heap();

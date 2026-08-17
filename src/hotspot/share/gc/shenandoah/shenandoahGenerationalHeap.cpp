@@ -742,8 +742,13 @@ private:
       // Now that evacuation is done, we can reassign any regions that had been reserved to hold the results of evacuation
       // to the mutator free set.  At the end of GC, we will have cset_regions newly evacuated fully empty regions from
       // which we will be able to replenish the Collector free set and the OldCollector free set in preparation for the
-      // next GC cycle. recycle_collection_set() for fwt regions is called separately.
+      // next GC cycle.
       _heap->free_set()->move_regions_from_collector_to_mutator(cset_regions);
+    }
+    if (worker_id == 0) {
+      // After moving regions from collector to mutator, we ask the first worker to replenish the Mutator free set.
+      ShenandoahHeapLocker locker(_heap->lock());
+      _heap->free_set()->recycle_collection_set();
     }
     // If !CONCURRENT, there's no value in expanding Mutator free set
 

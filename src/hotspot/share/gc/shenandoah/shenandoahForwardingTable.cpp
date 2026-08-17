@@ -380,6 +380,11 @@ bool ShenandoahForwardingTable::build(size_t num_entries) {
                   _region->index(), num_entries, _num_entries,
                   table_words * 100 / region_words);
   }
+#ifdef KELVIN_FAUX_PAS
+  size_t available = _region->capacity() - _region->fwt_tail_bytes();
+  bool reuse_body = ShenandoahRecycleFWTBodies && (available >= PLAB::min_size() * HeapWordSize);
+  _region->recycle_early(reuse_body);
+#endif
   return initialized;
 }
 

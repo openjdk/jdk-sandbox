@@ -51,7 +51,8 @@ inline oop ShenandoahForwarding::get_forwardee_raw_unchecked(oop obj) {
   ShenandoahHeap* heap = ShenandoahHeap::heap();
   ShenandoahHeapRegion* region = heap->heap_region_containing(obj);
   assert(!heap->collection_set()->use_forward_table(obj) || (region->top() == region->bottom()),
-         "Do not use mark-word forwarding if we are allocating in early-recycled region");
+         "Do not use mark-word forwarding if we are allocating in early-recycled region, obj: "
+         PTR_FORMAT ", top: " PTR_FORMAT ", bottom: " PTR_FORMAT, p2i(obj), p2i(region->top()), p2i(region->bottom()));
 #endif
   markWord mark = obj->mark();
   if (mark.is_marked()) {
@@ -121,7 +122,8 @@ static _metadata safe_load_metadata(oop obj) {
     ShenandoahHeap* heap = ShenandoahHeap::heap();
     ShenandoahHeapRegion* region = heap->heap_region_containing(obj);
     assert(!heap->collection_set()->use_forward_table(obj) || (region->top() == region->bottom()),
-           "Do not use mark-word forwarding if we are allocating in early-recycled region");
+           "Do not use mark-word forwarding if we are allocating in early-recycled region, obj: "
+           PTR_FORMAT ", top: " PTR_FORMAT ", bottom: " PTR_FORMAT, p2i(obj), p2i(region->top()), p2i(region->bottom()));
   }
 #endif
   if (mark.is_forwarded()) {
