@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2025, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2016, 2021, Red Hat, Inc. All rights reserved.
  * Copyright Amazon.com Inc. or its affiliates. All Rights Reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
@@ -195,14 +195,6 @@
           "With automatic region sizing, this is the approximate number "   \
           "of regions that would be used, within min/max region size "      \
           "limits.")                                                        \
-                                                                            \
-  product(size_t, ShenandoahMinRegionSize, 256 * K, EXPERIMENTAL,           \
-          "With automatic region sizing, the regions would be at least "    \
-          "this large.")                                                    \
-                                                                            \
-  product(size_t, ShenandoahMaxRegionSize, 32 * M, EXPERIMENTAL,            \
-          "With automatic region sizing, the regions would be at most "     \
-          "this large.")                                                    \
                                                                             \
   product(ccstr, ShenandoahGCMode, "satb",                                  \
           "GC mode to use.  Among other things, this defines which "        \
@@ -614,15 +606,11 @@
   product(bool, ShenandoahCloneRuntime, false, DIAGNOSTIC,                  \
           "Handle clone in runtime instead of in copy stubs.")              \
                                                                             \
-  product(bool, ShenandoahElideBarriers, true, DIAGNOSTIC,                  \
-          "Elide redundant Shenandoah barriers.")                           \
+  product(bool, ShenandoahElideIdealBarriers, true, DIAGNOSTIC,             \
+          "Elide redundant Shenandoah barriers on C2 Ideal level.")         \
                                                                             \
-  product(bool, ShenandoahWeakRootsEarly, false, EXPERIMENTAL,              \
-          "Turn off weak roots earlier than usual. TODO: Upstream!")        \
-                                                                            \
-  product(int, ShenandoahDelayGC, 0, EXPERIMENTAL,                          \
-          "Delay GC phases by this amount of milliseconds. "                \
-          "Helps to measure active GC barriers costs.")                     \
+  product(bool, ShenandoahElideMachBarriers, true, DIAGNOSTIC,              \
+          "Elide redundant Shenandoah barriers on C2 Mach level.")          \
                                                                             \
   develop(bool, ShenandoahVerifyOptoBarriers, trueInDebug,                  \
           "Verify no missing barriers in C2.")                              \

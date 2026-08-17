@@ -168,7 +168,6 @@ instruct compareAndExchangeP_shenandoah(memory mem, rax_RegP oldval, rRegP newva
   match(Set oldval (CompareAndExchangeP mem (Binary oldval newval)));
   predicate(UseShenandoahGC && n->as_LoadStore()->barrier_data() != 0);
   effect(TEMP tmp, KILL cr);
-  ins_cost(1000);
   format %{ "shenandoah_cae $mem, $newval\t# ptr" %}
   ins_encode %{
     ShenandoahBarrierSet::assembler()->compare_and_set_c2(this, masm,

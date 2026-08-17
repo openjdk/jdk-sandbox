@@ -188,7 +188,6 @@ uint CompileBroker::_sum_osr_bytes_compiled         = 0;
 uint CompileBroker::_sum_standard_bytes_compiled    = 0;
 uint CompileBroker::_sum_nmethod_size               = 0;
 uint CompileBroker::_sum_nmethod_code_size          = 0;
-uint CompileBroker::_largest_nmethod_code_size      = 0;
 
 jlong CompileBroker::_peak_compilation_time        = 0;
 
@@ -1383,10 +1382,9 @@ nmethod* CompileBroker::compile_method(const methodHandle& method, int osr_bci,
   }
 #endif
 
-  DirectiveSet* directive = DirectivesStack::getMatchingDirective(method, comp);
+  CompilerDirectiveMatcher matcher(method, comp_level);
   // CompileBroker::compile_method can trap and can have pending async exception.
-  nmethod* nm = CompileBroker::compile_method(method, osr_bci, comp_level, hot_count, compile_reason, directive, THREAD);
-  DirectivesStack::release(directive);
+  nmethod* nm = CompileBroker::compile_method(method, osr_bci, comp_level, hot_count, compile_reason, matcher.directive_set(), THREAD);
   return nm;
 }
 
@@ -2366,11 +2364,10 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
 
 
     if (!ci_env.failing() && !task->is_success()) {
-      assert(ci_env.failure_reason() != nullptr, "expect failure reason");
-      assert(false, "compiler should always document failure: %s", ci_env.failure_reason());
-      // The compiler elected, without comment, not to register a result.
+      const char* reason = task->failure_reason();
+      assert(reason != nullptr, "compiler should always document failure");
       // Do not attempt further compilations of this method.
-      ci_env.record_method_not_compilable("compile failed");
+      ci_env.record_method_not_compilable(reason != nullptr ? reason : "compile failed: reason unknown");
     }
 
     // Copy this bit to the enclosing block:
@@ -2417,7 +2414,6 @@ void CompileBroker::invoke_compiler_on_method(CompileTask* task) {
     ResourceMark rm;
     task->print_post(tty);
   }
-  DirectivesStack::release(directive);
 
   Log(compilation, codecache) log;
   if (log.is_debug()) {
@@ -2653,7 +2649,6 @@ void CompileBroker::collect_statistics(CompilerThread* thread, elapsedTimer time
     // Collect counts of successful compilations
     _sum_nmethod_size      += task->nm_total_size();
     _sum_nmethod_code_size += task->nm_insts_size();
-    _largest_nmethod_code_size = MAX2(_largest_nmethod_code_size, (uint) task->nm_insts_size());
     _total_compile_count++;
 
     if (UsePerfData) {
@@ -2741,7 +2736,6 @@ void CompileBroker::print_times(bool per_compiler, bool aggregate) {
   uint total_invalidated_count = CompileBroker::_total_invalidated_count;
 
   uint nmethods_code_size = CompileBroker::_sum_nmethod_code_size;
-  uint largest_nmethod_code_size = CompileBroker::_largest_nmethod_code_size;
   uint nmethods_size = CompileBroker::_sum_nmethod_size;
 
   tty->cr();
@@ -2795,7 +2789,6 @@ void CompileBroker::print_times(bool per_compiler, bool aggregate) {
   uint bps = tcs == 0.0 ? 0 : (uint)(tcb / tcs);
   tty->print_cr("  Average compilation speed : %8u bytes/s", bps);
   tty->cr();
-  tty->print_cr("  largest nmethod code size : %8u bytes", largest_nmethod_code_size);
   tty->print_cr("  nmethod code size         : %8u bytes", nmethods_code_size);
   tty->print_cr("  nmethod total size        : %8u bytes", nmethods_size);
 }

@@ -72,10 +72,6 @@ private:
 
   char _gc_state_fast_array[POS_MAX];
 
-  // Evacuation OOM state
-  uint8_t                 _oom_scope_nesting_level;
-  bool                    _oom_during_evac;
-
   SATBMarkQueue           _satb_mark_queue;
 
   // Current active CardTable's byte_map_base for this thread.
@@ -137,13 +133,13 @@ public:
   static void set_gc_state(Thread* thread, char gc_state) {
     ShenandoahThreadLocalData* d = data(thread);
     d->_gc_state = gc_state;
-    d->_gc_state_fast_array[POS_FORWARDED]              = (gc_state & FORWARDED) > 0;
-    d->_gc_state_fast_array[POS_MARKING]                = (gc_state & MARKING) > 0;
-    d->_gc_state_fast_array[POS_WEAK]                   = (gc_state & WEAK) > 0;
-    d->_gc_state_fast_array[POS_FORWARDED_MARKING]      = (gc_state & FORWARDED_MARKING) > 0;
-    d->_gc_state_fast_array[POS_FORWARDED_WEAK]         = (gc_state & FORWARDED_WEAK) > 0;
-    d->_gc_state_fast_array[POS_MARKING_WEAK]           = (gc_state & MARKING_WEAK) > 0;
-    d->_gc_state_fast_array[POS_FORWARDED_MARKING_WEAK] = (gc_state & FORWARDED_MARKING_WEAK) > 0;
+    d->_gc_state_fast_array[POS_FORWARDED]              = (gc_state & FORWARDED) != 0;
+    d->_gc_state_fast_array[POS_MARKING]                = (gc_state & MARKING) != 0;
+    d->_gc_state_fast_array[POS_WEAK]                   = (gc_state & WEAK) != 0;
+    d->_gc_state_fast_array[POS_FORWARDED_MARKING]      = (gc_state & FORWARDED_MARKING) != 0;
+    d->_gc_state_fast_array[POS_FORWARDED_WEAK]         = (gc_state & FORWARDED_WEAK) != 0;
+    d->_gc_state_fast_array[POS_MARKING_WEAK]           = (gc_state & MARKING_WEAK) != 0;
+    d->_gc_state_fast_array[POS_FORWARDED_MARKING_WEAK] = (gc_state & FORWARDED_MARKING_WEAK) != 0;
   }
 
   static char gc_state(Thread* thread) {
@@ -205,39 +201,6 @@ public:
 
   static ShenandoahPLAB* shenandoah_plab(Thread* thread) {
     return data(thread)->_shenandoah_plab;
-  }
-
-  // Evacuation OOM handling
-  static bool is_oom_during_evac(Thread* thread) {
-    return data(thread)->_oom_during_evac;
-  }
-
-  static void set_oom_during_evac(Thread* thread, bool oom) {
-    data(thread)->_oom_during_evac = oom;
-  }
-
-  static uint8_t evac_oom_scope_level(Thread* thread) {
-    return data(thread)->_oom_scope_nesting_level;
-  }
-
-  // Push the scope one level deeper, return previous level
-  static uint8_t push_evac_oom_scope(Thread* thread) {
-    uint8_t level = evac_oom_scope_level(thread);
-    assert(level < 254, "Overflow nesting level"); // UINT8_MAX = 255
-    data(thread)->_oom_scope_nesting_level = level + 1;
-    return level;
-  }
-
-  // Pop the scope by one level, return previous level
-  static uint8_t pop_evac_oom_scope(Thread* thread) {
-    uint8_t level = evac_oom_scope_level(thread);
-    assert(level > 0, "Underflow nesting level");
-    data(thread)->_oom_scope_nesting_level = level - 1;
-    return level;
-  }
-
-  static bool is_evac_allowed(Thread* thread) {
-    return evac_oom_scope_level(thread) > 0;
   }
 
   // Offsets

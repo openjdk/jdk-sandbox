@@ -925,13 +925,18 @@
   declare_function(JVMCIRuntime::vm_error)                                \
   declare_function(JVMCIRuntime::load_and_clear_exception)                \
   G1GC_ONLY(declare_function(JVMCIRuntime::write_barrier_pre))            \
-  SHENANDOAHGC_ONLY(declare_function(ShenandoahRuntime::load_reference_barrier_strong))         \
-  SHENANDOAHGC_ONLY(declare_function(ShenandoahRuntime::load_reference_barrier_strong_narrow))  \
-  SHENANDOAHGC_ONLY(declare_function(ShenandoahRuntime::load_reference_barrier_weak))           \
-  SHENANDOAHGC_ONLY(declare_function(ShenandoahRuntime::load_reference_barrier_weak_narrow))    \
-  SHENANDOAHGC_ONLY(declare_function(ShenandoahRuntime::load_reference_barrier_phantom))        \
-  SHENANDOAHGC_ONLY(declare_function(ShenandoahRuntime::load_reference_barrier_phantom_narrow)) \
-  SHENANDOAHGC_ONLY(declare_function(ShenandoahRuntime::write_barrier_pre))                     \
+  SHENANDOAHGC_ONLY(declare_function(ShenandoahRuntime::load_reference_barrier_strong))                 \
+  SHENANDOAHGC_ONLY(declare_function(ShenandoahRuntime::load_reference_barrier_strong_narrow))          \
+  SHENANDOAHGC_ONLY(declare_function(ShenandoahRuntime::load_reference_barrier_strong_narrow_narrow))   \
+  SHENANDOAHGC_ONLY(declare_function(ShenandoahRuntime::load_reference_barrier_weak))                   \
+  SHENANDOAHGC_ONLY(declare_function(ShenandoahRuntime::load_reference_barrier_weak_narrow))            \
+  SHENANDOAHGC_ONLY(declare_function(ShenandoahRuntime::load_reference_barrier_weak_narrow_narrow))     \
+  SHENANDOAHGC_ONLY(declare_function(ShenandoahRuntime::load_reference_barrier_phantom))                \
+  SHENANDOAHGC_ONLY(declare_function(ShenandoahRuntime::load_reference_barrier_phantom_narrow))         \
+  SHENANDOAHGC_ONLY(declare_function(ShenandoahRuntime::load_reference_barrier_phantom_narrow_narrow))  \
+  SHENANDOAHGC_ONLY(declare_function(ShenandoahRuntime::write_barrier_pre))                             \
+  SHENANDOAHGC_ONLY(declare_function(ShenandoahRuntime::write_barrier_pre_narrow))                      \
+  SHENANDOAHGC_ONLY(declare_function(ShenandoahRuntime::clone))                                         \
   declare_function(JVMCIRuntime::validate_object)                         \
                                                                           \
   declare_function(JVMCIRuntime::test_deoptimize_call_int)
@@ -1017,7 +1022,7 @@
   static_field(VM_Version, _rop_protection, bool)                       \
   volatile_nonstatic_field(JavaFrameAnchor, _last_Java_fp, intptr_t*)
 
-#define DECLARE_INT_CPU_FEATURE_CONSTANT(id, name, bit) GENERATE_VM_INT_CONSTANT_ENTRY(VM_Version::CPU_##id)
+#define DECLARE_INT_CPU_FEATURE_CONSTANT(id, name) GENERATE_VM_INT_CONSTANT_ENTRY(VM_Version::CPU_##id)
 #define VM_INT_CPU_FEATURE_CONSTANTS CPU_FEATURE_FLAGS(DECLARE_INT_CPU_FEATURE_CONSTANT)
 
 #endif
@@ -1037,7 +1042,7 @@
   declare_constant(frame::interpreter_frame_sender_sp_offset)       \
   declare_constant(frame::interpreter_frame_last_sp_offset)
 
-#define DECLARE_LONG_CPU_FEATURE_CONSTANT(id, name, bit) GENERATE_VM_LONG_CONSTANT_ENTRY(VM_Version::CPU_##id)
+#define DECLARE_LONG_CPU_FEATURE_CONSTANT(id, name) GENERATE_VM_LONG_CONSTANT_ENTRY(VM_Version::CPU_##id)
 #define VM_LONG_CPU_FEATURE_CONSTANTS \
    CPU_FEATURE_FLAGS(DECLARE_LONG_CPU_FEATURE_CONSTANT)
 
