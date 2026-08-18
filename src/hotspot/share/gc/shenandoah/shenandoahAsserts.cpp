@@ -484,11 +484,11 @@ void ShenandoahAsserts::assert_mark_complete(HeapWord* obj, const char* file, in
 bool ShenandoahAsserts::is_newly_allocated_in_early_recycled_region(oop obj) {
   ShenandoahHeap* heap = ShenandoahHeap::heap();
   assert(heap->in_collection_set(obj), "Precondition");
-  ShenandoahHeapRegion* r = heap->heap_region_containing(obj);
-  ShenandoahCollectionSet* cset = heap->collection_set();
+  ShenandoahCSetMap cset_map = heap->collection_set()->cset_map();
+  CSetState cset_state = cset_map.cset_state(obj);
   // Cset regions for which the forwarding table would be "too large" do not have forwarding tables
-  if (cset->use_forward_table(r)) {
-    oop fwd = ShenandoahBarrierSet::resolve_forwarded_not_null(obj);
+  if (cset_map.use_forward_table(cset_state)) {
+    oop fwd = ShenandoahBarrierSet::resolve_forwarded_not_null(obj, heap, cset_state);
     if (fwd == obj) {
       // Forwarding to self within a forward-table region means this is newly allocated
       return true;

@@ -114,8 +114,12 @@ private:
     if (!CompressedOops::is_null(o)) {
       oop obj = CompressedOops::decode_raw_not_null(o);
 
-      if (_heap->is_in_reserved(obj) && _heap->collection_set()->use_forward_table(obj)) {
-        obj = ShenandoahBarrierSet::resolve_forwarded_not_null(obj);
+      if (_heap->is_in_reserved(obj)) {
+        ShenandoahCSetMap cset_map = _heap->collection_set()->cset_map();
+        CSetState cset_state = cset_map.cset_state(obj);
+        if (cset_map.use_forward_table(cset_state)) {
+          obj = ShenandoahBarrierSet::resolve_forwarded_not_null(obj, _heap, cset_state);
+        }
       }
 
       // Basic verification should happen before we touch anything else.
@@ -1388,16 +1392,18 @@ private:
                 "Verify Roots In To-Space", "Should be marked", __FILE__, __LINE__);
       }
 
-      if (heap->in_collection_set(obj)) {
-        bool fwt_new_alloc = heap->collection_set()->use_forward_table(obj) &&
-                             ShenandoahBarrierSet::resolve_forwarded_not_null(obj) == obj;
+      ShenandoahCSetMap cset_map = heap->collection_set()->cset_map();
+      CSetState cset_state = cset_map.cset_state(obj);
+      if (cset_map.is_in(cset_state)) {
+        bool fwt_new_alloc = cset_map.use_forward_table(cset_state) &&
+                             ShenandoahBarrierSet::resolve_forwarded_not_null(obj, heap, cset_state) == obj;
         if (!fwt_new_alloc) {
           ShenandoahAsserts::print_failure(ShenandoahAsserts::_safe_all, obj, p, nullptr,
                   "Verify Roots In To-Space", "Should not be in collection set", __FILE__, __LINE__);
         }
       }
 
-      oop fwd = ShenandoahBarrierSet::resolve_forwarded_not_null(obj);
+      oop fwd = ShenandoahBarrierSet::resolve_forwarded_not_null(obj, heap, cset_state);
       if (obj != fwd) {
         ShenandoahAsserts::print_failure(ShenandoahAsserts::_safe_all, obj, p, nullptr,
                 "Verify Roots In To-Space", "Should not be forwarded", __FILE__, __LINE__);
