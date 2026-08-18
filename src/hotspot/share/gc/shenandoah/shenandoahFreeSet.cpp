@@ -294,32 +294,6 @@ void ShenandoahFreeSet::resize_old_collector_capacity(size_t regions) {
   // else, old generation is already appropriately sized
 }
 
-
-void ShenandoahFreeSet::reset_bytes_allocated_since_gc_start(size_t initial_bytes_allocated) {
-  shenandoah_assert_heaplocked();
-  // Future inquiries of get_total_bytes_allocated() will return the sum of
-  //    _total_bytes_previously_allocated and _mutator_bytes_allocated_since_gc_start.
-  // Since _mutator_bytes_allocated_since_gc_start does not start at zero, we subtract initial_bytes_allocated so as
-  // to not double count these allocated bytes.
-  size_t original_mutator_bytes_allocated_since_gc_start = _mutator_bytes_allocated_since_gc_start;
-
-  // Setting _mutator_bytes_allocated_since_gc_start before _total_bytes_previously_allocated reduces the damage
-  // in the case that the control or regulator thread queries get_bytes_allocated_since_previous_sample() between
-  // the two assignments.
-  //
-  // These are not declared as volatile so the compiler or hardware may reorder the assignments.  The implementation of
-  // get_bytes_allocated_since_previous_cycle() is robust to this possibility, as are triggering heuristics.  The current
-  // implementation assumes we are better off to tolerate the very rare race rather than impose a synchronization penalty
-  // on every update and fetch.  (Perhaps it would be better to make the opposite tradeoff for improved maintainability.)
-  _mutator_bytes_allocated_since_gc_start = initial_bytes_allocated;
-  _total_bytes_previously_allocated += original_mutator_bytes_allocated_since_gc_start - initial_bytes_allocated;
-}
-
-void ShenandoahFreeSet::increase_bytes_allocated(size_t bytes) {
-  shenandoah_assert_heaplocked();
-  _mutator_bytes_allocated_since_gc_start += bytes;
-}
-
 inline idx_t ShenandoahRegionPartitions::leftmost(ShenandoahFreeSetPartitionId which_partition) const {
   assert (which_partition < NumPartitions, "selected free partition must be valid");
   idx_t idx = _leftmosts[int(which_partition)];
@@ -1322,8 +1296,6 @@ inline void ShenandoahRegionPartitions::assert_bounds_sanity() {
 ShenandoahFreeSet::ShenandoahFreeSet(ShenandoahHeap* heap, size_t max_regions) :
   _heap(heap),
   _partitions(max_regions, this),
-  _total_bytes_previously_allocated(0),
-  _mutator_bytes_at_last_sample(0),
   _total_humongous_waste(0),
   _alloc_bias_weight(0),
   _total_young_used(0),
@@ -1336,7 +1308,6 @@ ShenandoahFreeSet::ShenandoahFreeSet(ShenandoahHeap* heap, size_t max_regions) :
   _global_unaffiliated_regions(0),
   _total_young_regions(0),
   _total_global_regions(0),
-  _mutator_bytes_allocated_since_gc_start(0),
   _allocating_from_early_recycled_regions(false),
   _early_recycled_regions(NEW_C_HEAP_ARRAY(ShenandoahHeapRegion*, max_regions, mtGC)),
   _early_recycled_regions_data(NEW_C_HEAP_ARRAY(size_t, max_regions, mtGC))
@@ -1471,7 +1442,6 @@ HeapWord* ShenandoahFreeSet::allocate_with_affiliation(Iter& iterator,
           //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
           req.set_actual_size(req.size());
           req.set_waste(result - orig_top);
-          increase_bytes_allocated((req.actual_size() + req.waste()) * HeapWordSize);
           assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Do not YET support early recycle during evac");
           r->set_affiliation(req.affiliation());
           return result;
@@ -1501,7 +1471,6 @@ HeapWord* ShenandoahFreeSet::allocate_with_affiliation(Iter& iterator,
           //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
           req.set_actual_size(req.size());
           req.set_waste(result - orig_top);
-          increase_bytes_allocated((req.actual_size() + req.waste()) * HeapWordSize);
           return result;
         }
       }
@@ -1561,7 +1530,6 @@ HeapWord* ShenandoahFreeSet::allocate_with_affiliation(Iter& iterator,
       //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
       req.set_actual_size(actual_size);
       req.set_waste(result - orig_top);
-      increase_bytes_allocated((actual_size + req.waste()) * HeapWordSize);
       return result;
     } else if (num_tlab_regions() > 0) {
       // This LAB needs to be larger than the minimum size. Allocate from the head of the list of early-recycled TLAB-eligible
@@ -1589,7 +1557,6 @@ HeapWord* ShenandoahFreeSet::allocate_with_affiliation(Iter& iterator,
         //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
         req.set_actual_size(actual_size);
         req.set_waste(result - orig_top);
-        increase_bytes_allocated((actual_size + req.waste()) * HeapWordSize);
         return result;
       }
       // Otherwise, we were unable to allocate a TLAB of sufficient size.  Fail fast without iterating over lots of
@@ -1695,7 +1662,6 @@ HeapWord* ShenandoahFreeSet::allocate_for_mutator(ShenandoahAllocRequest &req, b
           }
           // Note: Since the current implementation only supports Mutator allocations, there's no need to register
           //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
-          increase_bytes_allocated(used_bytes);
           return result;
         }
       }
@@ -1723,7 +1689,6 @@ HeapWord* ShenandoahFreeSet::allocate_for_mutator(ShenandoahAllocRequest &req, b
           //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
           req.set_actual_size(req.size());
           req.set_waste(result - orig_top);
-          increase_bytes_allocated((req.actual_size() + req.waste()) * HeapWordSize);
           assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Do not YET support early recycle during evac");
           return result;
         }
@@ -1786,7 +1751,6 @@ HeapWord* ShenandoahFreeSet::allocate_for_mutator(ShenandoahAllocRequest &req, b
         //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
         req.set_actual_size(actual_size);
         req.set_waste(result - orig_top);
-        increase_bytes_allocated((actual_size + req.waste()) * HeapWordSize);
         return result;
       } else {
         // This LAB needs to be larger than the minimum size. Allocate from the head of the list of early-recycled TLAB-eligible
@@ -1814,7 +1778,6 @@ HeapWord* ShenandoahFreeSet::allocate_for_mutator(ShenandoahAllocRequest &req, b
           //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
           req.set_actual_size(actual_size);
           req.set_waste(result - orig_top);
-          increase_bytes_allocated((actual_size + req.waste()) * HeapWordSize);
           assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Do not YET support early recycle during evac");
           return result;
         }
@@ -2085,7 +2048,6 @@ HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, Shenandoah
     if (req.is_mutator_alloc()) {
       assert(req.is_young(), "Mutator allocations always come from young generation.");
       _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, (req.actual_size() + req.waste()) * HeapWordSize);
-      increase_bytes_allocated(req.actual_size() * HeapWordSize);
     } else {
       assert(req.is_gc_alloc(), "Should be gc_alloc since req wasn't mutator alloc");
 
@@ -2124,7 +2086,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, Shenandoah
     size_t waste_bytes = _partitions.retire_from_partition(orig_partition, idx, r->used_with_fwt());
     DEBUG_ONLY(boundary_changed = true;)
     if (req.is_mutator_alloc() && (waste_bytes > 0)) {
-      increase_bytes_allocated(waste_bytes);
+      req.set_waste(waste_bytes / HeapWordSize);
     }
   }
 
@@ -2301,15 +2263,9 @@ HeapWord* ShenandoahFreeSet::allocate_contiguous(ShenandoahAllocRequest& req, bo
       }
     }
     _partitions.decrease_empty_region_counts(ShenandoahFreeSetPartitionId::Mutator, num);
-    if (waste_bytes > 0) {
-      // For humongous allocations, waste_bytes are included in total_used.  Since this is not humongous,
-      // we need to account separately for the waste_bytes.
-      increase_bytes_allocated(waste_bytes);
-    }
   }
 
   _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, total_used);
-  increase_bytes_allocated(total_used);
   req.set_actual_size(words_size);
   // If !is_humongous, the "waste" is made availabe for new allocation
   if (waste_bytes > 0) {
@@ -3804,25 +3760,27 @@ void ShenandoahFreeSet::log_status_under_lock() {
 }
 
 void ShenandoahFreeSet::log_freeset_stats(ShenandoahFreeSetPartitionId partition_id, LogStream& ls) {
-  size_t max = 0;
-  size_t total_free = 0;
-  size_t total_used = 0;
+  size_t max_free_in_single_region = 0;
+  size_t freeset_free = 0;
+  size_t freeset_total_used = 0;
 
   for (idx_t idx = _partitions.leftmost(partition_id);
         idx <= _partitions.rightmost(partition_id); idx++) {
     if (_partitions.in_free_set(partition_id, idx)) {
       ShenandoahHeapRegion *r = _heap->get_region(idx);
       size_t free = alloc_capacity(r);
-      max = MAX2(max, free);
-      total_free += free;
-      total_used += r->used();
+      max_free_in_single_region = MAX2(max_free_in_single_region, free);
+      freeset_free += free;
+      freeset_total_used += ShenandoahHeapRegion::region_size_bytes() - free;
     }
   }
 
-  ls.print(" %s freeset stats: Partition count: %zu, Reserved: " PROPERFMT ", Max free available in a single region: " PROPERFMT ";",
-            partition_name(partition_id),
-            _partitions.count(partition_id),
-            PROPERFMTARGS(total_free), PROPERFMTARGS(max)
+  ls.print_cr("  %s partition stats: regions in capacity: %zu, regions in freeset: %zu. "
+          "Used size including retired regions: " PROPERFMT ", used size in freeset: " PROPERFMT
+          ". Free available size: " PROPERFMT ". Max free available in a single region: " PROPERFMT ".",
+          partition_name(partition_id), _partitions.get_capacity_region_count(partition_id), _partitions.count(partition_id),
+          PROPERFMTARGS(_partitions.get_used(partition_id)), PROPERFMTARGS(freeset_total_used),
+          PROPERFMTARGS(freeset_free), PROPERFMTARGS(max_free_in_single_region)
           );
 }
 
@@ -3904,12 +3862,10 @@ void ShenandoahFreeSet::log_status() {
 
     {
       idx_t last_idx = 0;
-      size_t max = 0;
       size_t max_contig = 0;
       size_t empty_contig = 0;
 
-      size_t total_used = 0;
-      size_t total_free = 0;
+      size_t total_used_in_freeset = 0;
       size_t total_free_ext = 0;
 
       for (idx_t idx = _partitions.leftmost(ShenandoahFreeSetPartitionId::Mutator);
@@ -3917,7 +3873,6 @@ void ShenandoahFreeSet::log_status() {
         if (_partitions.in_free_set(ShenandoahFreeSetPartitionId::Mutator, idx)) {
           ShenandoahHeapRegion *r = _heap->get_region(idx);
           size_t free = alloc_capacity(r);
-          max = MAX2(max, free);
           size_t used_in_region = r->used();
           if (r->is_empty_or_trash()) {
             used_in_region = 0;
@@ -3930,42 +3885,35 @@ void ShenandoahFreeSet::log_status() {
           } else {
             empty_contig = 0;
           }
-          total_used += used_in_region;
-          total_free += free;
+          total_used_in_freeset += used_in_region;
           max_contig = MAX2(max_contig, empty_contig);
           last_idx = idx;
         }
       }
 
       size_t max_humongous = max_contig * ShenandoahHeapRegion::region_size_bytes();
-      // capacity() is capacity of mutator
-      // used() is used of mutator
-      size_t free = capacity_holding_lock() - used_holding_lock();
-      // Since certain regions that belonged to the Mutator free partition at the time of most recent rebuild may have been
-      // retired, the sum of used and capacities within regions that are still in the Mutator free partition may not match
-      // my internally tracked values of used() and free().
-      assert(free == total_free, "Free memory (%zu) should match calculated memory (%zu)", free, total_free);
-      ls.print("Whole heap stats: Total free: " PROPERFMT ", Total used: " PROPERFMT ", Max free in a single region: " PROPERFMT
-               ", Max humongous: " PROPERFMT "; ",
-               PROPERFMTARGS(total_free), PROPERFMTARGS(total_used), PROPERFMTARGS(max), PROPERFMTARGS(max_humongous));
 
-      ls.print("Frag stats: ");
-      size_t frag_ext;
+      size_t total_free = available_locked() + collector_available_locked();
+      total_free += old_collector_available_locked();
+      ls.print("Whole heap stats: Total free: " PROPERFMT ", Total used: " PROPERFMT
+               ", Max humongous allocatable: " PROPERFMT "; ",
+               PROPERFMTARGS(total_free), PROPERFMTARGS(global_used()), PROPERFMTARGS(max_humongous));
+
+      double frag_ext;
       if (total_free_ext > 0) {
-        frag_ext = 100 - (100 * max_humongous / total_free_ext);
+        frag_ext = 100 - (100.0 * max_humongous / total_free_ext);
       } else {
         frag_ext = 0;
       }
-      ls.print("External: %zu%%, ", frag_ext);
+      ls.print("External fragmentation: %.2f%%; ", frag_ext);
 
-      size_t frag_int;
-      if (_partitions.count(ShenandoahFreeSetPartitionId::Mutator) > 0) {
-        frag_int = (100 * (total_used / _partitions.count(ShenandoahFreeSetPartitionId::Mutator))
-                    / ShenandoahHeapRegion::region_size_bytes());
-      } else {
-        frag_int = 0;
+      double mutator_filling_percentage = 0;
+      size_t mutator_partition = _partitions.count(ShenandoahFreeSetPartitionId::Mutator);
+      if (mutator_partition > 0) {
+        mutator_filling_percentage = 100 * (1.0 * total_used_in_freeset / mutator_partition)
+                    / ShenandoahHeapRegion::region_size_bytes();
       }
-      ls.print("Internal: %zu%%; ", frag_int);
+      ls.print_cr("Mutator freeset filling percentage: %.2f%%", mutator_filling_percentage);
     }
 
     log_freeset_stats(ShenandoahFreeSetPartitionId::Mutator, ls);
