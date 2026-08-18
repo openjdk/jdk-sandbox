@@ -409,11 +409,16 @@ public:
     if (r->is_cset() || r->is_trash()) {
       // Count the entire cset or trashed (formerly cset) region as used
       // Note: Immediate garbage trash regions were never in the cset.
-      _used += _region_size_bytes;
-      _garbage += _region_size_bytes - r->get_live_data_bytes();
+      bool is_used = (r->top() != r->bottom()); // Not FWT
+      if (is_used) {
+        _used += _region_size_bytes;
+        _garbage += _region_size_bytes - r->get_live_data_bytes();
+      }
       if (r->is_trash()) {
         _trashed_regions++;
-        _trashed_used += _region_size_bytes;
+        if (is_used) {
+          _trashed_used += _region_size_bytes;
+        }
       }
     } else {
       if (r->is_humongous()) {
