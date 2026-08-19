@@ -1,12 +1,10 @@
 /*
- * Copyright (c) 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2024, 2025, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 only, as
- * published by the Free Software Foundation.  Oracle designates this
- * particular file as subject to the "Classpath" exception as provided
- * by Oracle in the LICENSE file that accompanied this code.
+ * published by the Free Software Foundation.
  *
  * This code is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -23,30 +21,27 @@
  * questions.
  */
 
-package sun.security.util;
+package jdk.jfr.startupargs;
 
-import java.security.spec.KeySpec;
+import jdk.test.lib.Asserts;
+import jdk.test.lib.process.OutputAnalyzer;
+import jdk.test.lib.process.ProcessTools;
 
 /**
- * This is a KeySpec that is used to specify a key by its byte array implementation.
- * It is intended to be used in testing algorithms where the algorithm specification
- * describes the key in this form.
+ * @test
+ * @requires vm.flagless
+ * @requires vm.hasJFR
+ * @library /test/lib /test/jdk
+ * @run main jdk.jfr.startupargs.TestOptionsHelp
  */
-public class RawKeySpec implements KeySpec {
-    private final byte[] keyArr;
-    /**
-     * The sole constructor.
-     * @param key contains the key as a byte array
-     */
-    public RawKeySpec(byte[] key) {
-        keyArr = key.clone();
-    }
+public class TestOptionsHelp {
 
-    /**
-     * Getter function.
-     * @return a copy of the key bits
-     */
-    public byte[] getKeyArr() {
-        return keyArr.clone();
+    public static void main(String... args) throws Exception {
+        ProcessBuilder pb = ProcessTools.createTestJavaProcessBuilder("-XX:FlightRecorderOptions:help");
+        OutputAnalyzer out = ProcessTools.executeProcess(pb);
+        out.shouldContain("Syntax : -XX:FlightRecorderOptions:[options]");
+        out.shouldContain("numglobalbuffers");
+        out.shouldContain("Multiple options are separated");
+        out.shouldHaveExitValue(0);
     }
 }
