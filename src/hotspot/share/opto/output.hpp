@@ -93,7 +93,6 @@ private:
   int                    _orig_pc_slot_offset_in_bytes;
 
   // For GC barriers
-  int                    _gc_barrier_save_slots;
   int                    _gc_barrier_save_slots_offset_in_bytes;
 
   ConstantTable          _constant_table;        // The constant table for this compilation unit.
