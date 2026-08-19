@@ -1371,19 +1371,19 @@ void PhaseOutput::estimate_buffer_size(int& const_req) {
   if (C->fixed_slots() != 0) {
     // Skip other fixed slots
     int current_slot = C->fixed_slots();
-
-    int gc_slots = BarrierSet::barrier_set()->barrier_set_c2()->reserved_slots();
-    current_slot -= gc_slots * VMRegImpl::slots_per_word;
-    _gc_barrier_save_slots_offset_in_bytes = C->regalloc()->reg2offset(OptoReg::stack2reg(current_slot));
-
     if (C->needs_stack_repair()) {
       current_slot -= VMRegImpl::slots_per_word;
     }
     if (C->needs_nm_slot()) {
       current_slot -= VMRegImpl::slots_per_word;
     }
-    int orig_pc_slot = current_slot - VMRegImpl::slots_per_word;
-    _orig_pc_slot_offset_in_bytes = C->regalloc()->reg2offset(OptoReg::stack2reg(orig_pc_slot));
+
+    current_slot -= VMRegImpl::slots_per_word;
+    _orig_pc_slot_offset_in_bytes = C->regalloc()->reg2offset(OptoReg::stack2reg(current_slot));
+
+    int gc_slots = BarrierSet::barrier_set()->barrier_set_c2()->reserved_slots();
+    current_slot -= gc_slots * VMRegImpl::slots_per_word;
+    _gc_barrier_save_slots_offset_in_bytes = C->regalloc()->reg2offset(OptoReg::stack2reg(current_slot));
   }
 
   // Compute prolog code size
