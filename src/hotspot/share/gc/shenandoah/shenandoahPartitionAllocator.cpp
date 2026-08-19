@@ -71,7 +71,7 @@ HeapWord* ShenandoahPartitionAllocator<PARTITION>::allocate(ShenandoahAllocReque
            "Cached alloc region %zu must remain a non-trash member of this partition until the free set is rebuilt",
            _alloc_region->index());
     HeapWord* result = nullptr;
-    size_t ac_words = _free_set->alloc_capacity(_alloc_region) >> LogHeapWordSize;
+    size_t ac_words = _alloc_region->alloc_free() >> LogHeapWordSize;
     // A region is only ever cached while it has at least PLAB::min_size of capacity, and its
     // free space shrinks only via allocate_in (which retires and clears it below that threshold).
     // So the cached alloc region always has usable capacity here: use it when it can satisfy this
@@ -136,7 +136,7 @@ HeapWord* ShenandoahPartitionAllocator<PARTITION>::allocate_in(ShenandoahHeapReg
   // Perform the actual allocation: LABs may be shrunk to fit.
   if (req.is_lab_alloc()) {
     size_t adjusted_size = req.size();
-    size_t free = align_down(_free_set->alloc_capacity(r) >> LogHeapWordSize, MinObjAlignment);
+    size_t free = align_down(r->alloc_free() >> LogHeapWordSize, MinObjAlignment);
     if (adjusted_size > free) {
       adjusted_size = free;
     }
@@ -167,7 +167,7 @@ HeapWord* ShenandoahPartitionAllocator<PARTITION>::allocate_in(ShenandoahHeapReg
   }
 
   // Retire the region if remaining capacity is too small for any future PLAB.
-  if ((_free_set->alloc_capacity(r) >> LogHeapWordSize) < PLAB::min_size()) {
+  if ((r->alloc_free() >> LogHeapWordSize) < PLAB::min_size()) {
     size_t idx = r->index();
     size_t waste_bytes = _free_set->retire_region(PARTITION, idx, r->used());
     boundary_changed = true;

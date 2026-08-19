@@ -239,11 +239,7 @@ size_t ShenandoahFreeSet::alloc_capacity(ShenandoahHeapRegion *r) const {
     // This would be recycled on allocation path
     return ShenandoahHeapRegion::region_size_bytes();
   } else {
-    // For regions with a forwarding table, allocations happen till alloc_end() instead of end().
-    // top may exceed alloc_end() during evacuation.
-    HeapWord* limit = r->alloc_end();
-    HeapWord* t     = r->top();
-    return (limit > t) ? pointer_delta(limit, t) * HeapWordSize : 0;
+    return r->alloc_free();
   }
 }
 
@@ -3609,7 +3605,7 @@ void ShenandoahFreeSet::insert_tlab_region(ShenandoahHeapRegion* r, size_t max_t
   if (_early_recycled_tlab_regions + _early_recycled_tlab_regions_count + 1 >= _early_recycled_retired_regions) {
     shift_retired_regions_down();
   }
-  _early_recycled_tlab_used += (r->top() - r->bottom()) * HeapWordSize + r->fwt_tail_bytes();
+  _early_recycled_tlab_used += r->used_with_fwt();
   _early_recycled_tlab_regions[_early_recycled_tlab_regions_count] = r;
   _early_recycled_tlab_regions_data[_early_recycled_tlab_regions_count++] = max_tlab_size;
   heapify_tlab_regions_upward(_early_recycled_tlab_regions_count - 1);
@@ -3617,7 +3613,7 @@ void ShenandoahFreeSet::insert_tlab_region(ShenandoahHeapRegion* r, size_t max_t
 
 void ShenandoahFreeSet::remove_tlab_region(size_t index) {
   ShenandoahHeapRegion* r = get_tlab_region(index);
-  _early_recycled_tlab_used -= (r->top() - r->bottom()) * HeapWordSize + r->fwt_tail_bytes();
+  _early_recycled_tlab_used -= r->used_with_fwt();
   if (index == _early_recycled_tlab_regions_count - 1) {
     // Removing the last entry in the partition is easy.  Just decrement the count.
     _early_recycled_tlab_regions_count--;
@@ -3743,7 +3739,7 @@ void ShenandoahFreeSet::insert_shared_alloc_region(ShenandoahHeapRegion* r) {
       _early_recycled_retired_regions + _early_recycled_retired_regions_count) {
     shift_retired_regions_up();
   }
-  _early_recycled_shared_alloc_used += (r->top() - r->bottom()) * HeapWordSize + r->fwt_tail_bytes();
+  _early_recycled_shared_alloc_used += r->used_with_fwt();
   _early_recycled_shared_alloc_regions[-_early_recycled_shared_alloc_regions_count] = r;
   _early_recycled_shared_alloc_regions_data[-_early_recycled_shared_alloc_regions_count++] = shared_allocatable_words;
   heapify_shared_alloc_regions_upward(_early_recycled_shared_alloc_regions_count - 1);
@@ -3751,7 +3747,7 @@ void ShenandoahFreeSet::insert_shared_alloc_region(ShenandoahHeapRegion* r) {
 
 void ShenandoahFreeSet::remove_shared_alloc_region(size_t index) {
   ShenandoahHeapRegion* r = get_shared_alloc_region(index);
-  _early_recycled_shared_alloc_used -= (r->top() - r->bottom()) * HeapWordSize + r->fwt_tail_bytes();
+  _early_recycled_shared_alloc_used -= r->used_with_fwt();
   if (index == _early_recycled_shared_alloc_regions_count - 1) {
     // Removing the last entry in the partition is easy.  Just decrement the count.
     _early_recycled_shared_alloc_regions_count--;
@@ -3774,7 +3770,7 @@ void ShenandoahFreeSet::insert_retired_region(ShenandoahHeapRegion* r) {
     shift_retired_regions_up();
   }
   _early_recycled_retired_regions[_early_recycled_retired_regions_count++] = r;
-  _early_recycled_retired_used += (r->top() - r->bottom()) * HeapWordSize + r->fwt_tail_bytes();
+  _early_recycled_retired_used += r->used_with_fwt();
 }
 
 // Return size in bytes of candidate region size if greater than PLAB::min_size().  Otherwrise, return 0 if no TLAB available.

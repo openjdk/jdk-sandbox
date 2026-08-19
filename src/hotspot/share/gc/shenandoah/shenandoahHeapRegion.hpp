@@ -37,6 +37,7 @@
 #include "gc/shenandoah/shenandoahPadding.hpp"
 #include "runtime/atomic.hpp"
 #include "shenandoahForwardingTable.hpp"
+#include "utilities/align.hpp"
 #include "utilities/sizes.hpp"
 
 class VMStructs;
@@ -490,13 +491,19 @@ public:
   // Allocation limit: fwt start if present, else end().
   HeapWord* alloc_end() const {
     HeapWord* fwt = forwarding_table_start();
-    return (fwt != nullptr) ? fwt : _end;
+    return (fwt != nullptr) ? align_down(fwt, MinObjAlignmentInBytes) : _end;
   }
 
   size_t capacity() const       { return byte_size(bottom(), end()); }
   size_t used() const           { return byte_size(bottom(), top()); }
   size_t used_before_promote() const { return byte_size(bottom(), get_top_before_promote()); }
   size_t free() const           { return byte_size(top(),    end()); }
+  // Allocatable free space, capped at alloc_end(); top may exceed alloc_end() during evacuation.
+  size_t alloc_free() const {
+    HeapWord* limit = alloc_end();
+    HeapWord* t     = top();
+    return (limit > t) ? byte_size(t, limit) : 0;
+  }
   // Bytes reserved by the FWT tail; 0 for non-fwt regions.
   size_t fwt_tail_bytes() const { return byte_size(alloc_end(), end()); }
   size_t used_with_fwt() const  { return used() + fwt_tail_bytes(); }
