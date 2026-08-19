@@ -1269,7 +1269,7 @@ void ShenandoahConcurrentGC::op_final_update_refs() {
 void ShenandoahConcurrentGC::entry_final_roots() {
   ShenandoahHeap* const heap = ShenandoahHeap::heap();
   SHENANDOAH_EVENT_MESSAGE(msg, _generation->type(), "Pause Final Roots", "");
-  ShenandoahConcurrentPhase gc_phase(msg, ShenandoahPhaseTimings::final_roots);
+  ShenandoahPausePhase gc_phase(msg, ShenandoahPhaseTimings::final_roots);
   EventMark em("%s", msg);
 
   heap->op_final_roots();
