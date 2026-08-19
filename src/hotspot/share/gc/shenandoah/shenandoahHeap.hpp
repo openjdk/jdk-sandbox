@@ -30,6 +30,7 @@
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/markBitMap.hpp"
 #include "gc/shenandoah/mode/shenandoahMode.hpp"
+#include "gc/shenandoah/shenandoahAllocRate.hpp"
 #include "gc/shenandoah/shenandoahAllocRequest.hpp"
 #include "gc/shenandoah/shenandoahAsserts.hpp"
 #include "gc/shenandoah/shenandoahController.hpp"
@@ -48,6 +49,7 @@
 
 class ConcurrentGCTimer;
 class ObjectIterateScanRootClosure;
+class ShenandoahAllocator;
 class ShenandoahCollectorPolicy;
 class ShenandoahGCSession;
 class ShenandoahGCStateResetter;
@@ -66,7 +68,6 @@ class ShenandoahFreeSet;
 class ShenandoahConcurrentMark;
 class ShenandoahFullGC;
 class ShenandoahMonitoringSupport;
-class ShenandoahPacer;
 class ShenandoahReferenceProcessor;
 class ShenandoahUncommitThread;
 class ShenandoahVerifier;
@@ -233,11 +234,12 @@ private:
   Atomic<size_t> _committed;
   shenandoah_padding(1);
 
+  ShenandoahAllocationRate _alloc_rate;
+  ShenandoahDecayAllocRate _alloc_rate_decay;
+
 public:
   void increase_committed(size_t bytes);
   void decrease_committed(size_t bytes);
-
-  void reset_bytes_allocated_since_gc_start();
 
   size_t min_capacity()      const;
   size_t max_capacity()      const override;
@@ -248,6 +250,10 @@ public:
   size_t committed()         const;
 
   void set_soft_max_capacity(size_t v);
+
+  ShenandoahAllocationRate& alloc_rate() {
+    return _alloc_rate;
+  }
 
 // ---------- Periodic Tasks
 //
@@ -535,7 +541,7 @@ private:
   ShenandoahCollectorPolicy* _shenandoah_policy;
   ShenandoahMode*            _gc_mode;
   ShenandoahFreeSet*         _free_set;
-  ShenandoahPacer*           _pacer;
+  ShenandoahAllocator*       _allocator;
   ShenandoahVerifier*        _verifier;
 
   ShenandoahPhaseTimings*       _phase_timings;
@@ -560,7 +566,7 @@ public:
   ShenandoahCollectorPolicy* shenandoah_policy() const { return _shenandoah_policy; }
   ShenandoahMode*            mode()              const { return _gc_mode;           }
   ShenandoahFreeSet*         free_set()          const { return _free_set;          }
-  ShenandoahPacer*           pacer()             const { return _pacer;             }
+  ShenandoahAllocator*       allocator()         const { return _allocator;         }
 
   ShenandoahPhaseTimings*    phase_timings()     const { return _phase_timings;     }
 
@@ -703,7 +709,7 @@ protected:
   inline HeapWord* allocate_from_gclab(Thread* thread, size_t size);
 
 private:
-  HeapWord* allocate_memory_under_lock(ShenandoahAllocRequest& request, bool& in_new_region);
+  HeapWord* allocate_memory_work(ShenandoahAllocRequest& request, bool& in_new_region);
   HeapWord* allocate_from_gclab_slow(Thread* thread, size_t size);
   HeapWord* allocate_new_gclab(size_t min_size, size_t word_size, size_t* actual_size);
 

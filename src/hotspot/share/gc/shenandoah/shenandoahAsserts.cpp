@@ -23,6 +23,7 @@
  */
 
 #include "gc/shenandoah/shenandoahAsserts.hpp"
+#include "gc/shenandoah/shenandoahBarrierSet.inline.hpp"
 #include "gc/shenandoah/shenandoahCollectionSet.hpp"
 #include "gc/shenandoah/shenandoahForwarding.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
@@ -31,6 +32,7 @@
 #include "gc/shenandoah/shenandoahUtils.hpp"
 #include "memory/resourceArea.hpp"
 #include "oops/oop.inline.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/os.hpp"
 #include "utilities/vmError.hpp"
 
@@ -455,6 +457,15 @@ void ShenandoahAsserts::assert_marked_strong(void *interior_loc, oop obj, const 
   }
 }
 
+void ShenandoahAsserts::assert_bitmap_clear_above_top(ShenandoahHeapRegion* region) {
+  ShenandoahMarkingContext* const ctx = ShenandoahHeap::heap()->marking_context();
+  const HeapWord* top_bitmap = ctx->top_bitmap(region);
+  // Make sure that top is loaded before any of the marks from the bitmap are loaded. If another
+  // thread has cleared the bitmap we must not allow any stale reads.
+  OrderAccess::loadload();
+  assert(ctx->is_bitmap_range_within_region_clear(top_bitmap, region->end()), "Bitmap above top_bitmap() must be clear");
+}
+
 void ShenandoahAsserts::assert_mark_complete(HeapWord* obj, const char* file, int line) {
   const ShenandoahHeap* heap = ShenandoahHeap::heap();
   const ShenandoahHeapRegion* region = heap->heap_region_containing(obj);
@@ -468,18 +479,11 @@ void ShenandoahAsserts::assert_mark_complete(HeapWord* obj, const char* file, in
 bool ShenandoahAsserts::is_newly_allocated_in_early_recycled_region(oop obj) {
   ShenandoahHeap* heap = ShenandoahHeap::heap();
   assert(heap->in_collection_set(obj), "Precondition");
-  ShenandoahHeapRegion* r = heap->heap_region_containing(obj);
-  ShenandoahCollectionSet* cset = heap->collection_set();
+  ShenandoahCSetMap cset_map = heap->collection_set()->cset_map();
+  CSetState cset_state = cset_map.cset_state(obj);
   // Cset regions for which the forwarding table would be "too large" do not have forwarding tables
-  if (cset->use_forward_table(r)) {
-    oop fwd;
-    CSetState cset_state = cset->cset_map().cset_state(r);
-    if (cset_state == CSetState::FWDTABLE_COMPACT) {
-      fwd = r->forwardee_compact(obj);
-    } else {
-      assert(cset_state == CSetState::FWDTABLE_WIDE, "sanity");
-      fwd = r->forwardee_wide(obj);
-    }
+  if (cset_map.use_forward_table(cset_state)) {
+    oop fwd = ShenandoahBarrierSet::resolve_forwarded_not_null(obj, heap, cset_state);
     if (fwd == obj) {
       // Forwarding to self within a forward-table region means this is newly allocated
       return true;
