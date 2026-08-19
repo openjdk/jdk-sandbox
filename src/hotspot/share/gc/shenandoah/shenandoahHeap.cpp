@@ -1192,9 +1192,11 @@ public:
 
   void work(uint worker_id) final {
     if (_concurrent) {
+      ShenandoahWorkerTimingsTracker timer(ShenandoahPhaseTimings::conc_evac, ShenandoahPhaseTimings::Work, worker_id, true);
       ShenandoahConcurrentWorkerSession worker_session(worker_id);
       do_work();
     } else {
+      ShenandoahWorkerTimingsTracker timer(ShenandoahPhaseTimings::degen_gc_evac, ShenandoahPhaseTimings::Work, worker_id, true);
       ShenandoahParallelWorkerSession worker_session(worker_id);
       do_work();
     }
@@ -2668,6 +2670,7 @@ public:
 
   void work(uint worker_id) {
     if (CONCURRENT) {
+      ShenandoahWorkerTimingsTracker timer(ShenandoahPhaseTimings::conc_update_refs, ShenandoahPhaseTimings::Work, worker_id, true);
       if (worker_id == 0) {
         // We ask worker 0 to recycle the collection set regions before it starts on normal update refs work.
         ShenandoahHeapLocker locker(_heap->lock());
@@ -2678,6 +2681,7 @@ public:
       SuspendibleThreadSetJoiner stsj;
       do_work<ShenandoahConcUpdateRefsClosure>(worker_id);
     } else {
+      ShenandoahWorkerTimingsTracker timer(ShenandoahPhaseTimings::degen_gc_update_refs, ShenandoahPhaseTimings::Work, worker_id, true);
       ShenandoahParallelWorkerSession worker_session(worker_id);
       do_work<ShenandoahNonConcUpdateRefsClosure>(worker_id);
     }
