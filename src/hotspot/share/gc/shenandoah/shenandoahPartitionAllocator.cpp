@@ -51,6 +51,17 @@ HeapWord* ShenandoahPartitionAllocator<PARTITION>::allocate(ShenandoahAllocReque
 
   bool boundary_changed = false;
   size_t min_req_words = req.is_lab_alloc() ? req.min_size() : req.size();
+
+  if constexpr (PARTITION == ShenandoahFreeSetPartitionId::Mutator) {
+    if (!req.is_lab_alloc() && _free_set->allocating_from_early_recycled_regions()) {
+      HeapWord* result = _free_set->try_allocate_shared_from_early_recycled(req);
+      if (result != nullptr) {
+        in_new_region = false;
+        return result;
+      }
+    }
+  }
+
   // Fast path: try the cached alloc region first.
   if (_alloc_region != nullptr) {
     constexpr ShenandoahAffiliation affiliation =
@@ -60,7 +71,7 @@ HeapWord* ShenandoahPartitionAllocator<PARTITION>::allocate(ShenandoahAllocReque
            "Cached alloc region %zu must remain a non-trash member of this partition until the free set is rebuilt",
            _alloc_region->index());
     HeapWord* result = nullptr;
-    size_t ac_words = _alloc_region->free() >> LogHeapWordSize;
+    size_t ac_words = _free_set->alloc_capacity(_alloc_region) >> LogHeapWordSize;
     // A region is only ever cached while it has at least PLAB::min_size of capacity, and its
     // free space shrinks only via allocate_in (which retires and clears it below that threshold).
     // So the cached alloc region always has usable capacity here: use it when it can satisfy this
@@ -101,6 +112,16 @@ HeapWord* ShenandoahPartitionAllocator<PARTITION>::allocate(ShenandoahAllocReque
     return result;
   }
 
+  if constexpr (PARTITION == ShenandoahFreeSetPartitionId::Mutator) {
+    if (req.is_lab_alloc() && _free_set->allocating_from_early_recycled_regions()) {
+      HeapWord* result = _free_set->try_allocate_lab_from_early_recycled(req);
+      if (result != nullptr) {
+        in_new_region = false;
+        return result;
+      }
+    }
+  }
+
   // Every path that mutates a partition boundary (allocate_in retire, new region, steal) returns
   // above, so reaching here means no allocation and no boundary change.
   return nullptr;
@@ -115,7 +136,7 @@ HeapWord* ShenandoahPartitionAllocator<PARTITION>::allocate_in(ShenandoahHeapReg
   // Perform the actual allocation: LABs may be shrunk to fit.
   if (req.is_lab_alloc()) {
     size_t adjusted_size = req.size();
-    size_t free = align_down(r->free() >> LogHeapWordSize, MinObjAlignment);
+    size_t free = align_down(_free_set->alloc_capacity(r) >> LogHeapWordSize, MinObjAlignment);
     if (adjusted_size > free) {
       adjusted_size = free;
     }
@@ -146,7 +167,7 @@ HeapWord* ShenandoahPartitionAllocator<PARTITION>::allocate_in(ShenandoahHeapReg
   }
 
   // Retire the region if remaining capacity is too small for any future PLAB.
-  if ((r->free() >> LogHeapWordSize) < PLAB::min_size()) {
+  if ((_free_set->alloc_capacity(r) >> LogHeapWordSize) < PLAB::min_size()) {
     size_t idx = r->index();
     size_t waste_bytes = _free_set->retire_region(PARTITION, idx, r->used());
     boundary_changed = true;

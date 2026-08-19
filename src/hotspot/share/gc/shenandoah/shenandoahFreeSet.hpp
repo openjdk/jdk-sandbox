@@ -806,6 +806,9 @@ public:
   void mark_region_used(ShenandoahFreeSetPartitionId partition);
   size_t retire_region(ShenandoahFreeSetPartitionId partition, size_t idx, size_t used_bytes);
 
+  HeapWord* try_allocate_shared_from_early_recycled(ShenandoahAllocRequest& req);
+  HeapWord* try_allocate_lab_from_early_recycled(ShenandoahAllocRequest& req);
+
   // Public because ShenandoahRegionPartitions assertions require access.
   size_t alloc_capacity(ShenandoahHeapRegion *r) const;
   size_t alloc_capacity(size_t idx) const;

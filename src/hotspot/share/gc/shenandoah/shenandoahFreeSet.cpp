@@ -1584,78 +1584,6 @@ HeapWord* ShenandoahFreeSet::allocate_with_affiliation(Iter& iterator,
                                                        ShenandoahAllocRequest& req,
                                                        bool& in_new_region) {
   assert(affiliation != ShenandoahAffiliation::FREE, "Must not");
-  if (_allocating_from_early_recycled_regions) {
-    assert(affiliation == ShenandoahAffiliation::YOUNG_GENERATION,
-           "Should not YET be _allocating_from_early_recycled_regions during evacuation");
-    if (!req.is_lab_alloc()) {
-      // Try to fill this shared-alloc request from an early-recycled shared-alloc region so that we can preserve
-      // the non-early-recycled regions for TLAB allocations.
-      size_t num_shared_alloc_candidates = num_shared_alloc_regions();
-      for (size_t i = 0; i < num_shared_alloc_candidates; i++) {
-        ShenandoahHeapRegion* r = get_shared_alloc_region(i);
-        HeapWord* orig_top = r->top();
-        HeapWord* result = try_allocate_shared_in_early_recycled(r, req.size());
-        if (result != nullptr) { // Successful allocation.
-          // Only remove from shared_alloc_regions if remnaining memory is smaller than PLAB::min_size
-          if (r->top() + PLAB::min_size() >= r->forwarding_table_start()) {
-            remove_shared_alloc_region(i);
-            insert_retired_region(r);
-          } else {
-            size_t potential_tlab_size = early_recycled_tlab_available_size(r);
-            if (potential_tlab_size > PLAB::min_size()) {
-              remove_shared_alloc_region(i);
-              insert_tlab_region(r, potential_tlab_size);
-            } else {
-              // Otherwise, this region continues to serve as a shared-alloc region.  But we may want to adjust its
-              // position in the heap.  This region's allocatable memory has shrunk. It's allocatable is still smaller than
-              // parent's, so only need to heapify downward.
-              heapify_shared_alloc_regions_downward(i);
-            }
-          }
-          // Note: Since the current implementation only supports Mutator allocations, there's no need to register
-          //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
-          req.set_actual_size(req.size());
-          req.set_waste(result - orig_top);
-          assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Do not YET support early recycle during evac");
-          r->set_affiliation(req.affiliation());
-          return result;
-        }
-      }
-      // We failed to allocate in a shared-alloc region.  Let's try allocating from the early-recycled tlab regions,
-      // starting with the regions that are "least" ideal (smallest potential TLAB size) for TLAB allocations. We want
-      // to preserve the "ideal" TLAB regions for TLAB allocation requests.
-      size_t num_tlab_candidates = num_tlab_regions();
-      for (size_t i = num_tlab_candidates; i > 0; i--) {
-        ShenandoahHeapRegion* r = get_tlab_region(i - 1);
-        HeapWord* orig_top = r->top();
-        HeapWord* result = try_allocate_shared_in_early_recycled(r, req.size(), true /* is_tlab_region */);
-        if (result != nullptr) { // Successful allocation.
-          remove_tlab_region(i - 1);
-          if (r->top() + PLAB::min_size() >= r->forwarding_table_start()) {
-            insert_retired_region(r);
-          } else {
-            size_t potential_tlab_size = early_recycled_tlab_available_size(r);
-            if (potential_tlab_size > PLAB::min_size()) {
-              insert_tlab_region(r, potential_tlab_size);
-            } else {
-              insert_shared_alloc_region(r);
-            }
-          }
-          // Note: Since the current implementation only supports Mutator allocations, there's no need to register
-          //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
-          req.set_actual_size(req.size());
-          req.set_waste(result - orig_top);
-          return result;
-        }
-      }
-      // We tried to service shared-alloc request from early recycled regions but this failed, so we'll
-      // fall through and try to allocate from the Mutator partition.
-    }
-  }
-
-  // This loop handles LAB and shared-allocations from free set partitions. This is the back-up plan for shared allocations
-  // in case we failed to satisfy the request from early recycled regions. This is plan A for LAB allocations, even if
-  // early recycled regions exist.
   ShenandoahHeapRegion* free_region = nullptr;
   for (idx_t idx = iterator.current(); iterator.has_next(); idx = iterator.next()) {
     ShenandoahHeapRegion* r = _heap->get_region(idx);
@@ -1674,70 +1602,6 @@ HeapWord* ShenandoahFreeSet::allocate_with_affiliation(Iter& iterator,
     assert(result != nullptr, "Allocate in free region in the partition always succeed.");
     return result;
   }
-
-  if (_allocating_from_early_recycled_regions && req.is_lab_alloc() && (num_tlab_regions() > 0)) {
-    // This is the back-up plan for LAB allocations if we were unable to satisfy the allocation from the freeset partitions.
-    if (req.min_size() == PLAB::min_size()) {
-      // This is a modest LAB request. Any region in the set of early-recycled TLAB regions can satisfy the request.
-      // Allocate from the back of the queue, as this preserves the regions that have "large TLAB potential" for possible future
-      // allocation requests that require larger than the minimum size.
-      // There's no need to iterate here.
-      size_t i = num_tlab_regions() - 1;
-      ShenandoahHeapRegion* r = get_tlab_region(i);
-      HeapWord* orig_top = r->top();
-      size_t actual_size;
-      HeapWord* result = try_allocate_TLAB_in_early_recycled(r, req, actual_size);
-      assert(result != nullptr, "By construction of the TLAB-allocation set");
-      remove_tlab_region(i);
-      if (r->top() + PLAB::min_size() >= r->forwarding_table_start()) {
-        // The remaining memory is too small to serve future allocation needs
-        insert_retired_region(r);
-      } else {
-        size_t potential_tlab_size = early_recycled_tlab_available_size(r);
-        if (potential_tlab_size > PLAB::min_size()) {
-          insert_tlab_region(r, potential_tlab_size);
-        } else {
-          insert_shared_alloc_region(r);
-        }
-      }
-      // Note: Since the current implementation only supports Mutator allocations, there's no need to register
-      //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
-      req.set_actual_size(actual_size);
-      req.set_waste(result - orig_top);
-      return result;
-    } else if (num_tlab_regions() > 0) {
-      // This LAB needs to be larger than the minimum size. Allocate from the head of the list of early-recycled TLAB-eligible
-      // regions. The head represents the largest possible TLAB. If allocation from head fails, there's no value in trying
-      // other regions.
-      size_t i = 0;
-      ShenandoahHeapRegion* r = get_tlab_region(i);
-      HeapWord* orig_top = r->top();
-      size_t actual_size;
-      HeapWord* result = try_allocate_TLAB_in_early_recycled(r, req, actual_size);
-      if (result != nullptr) {
-        remove_tlab_region(i);
-        if (r->top() + PLAB::min_size() >= r->forwarding_table_start()) {
-          // The remaining memory is too small to serve future allocation needs
-          insert_retired_region(r);
-        } else {
-          size_t potential_tlab_size = early_recycled_tlab_available_size(r);
-          if (potential_tlab_size > PLAB::min_size()) {
-            insert_tlab_region(r, potential_tlab_size);
-          } else {
-            insert_shared_alloc_region(r);
-          }
-        }
-        // Note: Since the current implementation only supports Mutator allocations, there's no need to register
-        //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
-        req.set_actual_size(actual_size);
-        req.set_waste(result - orig_top);
-        return result;
-      }
-      // Otherwise, we were unable to allocate a TLAB of sufficient size.  Fail fast without iterating over lots of
-      // regions.  This allows the request to be reformulated as a shared-allocation.
-    }
-  }
-
   log_debug(gc, free)("Could not allocate collector region with affiliation: %s for request " PTR_FORMAT,
                       shenandoah_affiliation_name(affiliation), p2i(&req));
   return nullptr;
@@ -1767,200 +1631,26 @@ HeapWord* ShenandoahFreeSet::allocate_single(ShenandoahAllocRequest& req, bool& 
   }
 }
 
-#undef KELVIN_FWT
-#ifdef KELVIN_FWT
-#define DUMP_USED
-#endif
-
-#undef KELVIN_VERIFY
-#ifdef KELVIN_VERIFY
-#define DUMP_USED
-#endif
-
-#undef KELVIN_AFFILIATED
-#ifdef KELVIN_AFFILIATED
-#define DUMP_USED
-#endif
-
-#ifdef DUMP_USED
-static void dump_used(const char* msg, ShenandoahRegionPartitions* p, ShenandoahFreeSet* free_set) {
-  log_info(gc)("dump_used(%s)", msg);
-  log_info(gc)("            _used[Mutator]: %zu", p->get_used(ShenandoahFreeSetPartitionId::Mutator));
-  log_info(gc)("        _capacity[Mutator]: %zu", p->get_capacity(ShenandoahFreeSetPartitionId::Mutator));
-  log_info(gc)("          _used[Collector]: %zu", p->get_used(ShenandoahFreeSetPartitionId::Collector));
-  log_info(gc)("      _capacity[Collector]: %zu", p->get_capacity(ShenandoahFreeSetPartitionId::Collector));
-  log_info(gc)("       _used[OldCollector]: %zu", p->get_used(ShenandoahFreeSetPartitionId::OldCollector));
-  log_info(gc)("   _capacity[OldCollector]: %zu", p->get_capacity(ShenandoahFreeSetPartitionId::OldCollector));
-  log_info(gc)("       freecycle tlab used: %zu", free_set->early_recycled_tlab_used());
-  log_info(gc)("     freecycle shared used: %zu", free_set->early_recycled_shared_alloc_used());
-  log_info(gc)("    freecycle retired used: %zu", free_set->early_recycled_retired_used());
-  log_info(gc)("   freecycle tlab capacity: %zu", free_set->early_recycled_tlab_capacity());
-  log_info(gc)(" freecycle shared capacity: %zu", free_set->early_recycled_shared_alloc_capacity());
-  log_info(gc)("freecycle retired capacity: %zu", free_set->early_recycled_retired_capacity());
-
-}
-#endif
-
 HeapWord* ShenandoahFreeSet::allocate_for_mutator(ShenandoahAllocRequest &req, bool &in_new_region) {
-  shenandoah_assert_heaplocked();
   update_allocation_bias();
-  if (_allocating_from_early_recycled_regions) {
-    assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Precondition");
-    if (!req.is_lab_alloc()) {
-      // Try to fill this shared-alloc request from an early-recycled shared-alloc region so that we can preserve
-      // the non-early-recycled regions for TLAB allocations.
-      size_t num_shared_alloc_candidates = num_shared_alloc_regions();
-      for (size_t i = 0; i < num_shared_alloc_candidates; i++) {
-        ShenandoahHeapRegion* r = get_shared_alloc_region(i);
-        HeapWord* orig_top = r->top();
-        HeapWord* result = try_allocate_shared_in_early_recycled(r, req.size());
-        if (result != nullptr) { // Successful allocation.
-          req.set_actual_size(req.size());
-          req.set_waste(result - orig_top);
-          size_t used_bytes = (req.actual_size() + req.waste()) * HeapWordSize;
-          // Only remove from shared_alloc_regions if remnaining memory is smaller than PLAB::min_size
-          if (r->top() + PLAB::min_size() >= r->forwarding_table_start()) {
-            remove_shared_alloc_region(i);
-            insert_retired_region(r);
-          } else {
-            size_t potential_tlab_size = early_recycled_tlab_available_size(r);
-            if (potential_tlab_size > PLAB::min_size()) {
-              remove_shared_alloc_region(i);
-              insert_tlab_region(r, potential_tlab_size);
-            } else {
-              // Otherwise, this region continues to serve as a shared-alloc region.  But we may want to adjust its
-              // position in the heap.  This region's allocatable memory has shrunk. It's allocatable is still smaller than
-              // parent's, so only need to heapify downward.
-              heapify_shared_alloc_regions_downward(i);
-            }
-          }
-          // Note: Since the current implementation only supports Mutator allocations, there's no need to register
-          //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
-          return result;
-        }
-      }
-      // We failed to allocate in a shared-alloc region.  Let's try allocating from the early-recycled tlab regions,
-      // starting with the regions that are "least" ideal (smallest potential TLAB size) for TLAB allocations. We want
-      // to preserve the "ideal" TLAB regions for TLAB allocation requests.
-      size_t num_tlab_candidates = num_tlab_regions();
-      for (size_t i = num_tlab_candidates; i > 0; i--) {
-        ShenandoahHeapRegion* r = get_tlab_region(i - 1);
-        HeapWord* orig_top = r->top();
-        HeapWord* result = try_allocate_shared_in_early_recycled(r, req.size(), true /* is_tlab_region */);
-        if (result != nullptr) { // Successful allocation.
-          remove_tlab_region(i - 1);
-          if (r->top() + PLAB::min_size() >= r->forwarding_table_start()) {
-            insert_retired_region(r);
-          } else {
-            size_t potential_tlab_size = early_recycled_tlab_available_size(r);
-            if (potential_tlab_size > PLAB::min_size()) {
-              insert_tlab_region(r, potential_tlab_size);
-            } else {
-              insert_shared_alloc_region(r);
-            }
-          }
-          // Note: Since the current implementation only supports Mutator allocations, there's no need to register
-          //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
-          req.set_actual_size(req.size());
-          req.set_waste(result - orig_top);
-          assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Do not YET support early recycle during evac");
-          return result;
-        }
-      }
-      // We tried to service shared-alloc request from early recycled regions but this failed, so we'll
-      // fall through and try to allocate from the Mutator partition.
-    }
-  }
 
-  if (!_allocating_from_early_recycled_regions && _partitions.is_empty(ShenandoahFreeSetPartitionId::Mutator)) {
+  if (_partitions.is_empty(ShenandoahFreeSetPartitionId::Mutator)) {
     // There is no recovery. Mutator does not touch collector view at all.
     return nullptr;
   }
 
   // Try to allocate in the mutator view
-  HeapWord* result;
   if (_partitions.alloc_from_left_bias(ShenandoahFreeSetPartitionId::Mutator)) {
     // Allocate from low to high memory.  This keeps the range of fully empty regions more tightly packed.
     // Note that the most recently allocated regions tend not to be evacuated in a given GC cycle.  So this
     // tends to accumulate "fragmented" uncollected regions in high memory.
     ShenandoahLeftRightIterator iterator(&_partitions, ShenandoahFreeSetPartitionId::Mutator);
-    result = allocate_from_regions(iterator, req, in_new_region);
-  } else {
-    // Allocate from high to low memory. This preserves low memory for humongous allocations.
-    ShenandoahRightLeftIterator iterator(&_partitions, ShenandoahFreeSetPartitionId::Mutator);
-    result = allocate_from_regions(iterator, req, in_new_region);
-  }
-  if (result != nullptr) {
-    return result;
+    return allocate_from_regions(iterator, req, in_new_region);
   }
 
-  if (num_tlab_regions() > 0) {
-    if (_allocating_from_early_recycled_regions && req.is_lab_alloc()) {
-      assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Do not YET support early recycle during evac");
-      // This is the back-up plan for LAB allocations if we were unable to satisfy the allocation from the freeset partitions.
-      if (req.min_size() == PLAB::min_size()) {
-        // This is a modest LAB request. Any region in the set of early-recycled TLAB regions can satisfy the request.
-        // Allocate from the back of the queue, as this preserves the regions that have "large TLAB potential" for possible future
-        // allocation requests that require larger than the minimum size.
-        // There's no need to iterate here.
-        size_t i = num_tlab_regions() - 1;
-        ShenandoahHeapRegion* r = get_tlab_region(i);
-        HeapWord* orig_top = r->top();
-        size_t actual_size;
-        HeapWord* result = try_allocate_TLAB_in_early_recycled(r, req, actual_size);
-        assert(result != nullptr, "By construction of the TLAB-allocation set");
-        remove_tlab_region(i);
-        if (r->top() + PLAB::min_size() >= r->forwarding_table_start()) {
-          // The remaining memory is too small to serve future allocation needs
-          insert_retired_region(r);
-        } else {
-          size_t potential_tlab_size = early_recycled_tlab_available_size(r);
-          if (potential_tlab_size > PLAB::min_size()) {
-            insert_tlab_region(r, potential_tlab_size);
-          } else {
-            insert_shared_alloc_region(r);
-          }
-        }
-        // Note: Since the current implementation only supports Mutator allocations, there's no need to register
-        //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
-        req.set_actual_size(actual_size);
-        req.set_waste(result - orig_top);
-        return result;
-      } else {
-        // This LAB needs to be larger than the minimum size. Allocate from the head of the list of early-recycled TLAB-eligible
-        // regions. The head represents the largest possible TLAB. If allocation from head fails, there's no value in trying
-        // other regions.
-        size_t i = 0;
-        ShenandoahHeapRegion* r = get_tlab_region(i);
-        HeapWord* orig_top = r->top();
-        size_t actual_size;
-        HeapWord* result = try_allocate_TLAB_in_early_recycled(r, req, actual_size);
-        if (result != nullptr) {
-          remove_tlab_region(i);
-          if (r->top() + PLAB::min_size() >= r->forwarding_table_start()) {
-            // The remaining memory is too small to serve future allocation needs
-            insert_retired_region(r);
-          } else {
-            size_t potential_tlab_size = early_recycled_tlab_available_size(r);
-            if (potential_tlab_size > PLAB::min_size()) {
-              insert_tlab_region(r, potential_tlab_size);
-            } else {
-              insert_shared_alloc_region(r);
-            }
-          }
-          // Note: Since the current implementation only supports Mutator allocations, there's no need to register
-          //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
-          req.set_actual_size(actual_size);
-          req.set_waste(result - orig_top);
-          assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Do not YET support early recycle during evac");
-          return result;
-        }
-        // Otherwise, we were unable to allocate a TLAB of sufficient size.  Fail fast without iterating over lots of
-        // regions.  This allows the request to be reformulated as a shared-allocation.
-      }
-    }
-  }
-  return nullptr;
+  // Allocate from high to low memory. This preserves low memory for humongous allocations.
+  ShenandoahRightLeftIterator iterator(&_partitions, ShenandoahFreeSetPartitionId::Mutator);
+  return allocate_from_regions(iterator, req, in_new_region);
 }
 
 void ShenandoahFreeSet::update_allocation_bias() {
@@ -2061,9 +1751,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_from_mutator(ShenandoahAllocRequest& r
 
 
 HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, ShenandoahAllocRequest& req, bool& in_new_region) {
-  shenandoah_assert_heaplocked();
   assert (has_alloc_capacity(r), "Performance: should avoid full regions on this path: %zu", r->index());
-
   if (_heap->is_concurrent_weak_root_in_progress() && r->is_trash()) {
     // We cannot use this region for allocation when weak roots are in progress because the collector may need
     // to reference unmarked oops during concurrent classunloading. The collector also needs accurate marking
@@ -2107,25 +1795,18 @@ HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, Shenandoah
       return nullptr;
     }
   }
-  HeapWord* const old_top = r->top();
+
   // req.size() is in words, r->free() is in bytes.
   if (req.is_lab_alloc()) {
     size_t adjusted_size = req.size();
-    // For regions with a forwarding table, allocations happen until alloc_end() not end().
-    size_t free = align_down(alloc_capacity(r) >> LogHeapWordSize, MinObjAlignment);
+    size_t free = align_down(r->free() >> LogHeapWordSize, MinObjAlignment);
     if (adjusted_size > free) {
       adjusted_size = free;
     }
     if (adjusted_size >= req.min_size()) {
       result = r->allocate(adjusted_size, req);
-      assert(result != nullptr || r->forwarding_table_start() != nullptr,
-             "Allocation must succeed: free %zu, actual %zu", free, adjusted_size);
-      if (result != nullptr) {
-        // actual may be < adjusted_size if a sentinel truncated the LAB span.
-        size_t actual = pointer_delta(r->top(), result);
-        req.set_actual_size(actual);
-        req.set_waste(req.waste() + pointer_delta(result, old_top));
-      }
+      assert (result != nullptr, "Allocation must succeed: free %zu, actual %zu", free, adjusted_size);
+      req.set_actual_size(adjusted_size);
     } else {
       log_trace(gc, free)("Failed to shrink LAB request (%zu) in region %zu to %zu"
                           " because min_size() is %zu", req.size(), r->index(), adjusted_size, req.min_size());
@@ -2134,8 +1815,8 @@ HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, Shenandoah
     size_t size = req.size();
     result = r->allocate(size, req);
     if (result != nullptr) {
+      // Record actual allocation size
       req.set_actual_size(size);
-      req.set_waste(req.waste() + pointer_delta(r->top(), old_top) - size);
     }
   }
 
@@ -2143,7 +1824,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, Shenandoah
     // Allocation successful, bump stats:
     if (req.is_mutator_alloc()) {
       assert(req.is_young(), "Mutator allocations always come from young generation.");
-      _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, (req.actual_size() + req.waste()) * HeapWordSize);
+      _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, req.actual_size() * HeapWordSize);
     } else {
       assert(req.is_gc_alloc(), "Should be gc_alloc since req wasn't mutator alloc");
 
@@ -2179,7 +1860,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, Shenandoah
     // Note that retire_from_partition() increases used to account for waste.
 
     size_t idx = r->index();
-    size_t waste_bytes = _partitions.retire_from_partition(orig_partition, idx, r->used_with_fwt());
+    size_t waste_bytes = _partitions.retire_from_partition(orig_partition, idx, r->used());
     DEBUG_ONLY(boundary_changed = true;)
     if (req.is_mutator_alloc() && (waste_bytes > 0)) {
       req.set_waste(waste_bytes / HeapWordSize);
@@ -2230,11 +1911,6 @@ HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, Shenandoah
   } else {
     _partitions.assert_bounds_sanity();
   }
-#endif
-#define KELVIN_DEBUG_THIS
-#ifdef KELVIN_DEBUG_THIS
-  log_info(gc)("try_allocate_in() returns " PTR_FORMAT ", allocated (with waste): %zu in region %zu",
-               p2i(result), (r->top() - old_top) * HeapWordSize, r->index());
 #endif
   return result;
 }
@@ -4501,6 +4177,141 @@ size_t ShenandoahFreeSet::early_recycled_tlab_available_size(ShenandoahHeapRegio
   return (largest_tlab_seen >= PLAB::min_size())? largest_tlab_seen * HeapWordSize: 0;
 }
 
+
+HeapWord* ShenandoahFreeSet::try_allocate_shared_from_early_recycled(ShenandoahAllocRequest& req) {
+  assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Precondition");
+  // Try to fill this shared-alloc request from an early-recycled shared-alloc region so that we can preserve
+  // the non-early-recycled regions for TLAB allocations.
+  size_t num_shared_alloc_candidates = num_shared_alloc_regions();
+  for (size_t i = 0; i < num_shared_alloc_candidates; i++) {
+    ShenandoahHeapRegion* r = get_shared_alloc_region(i);
+    HeapWord* orig_top = r->top();
+    HeapWord* result = try_allocate_shared_in_early_recycled(r, req.size());
+    if (result != nullptr) { // Successful allocation.
+      req.set_actual_size(req.size());
+      req.set_waste(result - orig_top);
+      size_t used_bytes = (req.actual_size() + req.waste()) * HeapWordSize;
+      // Only remove from shared_alloc_regions if remnaining memory is smaller than PLAB::min_size
+      if (r->top() + PLAB::min_size() >= r->forwarding_table_start()) {
+        remove_shared_alloc_region(i);
+        insert_retired_region(r);
+      } else {
+        size_t potential_tlab_size = early_recycled_tlab_available_size(r);
+        if (potential_tlab_size > PLAB::min_size()) {
+          remove_shared_alloc_region(i);
+          insert_tlab_region(r, potential_tlab_size);
+        } else {
+          // Otherwise, this region continues to serve as a shared-alloc region.  But we may want to adjust its
+          // position in the heap.  This region's allocatable memory has shrunk. It's allocatable is still smaller than
+          // parent's, so only need to heapify downward.
+          heapify_shared_alloc_regions_downward(i);
+        }
+      }
+      // Note: Since the current implementation only supports Mutator allocations, there's no need to register
+      //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
+      return result;
+    }
+  }
+  // We failed to allocate in a shared-alloc region.  Let's try allocating from the early-recycled tlab regions,
+  // starting with the regions that are "least" ideal (smallest potential TLAB size) for TLAB allocations. We want
+  // to preserve the "ideal" TLAB regions for TLAB allocation requests.
+  size_t num_tlab_candidates = num_tlab_regions();
+  for (size_t i = num_tlab_candidates; i > 0; i--) {
+    ShenandoahHeapRegion* r = get_tlab_region(i - 1);
+    HeapWord* orig_top = r->top();
+    HeapWord* result = try_allocate_shared_in_early_recycled(r, req.size(), true /* is_tlab_region */);
+    if (result != nullptr) { // Successful allocation.
+      remove_tlab_region(i - 1);
+      if (r->top() + PLAB::min_size() >= r->forwarding_table_start()) {
+        insert_retired_region(r);
+      } else {
+        size_t potential_tlab_size = early_recycled_tlab_available_size(r);
+        if (potential_tlab_size > PLAB::min_size()) {
+          insert_tlab_region(r, potential_tlab_size);
+        } else {
+          insert_shared_alloc_region(r);
+        }
+      }
+      // Note: Since the current implementation only supports Mutator allocations, there's no need to register
+      //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
+      req.set_actual_size(req.size());
+      req.set_waste(result - orig_top);
+      assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Do not YET support early recycle during evac");
+      return result;
+    }
+  }
+  // We tried to service shared-alloc request from early recycled regions but this failed, so we'll
+  // fall through and try to allocate from the Mutator partition.
+  return nullptr;
+}
+
+HeapWord* ShenandoahFreeSet::try_allocate_lab_from_early_recycled(ShenandoahAllocRequest& req) {
+  if (num_tlab_regions() > 0) {
+    assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Do not YET support early recycle during evac");
+    // This is the back-up plan for LAB allocations if we were unable to satisfy the allocation from the freeset partitions.
+    if (req.min_size() == PLAB::min_size()) {
+      // This is a modest LAB request. Any region in the set of early-recycled TLAB regions can satisfy the request.
+      // Allocate from the back of the queue, as this preserves the regions that have "large TLAB potential" for possible future
+      // allocation requests that require larger than the minimum size.
+      // There's no need to iterate here.
+      size_t i = num_tlab_regions() - 1;
+      ShenandoahHeapRegion* r = get_tlab_region(i);
+      HeapWord* orig_top = r->top();
+      size_t actual_size;
+      HeapWord* result = try_allocate_TLAB_in_early_recycled(r, req, actual_size);
+      assert(result != nullptr, "By construction of the TLAB-allocation set");
+      remove_tlab_region(i);
+      if (r->top() + PLAB::min_size() >= r->forwarding_table_start()) {
+        // The remaining memory is too small to serve future allocation needs
+        insert_retired_region(r);
+      } else {
+        size_t potential_tlab_size = early_recycled_tlab_available_size(r);
+        if (potential_tlab_size > PLAB::min_size()) {
+          insert_tlab_region(r, potential_tlab_size);
+        } else {
+          insert_shared_alloc_region(r);
+        }
+      }
+      // Note: Since the current implementation only supports Mutator allocations, there's no need to register
+      //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
+      req.set_actual_size(actual_size);
+      req.set_waste(result - orig_top);
+      return result;
+    } else {
+      // This LAB needs to be larger than the minimum size. Allocate from the head of the list of early-recycled TLAB-eligible
+      // regions. The head represents the largest possible TLAB. If allocation from head fails, there's no value in trying
+      // other regions.
+      size_t i = 0;
+      ShenandoahHeapRegion* r = get_tlab_region(i);
+      HeapWord* orig_top = r->top();
+      size_t actual_size;
+      HeapWord* result = try_allocate_TLAB_in_early_recycled(r, req, actual_size);
+      if (result != nullptr) {
+        remove_tlab_region(i);
+        if (r->top() + PLAB::min_size() >= r->forwarding_table_start()) {
+          // The remaining memory is too small to serve future allocation needs
+          insert_retired_region(r);
+        } else {
+          size_t potential_tlab_size = early_recycled_tlab_available_size(r);
+          if (potential_tlab_size > PLAB::min_size()) {
+            insert_tlab_region(r, potential_tlab_size);
+          } else {
+            insert_shared_alloc_region(r);
+          }
+        }
+        // Note: Since the current implementation only supports Mutator allocations, there's no need to register
+        //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
+        req.set_actual_size(actual_size);
+        req.set_waste(result - orig_top);
+        assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Do not YET support early recycle during evac");
+        return result;
+      }
+      // Otherwise, we were unable to allocate a TLAB of sufficient size.  Fail fast without iterating over lots of
+      // regions.  This allows the request to be reformulated as a shared-allocation.
+    }
+  }
+  return nullptr;
+}
 
 // Returns address of TLAB, overwrites size argument, and adjusts top() if allocation is successful.
 // Returns nullptr without modifying size or top() if allocation fails.
