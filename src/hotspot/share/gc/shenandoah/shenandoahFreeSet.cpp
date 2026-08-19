@@ -1014,7 +1014,7 @@ void ShenandoahRegionPartitions::assert_bounds() {
             alloc_capacity = 0;
           } else {
             // otherwise, we count used as size of forwarding table plus accumulated allocations.
-            assert(_free_set->allocating_from_early_recycled_regions(),
+            assert(_free_set->allocating_from_early_recycled_regions() || (r->top() == r->bottom()),
                    "r->was_early_recycled() implies we are allocating from early-recycled regions");
             early_recycled_tally_capacity += _region_size_bytes;
             early_recycled_tally_used += _region_size_bytes - alloc_capacity;
@@ -2173,11 +2173,6 @@ HeapWord* ShenandoahFreeSet::try_allocate_in(ShenandoahHeapRegion* r, Shenandoah
     _partitions.assert_bounds_sanity();
   }
 #endif
-#define KELVIN_DEBUG_THIS
-#ifdef KELVIN_DEBUG_THIS
-  log_info(gc)("try_allocate_in() returns " PTR_FORMAT ", allocated (with waste): %zu in region %zu",
-               p2i(result), (r->top() - old_top) * HeapWordSize, r->index());
-#endif
   return result;
 }
 
@@ -3018,11 +3013,6 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
     HeapWord* bottom = r->bottom();
     ShenandoahMarkingContext* ctx = _heap->marking_context();
     HeapWord* tams = ctx->top_at_mark_start(r);
-#ifdef KELVIN_DEPRECATE
-    // We can no longer perform this check
-    size_t above_tams = pointer_delta(top, MAX2(tams, bottom));
-    assert(above_tams == 0, "FWT region %zu has above_tams_words=%zu", i, above_tams);
-#endif
 
 #undef GATHER_STATS
 #ifdef GATHER_STATS
@@ -3156,6 +3146,7 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
     log_info(gc)("FWT recycle region %zu: top=" PTR_FORMAT " fwt_start=" PTR_FORMAT,
                  i, p2i(top), p2i(r->forwarding_table_start()));
   }
+
   size_t available = r->capacity() - r->fwt_tail_bytes();
   bool reuse_body = ShenandoahRecycleFWTBodies && (available >= PLAB::min_size() * HeapWordSize);
   r->recycle_early(reuse_body);
@@ -3169,7 +3160,6 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
   } else {
     size_t potential_tlab_size = early_recycled_tlab_available_size(r);
     if (ShenandoahCSetRegionTLAB && (potential_tlab_size != 0)) {
-#define KELVIN_EARLY_RECYCLE
       insert_tlab_region(r, potential_tlab_size);
     } else {
       insert_shared_alloc_region(r);
@@ -3232,9 +3222,6 @@ void ShenandoahFreeSet::recycle_collection_set() {
   }
 
   if (recycled_regions > 0) {
-#ifdef KELVIN_DEBUG_THIS
-    log_info(gc)("KELVIN turns on early-recycled region allocations now");
-#endif
     _allocating_from_early_recycled_regions = true;
   }
   log_info(gc)("Recycled %zu FWT cset regions (below-FWT space),"
@@ -3244,15 +3231,6 @@ void ShenandoahFreeSet::recycle_collection_set() {
                early_recycled_tlab_capacity() - early_recycled_tlab_used(),
                early_recycled_shared_alloc_capacity() - early_recycled_shared_alloc_used(),
                early_recycled_retired_capacity() - early_recycled_retired_used());
-#define KELVIN_DEBUG_THIS
-#ifdef KELVIN_DEBUG_THIS
-  log_info(gc)("At end of recycle_collection_set()");
-  for (size_t i = 0; i < _heap->num_regions(); i++) {
-    ShenandoahHeapRegion* r = _heap->get_region(i);
-    log_info(gc)("Region %zu affiliation: %s, partition: %s, BTE: " PTR_FORMAT ", " PTR_FORMAT ", " PTR_FORMAT,
-             i, r->affiliation_name(), partition_name(membership(i)), p2i(r->bottom()), p2i(r->top()), p2i(r->end()));
-  }
-#endif
 }
 
 void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* r, size_t& released_regions,
@@ -4272,10 +4250,6 @@ void ShenandoahFreeSet::heapify_tlab_regions_downward(size_t index) {
 }
 
 void ShenandoahFreeSet::insert_tlab_region(ShenandoahHeapRegion* r, size_t max_tlab_size) {
-#ifdef KELVIN_EARLY_RECYCLE
-      log_info(gc)("FWT recycle region %zu placed in tlab set with potential tlab size: %zu",
-                   r->index(), max_tlab_size);
-#endif
   if (_early_recycled_tlab_regions + _early_recycled_tlab_regions_count + 1 >= _early_recycled_retired_regions) {
     shift_retired_regions_down();
   }
@@ -4409,10 +4383,6 @@ void ShenandoahFreeSet::heapify_shared_alloc_regions_downward(size_t index) {
 
 void ShenandoahFreeSet::insert_shared_alloc_region(ShenandoahHeapRegion* r) {
   size_t shared_allocatable_words = (r->end() - r->top()) - r->fwt_tail_bytes() / HeapWordSize;
-#ifdef KELVIN_EARLY_RECYCLE
-  log_info(gc)("FWT recycle region %zu placed in shared-alloc set with potential allocatable %zu",
-               r->index(), shared_allocatable_words * HeapWordSize);
-#endif
   if (_early_recycled_shared_alloc_regions - _early_recycled_shared_alloc_regions_count <=
       _early_recycled_retired_regions + _early_recycled_retired_regions_count) {
     shift_retired_regions_up();
@@ -4443,11 +4413,6 @@ void ShenandoahFreeSet::remove_shared_alloc_region(size_t index) {
 }
 
 void ShenandoahFreeSet::insert_retired_region(ShenandoahHeapRegion* r) {
-#ifdef KELVIN_EARLY_RECYCLE
-  size_t shared_allocatable_bytes = (r->end() - r->top()) * HeapWordSize - r->fwt_tail_bytes();
-  log_info(gc)("FWT recycle region %zu placed in retired set with potential allocatable %zu",
-               r->index(), shared_allocatable_bytes);
-#endif
   if (_early_recycled_retired_regions + _early_recycled_retired_regions_count + 1 >
       _early_recycled_shared_alloc_regions - (_early_recycled_shared_alloc_regions_count - 1)) {
     shift_retired_regions_up();
@@ -4499,10 +4464,6 @@ HeapWord* ShenandoahFreeSet::try_allocate_TLAB_in_early_recycled(ShenandoahHeapR
   HeapWord* const fwt_start = r->forwarding_table_start();
   HeapWord* alloc_limit = fwt_start;
 
-#ifdef KELVIN_DEBUG_THIS
-  log_info(gc)("try_allocate_TLAB_early(min_size: %zu, req.size: %zu)", req.min_size(), req.size());
-#endif
-
   // Use marking context to avoid full scan.
   const size_t min_fill       = ShenandoahHeap::min_fill_size();
   const size_t min_size       = req.min_size();
@@ -4517,21 +4478,10 @@ HeapWord* ShenandoahFreeSet::try_allocate_TLAB_in_early_recycled(ShenandoahHeapR
     } else if ((pad == 0) || (pad > min_fill)) {
       if (!ctx->is_marked_ignore_tams(candidate_start)) {
         HeapWord* end_of_candidate_tlab = ctx->get_next_marked_addr_ignore_tams(candidate_start, alloc_limit);
-#ifdef KELVIN_DEBUG_THIS
-        log_info(gc)(" pad: %zu, fwt_start: " PTR_FORMAT ", alloc_limit: " PTR_FORMAT ", end_of_candidate_tlab: " PTR_FORMAT,
-                     pad, p2i(fwt_start), p2i(alloc_limit), p2i(end_of_candidate_tlab));
-#endif
         size_t candidate_tlab_size = end_of_candidate_tlab - candidate_start;
         size_t usable_free = candidate_tlab_size * HeapWordSize;
-#ifdef KELVIN_DEBUG_THIS
-        log_info(gc)(" candidate_tlab_size (words): %zu, usable_free (bytes): %zu",
-                     candidate_tlab_size, usable_free);
-#endif
         // Convert usable_free from unaligned bytes to aligned number of words
         usable_free = align_down(usable_free >> LogHeapWordSize, MinObjAlignment);
-#ifdef KELVIN_DEBUG_THIS
-        log_info(gc)(" aligned usable_free in words: %zu", usable_free);
-#endif
         if (usable_free >= min_size) {
           // Use the first fit within the allowed range of padding
           size = max_size;
@@ -4545,10 +4495,6 @@ HeapWord* ShenandoahFreeSet::try_allocate_TLAB_in_early_recycled(ShenandoahHeapR
           // This assignment may be redundant. Maybe we can optimize.
           r->set_affiliation(ShenandoahAffiliation::YOUNG_GENERATION);
           r->set_top(orig_top + size + pad);
-#ifdef KELVIN_DEBUG_THIS
-          log_info(gc)(" allocating @ " PTR_FORMAT " word size: %zu, pad: %zu, top set to " PTR_FORMAT,
-                       p2i(candidate_start), size, pad, p2i(orig_top + size + pad));
-#endif
           log_debug(gc, alloc)("TLAB allocated %zu words at " PTR_FORMAT " in FWT region %zu"
                                " [" PTR_FORMAT ", " PTR_FORMAT ")"
                                " region=[" PTR_FORMAT ", " PTR_FORMAT ") fwt_start=" PTR_FORMAT,

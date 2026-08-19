@@ -1488,13 +1488,8 @@ bool ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t nu
     // Got to make sure that everybody sees the table before turning on
     // use_forward_table. A single rendezvous after evacuation (see
     // evacuate_collection_set) brings every thread onto the tables.
-
     OrderAccess::fence();
     collection_set()->switch_to_forward_table(r);
-#define KELVIN_DEBUG_THIS
-#ifdef KELVIN_DEBUG_THIS
-    log_info(gc)("Region %zu is switched to forward table", r->index());
-#endif
   }
   return use_fwd_table;
 }
@@ -2680,12 +2675,6 @@ public:
 
   void work(uint worker_id) {
     if (CONCURRENT) {
-      if (worker_id == 0) {
-        // We ask worker 0 to recycle the collection set regions before it starts on normal update refs work.
-        ShenandoahHeapLocker locker(_heap->lock());
-        _heap->free_set()->recycle_collection_set();
-      }
-      // If !CONCURRENT, there's no value in expanding Mutator free set
       ShenandoahConcurrentWorkerSession worker_session(worker_id);
       SuspendibleThreadSetJoiner stsj;
       do_work<ShenandoahConcUpdateRefsClosure>(worker_id);

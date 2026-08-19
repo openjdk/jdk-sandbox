@@ -232,10 +232,10 @@ void ShenandoahAsserts::assert_correct(void* interior_loc, oop obj, const char* 
 
   if (heap->collection_set()->use_forward_table(obj)) {
     ShenandoahHeapRegion* fwt_r = heap->heap_region_containing(obj);
-    oop fwd_check = ShenandoahBarrierSet::resolve_forwarded_not_null(obj);
     HeapWord* obj_addr = cast_from_oop<HeapWord*>(obj);
     if (obj_addr >= fwt_r->forwarding_table_start()) {
       // Since obj_addr >= start of fwd table, this must be a previously allocated object, and it should have been forwarded.
+      oop fwd_check = ShenandoahBarrierSet::resolve_forwarded_not_null(obj);
       if (fwd_check == obj) {
         print_failure(_safe_oop, obj, interior_loc, nullptr, "Shenandoah assert_correct failed",
                       "Object in FWT tail has not been evacuated",
@@ -306,21 +306,6 @@ void ShenandoahAsserts::assert_correct(void* interior_loc, oop obj, const char* 
                     file,line);
     }
   } else {
-    // There can be a race here because forweard-tables come into
-    // existence asynchronously, as we finish building the forward table for a newly evacuated cset
-    // region.  However, we cannot start allocating within a region that previously had not safepoint
-    // until every thread passes through a safepoint (or at minimum, a handshake).
-    //
-    // So even though the forwwarding status might change, between test above and here, it should not
-    // change allocation.
-
-    // maybe the problem is that already forwarded and allocated in this region even before the if-test,
-    // but I didn't see it.
-
-    // Changes to top hapen under global heap lock
-    // Changes to use_forward_table happen asynchronously
-
-    // This assert has never failed.
 #ifdef ASSERT
     ShenandoahHeapRegion* r = heap->heap_region_containing(obj);
     HeapWord* bottom = r->bottom();
@@ -584,7 +569,11 @@ void ShenandoahAsserts::assert_not_in_cset_loc(void* interior_loc, const char* f
                   "Interior location should not be in collection set",
                   file, line);
   }
-  // Otherwise, we're not sure if the enclosing object was pre-existing or newly allocated, so we assume the best.
+  // Otherwise, it could be that interior_loc is in cset region, but this region is early recycled (has a forward table).
+  // In this case, we're not sure if the enclosing object was pre-existing or newly allocated. We give benefit of the
+  // doubt, behaving as if the enclosing object is newly allocated (and thus is not in the cset).
+  // TODO: if (heap->in_collection_set_loc(interior_loc) && (interior_loc >= top)), we know that this is a pre-existing
+  //         object that is in cset; we should print_failure()
 }
 
 void ShenandoahAsserts::assert_in_young(void* interior_loc, oop obj, const char* file, int line) {

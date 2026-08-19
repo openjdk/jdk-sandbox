@@ -86,9 +86,7 @@ protected:
   void entry_scan_remembered_set();
   void entry_mark();
   void entry_thread_roots();
-#ifdef KELVIN_DEPRECATE
   void entry_recycle_collection_set();
-#endif
   void entry_weak_refs();
   void entry_weak_roots();
   void entry_class_unloading();
@@ -114,9 +112,7 @@ protected:
   void op_mark();
   virtual void op_final_mark();
   void op_thread_roots();
-#ifdef KELVIN_DEPRECATE
   void op_recycle_collection_set();
-#endif
   void op_weak_refs();
   void op_weak_roots();
   void op_class_unloading();

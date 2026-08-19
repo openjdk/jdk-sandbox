@@ -296,6 +296,8 @@ void ShenandoahHeapRegion::make_cset() {
 
 // Use when a region with fwt is recycled back into the Mutator free set.
 void ShenandoahHeapRegion::recycle_early(bool reuse_body) {
+  // We need the lock because we are going to change top(), TAMS, update water mark, etc.
+  // These variables only change under lock.
   shenandoah_assert_heaplocked();
   switch (state()) {
     case _cset:
@@ -311,6 +313,8 @@ void ShenandoahHeapRegion::recycle_early(bool reuse_body) {
 #else
         // kelvin wants to experiment with this alternative mechanism to detect forwarded objects.
         // With this, we need valid mark bits even above TAMS, but we don't need sentinels.
+
+        // kelvin todo: i believe this is redundant and can be discarded.
         _fwd_table.extend_mark_bitmaps();
 #endif
         _early_recycled = true;

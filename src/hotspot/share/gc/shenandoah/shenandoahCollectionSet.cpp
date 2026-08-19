@@ -120,11 +120,6 @@ void ShenandoahCollectionSet::switch_to_forward_table(ShenandoahHeapRegion* r) {
   assert(is_in(r), "Must be in collection set");
   CSetState state = ShenandoahForwardingTable::use_compact() ? CSetState::FWDTABLE_COMPACT : CSetState::FWDTABLE_WIDE;
   AtomicAccess::store(&_cset_map._cset_map[r->index()], state);
-#define KELVIN_DEBUG
-#ifdef KELVIN_DEBUG
-  log_info(gc)("Switching to forward_table for region %zu, bottom: " PTR_FORMAT ", top: " PTR_FORMAT,
-               r->index(), p2i(r->bottom()), p2i(r->top()));
-#endif
 }
 
 void ShenandoahCollectionSet::remove_region(ShenandoahHeapRegion* r) {

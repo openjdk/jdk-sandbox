@@ -31,7 +31,7 @@
 #include "utilities/globalDefinitions.hpp"
 
 inline CSetState ShenandoahCSetMap::cset_state(size_t region_idx) const {
-  return AtomicAccess::load(&_cset_map[region_idx]);
+  return _cset_map[region_idx];
 }
 inline CSetState ShenandoahCSetMap::cset_state(ShenandoahHeapRegion* region) const {
   return cset_state(region->index());
@@ -40,17 +40,11 @@ inline CSetState ShenandoahCSetMap::cset_state(ShenandoahHeapRegion* region) con
 inline CSetState ShenandoahCSetMap::cset_state(void* loc) const {
   uintptr_t index = reinterpret_cast<uintptr_t>(loc) >> _region_size_bytes_shift;
   // no need to subtract the bottom of the heap from p, _biased_cset_map is biased
-  CSetState result = AtomicAccess::load(&_biased_cset_map[index]);
-#undef KELVIN_DESPERATION
-#ifdef KELVIN_DESPERATION
-  log_info(gc)("cset_state(obj = " PTR_FORMAT ") is %u, biased index: %zu", p2i(loc), (unsigned int) result, index);
-#endif
-  return result;
+  return _biased_cset_map[index];
 }
 
 inline CSetState ShenandoahCSetMap::cset_state(oop obj) const {
-  CSetState result = cset_state(cast_from_oop<void*>(obj));
-  return result;
+  return cset_state(cast_from_oop<void*>(obj));
 }
 
 inline bool ShenandoahCSetMap::is_in(CSetState state) const {
