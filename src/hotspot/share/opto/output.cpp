@@ -1373,7 +1373,7 @@ void PhaseOutput::estimate_buffer_size(int& const_req) {
     int current_slot = C->fixed_slots();
 
     int gc_slots = BarrierSet::barrier_set()->barrier_set_c2()->reserved_slots();
-    current_slot =- gc_slots * VMRegImpl::slots_per_word;
+    current_slot -= gc_slots * VMRegImpl::slots_per_word;
     _gc_barrier_save_slots_offset_in_bytes = C->regalloc()->reg2offset(OptoReg::stack2reg(current_slot));
 
     if (C->needs_stack_repair()) {
