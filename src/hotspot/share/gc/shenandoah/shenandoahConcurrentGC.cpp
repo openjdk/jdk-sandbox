@@ -841,7 +841,6 @@ void ShenandoahConcurrentGC::op_final_mark() {
       heap->set_evacuation_in_progress(true);
       // From here on, we need to update references.
       heap->set_has_forwarded_objects(true);
-
     } else {
       if (ShenandoahVerify) {
         ShenandoahTimingsTracker v(ShenandoahPhaseTimings::final_mark_verify);
