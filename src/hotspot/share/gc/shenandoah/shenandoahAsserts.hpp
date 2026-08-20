@@ -243,6 +243,7 @@ public:
 #define shenandoah_assert_in_cset_if(interior_loc, obj, condition)
 #define shenandoah_assert_in_cset_except(interior_loc, obj, exception)
 #define shenandoah_assert_in_cset(interior_loc, obj)
+#define shenandoah_assert_in_cset_region(interior_loc, obj)
 
 #define shenandoah_assert_not_in_cset_if(interior_loc, obj, condition)
 #define shenandoah_assert_not_in_cset_except(interior_loc, obj, exception)
