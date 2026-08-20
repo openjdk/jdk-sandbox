@@ -109,6 +109,7 @@ void ShenandoahConcurrentGC::entry_concurrent_update_refs_prepare(ShenandoahHeap
   ShenandoahConcurrentPhase gc_phase(msg, ShenandoahPhaseTimings::conc_update_refs_prepare);
   EventMark em("%s", msg);
 
+  heap->try_inject_pin();
   // Evacuation is complete, retire gc labs and change gc state
   heap->concurrent_prepare_for_update_refs();
 }
@@ -125,6 +126,7 @@ void ShenandoahConcurrentGC::entry_update_card_table() {
                               ShenandoahWorkerPolicy::calc_workers_for_conc_evac(),
                               "concurrent update cards");
 
+  heap->try_inject_pin();
   // Heap needs to be parsable here.
   // Also, parallel heap region iterate must have a phase set.
   assert(ShenandoahTimingsTracker::is_current_phase_valid(), "Current phase must be set");
@@ -304,6 +306,7 @@ void ShenandoahConcurrentGC::entry_complete_abbreviated_cycle() {
                               ShenandoahWorkerPolicy::calc_workers_for_conc_evac(),
                               msg);
 
+  heap->try_inject_pin();
   // We chose not to evacuate because we found sufficient immediate garbage.
   // However, there may still be regions to promote in place, so do that now.
   if (heap->old_generation()->has_in_place_promotions()) {
@@ -338,6 +341,7 @@ void ShenandoahConcurrentGC::vmop_entry_final_mark() {
   heap->try_inject_alloc_failure();
   VM_ShenandoahFinalMarkStartEvac op(this);
   VMThread::execute(&op); // jump to entry_final_mark under safepoint
+  heap->try_inject_pin();
 }
 
 void ShenandoahConcurrentGC::vmop_entry_init_update_refs() {
@@ -346,6 +350,7 @@ void ShenandoahConcurrentGC::vmop_entry_init_update_refs() {
   ShenandoahTimingsTracker timing(ShenandoahPhaseTimings::init_update_refs_gross);
 
   heap->try_inject_alloc_failure();
+  heap->try_inject_pin();
   VM_ShenandoahInitUpdateRefs op(this);
   VMThread::execute(&op);
 }
@@ -356,6 +361,7 @@ void ShenandoahConcurrentGC::vmop_entry_final_update_refs() {
   ShenandoahTimingsTracker timing(ShenandoahPhaseTimings::final_update_refs_gross);
 
   heap->try_inject_alloc_failure();
+  heap->try_inject_pin();
   VM_ShenandoahFinalUpdateRefs op(this);
   VMThread::execute(&op);
 }
@@ -367,6 +373,7 @@ void ShenandoahConcurrentGC::vmop_entry_final_verify() {
 
   // This phase does not use workers, no need for setup
   heap->try_inject_alloc_failure();
+  heap->try_inject_pin();
   VM_ShenandoahFinalVerify op(this);
   VMThread::execute(&op);
 }
@@ -426,6 +433,7 @@ void ShenandoahConcurrentGC::entry_final_verify() {
 
 void ShenandoahConcurrentGC::entry_reset() {
   ShenandoahHeap* const heap = ShenandoahHeap::heap();
+  heap->release_injected_pins();
   heap->try_inject_alloc_failure();
 
   TraceCollectorStats tcs(heap->monitoring_support()->concurrent_collection_counters());
@@ -486,6 +494,7 @@ void ShenandoahConcurrentGC::entry_mark() {
 
   heap->try_inject_alloc_failure();
   op_mark();
+  heap->try_inject_pin();
 }
 
 void ShenandoahConcurrentGC::entry_thread_roots() {
@@ -499,6 +508,7 @@ void ShenandoahConcurrentGC::entry_thread_roots() {
                               msg);
 
   heap->try_inject_alloc_failure();
+  heap->try_inject_pin();
   op_thread_roots();
 }
 
@@ -513,6 +523,7 @@ void ShenandoahConcurrentGC::entry_weak_refs() {
                               "concurrent weak references");
 
   heap->try_inject_alloc_failure();
+  heap->try_inject_pin();
   op_weak_refs();
 }
 
@@ -528,6 +539,7 @@ void ShenandoahConcurrentGC::entry_weak_roots() {
                               "concurrent weak root");
 
   heap->try_inject_alloc_failure();
+  heap->try_inject_pin();
   op_weak_roots();
 }
 
@@ -543,6 +555,7 @@ void ShenandoahConcurrentGC::entry_class_unloading() {
                               "concurrent class unloading");
 
   heap->try_inject_alloc_failure();
+  heap->try_inject_pin();
   op_class_unloading();
 }
 
@@ -560,6 +573,7 @@ void ShenandoahConcurrentGC::entry_strong_roots() {
                               "concurrent strong root");
 
   heap->try_inject_alloc_failure();
+  heap->try_inject_pin();
   op_strong_roots();
 }
 
@@ -572,6 +586,7 @@ void ShenandoahConcurrentGC::entry_cleanup_early() {
 
   // This phase does not use workers, no need for setup
   heap->try_inject_alloc_failure();
+  heap->try_inject_pin();
   op_cleanup_early();
   if (!heap->is_evacuation_in_progress()) {
     // This is an abbreviated cycle.  Rebuild the freeset in order to establish reserves for the next GC cycle.  Doing
@@ -594,6 +609,7 @@ void ShenandoahConcurrentGC::entry_evacuate() {
                               "concurrent evacuation");
 
   heap->try_inject_alloc_failure();
+  heap->try_inject_pin();
   op_evacuate();
 }
 
@@ -607,6 +623,7 @@ void ShenandoahConcurrentGC::entry_update_thread_roots() {
 
   // No workers used in this phase, no setup required
   heap->try_inject_alloc_failure();
+  heap->try_inject_pin();
   op_update_thread_roots();
 }
 
@@ -633,6 +650,7 @@ void ShenandoahConcurrentGC::entry_update_refs() {
                               "concurrent reference update");
 
   heap->try_inject_alloc_failure();
+  heap->try_inject_pin();
   op_update_refs();
 }
 
