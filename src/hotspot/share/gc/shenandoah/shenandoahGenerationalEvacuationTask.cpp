@@ -88,12 +88,14 @@ ShenandoahGenerationalEvacuationTask::ShenandoahGenerationalEvacuationTask(Shena
 
 void ShenandoahGenerationalEvacuationTask::work(uint worker_id) {
   if (_concurrent) {
+    ShenandoahWorkerTimingsTracker timer(ShenandoahPhaseTimings::conc_evac, ShenandoahPhaseTimings::Work, worker_id, true);
     ShenandoahConcurrentWorkerSession worker_session(worker_id);
     // Join the suspendible thread set only for the promote-only path
     // to avoid double-joining.
     SuspendibleThreadSetJoiner stsj(_only_promote_regions);
     do_work();
   } else {
+    ShenandoahWorkerTimingsTracker timer(ShenandoahPhaseTimings::degen_gc_evac, ShenandoahPhaseTimings::Work, worker_id, true);
     ShenandoahParallelWorkerSession worker_session(worker_id);
     do_work();
   }
