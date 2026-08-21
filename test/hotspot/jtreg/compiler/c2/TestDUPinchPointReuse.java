@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2026, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2026, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -23,15 +23,39 @@
 
 /*
  * @test
- * @bug 8238756 8351889
- * @requires vm.debug == true & vm.flavor == "server"
- * @summary Run with -Xcomp to test -XX:VerifyIterativeGVN=111111 in debug builds.
- *
- * @run main/othervm/timeout=300 -Xcomp -XX:VerifyIterativeGVN=111111 compiler.c2.TestVerifyIterativeGVN
+ * @bug 8328078
+ * @summary Test that block scheduling reuses detached D-U pinch-point nodes
+ * @requires vm.compiler2.enabled
+ * @library /test/lib
+ * @run main ${test.main.class}
+ * @run main/othervm -Xcomp -XX:-TieredCompilation -XX:+UnlockDiagnosticVMOptions
+ *                   -XX:+AbortVMOnCompilationFailure -XX:+OptoScheduling
+ *                   -XX:CompileCommand=compileonly,${test.main.class}::test
+ *                   ${test.main.class}
  */
+
 package compiler.c2;
 
-public class TestVerifyIterativeGVN {
+import jdk.test.lib.Asserts;
+
+public class TestDUPinchPointReuse {
+    private static String append(String s) {
+        return new StringBuilder().append(s).append(s).append(s).append(s).append(s).toString();
+    }
+
+    private static String test() {
+        String s = "x";
+        s = append(s);
+        s = append(s);
+        s = append(s);
+        s = append(s);
+        s = append(s);
+        s = append(s);
+        return s;
+    }
+
     public static void main(String[] args) {
+        new StringBuilder();
+        Asserts.assertEQ(test().length(), 15625);
     }
 }
