@@ -81,13 +81,13 @@ static bool is_prime(size_t n) {
   return true;
 }
 
-static size_t prev_prime(size_t n) {
-  if (n < 2) return n;
-  if (n % 2 == 0) n--;
-  for (; n >= 3; n -= 2) {
+static size_t next_prime(size_t n, size_t limit) {
+  if (n <= 2) return (limit >= 2) ? 2 : 0;
+  if (n % 2 == 0) n++;
+  for (; n <= limit; n += 2) {
     if (is_prime(n)) return n;
   }
-  return 2;
+  return 0;
 }
 
 template<class Entry>
@@ -172,9 +172,14 @@ bool ShenandoahForwardingTable::initialize(size_t num_entries) {
 
   // Prime table size >= 2 (a modulus of 1 would break the double-hashing stride) for
   // a later switch to double hashing.
-  // Kelvin TODO: choosing the next smaller prime seems to violate our intended load factor.  Shouldn't we look for next
-  // larger rather than next smaller?
-  size_t const prime_entries = MAX2(prev_prime((end - table_start) / entry_words), (size_t)2);
+  size_t const region_entries = (end - bottom) / entry_words;
+  size_t const prime_entries = next_prime(MAX2(num_table_entries, (size_t)2), region_entries);
+  if (prime_entries == 0) {
+    log_info(gc)("Forwarding table build failed for region %zu: "
+                 "no prime table size fits (table_entries=%zu region_entries=%zu num_forwardings=%zu)",
+                 _region->index(), num_table_entries, region_entries, num_entries);
+    return false;
+  }
   table_start = end - prime_entries * entry_words;
   _table = reinterpret_cast<Entry*>(table_start);
   _num_entries = prime_entries;
@@ -239,15 +244,15 @@ void ShenandoahForwardingTable::clear_unused_slots(const BitMap& used) {
 
 template<class Entry>
 size_t ShenandoahForwardingTable::reserve_forwarding(BitMap& used, size_t index, size_t stride) {
-  DEBUG_ONLY(size_t const first_index = index;)
+  size_t const first_index = index;
   size_t depth = 1;
   while (used.at(index)) {
     index += stride;
     if (index >= _num_entries) {
       index -= _num_entries;
     }
-    assert(index != first_index, "must find a usable slot, _num_entries: %zu, actual forwardings: %zu, live_words: %zu",
-           _num_entries, _num_actual_forwardings, _num_live_words);
+    guarantee(index != first_index, "must find a usable slot, _num_entries: %zu, actual forwardings: %zu, live_words: %zu",
+              _num_entries, _num_actual_forwardings, _num_live_words);
     depth++;
   }
   used.set_bit(index);
