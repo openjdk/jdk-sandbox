@@ -170,8 +170,6 @@ public:
   }
 #ifdef USE_SENTINELS
   void install_sentinels();
-#else
-  void extend_mark_bitmaps();
 #endif
 
   template<class Entry>

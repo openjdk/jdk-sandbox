@@ -463,12 +463,5 @@ void ShenandoahForwardingTable::add_marks_above_tams() {
   }
 }
 
-void ShenandoahForwardingTable::extend_mark_bitmaps() {
-  if (_compact) {
-    add_marks_above_tams<CompactFwdTableEntry>();
-  } else {
-    add_marks_above_tams<FwdTableEntry>();
-  }
-}
 #endif
 
