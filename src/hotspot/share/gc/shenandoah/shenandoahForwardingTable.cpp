@@ -32,10 +32,38 @@
 #include "utilities/bitMap.inline.hpp"
 #include "utilities/powerOfTwo.hpp"
 
+#include <math.h>
+
 HeapWord* CompactFwdTableEntry::_heap_base = nullptr;
 bool ShenandoahForwardingTable::_compact = false;
+size_t ShenandoahForwardingTable::_common_max_probes = 0;
+
+size_t ShenandoahForwardingTable::compute_common_max_probes() {
+  size_t const overrun = ShenandoahForwardingTableProbeOverrun;
+  if (overrun == 0) {
+    return 0;
+  }
+  size_t const lf = ShenandoahForwardingTableLoadFactorPercent;
+  constexpr size_t largest_entry_words = sizeof(CompactFwdTableEntry) / sizeof(HeapWord*);
+  size_t const largest_max_slots = (ShenandoahHeapRegion::region_size_words() / largest_entry_words)
+                                   * ShenandoahForwardingTableMaxPercent / 100;
+  size_t const largest_max_keys = largest_max_slots * lf / 100;
+  if (largest_max_keys == 0) {
+    return 0;
+  }
+  assert(0 < lf && lf < 100, "load factor must be in (0, 100)");
+  double const alpha = (double)lf / 100.0;
+  double const expected_max = ::log((double)largest_max_keys) / ::log(1.0 / alpha);
+  size_t const probes = MAX2((size_t)(overrun * expected_max), (size_t)1);
+  log_info(gc)("Forwarding table probe limit: %zu (largest table %zu slots, load factor %zu%%, "
+               "expected longest chain %.0f, overrun %zu)",
+               probes, largest_max_slots, lf,
+               expected_max, overrun);
+  return probes;
+}
 
 void ShenandoahForwardingTable::initialize_globals() {
+  _common_max_probes = compute_common_max_probes();
   if (!ShenandoahCompactFWTEntries) {
     _compact = false;
     return;
@@ -103,13 +131,13 @@ bool ShenandoahForwardingTable::initialize(size_t num_entries) {
   HeapWord* const end = _region->end();
   // Usable slots to size for at the target load factor: ceil(num_entries * 100 / LF).
   // Default LF = 60 -> 1.667x entries per forwarding, chosen to keep the average
-  // linear-probe chain under 2 for a successful lookup (~1.75; 0.75 would be 2.5,
-  // the historical 1.5x sizing ~2.0). A lower load factor yields a sparser table
+  // double-hashing chain near 1.5 for a successful lookup (75 gives ~1.85, 85
+  // ~2.2). A lower load factor yields a sparser table
   // with shorter probe chains (cheaper resolve and fill) but a larger tail, so
   // fewer dense regions fit; a higher one packs tighter.
-  size_t const load_factor = ShenandoahForwardingTableLoadFactorPercent;
+  size_t const lf = ShenandoahForwardingTableLoadFactorPercent;
   // num_required_entries is the number of usable entries in order to honor requested load factor
-  size_t const num_required_entries = (num_entries * 100 + load_factor - 1) / load_factor;
+  size_t const num_required_entries = (num_entries * 100 + lf - 1) / lf;
   // Optimistic last possible table start (assuming no unusable entries). We don't need to search beyond that.
   HeapWord* const last_table_start = align_down(end - num_required_entries * entry_words, entry_obj_align);
   if (last_table_start < bottom) {
@@ -188,6 +216,7 @@ bool ShenandoahForwardingTable::initialize(size_t num_entries) {
   _num_actual_forwardings = 0;
   _num_live_words = unusable_entries;
   _max_collision_depth = 0;
+  _abandoned = false;
 
   assert((void*)(reinterpret_cast<Entry*>(_table) + _num_entries) == (void*)_region->end(), "table must be anchored at region end");
   log_develop_debug(gc)("Initialized forwarding table: table: " PTR_FORMAT ", num_entries: %lu, requested entries: %lu", p2i(_table), _num_entries, num_entries);
@@ -245,8 +274,13 @@ void ShenandoahForwardingTable::clear_unused_slots(const BitMap& used) {
 template<class Entry>
 size_t ShenandoahForwardingTable::reserve_forwarding(BitMap& used, size_t index, size_t stride) {
   size_t const first_index = index;
+  size_t const max_probes = _common_max_probes;
   size_t depth = 1;
   while (used.at(index)) {
+    if (max_probes != 0 && depth >= max_probes) {
+      _abandoned = true; // pathological chain
+      return _num_entries;
+    }
     index += stride;
     if (index >= _num_entries) {
       index -= _num_entries;
@@ -271,10 +305,17 @@ void ShenandoahForwardingTable::insert_forwarding(size_t index, const Entry& ent
 
 template<class Entry>
 void ShenandoahForwardingTable::enter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee) {
+  if (_abandoned) {
+    return;
+  }
   size_t index, stride;
   probe_of(original, index, stride);
   Entry const entry(_region->bottom(), original, forwardee);
   index = reserve_forwarding<Entry>(used, index, stride);
+  if (index == _num_entries) {
+    assert(_abandoned, "only an abandoned table reserves no slot");
+    return;
+  }
   insert_forwarding<Entry>(index, entry);
 }
 
@@ -318,7 +359,7 @@ void ShenandoahForwardingTable::fill_forwardings(BitMap& used) {
   } cl(*this, used, start(), _region->index());
 
   ShenandoahHeap::heap()->marked_object_iterate(_region, &cl);
-  assert(_num_actual_forwardings == _num_expected_forwardings, "must enter exact number of forwardings, actual: %lu, expected: %lu", _num_actual_forwardings, _num_expected_forwardings);
+  assert(_abandoned || _num_actual_forwardings == _num_expected_forwardings, "must enter exact number of forwardings, actual: %lu, expected: %lu", _num_actual_forwardings, _num_expected_forwardings);
   log_stats<Entry>();
 }
 
@@ -375,6 +416,13 @@ bool ShenandoahForwardingTable::build(size_t num_entries) {
     ResourceBitMap used(_num_entries);
     set_marked_entries_used<Entry>(used);
     fill_forwardings<Entry>(used);
+    if (_abandoned) {
+      log_debug(gc)("Forwarding table abandoned for region %zu: probe chain reached %zu "
+                    "(forwardings=%zu, slots=%zu, live_words=%zu)",
+                    _region->index(), _common_max_probes, num_entries, _num_entries, _num_live_words);
+      reset();
+      return false;
+    }
     clear_unused_slots<Entry>(used);
     verify_forwardings<Entry>();
   }

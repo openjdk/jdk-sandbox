@@ -468,9 +468,15 @@
           "with shorter open-addressing probe chains (cheaper resolve and "  \
           "fill) but a larger tail, so fewer dense regions fit; higher "     \
           "values pack tighter. Default 60 (1.667x) keeps the average "      \
-          "linear-probe chain under 2 for a successful lookup; 75 would be " \
-          "2.5, the historical 1.5x sizing ~67% gives 2.0.")                \
-          range(1, 100)                                                     \
+          "double-hashing chain near 1.5 for a successful lookup; 67% "      \
+          "~1.65, 75 ~1.85, 85 ~2.2. 100 is not allowed.")                   \
+          range(1, 99)                                                      \
+                                                                            \
+  product(uintx, ShenandoahForwardingTableProbeOverrun, 3, DIAGNOSTIC,      \
+          "Abandon a forwarding table whose longest probe chain exceeds "   \
+          "this multiple of the expected worst case at the target load "    \
+          "factor; the region then keeps mark-word forwarding. 0 disables.")\
+          range(0, 1000)                                                    \
                                                                             \
   product(uintx, ShenandoahCriticalFreeThreshold, 1, EXPERIMENTAL,          \
           "How much of the heap needs to be free after recovery cycles, "   \
