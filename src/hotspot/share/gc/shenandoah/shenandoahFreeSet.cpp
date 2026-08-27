@@ -2694,7 +2694,7 @@ void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* 
       released_bytes += tail;
     }
   }
-  r->teardown_recycle_state();
+  r->teardown_reuse_state();
 
   if ((p != ShenandoahFreeSetPartitionId::NotFree) && r->is_empty()) {
     // For proper accounting, trash regions must remain as affiliated until they are recycled.

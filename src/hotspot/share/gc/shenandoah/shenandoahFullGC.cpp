@@ -540,7 +540,7 @@ public:
     }
     if (r->is_cset()) {
       // Leave affiliation unchanged
-      r->teardown_recycle_state();
+      r->teardown_reuse_state();
       r->make_regular_bypass();
     }
     if (r->is_empty_uncommitted()) {

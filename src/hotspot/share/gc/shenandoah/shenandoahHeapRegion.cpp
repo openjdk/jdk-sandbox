@@ -337,7 +337,7 @@ void ShenandoahHeapRegion::make_regular_from_cset() {
   }
 }
 
-void ShenandoahHeapRegion::teardown_recycle_state() {
+void ShenandoahHeapRegion::teardown_reuse_state() {
   if (forwarding_table_start() == nullptr && !was_early_recycled()) {
     return;
   }
