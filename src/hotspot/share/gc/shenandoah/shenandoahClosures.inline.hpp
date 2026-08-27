@@ -271,7 +271,7 @@ inline void ShenandoahConcUpdateRefsClosure::work(T* p) {
       default: ShouldNotReachHere();
     }
 
-    if (_cset_map.use_forward_table(cset_state)) {
+    if (_cset_map.is_reusable(cset_state)) {
       if (fwd != obj) {
         ShenandoahHeap::atomic_update_oop(fwd, p, obj);
       }
