@@ -512,9 +512,9 @@ public:
     HeapWord* t     = top();
     return (limit > t) ? byte_size(t, limit) : 0;
   }
-  // Bytes reserved by the FWT tail; 0 for non-fwt regions.
-  size_t fwt_tail_bytes() const { return byte_size(alloc_end(), end()); }
-  size_t used_with_fwt() const  { return used() + fwt_tail_bytes(); }
+  // Bytes reserved in early reused CSet regions.
+  size_t reserved_bytes() const   { return byte_size(alloc_end(), end()); }
+  size_t used_with_reserve() const { return used() + reserved_bytes(); }
 
   // Does this region contain this address?
   bool contains(HeapWord* p) const {
@@ -577,7 +577,7 @@ public:
     return _fwd_table.build(num_forwardings);
   }
 
-  void reset_forwarding_table();
+  void teardown_reuse_state();
 
   HeapWord* forwarding_table_start() const {
     return _fwd_table.start();

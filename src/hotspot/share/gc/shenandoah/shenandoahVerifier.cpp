@@ -582,7 +582,7 @@ private:
            "Region TAMS should not be less than bottom");
 
     // KELVIN HACK: if this works, let's find a better mechanism to avoid strcmp
-    if (_heap->collection_set()->use_forward_table(r) && 
+    if (_heap->collection_set()->is_reusable(r) &&
         (!strcmp(_phase, "Before Updating References") || !strcmp(_phase, "Before Full GC"))) {
       verify(r, _heap->marking_context()->top_at_mark_start(r) <= r->alt_top(),
              "Complete TAMS should not be larger than top");
@@ -597,7 +597,7 @@ private:
     verify(r, r->used() <= r->capacity(),
            "Used cannot be larger than capacity");
 
-    if (!_heap->collection_set()->use_forward_table(r)) {
+    if (!_heap->collection_set()->is_reusable(r)) {
       verify(r, r->garbage() <= r->capacity(),
              "Garbage cannot be larger than capacity");
 
@@ -1395,7 +1395,7 @@ private:
       ShenandoahCSetMap cset_map = heap->collection_set()->cset_map();
       CSetState cset_state = cset_map.cset_state(obj);
       if (cset_map.is_in(cset_state)) {
-        bool fwt_new_alloc = cset_map.use_forward_table(cset_state) &&
+        bool fwt_new_alloc = cset_map.is_reusable(cset_state) &&
                              ShenandoahBarrierSet::resolve_forwarded_not_null(obj, heap, cset_state) == obj;
         if (!fwt_new_alloc) {
           ShenandoahAsserts::print_failure(ShenandoahAsserts::_safe_all, obj, p, nullptr,

@@ -540,9 +540,7 @@ public:
     }
     if (r->is_cset()) {
       // Leave affiliation unchanged
-      if (r->forwarding_table_start() != nullptr) {
-        r->reset_forwarding_table();
-      }
+      r->teardown_reuse_state();
       r->make_regular_bypass();
     }
     if (r->is_empty_uncommitted()) {

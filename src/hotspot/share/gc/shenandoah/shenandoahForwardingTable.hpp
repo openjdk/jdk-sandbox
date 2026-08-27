@@ -114,6 +114,7 @@ public:
 
 class ShenandoahForwardingTable {
   static bool _compact;
+  static size_t _common_max_probes;
 
   ShenandoahHeapRegion* const _region;
   void* _table;
@@ -122,6 +123,9 @@ class ShenandoahForwardingTable {
   size_t _num_actual_forwardings;
   size_t _num_live_words;
   size_t _max_collision_depth;
+  bool _abandoned;
+
+  static size_t compute_common_max_probes();
 
   template<class Entry>
   bool build(size_t num_forwardings);
@@ -171,7 +175,8 @@ public:
     _num_expected_forwardings(0),
     _num_actual_forwardings(0),
     _num_live_words(0),
-    _max_collision_depth(0) {}
+    _max_collision_depth(0),
+    _abandoned(false) {}
 
   void overwrite_max_collision_depth(size_t new_max_depth) {
     // Make sure all overwrites of original/forwardee pairs have been updated before we announce an improved collision depth

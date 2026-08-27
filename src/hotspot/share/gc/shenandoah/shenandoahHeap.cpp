@@ -1182,7 +1182,7 @@ public:
 private:
   void evacuate_region(ShenandoahHeapRegion* r, ShenandoahConcurrentEvacuateRegionObjectClosure& cl) {
     assert(r->has_live(), "Region %zu should have been reclaimed early", r->index());
-    assert(!_sh->collection_set()->use_forward_table(r), "must not use forward table");
+    assert(!_sh->collection_set()->is_reusable(r), "must not already be recycled");
     log_develop_debug(gc)("GC Thread " PTR_FORMAT " evacuating region: %lu", p2i(Thread::current()), r->index());
     _sh->marked_object_iterate(r, &cl);
   }
@@ -1190,7 +1190,7 @@ private:
   void do_work() {
     ShenandoahHeapRegion* r;
     while ((r =_cs->claim_next()) != nullptr) {
-      if (_sh->collection_set()->use_forward_table(r)) {
+      if (_sh->collection_set()->is_reusable(r)) {
         //log_info(gc)("Not evacuating region because it is using fwd table already: %lu", r->index());
         continue;
       }
