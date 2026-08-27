@@ -536,13 +536,13 @@ void ShenandoahAsserts::assert_not_in_cset_loc(void* interior_loc, const char* f
   ShenandoahHeap* heap = ShenandoahHeap::heap();
   ShenandoahCollectionSet* cset = heap->collection_set();
   ShenandoahHeapRegion* region = heap->heap_region_containing(interior_loc);
-  if (heap->in_collection_set_loc(interior_loc) && !cset->use_forward_table(region)) {
+  if (heap->in_collection_set_loc(interior_loc) && !cset->is_reusable(region)) {
     // The interior location resides within a CSET region, and this CSET region does not support early-recycling.
     print_failure(_safe_unknown, nullptr, interior_loc, nullptr, "Shenandoah assert_not_in_cset_loc failed",
                   "Interior location should not be in collection set",
                   file, line);
   }
-  // Otherwise, it could be that interior_loc is in cset region, but this region is early recycled (has a forward table).
+  // Otherwise, it could be that interior_loc is in cset region, but this region is early recycled.
   // In this case, we're not sure if the enclosing object was pre-existing or newly allocated. We give benefit of the
   // doubt, behaving as if the enclosing object is newly allocated (and thus is not in the cset).
   // TODO: if (heap->in_collection_set_loc(interior_loc) && (interior_loc >= top)), we know that this is a pre-existing

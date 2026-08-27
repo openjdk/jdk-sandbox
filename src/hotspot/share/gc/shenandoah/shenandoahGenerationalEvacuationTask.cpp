@@ -151,7 +151,7 @@ void ShenandoahGenerationalEvacuationTask::evacuate_and_promote_regions() {
 
     if (r->is_cset()) {
       assert(r->has_live(), "Region %zu should have been reclaimed early", r->index());
-      if (_heap->collection_set()->use_forward_table(r)) {
+      if (_heap->collection_set()->is_reusable(r)) {
         // Already evacuated (degenerated GC resumes here).
         continue;
       }

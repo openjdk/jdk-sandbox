@@ -160,8 +160,9 @@ inline size_t ShenandoahHeapRegion::garbage_before_padded_for_promote() const {
 inline HeapWord* ShenandoahHeapRegion::get_update_watermark() const {
   HeapWord* watermark = _update_watermark.load_acquire();
   assert((bottom() <= watermark) &&
-         (((forwarding_table_start() != nullptr) && (watermark <= alt_top()))
-          || ((forwarding_table_start() == nullptr) && (watermark <= top()))), "within bounds");
+         (ShenandoahHeap::heap()->collection_set()->is_reusable(const_cast<ShenandoahHeapRegion*>(this))
+            ? (watermark <= alt_top())
+            : (watermark <= top())), "within bounds");
   return watermark;
 }
 

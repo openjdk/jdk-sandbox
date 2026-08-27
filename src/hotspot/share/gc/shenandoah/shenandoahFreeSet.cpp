@@ -2725,7 +2725,7 @@ void ShenandoahFreeSet::finish_cset_region_recycling() {
     if (!cset->is_in(idx)) continue;
 
     ShenandoahHeapRegion* r = _heap->get_region(idx);
-    if (!cset->use_forward_table(r)) continue;
+    if (!cset->is_reusable(r)) continue;
 
     finish_recycle_of_one_cset_region(r, released_regions, released_bytes, emptied_regions, early_recycled_allocation_regions);
   }
