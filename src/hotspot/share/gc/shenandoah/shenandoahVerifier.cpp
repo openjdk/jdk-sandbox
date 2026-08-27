@@ -117,7 +117,7 @@ private:
       if (_heap->is_in_reserved(obj)) {
         ShenandoahCSetMap cset_map = _heap->collection_set()->cset_map();
         CSetState cset_state = cset_map.cset_state(obj);
-        if (cset_map.use_forward_table(cset_state)) {
+        if (cset_map.is_reusable(cset_state)) {
           obj = ShenandoahBarrierSet::resolve_forwarded_not_null(obj, _heap, cset_state);
         }
       }
