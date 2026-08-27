@@ -481,15 +481,15 @@ bool ShenandoahAsserts::is_newly_allocated_in_early_recycled_region(oop obj) {
   assert(heap->in_collection_set(obj), "Precondition");
   ShenandoahCSetMap cset_map = heap->collection_set()->cset_map();
   CSetState cset_state = cset_map.cset_state(obj);
-  // Cset regions for which the forwarding table would be "too large" do not have forwarding tables
-  if (cset_map.use_forward_table(cset_state)) {
+  // Only reusable cset regions receive new allocations.
+  if (cset_map.is_reusable(cset_state)) {
     oop fwd = ShenandoahBarrierSet::resolve_forwarded_not_null(obj, heap, cset_state);
     if (fwd == obj) {
-      // Forwarding to self within a forward-table region means this is newly allocated
+      // Resolving to self within a reusable region means this is newly allocated
       return true;
     }
   }
-  // Either this region does not have forward table, or it has a forward table and the forward table has entry for this object.
+  // Either the region is not reusable, or the object has a real forwardee.
   return false;
 }
 
@@ -524,42 +524,11 @@ void ShenandoahAsserts::assert_not_in_cset(void* interior_loc, oop obj, const ch
 
   ShenandoahHeap* heap = ShenandoahHeap::heap();
   if (heap->in_collection_set(obj)) {
-    ShenandoahHeapRegion* r = heap->heap_region_containing(obj);
-    ShenandoahCollectionSet* cset = heap->collection_set();
     if (!is_newly_allocated_in_early_recycled_region(obj)) {
       print_failure(_safe_all, obj, interior_loc, nullptr, "Shenandoah assert_not_in_cset failed",
                     "Object should not be in collection set",
                     file, line);
     }
-#ifdef KELVIN_DEPRECATE
-    // kelvin says a newly allocated object within an early-recycled cset region is "not in cset" insofar as the
-    // intent of this assertion is concerned.
-    {
-      HeapWord* obj_addr = cast_from_oop<HeapWord*>(obj);
-      HeapWord* fwt_start = r->forwarding_table_start();
-      if (obj_addr >= fwt_start) {
-        print_failure(_safe_all, obj, interior_loc, nullptr, "Shenandoah assert_not_in_cset failed",
-                      "Object points into FWT area",
-                      file, line);
-      } else {
-        oop fwd;
-        CSetState cset_state = cset->cset_map().cset_state(obj);
-        if (cset_state == CSetState::FWDTABLE_COMPACT) {
-          fwd = r->forwardee_compact(obj);
-        } else {
-          assert(cset_state == CSetState::FWDTABLE_WIDE, "sanity");
-          fwd = r->forwardee_wide(obj);
-        }
-        // We expect fwd is nullptr, because we expect it to be newly allocated.  If not nullptr, this is an object that
-        // was present in the cset.
-        if (fwd != nullptr) {
-          print_failure(_safe_all, obj, interior_loc, nullptr, "Shenandoah assert_not_in_cset failed",
-                        "Object points into FWT area",
-                        file, line);
-        }
-      }
-    }
-#endif
   }
 }
 

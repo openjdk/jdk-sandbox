@@ -337,7 +337,10 @@ void ShenandoahHeapRegion::make_regular_from_cset() {
   }
 }
 
-void ShenandoahHeapRegion::reset_forwarding_table() {
+void ShenandoahHeapRegion::teardown_recycle_state() {
+  if (forwarding_table_start() == nullptr && !was_early_recycled()) {
+    return;
+  }
   // Nothing to empty:
   // - recycled regions keep their live mutator objects in [bottom, top) with the
   //   dead table above top (never read, overwritten on reuse);
@@ -348,7 +351,7 @@ void ShenandoahHeapRegion::reset_forwarding_table() {
     reset();
   }
   if (ZapUnusedHeapArea) {
-    SpaceMangler::mangle_region(MemRegion(forwarding_table_start(), end()));
+    SpaceMangler::mangle_region(MemRegion(alloc_end(), end()));
   }
   _fwd_table.reset();
   _early_recycled = false;

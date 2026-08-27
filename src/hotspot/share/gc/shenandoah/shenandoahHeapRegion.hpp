@@ -569,7 +569,7 @@ public:
     return _fwd_table.build(num_forwardings);
   }
 
-  void reset_forwarding_table();
+  void teardown_recycle_state();
 
   HeapWord* forwarding_table_start() const {
     return _fwd_table.start();
