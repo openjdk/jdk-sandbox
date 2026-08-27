@@ -80,7 +80,7 @@ inline bool ShenandoahCSetMap::use_forward_table(ShenandoahHeapRegion* region) c
 }
 
 inline bool ShenandoahCSetMap::is_reusable(CSetState state) const {
-  return use_forward_table(state);
+  return state > CSetState::IN_CSET;
 }
 
 inline bool ShenandoahCSetMap::is_midcycle(oop obj) const {
