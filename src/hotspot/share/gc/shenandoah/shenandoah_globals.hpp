@@ -460,9 +460,9 @@
           range(0, 100)                                                    \
                                                                             \
   product(uintx, ShenandoahForwardingTableLoadFactorPercent, 75, DIAGNOSTIC,\
-          "Target load factor (percent) for forwarding tables. Default 75 "  \
-          "(1.333x) keeps the average double-hashing chain near 1.85 for a " \
-          "successful lookup. 100 is not allowed.")                          \
+          "Target load factor (percent) for forwarding tables. Default 75 " \
+          "(1.333x) keeps the average double-hashing chain near 1.85 for a "\
+          "successful lookup. 100 is not allowed.")                         \
           range(1, 99)                                                      \
                                                                             \
   product(uintx, ShenandoahForwardingTableProbeOverrun, 3, DIAGNOSTIC,      \
