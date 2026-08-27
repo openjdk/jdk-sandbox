@@ -656,13 +656,36 @@ void ShenandoahConcurrentGC::entry_update_refs() {
   ShenandoahConcurrentSubphase gc_phase(msg, ShenandoahPhaseTimings::conc_update_refs);
   EventMark em("%s", msg);
 
-  ShenandoahWorkerScope scope(heap->workers(),
-                              ShenandoahWorkerPolicy::calc_workers_for_conc_update_ref(),
-                              "concurrent reference update");
+  size_t num_workers = ShenandoahWorkerPolicy::calc_workers_for_conc_update_ref();
+  ShenandoahWorkerScope scope(heap->workers(), num_workers, "concurrent reference update");
 
   heap->try_inject_alloc_failure();
   heap->try_inject_pin();
-  op_update_refs();
+  ShenandoahFreeSet* free_set = heap->free_set();
+  size_t num_early_recycled_regions;
+  ShenandoahHeapRegion** early_recycled_region_array;
+  if (ShenandoahPruneFWTCollisionChains) {
+    ShenandoahHeapLocker locker(heap->lock());
+    num_early_recycled_regions =
+      free_set->num_tlab_regions() + free_set->num_shared_alloc_regions() + free_set->num_retired_regions();
+    early_recycled_region_array = (ShenandoahHeapRegion**) alloca(num_early_recycled_regions * sizeof(ShenandoahHeapRegion*));
+    size_t num_tlab_regions = free_set->num_tlab_regions();
+    for (size_t i = 0; i < num_tlab_regions; i++) {
+      early_recycled_region_array[i] = free_set->get_tlab_region(i);
+    }
+    size_t num_shared_regions = free_set->num_shared_alloc_regions();
+    for (size_t i = 0; i < num_shared_regions; i++) {
+      early_recycled_region_array[num_tlab_regions + i] = free_set->get_shared_alloc_region(i);
+    }
+    size_t num_retired_regions = free_set->num_retired_regions();
+    for (size_t i = 0; i < num_retired_regions; i++) {
+      early_recycled_region_array[num_tlab_regions + num_shared_regions + i] = free_set->get_retired_region(i);
+    }
+  } else {
+    num_early_recycled_regions = 0;
+    early_recycled_region_array = nullptr;
+  }
+  op_update_refs(num_workers, num_early_recycled_regions, early_recycled_region_array);
 }
 
 void ShenandoahConcurrentGC::entry_cleanup_complete() {
@@ -1158,8 +1181,10 @@ void ShenandoahConcurrentGC::op_init_update_refs() {
   }
 }
 
-void ShenandoahConcurrentGC::op_update_refs() {
-  ShenandoahHeap::heap()->update_heap_references(_generation, true /*concurrent*/);
+void ShenandoahConcurrentGC::op_update_refs(size_t num_workers, size_t num_early_recycled_regions,
+                                            ShenandoahHeapRegion* early_recycled_region_array[]) {
+  ShenandoahHeap::heap()->update_heap_references(_generation, true /*concurrent*/, num_workers,
+                                                 num_early_recycled_regions, early_recycled_region_array);
 }
 
 class ShenandoahUpdateThreadHandshakeClosure : public HandshakeClosure {

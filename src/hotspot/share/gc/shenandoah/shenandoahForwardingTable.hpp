@@ -32,15 +32,27 @@ class ShenandoahHeapRegion;
 class ShenandoahMarkingContext;
 
 class FwdTableEntry {
-  HeapWord* const _original;
-  HeapWord* const _forwardee;
+  HeapWord* _original;
+  HeapWord* _forwardee;
 public:
   // Default-constructed entries read as unused.
   FwdTableEntry() : _original(nullptr), _forwardee(nullptr) {}
   FwdTableEntry(HeapWord* region_base, HeapWord* original, HeapWord* forwardee) : _original(original), _forwardee(forwardee) {}
 
   HeapWord* original(HeapWord* region_base) const { return _original; }
-  HeapWord* forwardee() const { return _forwardee; }
+
+  // OrderAccess::loadload() is only needed if we prune collisions chains concurrently during the start of update refs.
+  HeapWord* forwardee_from_entry_with_barrier() const { OrderAccess::loadload(); return _forwardee; }
+  HeapWord* forwardee_from_entry_without_barrier() const { return _forwardee; }
+
+  void overwrite_forwardee(HeapWord* new_value) {
+    _forwardee = new_value;
+  }
+
+  void overwrite_original(HeapWord* new_value) {
+    _original = new_value;
+  }
+
   bool is_marked(ShenandoahMarkingContext* ctx) const;
   // Used on the forwardee lookup path. At construction time the scratch BitMap is used instead.
   bool is_used() const { return _original != nullptr || _forwardee != nullptr; }
@@ -69,7 +81,8 @@ class CompactFwdTableEntry {
 public:
   // Default-constructed entries read as unused.
   CompactFwdTableEntry() : _encoded(0) {}
-  CompactFwdTableEntry(HeapWord* region_base, HeapWord* original, HeapWord* forwardee) : _encoded(encode(region_base, original, forwardee)) {}
+  CompactFwdTableEntry(HeapWord* region_base, HeapWord* original, HeapWord* forwardee) :
+      _encoded(encode(region_base, original, forwardee)) {}
 
   static constexpr size_t max_region_size_words() {
     return size_t(1) << ORIGINAL_BITS;
@@ -87,7 +100,12 @@ public:
   }
 
   HeapWord* original(HeapWord* region_base) const { return decode_original(region_base, _encoded); }
-  HeapWord* forwardee() const { return decode_forwardee(_encoded); }
+  // CompactFwdTableEntry::forwardee never uses a fence
+
+  // No barrier required for CompactFwdTableEntry
+  HeapWord* forwardee_from_entry_with_barrier() const { return decode_forwardee(_encoded); }
+  HeapWord* forwardee_from_entry_without_barrier() const { return decode_forwardee(_encoded); }
+
   bool is_marked(ShenandoahMarkingContext* ctx) const;
   // Used on the forwardee lookup path. At construction time the scratch BitMap is used instead.
   bool is_used() const { return _encoded != 0; }
@@ -125,7 +143,7 @@ class ShenandoahForwardingTable {
   size_t reserve_forwarding(BitMap& used, size_t index, size_t stride);
 
   template<class Entry>
-  void insert_forwarding(size_t index, const Entry& entry);
+  inline void insert_forwarding(size_t index, const Entry& entry);
 
   template<class Entry>
   void enter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee);
@@ -155,6 +173,16 @@ public:
     _num_live_words(0),
     _max_collision_depth(0) {}
 
+  void overwrite_max_collision_depth(size_t new_max_depth) {
+    // Make sure all overwrites of original/forwardee pairs have been updated before we announce an improved collision depth
+    OrderAccess::storestore();
+    _max_collision_depth = new_max_depth;
+  }
+
+  size_t max_collision_depth() {
+    return _max_collision_depth;
+  }
+
   static bool use_compact() { return _compact; }
   static void initialize_globals();
 
@@ -171,6 +199,10 @@ public:
 #ifdef USE_SENTINELS
   void install_sentinels();
 #endif
+
+  template<class Entry>
+  inline void prune_collision_chain(ShenandoahHeapRegion* region, HeapWord* original,
+                             size_t& original_depth, size_t& new_depth);
 
   template<class Entry>
   HeapWord* forwardee(HeapWord* orginal) const;

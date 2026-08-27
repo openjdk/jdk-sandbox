@@ -2636,6 +2636,7 @@ void ShenandoahFreeSet::recycle_collection_set() {
   if (recycled_regions > 0) {
     _allocating_from_early_recycled_regions = true;
   }
+
   log_info(gc)("Recycled %zu FWT cset regions (below-FWT space),"
                " added %zu%s to early-recycled region sets for tlabs: %zu, shared-allocs: %zu, retired: %zu",
                recycled_regions,

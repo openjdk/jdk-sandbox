@@ -486,6 +486,38 @@ public:
   // We make this public so that native code can see its value
   // bytes used by global
   size_t _total_global_used;
+
+  size_t num_tlab_regions() {
+    return _early_recycled_tlab_regions_count;
+  }
+
+  size_t num_shared_alloc_regions() {
+    return _early_recycled_shared_alloc_regions_count;
+  }
+
+  size_t num_retired_regions() {
+    return _early_recycled_retired_regions_count;
+  }
+
+
+  // Get the tlab region at requested index position.  Index 0 represents entry with largest allocatable tlab.
+  // In general, lower index numbers have larger allocatable tlab memory than higher index numbers.  See discussion
+  // of heapsort algorithm.
+  //
+  // Any call to insert or remove a shared-alloc retion may renumber the shared-alloc regions.
+  ShenandoahHeapRegion* get_tlab_region(size_t index);
+
+  // Get the shared allocation region at requested index position.  Index 0 represents entry with largest allocatable memory.
+  // In general, lower index numbers have larger allocatable tlab memory than higher index numbers.  See discussion
+  // of heapsort algorithm.
+  //
+  // Any call to insert or remove a shared-alloc retion may renumber the shared-alloc regions.
+  ShenandoahHeapRegion* get_shared_alloc_region(size_t index);
+
+  // Return retired region at index position between 0 and num_retired_regions() - 1.
+  // Any call to insert() or remove tlab, shared-alloc, or retired regions may cause renumbering of the retired regions.
+  ShenandoahHeapRegion* get_retired_region(size_t index);
+
 private:
   // Prerequisite: _total_young_used and _total_old_used are valid
   template<bool UsedByMutatorChanged, bool UsedByCollectorChanged, bool UsedByOldCollectorChanged>
@@ -565,32 +597,14 @@ private:
     _early_recycled_shared_alloc_used += delta_bytes;
   }
 
-  // Get the tlab region at requested index position.  Index 0 represents entry with largest allocatable tlab.
-  // In general, lower index numbers have larger allocatable tlab memory than higher index numbers.  See discussion
-  // of heapsort algorithm.
-  //
-  // Any call to insert or remove a shared-alloc retion may renumber the shared-alloc regions.
-  ShenandoahHeapRegion* get_tlab_region(size_t index);
-
   // How large of a tlab can we allocate in the region at specified index position?
   // Any call to insert or remove a shared-alloc retion may renumber the shared-alloc regions.
   size_t get_tlab_allocatable_size(size_t index);
-
-  // Get the shared allocation region at requested index position.  Index 0 represents entry with largest allocatable memory.
-  // In general, lower index numbers have larger allocatable tlab memory than higher index numbers.  See discussion
-  // of heapsort algorithm.
-  //
-  // Any call to insert or remove a shared-alloc retion may renumber the shared-alloc regions.
-  ShenandoahHeapRegion* get_shared_alloc_region(size_t index);
 
   // How much memory is currently available in this region for the purposes of shared allocations (minus any padding that
   // might be required to avoid allocating at a forwarded address).
   // Any call to insert or remove a shared-alloc retion may renumber the shared-alloc regions.
   size_t get_shared_allocatable_size(size_t index);
-
-  // Return retired region at index position between 0 and num_retired_regions() - 1.
-  // Any call to insert() or remove tlab, shared-alloc, or retired regions may cause renumbering of the retired regions.
-  ShenandoahHeapRegion* get_retired_region(size_t index);
 
   void heapify_tlab_regions_downward(size_t index);
   void heapify_tlab_regions_upward(size_t index);
@@ -613,18 +627,6 @@ private:
 
   // Make room for expansion of shared-allocation regions
   void shift_retired_regions_up();
-
-  size_t num_tlab_regions() {
-    return _early_recycled_tlab_regions_count;
-  }
-
-  size_t num_shared_alloc_regions() {
-    return _early_recycled_shared_alloc_regions_count;
-  }
-
-  size_t num_retired_regions() {
-    return _early_recycled_retired_regions_count;
-  }
 
   size_t early_recycled_tlab_available_size(ShenandoahHeapRegion* r);
   HeapWord* try_allocate_TLAB_in_early_recycled(ShenandoahHeapRegion* r, const ShenandoahAllocRequest& req, size_t& size);

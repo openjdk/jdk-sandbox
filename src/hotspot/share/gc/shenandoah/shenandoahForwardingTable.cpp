@@ -222,6 +222,7 @@ void ShenandoahForwardingTable::set_marked_entries_used(BitMap& used) {
     size_t slot = (cb - table_start) / entry_words;
     used.set_bit(slot);
     HeapWord* const slot_base = table_start + slot * entry_words;
+    // Fill the non-marked words of this entry with 0.  This will not match any forwardee lookup requests.
     for (size_t w = 0; w < entry_words; w++) {
       if (!ctx->is_marked_ignore_tams(slot_base + w)) {
         *reinterpret_cast<uintptr_t*>(slot_base + w) = 0;
@@ -262,11 +263,6 @@ size_t ShenandoahForwardingTable::reserve_forwarding(BitMap& used, size_t index,
   _num_actual_forwardings++;
   assert(_num_actual_forwardings <= _num_expected_forwardings, "must not exceed number of forwardings");
   return index;
-}
-
-template<class Entry>
-void ShenandoahForwardingTable::insert_forwarding(size_t index, const Entry& entry) {
-  new (reinterpret_cast<Entry*>(_table) + index) Entry(entry);
 }
 
 template<class Entry>

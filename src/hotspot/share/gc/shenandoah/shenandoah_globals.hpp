@@ -34,7 +34,17 @@
                             range,                                          \
                             constraint)                                     \
                                                                             \
-  product(uint, ShenandoahMomentaryAllocRateSampleWindow, 6, EXPERIMENTAL, \
+  product(bool, ShenandoahPruneFWTCollisionChains, true, EXPERIMENTAL,      \
+          "By default, at the start of update references, after all "       \
+          "early recycled regions have transitioned to the forwarding "     \
+          "table and mark-word "                                            \
+          "forwarding is no longer active, we revisit the forwarding "      \
+          "table and overwrite mark words with valid forward-table "        \
+          "entries in order to shorten the collision chains. This "         \
+          "slightly delays the start of updating references, but it "       \
+          "allows updating and LRB slow paths to run much faster.")         \
+                                                                            \
+  product(uint, ShenandoahMomentaryAllocRateSampleWindow, 6, EXPERIMENTAL,  \
           "The number of samples in the momentary allocation rate moving "  \
           "average. This window serves to detect momentary spikes in the "  \
           "allocation rate. A smaller value allows quicker response to "    \

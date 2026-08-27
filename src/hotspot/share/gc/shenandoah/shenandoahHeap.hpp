@@ -504,7 +504,9 @@ private:
   // Turn off weak roots flag
   void concurrent_final_roots();
 
-  virtual void update_heap_references(ShenandoahGeneration* generation, bool concurrent);
+  virtual void update_heap_references(ShenandoahGeneration* generation, bool concurrent,
+                                      size_t num_workers, size_t num_early_recycled_regions,
+                                      ShenandoahHeapRegion* early_recycled_regions[]);
   // Final update region states
   void update_heap_region_states(bool concurrent);
   virtual void final_update_refs_update_region_states();

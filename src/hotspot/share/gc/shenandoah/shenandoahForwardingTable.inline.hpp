@@ -25,8 +25,9 @@
 #define SHARE_GC_SHENANDOAH_SHENANDOAHFORWARDINGTABLE_INLINE_HPP
 
 #include "gc/shenandoah/shenandoahForwardingTable.hpp"
-
 #include "gc/shenandoah/shenandoahMarkingContext.inline.hpp"
+#include "gc/shenandoah/shenandoahPrefetch.inline.hpp"
+
 #include "utilities/align.hpp"
 #include "utilities/fastHash.hpp"
 
@@ -94,6 +95,12 @@ HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
   size_t index = start_index;
   uint probes = 0;
 
+  // In the case that we are searching a forwardee at the same time the collision chains are being pruned, we need
+  // to make sure that we use the value of _max_collision_depth that was valid at the moment we started our traversal.
+  size_t max_collision_depth = _max_collision_depth;
+  // If we see an update value of max_collision_depth, we also need to see the updated values of all original/forwardee pairs.
+  OrderAccess::loadload();
+
   HeapWord* const region_base = _region->bottom();
   while (table[index].is_used()) {
     probes++;
@@ -102,7 +109,14 @@ HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
     //      requires this bit to be set.
     //   2. With non-compact FwdTableTnry, the mark word has "mark bits" set (0x07) and the original does not.
     if (table[index].is_original(region_base, original)) {
-      HeapWord* result = table[index].forwardee();
+      HeapWord* result;
+      if (ShenandoahPruneFWTCollisionChains) {
+        Entry &entry = table[index];
+        result = entry.forwardee_from_entry_with_barrier();
+      } else {
+        Entry &entry = table[index];
+        result = entry.forwardee_from_entry_without_barrier();
+      }
 #ifdef ASSERT
       ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
       assert(!is_object_aligned((HeapWord*) &table[index]) ||
@@ -115,7 +129,7 @@ HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
              p2i(result), p2i(original), _region->index());
       return result;
     }
-    if (probes >= _max_collision_depth) {
+    if (probes >= max_collision_depth) {
       break;
     }
     index += stride;
@@ -134,5 +148,84 @@ HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
          "FWT probe miss for marked obj " PTR_FORMAT " region=%zu", p2i(original), _region->index());
   return original;
 }
+
+template<class Entry>
+inline void ShenandoahForwardingTable::insert_forwarding(size_t index, const Entry& entry) {
+  new (reinterpret_cast<Entry*>(_table) + index) Entry(entry);
+}
+
+template<class Entry>
+inline void ShenandoahForwardingTable::prune_collision_chain(ShenandoahHeapRegion* region, HeapWord* original,
+                                                      size_t& original_depth, size_t& new_depth) {
+  size_t start_index, stride;
+  Entry* table = reinterpret_cast<Entry*>(region->forwarding_table_start());
+  HeapWord* const region_base = region->bottom();
+  probe_of(original, start_index, stride);
+  const size_t entry_words = sizeof(Entry) / sizeof(HeapWord*);
+  HeapWord* const table_start = start();
+  bool found_mark_word_collision = false;
+  size_t index_of_mark_word_collision = 0;
+  size_t depth_of_mark_word_collision = 0;
+  size_t collision_chain_depth = 0;
+  size_t index = start_index;
+  while (table[index].is_used()) {
+    size_t next_index = index + stride;
+    if (next_index > _num_entries) {
+      next_index -= _num_entries;
+    }
+    // Issue the prefetch even before we know if we'll need this value; leave enough time to get the memory.
+    ShenandoahPrefetch::prefetch(cast_to_oop(&table[next_index]));
+    if (table[index].is_original(region_base, original)) {
+      HeapWord* forwardee = table[index].forwardee_from_entry_without_barrier();
+      original_depth = collision_chain_depth;
+      if (found_mark_word_collision) {
+        new_depth = depth_of_mark_word_collision;
+        if constexpr (std::is_same_v<Entry, CompactFwdTableEntry>) {
+          Entry const entry(region_base, original, forwardee);
+          insert_forwarding<Entry>(index_of_mark_word_collision, entry);
+        } else {
+          table[index_of_mark_word_collision].overwrite_forwardee(forwardee);
+          // Make sure that _forwardee is set before anybody has the opportunity to match the new value of _original.
+          // The previous value of _original will not match, as it is a mark word.
+          OrderAccess::storestore();
+          // Note: there is no race on publication of original.  If some other thread sees the old value of original while
+          // it is searching to resolve a forwarded address, it will eventually resolve.  It will just not see the "short cut".
+          table[index_of_mark_word_collision].overwrite_original(original);
+        }
+      } else {
+        // no change to depth of this collision chain
+        new_depth = collision_chain_depth;
+      }
+      break;
+    }
+    if constexpr (std::is_same_v<Entry, CompactFwdTableEntry>) {
+      oop obj =  cast_to_oop(&table[index]);
+      markWord const mark = obj->mark();
+      if (!found_mark_word_collision && mark.is_marked()) {
+        found_mark_word_collision = true;
+        index_of_mark_word_collision = index;
+        depth_of_mark_word_collision = collision_chain_depth;
+      }
+    } else {
+#ifdef ASSERT
+      bool sanity_check = std::is_same_v<Entry, FwdTableEntry>;
+      assert(sanity_check, "sanity");
+#endif
+      oop obj =  cast_to_oop(&table[index]);
+      markWord const mark = obj->mark();
+      // With non-compact entries, a mark-word collision is denoted by mark.is_marked()
+      //   or by table[index].is_used() && table[index].original() == nullptr
+      if (!found_mark_word_collision && (mark.is_marked() || (table[index].original(region->bottom()) == nullptr))) {
+        found_mark_word_collision = true;
+        index_of_mark_word_collision = index;
+        depth_of_mark_word_collision = collision_chain_depth;
+      }
+    }
+    collision_chain_depth++;
+    index = next_index;
+    assert(index != start_index, "Existing forward table should never wrap around to initial probe");
+  }
+}
+
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHFORWARDINGTABLE_INLINE_HPP

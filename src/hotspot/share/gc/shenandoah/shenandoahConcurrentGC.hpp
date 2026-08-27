@@ -116,7 +116,7 @@ protected:
   void op_cleanup_early();
   void op_evacuate();
   void op_init_update_refs();
-  void op_update_refs();
+  void op_update_refs(size_t num_workers, size_t num_early_recycled_regions, ShenandoahHeapRegion* early_recycled_region_array[]);
   void op_update_thread_roots();
   void op_final_update_refs();
 
