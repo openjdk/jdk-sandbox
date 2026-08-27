@@ -643,7 +643,7 @@ void ShenandoahConcurrentGC::entry_recycle_collection_set() {
   TraceCollectorStats tcs(heap->monitoring_support()->concurrent_collection_counters());
 
   static const char* msg = "Recycle collection set (below FWT)";
-  ShenandoahConcurrentPhase gc_phase(msg, ShenandoahPhaseTimings::conc_recycle_cset);
+  ShenandoahConcurrentSubphase gc_phase(msg, ShenandoahPhaseTimings::conc_recycle_cset);
   EventMark em("%s", msg);
 
   op_recycle_collection_set();
