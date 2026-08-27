@@ -155,7 +155,7 @@ inline oop ShenandoahBarrierSet::load_reference_barrier(oop obj) {
     assert(obj != nullptr, "cset check must have subsumed null-check");
     oop fwd = resolve_forwarded_not_null(obj);
     if (obj == fwd && _heap->is_evacuation_in_progress()
-        && !_cset_map.use_forward_table(obj)) { // don't evacuate new objects from FWT regions
+        && !_cset_map.is_midcycle(obj)) { // don't evacuate new objects from recycled regions
       Thread* t = Thread::current();
       return _heap->evacuate_object(obj, t);
     }
@@ -490,7 +490,7 @@ private:
       if (_cset->is_in(obj)) {
         oop fwd = ShenandoahBarrierSet::resolve_forwarded_not_null(obj);
         if (EVAC && obj == fwd
-            && !_cset->use_forward_table(obj)) { // don't evacuate new objects from FWT regions
+            && !_cset->is_midcycle(obj)) { // don't evacuate new objects from recycled regions
           fwd = _heap->evacuate_object(obj, _thread);
           shenandoah_assert_forwarded_except(p, obj, _heap->cancelled_gc());
         }
@@ -726,7 +726,7 @@ void ShenandoahBarrierSet::arraycopy_evacuation(T* src, size_t count) {
       if (cset->is_in(obj)) {
         oop fwd = resolve_forwarded_not_null(obj);
         if (obj == fwd
-            && !cset->use_forward_table(obj)) { // don't evacuate new objects from FWT regions
+            && !cset->is_midcycle(obj)) { // don't evacuate new objects from recycled regions
           fwd = _heap->evacuate_object(obj, thread);
           shenandoah_assert_forwarded_except(elem_ptr, obj, _heap->cancelled_gc());
         }

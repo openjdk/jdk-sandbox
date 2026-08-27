@@ -72,6 +72,10 @@ public:
   inline bool use_forward_table(oop obj) const;
   inline bool use_forward_table(ShenandoahHeapRegion* r) const;
 
+  inline bool is_reusable(CSetState) const;
+  inline bool is_midcycle(oop obj) const;
+  inline bool is_reusable(ShenandoahHeapRegion* r) const;
+
 };
 
 #endif // SHARE_VM_GC_SHENANDOAH_SHENANDOAHCSETMAP_HPP

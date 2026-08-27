@@ -79,4 +79,16 @@ inline bool ShenandoahCSetMap::use_forward_table(ShenandoahHeapRegion* region) c
   return use_forward_table(cset_state(region));
 }
 
+inline bool ShenandoahCSetMap::is_reusable(CSetState state) const {
+  return use_forward_table(state);
+}
+
+inline bool ShenandoahCSetMap::is_midcycle(oop obj) const {
+  return is_reusable(cset_state(obj));
+}
+
+inline bool ShenandoahCSetMap::is_reusable(ShenandoahHeapRegion* region) const {
+  return is_reusable(cset_state(region));
+}
+
 #endif // SHARE_VM_GC_SHENANDOAH_SHENANDOAHCSETMAP_INLINE_HPP

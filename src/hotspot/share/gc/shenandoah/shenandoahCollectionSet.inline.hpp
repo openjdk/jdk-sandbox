@@ -68,8 +68,12 @@ bool ShenandoahCollectionSet::use_forward_table(ShenandoahHeapRegion* r) const {
   return _cset_map.use_forward_table(r);
 }
 
+bool ShenandoahCollectionSet::is_midcycle(oop obj) const {
+  return _cset_map.is_midcycle(obj);
+}
+
 bool ShenandoahCollectionSet::is_reusable(ShenandoahHeapRegion* r) const {
-  return _cset_map.use_forward_table(r);
+  return _cset_map.is_reusable(r);
 }
 
 size_t ShenandoahCollectionSet::get_live_bytes_in_old_regions() const {

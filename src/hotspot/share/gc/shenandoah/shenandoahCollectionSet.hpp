@@ -105,6 +105,7 @@ public:
   inline bool use_forward_table(ShenandoahHeapRegion* r) const;
 
   // A CSet region where new allocations may land.
+  inline bool is_midcycle(oop obj) const;
   inline bool is_reusable(ShenandoahHeapRegion* r) const;
 
   // Remove a single region from the collection set.
