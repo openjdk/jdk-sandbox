@@ -899,9 +899,9 @@ move_from_partition_to_partition_with_deferred_accounting(idx_t idx, ShenandoahF
   assert (available <= _region_size_bytes, "Available cannot exceed region size");
   assert (_membership[int(orig_partition)].is_set(idx), "Cannot move from partition unless in partition");
   assert ((r != nullptr) && ((r->is_trash() && (available == _region_size_bytes)) ||
-                             (r->used_with_fwt() + available == _region_size_bytes)),
-          "Used: %zu + fwt tail: %zu + available: %zu should equal region size: %zu",
-          r->used(), r->fwt_tail_bytes(), available, _region_size_bytes);
+                             (r->used_with_reserve() + available == _region_size_bytes)),
+          "Used: %zu + reserved: %zu + available: %zu should equal region size: %zu",
+          r->used(), r->reserved_bytes(), available, _region_size_bytes);
 
   // Expected transitions:
   //  During rebuild:         Mutator => Collector
@@ -2429,13 +2429,13 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
 #undef GATHER_STATS
 #ifdef GATHER_STATS
     HeapWord* start = bottom;
-    size_t fwt_words = r->fwt_tail_bytes() / HeapWordSize;
-    HeapWord* end = r->end() - fwt_words;
+    size_t reserved_words = r->reserved_bytes() / HeapWordSize;
+    HeapWord* end = r->end() - reserved_words;
     size_t allocatable_words = end - start;
     double percent_allocatable = (100.0 * allocatable_words) / ShenandoahHeapRegion::region_size_words();
-    double percent_fwt = (100.0 * fwt_words) / ShenandoahHeapRegion::region_size_words();
+    double percent_fwt = (100.0 * reserved_words) / ShenandoahHeapRegion::region_size_words();
     log_info(gc)("FWT STATS for recycled region %zu, allocatable words: %zu (%.1f%%), foward table consumes %zu words (%.1f%%)",
-                 r->index(), allocatable_words, percent_allocatable, fwt_words, percent_fwt);
+                 r->index(), allocatable_words, percent_allocatable, reserved_words, percent_fwt);
 
     // If we're padding for start of a shared allocation, where did the pad start?
     HeapWord* pad_start_addr = nullptr;
@@ -2559,13 +2559,13 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
                  i, p2i(top), p2i(r->alloc_end()));
   }
 
-  size_t available = r->capacity() - r->fwt_tail_bytes();
+  size_t available = r->capacity() - r->reserved_bytes();
   bool reuse_body = ShenandoahRecycleFWTBodies && (available >= PLAB::min_size() * HeapWordSize);
   r->recycle_early(reuse_body);
   if (!reuse_body) {
     if (ShenandoahRecycleFWTBodies) {
       log_info(gc)(" %s region has only %zu available, so not going to make this free: capacity: %zu, tail_bytes: %zu",
-                   r->is_young()? "young": "old", available, r->capacity(), r->fwt_tail_bytes());
+                   r->is_young()? "young": "old", available, r->capacity(), r->reserved_bytes());
       // Since !reuse_body, this region is not recycled early, so it is not added to the retired regions.
     }
     return false;
@@ -2598,10 +2598,10 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
   assert(orig_partition == ShenandoahFreeSetPartitionId::NotFree, "cset regions should be in the NotFree partition");
   // Since orig_partition is NotFree, we don't have to adjust capacity, available, and used for orig_partition
 
-  if (r->fwt_tail_bytes() > 0) {
+  if (r->reserved_bytes() > 0) {
     // Above, we increased the capacity of the Mutator partition by region_size_bytes.
     /* Remove because we do not count early-recycled regions as part of partition accounting
-       _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, r->fwt_tail_bytes());
+       _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, r->reserved_bytes());
     */
   }
   recycled_bytes += available;
@@ -2649,7 +2649,7 @@ void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* 
                                                           size_t& released_bytes, size_t& emptied_regions,
                                                           size_t& early_recycled_allocation_regions) {
   ShenandoahFreeSetPartitionId p = _partitions.membership(r->index());
-  size_t tail = r->fwt_tail_bytes();
+  size_t tail = r->reserved_bytes();
   size_t available = r->capacity() - tail;
   size_t min_size = PLAB::min_size() * HeapWordSize;
   size_t region_free = r->free();
@@ -3605,7 +3605,7 @@ void ShenandoahFreeSet::insert_tlab_region(ShenandoahHeapRegion* r, size_t max_t
   if (_early_recycled_tlab_regions + _early_recycled_tlab_regions_count + 1 >= _early_recycled_retired_regions) {
     shift_retired_regions_down();
   }
-  _early_recycled_tlab_used += r->used_with_fwt();
+  _early_recycled_tlab_used += r->used_with_reserve();
   _early_recycled_tlab_regions[_early_recycled_tlab_regions_count] = r;
   _early_recycled_tlab_regions_data[_early_recycled_tlab_regions_count++] = max_tlab_size;
   heapify_tlab_regions_upward(_early_recycled_tlab_regions_count - 1);
@@ -3613,7 +3613,7 @@ void ShenandoahFreeSet::insert_tlab_region(ShenandoahHeapRegion* r, size_t max_t
 
 void ShenandoahFreeSet::remove_tlab_region(size_t index) {
   ShenandoahHeapRegion* r = get_tlab_region(index);
-  _early_recycled_tlab_used -= r->used_with_fwt();
+  _early_recycled_tlab_used -= r->used_with_reserve();
   if (index == _early_recycled_tlab_regions_count - 1) {
     // Removing the last entry in the partition is easy.  Just decrement the count.
     _early_recycled_tlab_regions_count--;
@@ -3734,12 +3734,12 @@ void ShenandoahFreeSet::heapify_shared_alloc_regions_downward(size_t index) {
 }
 
 void ShenandoahFreeSet::insert_shared_alloc_region(ShenandoahHeapRegion* r) {
-  size_t shared_allocatable_words = (r->end() - r->top()) - r->fwt_tail_bytes() / HeapWordSize;
+  size_t shared_allocatable_words = (r->end() - r->top()) - r->reserved_bytes() / HeapWordSize;
   if (_early_recycled_shared_alloc_regions - _early_recycled_shared_alloc_regions_count <=
       _early_recycled_retired_regions + _early_recycled_retired_regions_count) {
     shift_retired_regions_up();
   }
-  _early_recycled_shared_alloc_used += r->used_with_fwt();
+  _early_recycled_shared_alloc_used += r->used_with_reserve();
   _early_recycled_shared_alloc_regions[-_early_recycled_shared_alloc_regions_count] = r;
   _early_recycled_shared_alloc_regions_data[-_early_recycled_shared_alloc_regions_count++] = shared_allocatable_words;
   heapify_shared_alloc_regions_upward(_early_recycled_shared_alloc_regions_count - 1);
@@ -3747,7 +3747,7 @@ void ShenandoahFreeSet::insert_shared_alloc_region(ShenandoahHeapRegion* r) {
 
 void ShenandoahFreeSet::remove_shared_alloc_region(size_t index) {
   ShenandoahHeapRegion* r = get_shared_alloc_region(index);
-  _early_recycled_shared_alloc_used -= r->used_with_fwt();
+  _early_recycled_shared_alloc_used -= r->used_with_reserve();
   if (index == _early_recycled_shared_alloc_regions_count - 1) {
     // Removing the last entry in the partition is easy.  Just decrement the count.
     _early_recycled_shared_alloc_regions_count--;
@@ -3770,7 +3770,7 @@ void ShenandoahFreeSet::insert_retired_region(ShenandoahHeapRegion* r) {
     shift_retired_regions_up();
   }
   _early_recycled_retired_regions[_early_recycled_retired_regions_count++] = r;
-  _early_recycled_retired_used += r->used_with_fwt();
+  _early_recycled_retired_used += r->used_with_reserve();
 }
 
 // Return size in bytes of candidate region size if greater than PLAB::min_size().  Otherwrise, return 0 if no TLAB available.
