@@ -3976,10 +3976,11 @@ HeapWord* ShenandoahFreeSet::try_allocate_TLAB_in_early_recycled(ShenandoahHeapR
           if (pad > 0) {
             ShenandoahHeap::fill_with_object(orig_top, pad);
           }
-          increase_early_recycled_tlab_regions_used((size + pad) * HeapWordSize);
           // This assignment may be redundant. Maybe we can optimize.
           r->set_affiliation(ShenandoahAffiliation::YOUNG_GENERATION);
+          size_t used_before = r->used_with_reserve();
           r->set_top(orig_top + size + pad);
+          increase_early_recycled_tlab_regions_used(r->used_with_reserve() - used_before);
           log_debug(gc, alloc)("TLAB allocated %zu words at " PTR_FORMAT " in FWT region %zu"
                                " [" PTR_FORMAT ", " PTR_FORMAT ")"
                                " region=[" PTR_FORMAT ", " PTR_FORMAT ") alloc_limit=" PTR_FORMAT,
@@ -4013,14 +4014,16 @@ HeapWord* ShenandoahFreeSet::try_allocate_shared_in_early_recycled(ShenandoahHea
       break;
     } else if ((pad == 0) || (pad > min_fill)) {
       if (!ctx->is_marked_ignore_tams(candidate_start)) {
-        if (is_tlab_region) {
-          increase_early_recycled_tlab_regions_used((size + pad) * HeapWordSize);
-        } else {
-          increase_early_recycled_shared_alloc_regions_used((size + pad) * HeapWordSize);
-        }
         // This assignment may be redundant. Maybe we can optimize.
         r->set_affiliation(ShenandoahAffiliation::YOUNG_GENERATION);
+        size_t used_before = r->used_with_reserve();
         r->set_top(orig_top + size + pad);
+        size_t used_delta = r->used_with_reserve() - used_before;
+        if (is_tlab_region) {
+          increase_early_recycled_tlab_regions_used(used_delta);
+        } else {
+          increase_early_recycled_shared_alloc_regions_used(used_delta);
+        }
         log_debug(gc, alloc)("Share allocated %zu words at " PTR_FORMAT " in FWT region %zu"
                              " [" PTR_FORMAT ", " PTR_FORMAT ")"
                              " region=[" PTR_FORMAT ", " PTR_FORMAT ") alloc_limit=" PTR_FORMAT,

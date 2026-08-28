@@ -506,7 +506,7 @@ public:
   }
   // Bytes reserved in early reused CSet regions.
   size_t reserved_bytes() const   { return byte_size(alloc_end(), end()); }
-  size_t used_with_reserve() const { return used() + reserved_bytes(); }
+  size_t used_with_reserve() const { return MIN2(used() + reserved_bytes(), capacity()); }
 
   // Does this region contain this address?
   bool contains(HeapWord* p) const {
