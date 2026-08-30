@@ -714,12 +714,6 @@ private:
   size_t _num_early_recycled_regions;
   ShenandoahHeapRegion** _early_recycled_regions;
 
-  size_t _total_forwarded_objects;
-  size_t _total_original_collisions;
-  size_t _total_pruned_collisions;
-  size_t _max_original_collisions;
-  size_t _max_pruned_collisions;
-
 public:
   ShenandoahGenerationalUpdateHeapRefsTask(ShenandoahGeneration* generation,
                                            ShenandoahRegionIterator* regions,
@@ -738,34 +732,8 @@ public:
   {
     const bool old_bitmap_stable = _heap->old_generation()->is_mark_complete();
     log_debug(gc, remset)("Update refs, scan remembered set using bitmap: %s", BOOL_TO_STR(old_bitmap_stable));
-
-    _total_forwarded_objects = 0;
-    _total_original_collisions = 0;
-    _total_pruned_collisions = 0;
-    _max_original_collisions = 0;
-    _max_pruned_collisions = 0;
   }
 
-
-  size_t forwarded_objects() {
-    return _total_forwarded_objects;
-  }
-
-  size_t total_original_collisions() {
-    return _total_original_collisions;
-  }
-
-  size_t total_pruned_collisions() {
-    return _total_pruned_collisions;
-  }
-
-  size_t max_original_collisions() {
-    return _max_original_collisions;
-  }
-
-  size_t max_pruned_collisions() {
-    return _max_pruned_collisions;
-  }
 
   void work(uint worker_id) override {
     if (CONCURRENT) {
@@ -780,31 +748,6 @@ public:
       ShenandoahParallelWorkerSession worker_session(worker_id);
       do_work<ShenandoahNonConcUpdateRefsClosure>(worker_id);
     }
-  }
-
-  void supplement_forwarding_totals(size_t objects, size_t original_collisions, size_t original_max,
-                                    size_t pruned_collisions, size_t pruned_max) {
-    AtomicAccess::add(&_total_forwarded_objects, objects);
-    AtomicAccess::add(&_total_original_collisions, original_collisions);
-    AtomicAccess::add(&_total_pruned_collisions, pruned_collisions);
-    size_t original_global_max, new_global_max;
-    do {
-      original_global_max = AtomicAccess::load(&_max_original_collisions);
-      if (original_global_max >= original_max) {
-        break;
-      }
-      new_global_max = original_max;
-    } while (AtomicAccess::cmpxchg(&_max_original_collisions,
-                                   original_global_max, new_global_max, memory_order_release) != original_global_max);
-
-    do {
-      original_global_max = AtomicAccess::load(&_max_pruned_collisions);
-      if (original_global_max >= pruned_max) {
-        break;
-      }
-      new_global_max = pruned_max;
-    } while (AtomicAccess::cmpxchg(&_max_pruned_collisions,
-                                  original_global_max, new_global_max, memory_order_release) != original_global_max);
   }
 
 private:
@@ -834,6 +777,12 @@ private:
       void do_object(oop obj) {
         HeapWord* original = cast_from_oop<HeapWord*>(obj);
         size_t original_depth, pruned_depth;
+#undef KELVIN_SEE_PRUNING
+#ifdef KELVIN_SEE_PRUNING
+        log_info(gc)("Looking to prune collision chain for " PTR_FORMAT " in region %zu, _forwarded_objects: %zu",
+                     p2i(obj), _region->index(), _forwarded_objects);
+#endif
+
         _fwt.prune_collision_chain<Entry>(_region, original, original_depth, pruned_depth);
         _forwarded_objects++;
         _total_original_collisions += original_depth;
@@ -844,6 +793,11 @@ private:
         if (pruned_depth > _max_pruned_collisions) {
           _max_pruned_collisions = pruned_depth;
         }
+#ifdef KELVIN_SEE_PRUNING
+        log_info(gc)(" original_depth: %zu, pruned_depth: %zu, _total_original: %zu, _total_pruned: %zu, _max_orig: %zu, _max_pruned %zu",
+                     original_depth, pruned_depth, _total_original_collisions, _total_pruned_collisions,
+                     _max_original_collisions, _max_pruned_collisions);
+#endif
       }
 
       size_t forwarded_objects() {
@@ -867,22 +821,19 @@ private:
       }
 
     } cl(r, fwt);
-    ShenandoahHeap::heap()->marked_object_iterate(r, &cl);
+    ShenandoahHeap::heap()->marked_object_iterate_to_end(r, &cl);
     size_t __forwarded_objects = cl.forwarded_objects();
     size_t __max_pruned_collisions = cl.max_pruned_collisions();
     size_t __max_original_collisions = cl.max_original_collisions();
     size_t __original_collisions = cl.original_collisions();
     size_t __pruned_collisions = cl.pruned_collisions();
-#define KELVIN_SCRUTINIIZE
-#ifdef KELVIN_SCRUTINIIZE
-    log_info(gc)("Pruned region %zu forwarded %zu objects, fwt_depth: %zu, original_max_depth: %zu, pruned_max_depth: %zu",
-                 r->index(), __forwarded_objects, r->fwd_table_max_depth(), __max_original_collisions, __max_pruned_collisions);
-    log_info(gc)("                                              original_collisions: %zu, pruned_collisions: %zu",
-                 __original_collisions, __pruned_collisions);
-#endif
-    fwt.overwrite_max_collision_depth(__max_pruned_collisions);
-    supplement_forwarding_totals(__forwarded_objects, __original_collisions, __max_original_collisions,
-                                 __pruned_collisions, __max_pruned_collisions);
+
+    // Kelvin probably wants to put this under log_debug() eventually
+    log_info(gc)("Pruned region %zu (%zu forwarded objects, depth: %zu), orig/pruned collisions: %zu/%zu, max: %zu/%zu", 
+                 r->index(), __forwarded_objects, r->fwd_table_max_depth(),
+                 __original_collisions, __pruned_collisions, __max_original_collisions, __max_pruned_collisions);
+
+    fwt.overwrite_max_required_probes(__max_pruned_collisions + 1);
   }
 
   template<class T>
@@ -1078,6 +1029,7 @@ void ShenandoahGenerationalHeap::update_heap_references(ShenandoahGeneration* ge
     ShenandoahGenerationalUpdateHeapRefsTask<true> task(generation, &_update_refs_iterator, &work_list, num_workers,
                                                         num_early_recycled_regions, early_recycled_regions);
     workers()->run_task(&task);
+#ifdef KELVIN_DEPRECATE
     if (ShenandoahPruneFWTCollisionChains) {
       average_chain_depth_before_prune =
         (task.total_original_collisions() + task.forwarded_objects()) / ((double) task.forwarded_objects());
@@ -1087,10 +1039,12 @@ void ShenandoahGenerationalHeap::update_heap_references(ShenandoahGeneration* ge
         (task.total_pruned_collisions() + task.forwarded_objects()) / ((double) task.forwarded_objects());
       max_chain_depth_after_prune = task.max_pruned_collisions() + 1;
     }
+#endif
   } else {
     ShenandoahGenerationalUpdateHeapRefsTask<false> task(generation, &_update_refs_iterator, &work_list, num_workers,
                                                          num_early_recycled_regions, early_recycled_regions);
     workers()->run_task(&task);
+#ifdef KELVIN_DEPRECATE
     if (ShenandoahPruneFWTCollisionChains) {
       average_chain_depth_before_prune =
         (task.total_original_collisions() + task.forwarded_objects()) / ((double) task.forwarded_objects());
@@ -1100,12 +1054,17 @@ void ShenandoahGenerationalHeap::update_heap_references(ShenandoahGeneration* ge
         (task.total_pruned_collisions() + task.forwarded_objects()) / ((double) task.forwarded_objects());
       max_chain_depth_after_prune = task.max_pruned_collisions() + 1;
     }
+#endif
   }
+#ifdef KELVIN_DEPRECATE
+  // Not sure there is sufficient value in this report to merit the
+  // overhead of collecting it.
   if (ShenandoahPruneFWTCollisionChains) {
     log_info(gc, ergo)("Update heap reference pruned %zu early-recycled regions before (average/max): %.3f/%zu, after: %.3f/%zu",
                        num_early_recycled_regions, average_chain_depth_before_prune, max_chain_depth_before_prune,
                        average_chain_depth_after_prune, max_chain_depth_after_prune);
   }
+#endif
   if (ShenandoahEnableCardStats) {
     // Only do this if we are collecting card stats
     ShenandoahScanRemembered* card_scan = old_generation()->card_scan();

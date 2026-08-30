@@ -2682,31 +2682,6 @@ public:
     _num_workers(num_workers),
     _num_early_recycled_regions(num_early_recycled_regions),
     _early_recycled_regions(early_recycled_regions) {
-    _total_forwarded_objects = 0;
-    _total_original_collisions = 0;
-    _total_pruned_collisions = 0;
-    _max_original_collisions = 0;
-    _max_pruned_collisions = 0;
-  }
-
-  size_t forwarded_objects() {
-    return _total_forwarded_objects;
-  }
-
-  size_t total_original_collisions() {
-    return _total_original_collisions;
-  }
-
-  size_t total_pruned_collisions() {
-    return _total_pruned_collisions;
-  }
-
-  size_t max_original_collisions() {
-    return _max_original_collisions;
-  }
-
-  size_t max_pruned_collisions() {
-    return _max_pruned_collisions;
   }
 
   void work(uint worker_id) {
@@ -2719,31 +2694,6 @@ public:
       ShenandoahParallelWorkerSession worker_session(worker_id);
       do_work<ShenandoahNonConcUpdateRefsClosure>(worker_id);
     }
-  }
-
-  void supplement_forwarding_totals(size_t objects, size_t original_collisions, size_t original_max,
-                                    size_t pruned_collisions, size_t pruned_max) {
-    AtomicAccess::add(&_total_forwarded_objects, objects);
-    AtomicAccess::add(&_total_original_collisions, original_collisions);
-    AtomicAccess::add(&_total_pruned_collisions, pruned_collisions);
-    size_t original_global_max, new_global_max;
-    do {
-      original_global_max = AtomicAccess::load(&_max_original_collisions);
-      if (original_global_max >= original_max) {
-        break;
-      }
-      new_global_max = original_max;
-    } while (AtomicAccess::cmpxchg(&_max_original_collisions,
-                                   original_global_max, new_global_max, memory_order_release) != original_global_max);
-
-    do {
-      original_global_max = AtomicAccess::load(&_max_pruned_collisions);
-      if (original_global_max >= pruned_max) {
-        break;
-      }
-      new_global_max = pruned_max;
-    } while (AtomicAccess::cmpxchg(&_max_pruned_collisions,
-                                   original_global_max, new_global_max, memory_order_release) != original_global_max);
   }
 
 private:
@@ -2806,21 +2756,19 @@ private:
       }
 
     } cl(r, fwt);
-    ShenandoahHeap::heap()->marked_object_iterate<PruneCollisionChainsClosure>(r, &cl);
+    ShenandoahHeap::heap()->marked_object_iterate_to_end<PruneCollisionChainsClosure>(r, &cl);
     size_t __forwarded_objects = cl.forwarded_objects();
     size_t __max_pruned_collisions = cl.max_pruned_collisions();
     size_t __max_original_collisions = cl.max_original_collisions();
     size_t __original_collisions = cl.original_collisions();
     size_t __pruned_collisions = cl.pruned_collisions();
-#ifdef KELVIN_SCRUTINIIZE
-    log_info(gc)("Pruned region %zu forwarded %zu objects, fwt_depth: %zu, original_max_depth: %zu, pruned_max_depth: %zu",
-                 r->index(), __forwarded_objects, r->fwd_table_max_depth(), __max_original_collisions, __max_pruned_collisions);
-    log_info(gc)("                                              original_collisions: %zu, pruned_collisions: %zu",
-                 __original_collisions, __pruned_collisions);
-#endif
-    fwt.overwrite_max_collision_depth(__max_pruned_collisions);
-    supplement_forwarding_totals(__forwarded_objects, __original_collisions, __max_original_collisions,
-                                 __pruned_collisions, __max_pruned_collisions);
+
+    // Kelvin probably wants to put this under log_debug() eventually
+    log_info(gc)("Pruned region %zu (%zu forwarded objects, depth: %zu), orig/pruned collisions: %zu/%zu, max: %zu/%zu", 
+                 r->index(), __forwarded_objects, r->fwd_table_max_depth(),
+                 __original_collisions, __pruned_collisions, __max_original_collisions, __max_pruned_collisions);
+
+    fwt.overwrite_max_required_probes(__max_pruned_collisions + 1);
   }
 
   template<class T>
@@ -2877,6 +2825,7 @@ void ShenandoahHeap::update_heap_references(ShenandoahGeneration* generation, bo
     ShenandoahUpdateHeapRefsTask<true> task(&_update_refs_iterator, num_workers,
                                             num_early_recycled_regions, early_recycled_regions);
     workers()->run_task(&task);
+#ifdef KELVIN_DEPRECATE
     if (ShenandoahPruneFWTCollisionChains) {
       average_chain_depth_before_prune =
         (task.total_original_collisions() + task.forwarded_objects()) / ((double) task.forwarded_objects());
@@ -2886,10 +2835,12 @@ void ShenandoahHeap::update_heap_references(ShenandoahGeneration* generation, bo
         (task.total_pruned_collisions() + task.forwarded_objects()) / ((double) task.forwarded_objects());
       max_chain_depth_after_prune = task.max_pruned_collisions() + 1;
     }
+#endif
   } else {
     ShenandoahUpdateHeapRefsTask<false> task(&_update_refs_iterator, num_workers,
                                              num_early_recycled_regions, early_recycled_regions);
     workers()->run_task(&task);
+#ifdef KELVIN_DEPRECATE
     if (ShenandoahPruneFWTCollisionChains) {
       average_chain_depth_before_prune =
         (task.total_original_collisions() + task.forwarded_objects()) / ((double) task.forwarded_objects());
@@ -2899,12 +2850,16 @@ void ShenandoahHeap::update_heap_references(ShenandoahGeneration* generation, bo
         (task.total_pruned_collisions() + task.forwarded_objects()) / ((double) task.forwarded_objects());
       max_chain_depth_after_prune = task.max_pruned_collisions() + 1;
     }
+#endif
   }
+#ifdef KELVIN_DEPRECATE
+  // Not sure there is sufficient vaue in this report to justify the costs of collecting it.
   if (ShenandoahPruneFWTCollisionChains) {
     log_info(gc, ergo)("Update heap reference pruned %zu early-recycled regions before (average/max): %.3f/%zu, after: %.3f/%zu",
                        num_early_recycled_regions, average_chain_depth_before_prune, max_chain_depth_before_prune,
                        average_chain_depth_after_prune, max_chain_depth_after_prune);
   }
+#endif
 }
 
 void ShenandoahHeap::update_heap_region_states(bool concurrent) {

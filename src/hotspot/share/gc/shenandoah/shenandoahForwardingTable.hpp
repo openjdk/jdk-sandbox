@@ -32,14 +32,16 @@ class ShenandoahHeapRegion;
 class ShenandoahMarkingContext;
 
 class FwdTableEntry {
+  static const uint64_t ENTRY_MARKER = uint64_t(1) << 63;
   HeapWord* _original;
   HeapWord* _forwardee;
 public:
   // Default-constructed entries read as unused.
   FwdTableEntry() : _original(nullptr), _forwardee(nullptr) {}
-  FwdTableEntry(HeapWord* region_base, HeapWord* original, HeapWord* forwardee) : _original(original), _forwardee(forwardee) {}
+  FwdTableEntry(HeapWord* region_base, HeapWord* original, HeapWord* forwardee) :
+      _original((HeapWord*) (((uint64_t) original) | ENTRY_MARKER)), _forwardee(forwardee) {}
 
-  HeapWord* original(HeapWord* region_base) const { return _original; }
+  HeapWord* original(HeapWord* region_base) const { return (HeapWord*) (((uint64_t) _original) & ~ENTRY_MARKER); }
 
   // OrderAccess::loadload() is only needed if we prune collisions chains concurrently during the start of update refs.
   HeapWord* forwardee_from_entry_with_barrier() const { OrderAccess::loadload(); return _forwardee; }
@@ -50,10 +52,11 @@ public:
   }
 
   void overwrite_original(HeapWord* new_value) {
-    _original = new_value;
+    _original = (HeapWord*) (((uint64_t) new_value) | ENTRY_MARKER);
   }
 
   bool is_marked(ShenandoahMarkingContext* ctx) const;
+  bool is_entry() const { return ((uint64_t) _original) & ENTRY_MARKER; }
   // Used on the forwardee lookup path. At construction time the scratch BitMap is used instead.
   bool is_used() const { return _original != nullptr || _forwardee != nullptr; }
   bool is_original(HeapWord* region_base, HeapWord* original);
@@ -108,6 +111,7 @@ public:
 
   bool is_marked(ShenandoahMarkingContext* ctx) const;
   // Used on the forwardee lookup path. At construction time the scratch BitMap is used instead.
+  bool is_entry() const { return _encoded & ENTRY_MARKER; }
   bool is_used() const { return _encoded != 0; }
   bool is_original(HeapWord* region_base, HeapWord* original);
 };
@@ -122,7 +126,7 @@ class ShenandoahForwardingTable {
   size_t _num_expected_forwardings;
   size_t _num_actual_forwardings;
   size_t _num_live_words;
-  size_t _max_collision_depth;
+  size_t _max_required_probes;
   bool _abandoned;
 
   static size_t compute_common_max_probes();
@@ -175,17 +179,17 @@ public:
     _num_expected_forwardings(0),
     _num_actual_forwardings(0),
     _num_live_words(0),
-    _max_collision_depth(0),
+    _max_required_probes(0),
     _abandoned(false) {}
 
-  void overwrite_max_collision_depth(size_t new_max_depth) {
+  void overwrite_max_required_probes(size_t new_max_probes) {
     // Make sure all overwrites of original/forwardee pairs have been updated before we announce an improved collision depth
     OrderAccess::storestore();
-    _max_collision_depth = new_max_depth;
+    _max_required_probes = new_max_probes;
   }
 
-  size_t max_collision_depth() {
-    return _max_collision_depth;
+  size_t max_required_probes() {
+    return _max_required_probes;
   }
 
   static bool use_compact() { return _compact; }

@@ -774,6 +774,9 @@ public:
   inline void marked_object_iterate(ShenandoahHeapRegion* region, T* cl);
 
   template<class T>
+  inline void marked_object_iterate_to_end(ShenandoahHeapRegion* region, T* cl);
+
+  template<class T>
   inline void marked_object_iterate(ShenandoahHeapRegion* region, T* cl, HeapWord* limit);
 
   template<class T>

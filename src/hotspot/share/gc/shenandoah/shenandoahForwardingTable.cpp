@@ -210,12 +210,17 @@ bool ShenandoahForwardingTable::initialize(size_t num_entries) {
   }
   table_start = end - prime_entries * entry_words;
   _table = reinterpret_cast<Entry*>(table_start);
+#ifdef ASSERT
+  HeapWord* table_address = (HeapWord*) _table;
+  assert((table_address >= bottom) && (table_address < end) && is_object_aligned(table_address),
+         "_table must be within range and aligned");
+#endif
   _num_entries = prime_entries;
   assert(_num_entries <= max_juint, "num_entries %zu must fit in 32 bits for the multiply-shift probe reduction", _num_entries);
   _num_expected_forwardings = num_entries;
   _num_actual_forwardings = 0;
   _num_live_words = unusable_entries;
-  _max_collision_depth = 0;
+  _max_required_probes = 0;
   _abandoned = false;
 
   assert((void*)(reinterpret_cast<Entry*>(_table) + _num_entries) == (void*)_region->end(), "table must be anchored at region end");
@@ -291,8 +296,8 @@ size_t ShenandoahForwardingTable::reserve_forwarding(BitMap& used, size_t index,
     depth++;
   }
   used.set_bit(index);
-  if (depth > _max_collision_depth) {
-    _max_collision_depth = depth;
+  if (depth > _max_required_probes) {
+    _max_required_probes = depth;
   }
   _num_actual_forwardings++;
   assert(_num_actual_forwardings <= _num_expected_forwardings, "must not exceed number of forwardings");
@@ -321,6 +326,12 @@ void ShenandoahForwardingTable::log_stats() const {
   log_debug(gc)("Forwarding table load factor: %f", (float)(_num_actual_forwardings + _num_live_words) / (float) (_num_entries));
   log_debug(gc)("Forwarding table size: %lu (== %lu bytes)", _num_entries, sizeof(Entry) * _num_entries);
   log_debug(gc)("Forwarding table expected: %lu, actual: %lu, live words: %lu", _num_expected_forwardings, _num_actual_forwardings, _num_live_words);
+#endif
+#undef KELVIN_VERBOSE
+#ifdef KELVIN_VERBOSE
+  log_info(gc)("Forwarding table load factor: %f", (float)(_num_actual_forwardings + _num_live_words) / (float) (_num_entries));
+  log_info(gc)("Forwarding table size: %lu (== %lu bytes)", _num_entries, sizeof(Entry) * _num_entries);
+  log_info(gc)("Forwarding table expected: %lu, actual: %lu, live words: %lu", _num_expected_forwardings, _num_actual_forwardings, _num_live_words);
 #endif
 }
 

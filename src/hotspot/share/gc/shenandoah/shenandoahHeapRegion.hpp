@@ -315,7 +315,7 @@ public:
   }
 
   inline size_t fwd_table_max_depth() {
-    return _fwd_table.max_collision_depth();
+    return _fwd_table.max_required_probes();
   }
 
   inline static size_t required_regions(size_t bytes) {
