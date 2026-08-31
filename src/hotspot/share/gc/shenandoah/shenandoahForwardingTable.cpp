@@ -109,13 +109,71 @@ static bool is_prime(size_t n) {
   return true;
 }
 
+// n is the (planned forwardings plus the expected mark-word collisions)  / Specified LoadFactor
 static size_t next_prime(size_t n, size_t limit) {
-  if (n <= 2) return (limit >= 2) ? 2 : 0;
-  if (n % 2 == 0) n++;
-  for (; n <= limit; n += 2) {
-    if (is_prime(n)) return n;
+  if (n < 1024) {               // Give special handling to smaller tables
+    if (n < 256) {
+      size_t selector = n / 16;
+      /*  selector      max      _num_entries     percent
+       *            forwardings                     pad
+       *      0         15             23           53%
+       *      1         31             47           52%
+       *      2         47             71           51%
+       *      3         63             97           54%
+       *      4         79            113           43%
+       *      5         95            131           38%
+       *      6        111            151           36%
+       *      7        127            173           36%
+       *      8        143            193           35%
+       *      9        160            211           32%
+       *     10        175            233           32%
+       *     11        191            251           31%
+       *     12        207            271           31%
+       *     13        223            293           31%
+       *     14        239            313           31%
+       *     15        255            331           30%
+       */
+      assert(selector < 16, "sanity");
+      static size_t small_primes[] = { 23, 47, 71, 97, 113, 131, 151, 173, 193, 211, 233, 251, 271, 293, 313, 331 };
+      return small_primes[selector];
+    } else {
+      size_t selector = n / 64;
+      /*  selector      max      _num_entries     percent
+       *            forwardings                     pad
+       *      0         63         handled above
+       *      1        127         handled above
+       *      2        191         handled above
+       *      3        255         handled above
+       *      4        319            401           26%
+       *      5        383            479           25%
+       *      6        447            557           25%
+       *      7        511            631           23%
+       *      8        575            701           22%
+       *      9        639            761           19%
+       *     10        704            829           18%
+       *     11        767            907           18%
+       *     12        831            977           18%
+       *     13        895           1021           14%
+       *     14        959           1049            9%
+       *     15       1023           1069            4%
+       */
+      static size_t medium_primes[] = { 401, 479, 557, 631, 701, 761, 829, 907, 977, 1021, 1049, 1069 };
+      assert(selector < 16, "sanity");
+      assert(selector >= 4, "sanity");
+      return medium_primes[selector - 4];
+    }
+  } else {
+    if (n <= 2) return (limit >= 2) ? 2 : 0;
+    // if n is even, don't bother testing it.
+    if (n % 2 == 0) n++;
+    // Test every odd integer >= the original value of n.
+    for (; n <= limit; n += 2) {
+      // Return the first integer that satisfies the is_prime test.
+      if (is_prime(n)) return n;
+    }
+    // Return 0 if we could not find a prime lower or equal to limit
+    return 0;
   }
-  return 0;
 }
 
 template<class Entry>
@@ -202,6 +260,7 @@ bool ShenandoahForwardingTable::initialize(size_t num_entries) {
   // a later switch to double hashing.
   size_t const region_entries = (end - bottom) / entry_words;
   size_t const prime_entries = next_prime(MAX2(num_table_entries, (size_t)2), region_entries);
+
   if (prime_entries == 0) {
     log_info(gc)("Forwarding table build failed for region %zu: "
                  "no prime table size fits (table_entries=%zu region_entries=%zu num_forwardings=%zu)",
@@ -291,8 +350,9 @@ size_t ShenandoahForwardingTable::reserve_forwarding(BitMap& used, size_t index,
     if (index >= _num_entries) {
       index -= _num_entries;
     }
-    guarantee(index != first_index, "must find a usable slot, _num_entries: %zu, actual forwardings: %zu, live_words: %zu",
-              _num_entries, _num_actual_forwardings, _num_live_words);
+    guarantee(index != first_index, "must find a usable slot, _num_entries: %zu, actual forwardings: %zu, live_words: %zu"
+              ", first_index: %zu, index: %zu, stride: %zu, depth: %zu",
+              _num_entries, _num_actual_forwardings, _num_live_words, first_index, index, stride, depth);
     depth++;
   }
   used.set_bit(index);

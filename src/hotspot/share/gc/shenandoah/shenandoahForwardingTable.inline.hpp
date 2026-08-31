@@ -82,9 +82,15 @@ inline uint64_t ShenandoahForwardingTable::hash(HeapWord* original, void* table)
 }
 
 inline void ShenandoahForwardingTable::probe_of(HeapWord* original, size_t& index, size_t& stride) const {
- uint64_t const h = hash(original, _table);
- index  = static_cast<size_t>((static_cast<uint32_t>(h)       * static_cast<uint64_t>(_num_entries))     >> 32);     // [0, N-1] from low bits
- stride = static_cast<size_t>((static_cast<uint32_t>(h >> 32) * static_cast<uint64_t>(_num_entries - 1)) >> 32) + 1; // [1, N-1] from high bits
+  uint64_t const h = hash(original, _table);
+  // [0, N-1] from low bits
+  index  = static_cast<size_t>((h & 0xffffffff) % _num_entries);
+  assert(_num_entries > 16, "invariant");
+  uint64_t basis = _num_entries / 16;
+  uint64_t high_bits = h >> 32;
+  uint64_t one_to_eight = (((high_bits >> 29) & 0x7) & 0x7) + 1;
+  // Stride is between (1/16 of entries and 8/16 of entries) + some_portion of 1/16 of entries.
+  stride = static_cast<size_t> (basis * one_to_eight + (basis & high_bits));
 }
 
 template<class Entry>
