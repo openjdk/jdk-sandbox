@@ -1280,7 +1280,7 @@ void ShenandoahHeap::evacuate_collection_set(ShenandoahGeneration* generation, b
   assert(generation->is_global(), "Only global generation expected here");
   ShenandoahEvacuationTask task(this, _collection_set, concurrent);
   workers()->run_task(&task);
-  if (concurrent && ShenandoahForwardingTables) {
+  if (concurrent && ShenandoahCSetReuse) {
     rendezvous_threads("Switch to Forward Table");
   }
 }
@@ -1442,7 +1442,7 @@ oop ShenandoahHeap::try_evacuate_object(oop p, Thread* thread, ShenandoahHeapReg
 
 bool ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t num_forwardings, bool concurrent) {
   assert(ShenandoahHeap::heap()->marking_context()->top_at_mark_start(r) == r->top(), "TAMS must be set to top");
-  if (!ShenandoahForwardingTables) {
+  if (!ShenandoahCSetReuse) {
     return false;
   }
   // STW GC uses mark-word forwarding.

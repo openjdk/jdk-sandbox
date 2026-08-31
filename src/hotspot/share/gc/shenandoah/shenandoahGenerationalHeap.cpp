@@ -188,7 +188,7 @@ void ShenandoahGenerationalHeap::evacuate_collection_set(ShenandoahGeneration* g
   ShenandoahGenerationalEvacuationTask task(this, generation, &regions, concurrent, false /* only promote regions */);
   workers()->run_task(&task);
   // Single post-evacuation rendezvous; see ShenandoahHeap::evacuate_collection_set.
-  if (concurrent && ShenandoahForwardingTables) {
+  if (concurrent && ShenandoahCSetReuse) {
     rendezvous_threads("Switch to Forward Table");
   }
 }

@@ -201,7 +201,7 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* root) {
 
   // Reusing an early-recycled cset region destroys the from-space objects' mark words,
   // so an unbarriered from-space source is not valid.
-  if (ShenandoahForwardingTables) {
+  if (ShenandoahCSetReuse) {
     return false;
   }
 
@@ -469,7 +469,7 @@ void ShenandoahBarrierSetC2::elide_dominated_barrier(MachNode* node, MachNode* d
     }
   }
 
-  if (ShenandoahForwardingTables) {
+  if (ShenandoahCSetReuse) {
     // A dominated load may still read an unfixed from-space ref (its field was not
     // necessarily healed to to-space), which is only valid while from-space is intact.
     // Reusing an early-recycled cset region destroys the from-space objects' mark words.

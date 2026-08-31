@@ -432,7 +432,7 @@
           "by thread type (worker or mutator) and evacuation type (young, " \
           "old, or promotion.")                                             \
                                                                             \
-  product(bool, ShenandoahForwardingTables, true, DIAGNOSTIC,              \
+  product(bool, ShenandoahCSetReuse, true, DIAGNOSTIC,                     \
           "Allow evacuated cset regions to be switched to address-based "  \
           "forwarding tables.")                                            \
                                                                             \
