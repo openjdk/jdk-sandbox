@@ -76,6 +76,9 @@ public @interface PreviewFeature {
         @JEP(number=538, title="PEM Encodings of Cryptographic Objects",
             status="Third Preview")
         PEM_API,
+        @JEP(number=31337, title="TLS support for the QUIC transport",
+            status="First Preview") // TODO JEP number
+        QUIC_API,
         /**
          * Indicates a preview API exists to allow access to the environment
          * where all preview features of the current Java SE release are enabled.

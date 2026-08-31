@@ -25,6 +25,8 @@
 
 package javax.net.ssl;
 
+import jdk.internal.javac.PreviewFeature;
+
 import java.security.*;
 
 /**
@@ -168,6 +170,7 @@ public abstract class SSLContextSpi {
      * @see     SSLContext#createSSLEngine(QuicTLSAdapter)
      * @since   28
      */
+    @PreviewFeature(feature = PreviewFeature.Feature.QUIC_API)
     protected SSLEngine engineCreateSSLEngine(QuicTLSAdapter quicTLSAdapter) {
         throw new UnsupportedOperationException();
     }
@@ -196,6 +199,7 @@ public abstract class SSLContextSpi {
      * @see     SSLContext#createSSLEngine(String, int, QuicTLSAdapter)
      * @since   28
      */
+    @PreviewFeature(feature = PreviewFeature.Feature.QUIC_API)
     protected SSLEngine engineCreateSSLEngine(String host, int port, QuicTLSAdapter quicTLSAdapter) {
         throw new UnsupportedOperationException();
     }

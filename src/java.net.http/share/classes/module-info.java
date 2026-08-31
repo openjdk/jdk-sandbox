@@ -23,6 +23,8 @@
  * questions.
  */
 
+import jdk.internal.javac.ParticipatesInPreview;
+
 /**
  * Defines the {@linkplain java.net.http HTTP Client and WebSocket APIs}.
  * <p>
@@ -293,6 +295,7 @@
  * @moduleGraph
  * @since 11
  */
+@ParticipatesInPreview // for QUIC TLS API
 module java.net.http {
     exports java.net.http;
 }

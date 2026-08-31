@@ -29,6 +29,8 @@ import java.security.*;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.util.Objects;
+
+import jdk.internal.javac.PreviewFeature;
 import sun.security.jca.GetInstance;
 
 /**
@@ -440,6 +442,7 @@ public class SSLContext {
      * @since   28
      * @see SSLEngine##quic Using SSLEngine to secure QUIC
      */
+    @PreviewFeature(feature = PreviewFeature.Feature.QUIC_API)
     public final SSLEngine createSSLEngine(QuicTLSAdapter quicTLSAdapter) {
         Objects.requireNonNull(quicTLSAdapter, "null quicTLSAdapter");
         return contextSpi.engineCreateSSLEngine(quicTLSAdapter);
@@ -473,6 +476,7 @@ public class SSLContext {
      * @since   28
      * @see SSLEngine##quic Using SSLEngine to secure QUIC
      */
+    @PreviewFeature(feature = PreviewFeature.Feature.QUIC_API)
     public final SSLEngine createSSLEngine(String peerHost, int peerPort,
                                            QuicTLSAdapter quicTLSAdapter) {
         Objects.requireNonNull(quicTLSAdapter, "null quicTLSAdapter");

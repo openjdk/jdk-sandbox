@@ -24,6 +24,8 @@
  */
 package javax.net.ssl;
 
+import jdk.internal.javac.PreviewFeature;
+
 import javax.crypto.SecretKey;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -74,6 +76,7 @@ import java.util.Set;
  * @see SSLEngine
  * @since 28
  */
+@PreviewFeature(feature = PreviewFeature.Feature.QUIC_API)
 public interface QuicTLSAdapter {
     /**
      * Called by the {@link SSLEngine} when the read secrets associated
