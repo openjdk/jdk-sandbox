@@ -116,7 +116,7 @@ HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
   OrderAccess::loadload();
 
 #ifdef KELVIN_FORWARDEE
-  log_info(gc)("ShenFWT::forwardee(" PTR_FORMAT ") initial probe: %zu, stride: %zu, in region %zu, max_depth: %zu",
+  log_trace(gc, fwt)("ShenFWT::forwardee(" PTR_FORMAT ") initial probe: %zu, stride: %zu, in region %zu, max_depth: %zu",
                p2i(original), start_index, stride, _region->index(), max_collision_depth);
 #endif
 
@@ -136,7 +136,7 @@ HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
         result = entry.forwardee_from_entry_without_barrier();
       }
 #ifdef KELVIN_FORWARDEE
-      log_info(gc)("ShenFWT::forwardee(" PTR_FORMAT ") found forwardee: " PTR_FORMAT " at index %zu after %u probes",
+      log_trace(gc, fwt)("ShenFWT::forwardee(" PTR_FORMAT ") found forwardee: " PTR_FORMAT " at index %zu after %u probes",
                    p2i(original), p2i(result), index, probes);
 #endif
 #ifdef KELVIN_DEPRECATE
@@ -166,14 +166,14 @@ HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
         msg = "marked object start (of original or forwardee)";
         ptr_arg = (HeapWord*) &table[index];
       }
-      log_info(gc)("ShenFWT::forwardee(" PTR_FORMAT ") reprobes due to collision with %s (" PTR_FORMAT ") @ %zu",
+      log_trace(gc, fwt)("ShenFWT::forwardee(" PTR_FORMAT ") reprobes due to collision with %s (" PTR_FORMAT ") @ %zu",
                    p2i(original), msg, p2i(ptr_arg), index);
     }
 #endif
 
     if (probes >= max_required_probes) {
 #ifdef KELVIN_FORWARDEE
-      log_info(gc)("ShenFWT::forwardee(" PTR_FORMAT ") abandons because probes: %u exceeds max: %zu",
+      log_trace(gc, fwt)("ShenFWT::forwardee(" PTR_FORMAT ") abandons because probes: %u exceeds max: %zu",
                    p2i(original), probes, max_collision_depth);
 #endif
       break;
@@ -184,13 +184,13 @@ HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
     }
     if (index == start_index) {
 #ifdef KELVIN_FORWARDEE
-      log_info(gc)("ShenFWT::forwardee(" PTR_FORMAT ") abandons because index: %zu wraps to start_index", p2i(original), index);
+      log_trace(gc, fwt)("ShenFWT::forwardee(" PTR_FORMAT ") abandons because index: %zu wraps to start_index", p2i(original), index);
 #endif
       break;
     }
   }
 #ifdef KELVIN_FORWARDEE
-  log_info(gc)("ShenFWT::forwardee(" PTR_FORMAT ") done searching, maybe !table[index].is_used() after %d probes",
+  log_trace(gc, fwt)("ShenFWT::forwardee(" PTR_FORMAT ") done searching, maybe !table[index].is_used() after %d probes",
                p2i(original), probes);
 #endif
 
@@ -224,7 +224,7 @@ inline void ShenandoahForwardingTable::prune_collision_chain(ShenandoahHeapRegio
   ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
 #undef KELVIN_DEBUG
 #ifdef KELVIN_DEBUG
-  log_info(gc)("prune_collision_chain(region: %zu, original: " PTR_FORMAT ")", region->index(), p2i(original));
+  log_trace(gc, fwt)("prune_collision_chain(region: %zu, original: " PTR_FORMAT ")", region->index(), p2i(original));
 #endif
   while (table[index].is_used()) {
     size_t next_index = index + stride;
@@ -232,7 +232,7 @@ inline void ShenandoahForwardingTable::prune_collision_chain(ShenandoahHeapRegio
       next_index -= _num_entries;
     }
 #ifdef KELVIN_DEBUG
-    log_info(gc)(" probing at index %zu, next_index: %zu, num_entries: %zu", index, next_index, _num_entries);
+    log_trace(gc, fwt)(" probing at index %zu, next_index: %zu, num_entries: %zu", index, next_index, _num_entries);
 #endif
     // Issue the prefetch even before we know if we'll need this value; leave enough time to get the memory.
     ShenandoahPrefetch::prefetch(cast_to_oop(&table[next_index]));
@@ -240,13 +240,13 @@ inline void ShenandoahForwardingTable::prune_collision_chain(ShenandoahHeapRegio
       HeapWord* forwardee = table[index].forwardee_from_entry_without_barrier();
       original_depth = collision_chain_depth;
 #ifdef KELVIN_DEBUG
-      log_info(gc)(" found forwardee @ %zu: " PTR_FORMAT", setting original_depth: %zu",
+      log_trace(gc, fwt)(" found forwardee @ %zu: " PTR_FORMAT", setting original_depth: %zu",
                    index, p2i(forwardee), collision_chain_depth);
 #endif
       if (found_mark_word_collision) {
         new_depth = depth_of_mark_word_collision;
 #ifdef KELVIN_DEBUG
-        log_info(gc)(" found_mark_word_collision was found, index: %zu, depth_at_collision: %zu, overwriting!",
+        log_trace(gc, fwt)(" found_mark_word_collision was found, index: %zu, depth_at_collision: %zu, overwriting!",
                      index_of_mark_word_collision, depth_of_mark_word_collision);
 #endif
 
@@ -264,7 +264,7 @@ inline void ShenandoahForwardingTable::prune_collision_chain(ShenandoahHeapRegio
         }
       } else {
 #ifdef KELVIN_DEBUG
-        log_info(gc)(" mark_word_collision was not found, keep depth: %zu", collision_chain_depth);
+        log_trace(gc, fwt)(" mark_word_collision was not found, keep depth: %zu", collision_chain_depth);
 #endif
         // no change to depth of this collision chain
         new_depth = collision_chain_depth;
@@ -273,11 +273,11 @@ inline void ShenandoahForwardingTable::prune_collision_chain(ShenandoahHeapRegio
     }
 
 #ifdef KELVIN_DEBUG
-    log_info(gc)(" Is this entry a mark word? %zx", (size_t) *(size_t *) &table[index]);
+    log_trace(gc, fwt)(" Is this entry a mark word? %zx", (size_t) *(size_t *) &table[index]);
 #endif
     if (!found_mark_word_collision && !table[index].is_entry()) {
 #ifdef KELVIN_DEBUG
-      log_info(gc)(" mark_word_collision was found @ %zu, depth: %zu", index, collision_chain_depth);
+      log_trace(gc, fwt)(" mark_word_collision was found @ %zu, depth: %zu", index, collision_chain_depth);
 #endif
       found_mark_word_collision = true;
       index_of_mark_word_collision = index;

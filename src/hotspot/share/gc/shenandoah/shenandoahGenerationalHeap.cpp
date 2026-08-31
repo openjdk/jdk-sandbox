@@ -776,7 +776,7 @@ private:
         size_t original_depth, pruned_depth;
 #undef KELVIN_SEE_PRUNING
 #ifdef KELVIN_SEE_PRUNING
-        log_info(gc)("Looking to prune collision chain for " PTR_FORMAT " in region %zu, _forwarded_objects: %zu",
+        log_trace(gc, fwt)("Looking to prune collision chain for " PTR_FORMAT " in region %zu, _forwarded_objects: %zu",
                      p2i(obj), _region->index(), _forwarded_objects);
 #endif
 
@@ -791,7 +791,7 @@ private:
           _max_pruned_collisions = pruned_depth;
         }
 #ifdef KELVIN_SEE_PRUNING
-        log_info(gc)(" original_depth: %zu, pruned_depth: %zu, _total_original: %zu, _total_pruned: %zu, _max_orig: %zu, _max_pruned %zu",
+        log_trace(gc, fwt)(" original_depth: %zu, pruned_depth: %zu, _total_original: %zu, _total_pruned: %zu, _max_orig: %zu, _max_pruned %zu",
                      original_depth, pruned_depth, _total_original_collisions, _total_pruned_collisions,
                      _max_original_collisions, _max_pruned_collisions);
 #endif
@@ -825,8 +825,7 @@ private:
     size_t __original_collisions = cl.original_collisions();
     size_t __pruned_collisions = cl.pruned_collisions();
 
-    // Kelvin probably wants to put this under log_debug() eventually
-    log_info(gc)("Pruned region %zu (%zu forwarded objects, depth: %zu), orig/pruned collisions: %zu/%zu, max: %zu/%zu", 
+    log_debug(gc, fwt)("Pruned region %zu (%zu forwarded objects, depth: %zu), orig/pruned collisions: %zu/%zu, max: %zu/%zu", 
                  r->index(), __forwarded_objects, r->fwd_table_max_depth(),
                  __original_collisions, __pruned_collisions, __max_original_collisions, __max_pruned_collisions);
 

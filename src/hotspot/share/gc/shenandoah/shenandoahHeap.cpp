@@ -2756,8 +2756,7 @@ private:
     size_t __original_collisions = cl.original_collisions();
     size_t __pruned_collisions = cl.pruned_collisions();
 
-    // Kelvin probably wants to put this under log_debug() eventually
-    log_info(gc)("Pruned region %zu (%zu forwarded objects, depth: %zu), orig/pruned collisions: %zu/%zu, max: %zu/%zu", 
+    log_debug(gc, fwt)("Pruned region %zu (%zu forwarded objects, depth: %zu), orig/pruned collisions: %zu/%zu, max: %zu/%zu", 
                  r->index(), __forwarded_objects, r->fwd_table_max_depth(),
                  __original_collisions, __pruned_collisions, __max_original_collisions, __max_pruned_collisions);
 

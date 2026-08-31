@@ -529,14 +529,14 @@ inline void ShenandoahHeap::marked_object_iterate_to_end(ShenandoahHeapRegion* r
   assert(!region->is_humongous_continuation(), "no humongous continuation regions here");
 #undef KELVIN_ITERATOR
 #ifdef KELVIN_ITERATOR
-  log_info(gc)("marked_object_iterate_to_end(region %zu, BTE: " PTR_FORMAT " " PTR_FORMAT " " PTR_FORMAT ")",
+  log_trace(gc, fwt)("marked_object_iterate_to_end(region %zu, BTE: " PTR_FORMAT " " PTR_FORMAT " " PTR_FORMAT ")",
     region->index(), p2i(region->bottom()), p2i(region->top()), p2i(region->end()));
 #endif
   HeapWord* limit_bitmap = region->end();
   ShenandoahMarkingContext* const ctx = marking_context();
   HeapWord* cb = ctx->get_next_marked_addr_ignore_tams(region->bottom(), limit_bitmap);
 #ifdef KELVIN_ITERATOR
-  log_info(gc)(" first marked object " PTR_FORMAT, p2i(cb));
+  log_trace(gc, fwt)(" first marked object " PTR_FORMAT, p2i(cb));
 #endif
   while (cb < limit_bitmap) {
     assert (cb < limit_bitmap, "only objects below limit here: " PTR_FORMAT " (" PTR_FORMAT ")", p2i(cb), p2i(limit_bitmap));
@@ -553,12 +553,12 @@ inline void ShenandoahHeap::marked_object_iterate_to_end(ShenandoahHeapRegion* r
     }
     ShenandoahPrefetch::prefetch(cast_to_oop(cb));
 #ifdef KELVIN_ITERATOR
-    log_info(gc)(" invoking closure->do_object() on previous marked object, next marked object is at " PTR_FORMAT, p2i(cb));
+    log_trace(gc, fwt)(" invoking closure->do_object() on previous marked object, next marked object is at " PTR_FORMAT, p2i(cb));
 #endif
     cl->do_object(obj);
   }
 #ifdef KELVIN_ITERATOR
-  log_info(gc)("marked_object_iterate_to_end(region %zu) is done", region->index());
+  log_trace(gc, fwt)("marked_object_iterate_to_end(region %zu) is done", region->index());
 #endif
 }
 

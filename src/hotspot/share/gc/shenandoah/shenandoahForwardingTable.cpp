@@ -389,9 +389,9 @@ void ShenandoahForwardingTable::log_stats() const {
 #endif
 #undef KELVIN_VERBOSE
 #ifdef KELVIN_VERBOSE
-  log_info(gc)("Forwarding table load factor: %f", (float)(_num_actual_forwardings + _num_live_words) / (float) (_num_entries));
-  log_info(gc)("Forwarding table size: %lu (== %lu bytes)", _num_entries, sizeof(Entry) * _num_entries);
-  log_info(gc)("Forwarding table expected: %lu, actual: %lu, live words: %lu", _num_expected_forwardings, _num_actual_forwardings, _num_live_words);
+  log_debug(gc, fwt)("Forwarding table load factor: %f", (float)(_num_actual_forwardings + _num_live_words) / (float) (_num_entries));
+  log_debug(gc, fwt)("Forwarding table size: %lu (== %lu bytes)", _num_entries, sizeof(Entry) * _num_entries);
+  log_debug(gc, fwt)("Forwarding table expected: %lu, actual: %lu, live words: %lu", _num_expected_forwardings, _num_actual_forwardings, _num_live_words);
 #endif
 }
 

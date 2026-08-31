@@ -88,6 +88,7 @@ class outputStream;
   NOT_PRODUCT(LOG_TAG(foreign)) \
   LOG_TAG(free) \
   LOG_TAG(freelist) \
+  LOG_TAG(fwt) \
   LOG_TAG(gc) \
   NOT_PRODUCT(LOG_TAG(generate)) \
   LOG_TAG(generateoopmap) \
