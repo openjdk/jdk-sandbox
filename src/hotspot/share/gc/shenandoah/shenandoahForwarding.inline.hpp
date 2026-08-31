@@ -220,9 +220,25 @@ inline Klass* ShenandoahForwarding::klass(oop obj) {
   }
 }
 
+inline oop ShenandoahForwarding::get_forwardee_from_fwt_or_markword(oop obj) {
+  ShenandoahHeap* heap = ShenandoahHeap::heap();
+  switch (heap->collection_set()->cset_state(obj)) {
+    case CSetState::FWDTABLE_COMPACT:
+       return heap->heap_region_containing(obj)->forwardee_compact(obj);
+    case CSetState::FWDTABLE_WIDE:
+       return heap->heap_region_containing(obj)->forwardee_wide(obj);
+    default:
+      return get_forwardee_raw_unchecked(obj);
+  }
+}
+
 inline size_t ShenandoahForwarding::size(oop obj) {
-  obj = get_forwardee_raw(obj);
-  return obj->size_given_klass(klass(obj));
+  bool was_table_forwarded;
+  oop fwd = resolve_if_fwt(obj, was_table_forwarded);
+  if (!was_table_forwarded) {
+    fwd = get_forwardee_raw(obj);
+  }
+  return fwd->size_given_klass(klass(obj));
 }
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHFORWARDING_INLINE_HPP

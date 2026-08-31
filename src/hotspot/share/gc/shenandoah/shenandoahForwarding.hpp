@@ -52,6 +52,9 @@ public:
    */
   static inline oop get_forwardee_raw_unchecked(oop obj);
 
+  // Returns the oop, whether from forwarding table or from mark-word forwarding.
+  static inline oop get_forwardee_from_fwt_or_markword(oop obj);
+
   /**
    * Returns true if the object is forwarded (including self-forwarded),
    * false otherwise.

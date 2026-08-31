@@ -213,7 +213,7 @@ private:
       }
     }
 
-    oop fwd = ShenandoahForwarding::get_forwardee_raw_unchecked(obj);
+    oop fwd = ShenandoahForwarding::get_forwardee_from_fwt_or_markword(obj);
 
     ShenandoahHeapRegion* fwd_reg = nullptr;
 
@@ -249,9 +249,8 @@ private:
       check(ShenandoahAsserts::_safe_oop, obj, (fwd_addr + ShenandoahForwarding::size(fwd)) <= fwd_reg->top(),
              "Forwardee end should be within the region");
 
-      oop fwd2 = ShenandoahForwarding::get_forwardee_raw_unchecked(fwd);
-      check(ShenandoahAsserts::_safe_oop, obj, (fwd == fwd2),
-             "Double forwarding");
+      oop fwd2 = ShenandoahForwarding::get_forwardee_from_fwt_or_markword(fwd);
+      check(ShenandoahAsserts::_safe_oop, obj, (fwd == fwd2), "Double forwarding");
     } else {
       fwd_reg = obj_reg;
     }
@@ -381,7 +380,8 @@ public:
     // oop_iterate() can not deal with forwarded objects, because
     // it needs to load klass(), which may be overridden by the
     // forwarding pointer.
-    oop fwd = ShenandoahForwarding::get_forwardee_raw(obj);
+    bool was_table_forwarded;
+    oop fwd = ShenandoahForwarding::get_forwardee_from_fwt_or_markword(obj);
     fwd->oop_iterate(this);
     _loc = nullptr;
   }
