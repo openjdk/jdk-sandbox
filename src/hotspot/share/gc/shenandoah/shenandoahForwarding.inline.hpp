@@ -161,10 +161,10 @@ union _metadata {
 static oop resolve_if_fwt(oop obj, bool& was_table_forwarded) {
   ShenandoahHeap* heap = ShenandoahHeap::heap();
   switch (heap->collection_set()->cset_state(obj)) {
-    case CSetState::FWDTABLE_COMPACT:
+    case CSetState::REUSABLE_FWDTABLE_COMPACT:
       was_table_forwarded = true;
       return heap->heap_region_containing(obj)->forwardee_compact(obj);
-    case CSetState::FWDTABLE_WIDE:
+    case CSetState::REUSABLE_FWDTABLE_WIDE:
       was_table_forwarded = true;
       return heap->heap_region_containing(obj)->forwardee_wide(obj);
     default:
@@ -223,9 +223,9 @@ inline Klass* ShenandoahForwarding::klass(oop obj) {
 inline oop ShenandoahForwarding::get_forwardee_from_fwt_or_markword(oop obj) {
   ShenandoahHeap* heap = ShenandoahHeap::heap();
   switch (heap->collection_set()->cset_state(obj)) {
-    case CSetState::FWDTABLE_COMPACT:
+    case CSetState::REUSABLE_FWDTABLE_COMPACT:
        return heap->heap_region_containing(obj)->forwardee_compact(obj);
-    case CSetState::FWDTABLE_WIDE:
+    case CSetState::REUSABLE_FWDTABLE_WIDE:
        return heap->heap_region_containing(obj)->forwardee_wide(obj);
     default:
       return get_forwardee_raw_unchecked(obj);

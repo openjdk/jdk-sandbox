@@ -2559,10 +2559,10 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
   }
 
   size_t available = r->capacity() - r->reserved_bytes();
-  bool reuse_body = ShenandoahRecycleFWTBodies && (available >= PLAB::min_size() * HeapWordSize);
+  bool reuse_body = ShenandoahCSetAllocation && (available >= PLAB::min_size() * HeapWordSize);
   r->recycle_early(reuse_body);
   if (!reuse_body) {
-    if (ShenandoahRecycleFWTBodies) {
+    if (ShenandoahCSetAllocation) {
       log_info(gc)(" %s region has only %zu available, so not going to make this free: capacity: %zu, tail_bytes: %zu",
                    r->is_young()? "young": "old", available, r->capacity(), r->reserved_bytes());
       // Since !reuse_body, this region is not recycled early, so it is not added to the retired regions.
@@ -2665,7 +2665,7 @@ void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* 
     //
     // Before integration of PR31797, if this were to happen, the degen cycle would escalate to FULL GC, and there would
     // be no early recycling of regions.
-    if (ShenandoahRecycleFWTBodies) {
+    if (ShenandoahCSetAllocation) {
       size_t early_recycle_allocated = (r->top() - r->bottom()) * HeapWordSize;
       size_t region_size_bytes = ShenandoahHeapRegion::region_size_bytes();
       p = ShenandoahFreeSetPartitionId::Mutator;
@@ -3779,7 +3779,7 @@ size_t ShenandoahFreeSet::early_recycled_tlab_available_size(ShenandoahHeapRegio
   HeapWord* alloc_limit = r->alloc_end();
   HeapWord* orig_top = r->top();
   ShenandoahMarkingContext* ctx = _heap->marking_context();
-  for (size_t pad = 0; pad <= ShenandoahRecycleFWTMaxTLABPad; pad++) {
+  for (size_t pad = 0; pad <= ShenandoahCSetAllocationMaxTLABPad; pad++) {
     HeapWord* candidate_start = orig_top + pad;
     if (candidate_start >= alloc_limit) {
       break;
@@ -3956,7 +3956,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_TLAB_in_early_recycled(ShenandoahHeapR
   HeapWord* orig_top = r->top();
   ShenandoahMarkingContext* ctx = _heap->marking_context();
   HeapWord* candidate_limit = alloc_limit - min_size;
-  for (size_t pad = 0; pad <= ShenandoahRecycleFWTMaxTLABPad; pad++) {
+  for (size_t pad = 0; pad <= ShenandoahCSetAllocationMaxTLABPad; pad++) {
     HeapWord* candidate_start = orig_top + pad;
     if (candidate_start > candidate_limit) {
       break;

@@ -257,10 +257,10 @@ inline void ShenandoahConcUpdateRefsClosure::work(T* p) {
       case CSetState::IN_CSET:
         fwd = ShenandoahForwarding::get_forwardee(obj);
         break;
-      case CSetState::FWDTABLE_COMPACT:
+      case CSetState::REUSABLE_FWDTABLE_COMPACT:
         fwd = _heap->heap_region_containing(obj)->forwardee_compact(obj);
         break;
-        case CSetState::FWDTABLE_WIDE:
+        case CSetState::REUSABLE_FWDTABLE_WIDE:
         fwd = _heap->heap_region_containing(obj)->forwardee_wide(obj);
         break;
       default: ShouldNotReachHere();

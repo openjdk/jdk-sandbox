@@ -68,7 +68,7 @@ inline bool ShenandoahCSetMap::is_in_loc(void* loc) const {
 }
 
 inline bool ShenandoahCSetMap::use_forward_table(CSetState state) const {
-  return state >= CSetState::FWDTABLE_COMPACT;
+  return state >= CSetState::REUSABLE_FWDTABLE_COMPACT;
 }
 
 inline bool ShenandoahCSetMap::use_forward_table(oop obj) const {

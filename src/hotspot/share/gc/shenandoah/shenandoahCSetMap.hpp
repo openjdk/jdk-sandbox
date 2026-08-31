@@ -31,8 +31,8 @@ class ShenandoahHeapRegion;
 enum class CSetState : char {
   NOT_IN_CSET = 0,
   IN_CSET = 1,
-  FWDTABLE_COMPACT = 2,
-  FWDTABLE_WIDE = 3
+  REUSABLE_FWDTABLE_COMPACT = 2,
+  REUSABLE_FWDTABLE_WIDE = 3
 };
 
 class ShenandoahCSetMap {

@@ -447,12 +447,11 @@
           "nullptr for TLAB requests in cset regions, forcing the "        \
           "allocator to pick a non-cset region instead.")                  \
                                                                             \
-  product(bool, ShenandoahRecycleFWTBodies, true, DIAGNOSTIC,              \
-          "Early-recycle FWT cset regions into the Mutator free set: the " \
-          "below-FWT body at the start of update-refs and the former tail "\
-          "once the table is torn down.")                                  \
+  product(bool, ShenandoahCSetAllocation, true, DIAGNOSTIC,                \
+          "Early-recycle evacuated cset regions into the Mutator free "    \
+          "set, starting before update-refs.")                             \
                                                                             \
-  product(uintx, ShenandoahRecycleFWTMaxTLABPad, 4, EXPERIMENTAL,           \
+  product(uintx, ShenandoahCSetAllocationMaxTLABPad, 4, EXPERIMENTAL,       \
           "How many words of padding do we allow to precede an "            \
           "allocated TLAB within an early recycled cset region? "           \
           "Allowing more pad words increases the likelihood that "          \
