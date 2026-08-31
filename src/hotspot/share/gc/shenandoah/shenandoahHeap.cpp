@@ -2780,6 +2780,9 @@ private:
     if (ShenandoahPruneFWTCollisionChains) {
       for (size_t i = worker_id; i < _num_early_recycled_regions; i += _num_workers) {
         ShenandoahHeapRegion* r = _early_recycled_regions[i];
+        if (!_heap->collection_set()->use_forward_table(r)) {
+          continue;
+        }
         if (r->forwarding_table().use_compact()) {
           prune_collision_chains<CompactFwdTableEntry>(r);
         } else {
