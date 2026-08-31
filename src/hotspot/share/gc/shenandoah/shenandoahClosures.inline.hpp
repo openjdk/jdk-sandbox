@@ -83,10 +83,10 @@ ShenandoahMarkRefsSuperClosure::ShenandoahMarkRefsSuperClosure(ShenandoahObjToSc
         _mark_context(ShenandoahHeap::heap()->marking_context()),
         _weak(false) {}
 
-template<class T, ShenandoahGenerationType GENERATION>
+template<class T, ShenandoahGenerationType GENERATION, bool REDIRTY>
 ALWAYSINLINE
 void ShenandoahMarkRefsSuperClosure::work(T* p) {
-  ShenandoahMark::mark_through_ref<T, GENERATION>(p, _queue, _old_queue, _mark_context, _weak);
+  ShenandoahMark::mark_through_ref<T, GENERATION, REDIRTY>(p, _queue, _old_queue, _mark_context, _weak);
 }
 
 ShenandoahForwardedIsAliveClosure::ShenandoahForwardedIsAliveClosure() :
@@ -241,7 +241,7 @@ inline void ShenandoahMarkUpdateRefsClosure<GENERATION>::work(T* p) {
   _heap->non_conc_update_with_forwarded(p, _cset_map);
 
   // ...then do the usual thing
-  ShenandoahMarkRefsSuperClosure::work<T, GENERATION>(p);
+  ShenandoahMarkRefsSuperClosure::work<T, GENERATION, false>(p);
 }
 
 template<class T>
@@ -271,7 +271,7 @@ inline void ShenandoahConcUpdateRefsClosure::work(T* p) {
       default: ShouldNotReachHere();
     }
 
-    if (_cset_map.use_forward_table(cset_state)) {
+    if (_cset_map.is_reusable(cset_state)) {
       if (fwd != obj) {
         ShenandoahHeap::atomic_update_oop(fwd, p, obj);
       }
