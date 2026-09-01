@@ -119,6 +119,9 @@ inline void ShenandoahHeap::non_conc_update_with_forwarded(T* p, ShenandoahCSetM
         // This assert is not valid within forwarded regions.
         shenandoah_assert_marked_except(p, obj, cancelled_gc());
         break;
+      case CSetState::REUSABLE_MARKWORD:
+        fwd = ShenandoahForwarding::get_forwardee(obj);
+        break;
       case CSetState::REUSABLE_FWDTABLE_COMPACT:
         fwd = heap_region_containing(obj)->forwardee_compact(obj);
         break;

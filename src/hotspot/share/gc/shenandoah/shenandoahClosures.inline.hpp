@@ -255,6 +255,7 @@ inline void ShenandoahConcUpdateRefsClosure::work(T* p) {
       case CSetState::NOT_IN_CSET:
         return;
       case CSetState::IN_CSET:
+      case CSetState::REUSABLE_MARKWORD:
         fwd = ShenandoahForwarding::get_forwardee(obj);
         break;
       case CSetState::REUSABLE_FWDTABLE_COMPACT:

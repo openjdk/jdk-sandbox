@@ -122,6 +122,11 @@ void ShenandoahCollectionSet::switch_to_forward_table(ShenandoahHeapRegion* r) {
   AtomicAccess::store(&_cset_map._cset_map[r->index()], state);
 }
 
+void ShenandoahCollectionSet::switch_to_reusable_markword(ShenandoahHeapRegion* r) {
+  assert(is_in(r), "Must be in collection set");
+  AtomicAccess::store(&_cset_map._cset_map[r->index()], CSetState::REUSABLE_MARKWORD);
+}
+
 void ShenandoahCollectionSet::remove_region(ShenandoahHeapRegion* r) {
   shenandoah_assert_heaplocked();
   assert(is_reusable(r), "only recycled regions may be removed individually");

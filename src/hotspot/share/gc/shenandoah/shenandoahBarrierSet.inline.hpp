@@ -46,7 +46,8 @@
 inline oop ShenandoahBarrierSet::resolve_forwarded_not_null(oop p, ShenandoahHeap* heap, CSetState cset_state) {
   switch (cset_state) {
     case CSetState::NOT_IN_CSET: return p;
-    case CSetState::IN_CSET: return ShenandoahForwarding::get_forwardee(p);
+    case CSetState::IN_CSET:
+    case CSetState::REUSABLE_MARKWORD: return ShenandoahForwarding::get_forwardee(p);
     case CSetState::REUSABLE_FWDTABLE_COMPACT: return heap->heap_region_containing(p)->forwardee_compact(p);
     case CSetState::REUSABLE_FWDTABLE_WIDE: return heap->heap_region_containing(p)->forwardee_wide(p);
     default: ShouldNotReachHere();

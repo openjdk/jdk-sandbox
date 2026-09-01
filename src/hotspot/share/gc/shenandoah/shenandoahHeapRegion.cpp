@@ -80,6 +80,7 @@ ShenandoahHeapRegion::ShenandoahHeapRegion(HeapWord* start, size_t index, bool c
 #endif // SHENANDOAH_CENSUS_NOISE
   _needs_bitmap_reset(false),
   _early_recycled(false),
+  _reserved_body_words(0),
   _fwd_table(this)
   {
 
@@ -338,6 +339,7 @@ void ShenandoahHeapRegion::make_regular_from_cset() {
 }
 
 void ShenandoahHeapRegion::teardown_reuse_state() {
+  _reserved_body_words = 0;
   if (forwarding_table_start() == nullptr && !was_early_recycled()) {
     return;
   }
@@ -663,6 +665,7 @@ void ShenandoahHeapRegion::reset() {
 void ShenandoahHeapRegion::recycle_internal() {
   assert(_recycling.is_set() && is_trash(), "Wrong state");
   reset();
+  _reserved_body_words = 0;
   if (is_old()) {
     ShenandoahHeap::heap()->old_generation()->clear_cards_for(this);
   }

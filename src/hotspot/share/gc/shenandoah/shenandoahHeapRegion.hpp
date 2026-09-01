@@ -293,6 +293,8 @@ private:
   // Not every reusable region is early recycled.
   bool _early_recycled;
 
+  size_t _reserved_body_words;
+
   ShenandoahForwardingTable _fwd_table;
 
 public:
@@ -311,6 +313,7 @@ public:
   }
 
   inline ShenandoahForwardingTable& forwarding_table() {
+    assert(ShenandoahCSetAllocationForwardingTable, "must not access forwarding table if mark-word forwarding is used");
     return _fwd_table;
   }
 
@@ -514,11 +517,17 @@ public:
   size_t alloc_free() const {
     HeapWord* limit = alloc_end();
     HeapWord* t     = top();
-    return (limit > t) ? byte_size(t, limit) : 0;
+    size_t allowed  = (limit > t) ? byte_size(t, limit) : 0;
+    size_t reserved = _reserved_body_words * HeapWordSize;
+    return (allowed > reserved) ? allowed - reserved : 0;
   }
   // Bytes reserved in early reused CSet regions.
-  size_t reserved_bytes() const   { return byte_size(alloc_end(), end()); }
+  size_t reserved_bytes() const {
+    size_t body_room = (alloc_end() > top()) ? byte_size(top(), alloc_end()) : 0;
+    return byte_size(alloc_end(), end()) + MIN2(_reserved_body_words * HeapWordSize, body_room);
+  }
   size_t used_with_reserve() const { return used() + reserved_bytes(); }
+  void set_reserved_body_words(size_t w) { _reserved_body_words = w; }
 
   // Does this region contain this address?
   bool contains(HeapWord* p) const {

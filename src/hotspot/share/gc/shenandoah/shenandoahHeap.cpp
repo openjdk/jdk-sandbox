@@ -1456,6 +1456,15 @@ bool ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t nu
   if (r->is_pinned() || r->was_promoted_in_place() || r->has_self_forwards()) {
     return false;
   }
+  if (!ShenandoahCSetAllocationForwardingTable) {
+    r->set_alt_top(r->top());
+    r->set_reserved_body_words(num_forwardings);
+    OrderAccess::storestore();
+    r->set_top(r->bottom());
+    OrderAccess::fence();
+    collection_set()->switch_to_reusable_markword(r);
+    return true;
+  }
   bool use_fwd_table = r->build_forwarding_table(num_forwardings);
   if (use_fwd_table) {
     // rebuild_forwarding_table() makes use of the original top(). We set top here to help us identify that a forwarded region

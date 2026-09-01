@@ -77,6 +77,7 @@ public:
   void add_region(ShenandoahHeapRegion* r);
 
   void switch_to_forward_table(ShenandoahHeapRegion* r);
+  void switch_to_reusable_markword(ShenandoahHeapRegion* r);
 
   // MT version
   ShenandoahHeapRegion* claim_next();

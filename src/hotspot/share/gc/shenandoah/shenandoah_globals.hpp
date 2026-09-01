@@ -451,6 +451,10 @@
           "Early-recycle evacuated cset regions into the Mutator free "    \
           "set, starting before update-refs.")                             \
                                                                             \
+  product(bool, ShenandoahCSetAllocationForwardingTable, true, DIAGNOSTIC,  \
+          "For reused cset regions, build address-based forwarding tables; "\
+          "disable to keep mark-word forwarding and reuse the whole body.") \
+                                                                            \
   product(uintx, ShenandoahCSetAllocationMaxTLABPad, 4, EXPERIMENTAL,       \
           "How many words of padding do we allow to precede an "            \
           "allocated TLAB within an early recycled cset region? "           \

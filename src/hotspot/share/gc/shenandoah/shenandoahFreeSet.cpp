@@ -3956,7 +3956,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_TLAB_in_early_recycled(ShenandoahHeapR
     HeapWord* candidate_start = orig_top + pad;
     if (candidate_start > candidate_limit) {
       break;
-    } else if ((pad == 0) || (pad > min_fill)) {
+    } else if ((pad == 0) || (pad > min_fill) || !ShenandoahCSetAllocationForwardingTable) {
       if (!ctx->is_marked_ignore_tams(candidate_start)) {
         HeapWord* end_of_candidate_tlab = ctx->get_next_marked_addr_ignore_tams(candidate_start, alloc_limit);
         size_t candidate_tlab_size = end_of_candidate_tlab - candidate_start;
@@ -3969,7 +3969,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_TLAB_in_early_recycled(ShenandoahHeapR
           if (size > usable_free) {
             size = usable_free;
           }
-          if (pad > 0) {
+          if (pad > 0 && ShenandoahCSetAllocationForwardingTable) {
             ShenandoahHeap::fill_with_object(orig_top, pad);
           }
           // This assignment may be redundant. Maybe we can optimize.
@@ -4008,8 +4008,15 @@ HeapWord* ShenandoahFreeSet::try_allocate_shared_in_early_recycled(ShenandoahHea
     HeapWord* candidate_start = orig_top + pad;
     if (candidate_start > candidate_limit) {
       break;
-    } else if ((pad == 0) || (pad > min_fill)) {
+    } else if ((pad == 0) || (pad > min_fill) || !ShenandoahCSetAllocationForwardingTable) {
       if (!ctx->is_marked_ignore_tams(candidate_start)) {
+        if (!ShenandoahCSetAllocationForwardingTable) {
+          HeapWord* end_of_gap = ctx->get_next_marked_addr_ignore_tams(candidate_start, alloc_limit);
+          if (size_t(end_of_gap - candidate_start) < size) {
+            pad += end_of_gap - candidate_start;
+            continue;
+          }
+        }
         // This assignment may be redundant. Maybe we can optimize.
         r->set_affiliation(ShenandoahAffiliation::YOUNG_GENERATION);
         size_t used_before = r->used_with_reserve();
