@@ -2673,10 +2673,6 @@ void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* 
         assert(r->is_regular() || r->is_regular_pinned(), "Should be made regular before we get here");
         early_recycled_allocation_regions++;
         size_t used_by = early_recycle_allocated;
-        if ((region_size_bytes - used_by) < PLAB::min_size() * HeapWordSize) {
-          // If this region is essentially "used up", count the waste as used
-          used_by = region_size_bytes;
-        }
         _partitions.raw_assign_membership(r->index(), ShenandoahFreeSetPartitionId::Mutator);
         _partitions.increase_capacity(ShenandoahFreeSetPartitionId::Mutator, region_size_bytes);
         _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, used_by);
