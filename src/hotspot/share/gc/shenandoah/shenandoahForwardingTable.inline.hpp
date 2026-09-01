@@ -83,8 +83,18 @@ inline uint64_t ShenandoahForwardingTable::hash(HeapWord* original, void* table)
 
 inline void ShenandoahForwardingTable::probe_of(HeapWord* original, size_t& index, size_t& stride) const {
   uint64_t const h = hash(original, _table);
-  // [0, N-1] from low bits
-  index  = static_cast<size_t>((h & 0xffffffff) % _num_entries);
+  assert(_num_entries <= (size_t) 0xffffffff, "Precondition");
+  // Generalize this code for 32-bit deployments if necessary.
+  assert(sizeof(size_t) == 8, "This code does not work on 32-bit hardware");
+  uint64_t const truncated_h = h & 0xffffffff;
+  // [0, N-1] from low bits of h
+  // Assume that the low-order bits of h hold a "randomly distributed" pattern of bits derived from original and _table.
+  // When we multiply _num_entries by truncated_h and divide by 0x100000000, we obtain a number that is greater than or
+  // equal to 0 and less than or equal to _num_entries - 1.  If _truncated_bits are well distributed, the initial index
+  // probe will also be well distributed.  We use multiply rather than divide because 64-bit multiply is up to nine times
+  // faster than a 32-bit divide on typical "modern hardware", and multiply instructions are more effectively pipelined.
+  // Since both factors are 32-bit, the 64-bit product will not overflow.
+  index  = static_cast<size_t>((truncated_h * _num_entries) >> 32);
   assert(_num_entries > 16, "invariant");
   uint64_t basis = _num_entries / 16;
   uint64_t high_bits = h >> 32;
