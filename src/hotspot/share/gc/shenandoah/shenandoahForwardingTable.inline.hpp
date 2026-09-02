@@ -279,9 +279,7 @@ size_t ShenandoahForwardingTable::probes(HeapWord* original, size_t& stride) con
 template<class Entry>
 size_t ShenandoahForwardingTable::reserve_forwarding(BitMap& used, size_t index, size_t stride, Entry& replaced,
                                                      size_t& replaced_index, size_t& replaced_stride, size_t& replaced_probes) {
-#ifdef ASSERT
   size_t const first_index = index;
-#endif
   size_t const max_probes = _common_max_probes;
   size_t depth = 1;
   HeapWord* const region_base = _region->bottom();
@@ -347,9 +345,7 @@ template<class Entry>
 size_t ShenandoahForwardingTable::reserve_new_forwarding(BitMap& used, size_t index, size_t stride, size_t depth, Entry& replaced,
                                                          size_t& replaced_index, size_t& replaced_stride, size_t& replaced_probes)
 {
-#ifdef ASSERT
   size_t const first_index = index;
-#endif
   size_t const max_probes = _common_max_probes;
   HeapWord* const region_base = _region->bottom();
   Entry* table = reinterpret_cast<Entry*>(_table);
