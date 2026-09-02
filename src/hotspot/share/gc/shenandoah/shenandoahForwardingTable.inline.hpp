@@ -26,7 +26,6 @@
 
 #include "gc/shenandoah/shenandoahForwardingTable.hpp"
 #include "gc/shenandoah/shenandoahMarkingContext.inline.hpp"
-#include "gc/shenandoah/shenandoahPrefetch.inline.hpp"
 
 #include "utilities/align.hpp"
 #include "utilities/fastHash.hpp"
@@ -178,62 +177,41 @@ inline void ShenandoahForwardingTable::insert_forwarding(size_t index, const Ent
 }
 
 template<class Entry>
-inline void ShenandoahForwardingTable::prune_collision_chain(ShenandoahHeapRegion* region, HeapWord* original,
-                                                      size_t& original_depth, size_t& new_depth) {
+inline size_t ShenandoahForwardingTable::prune_collision_chain(HeapWord* original, HeapWord* forwardee) {
   size_t start_index, stride;
-  Entry* table = reinterpret_cast<Entry*>(region->forwarding_table_start());
-  HeapWord* const region_base = region->bottom();
+  Entry* table = reinterpret_cast<Entry*>(_table);
+  HeapWord* const region_base = _region->bottom();
   probe_of(original, start_index, stride);
-  const size_t entry_words = sizeof(Entry) / sizeof(HeapWord*);
-  HeapWord* const table_start = start();
-  bool found_mark_word_collision = false;
-  size_t index_of_mark_word_collision = 0;
-  size_t depth_of_mark_word_collision = 0;
   size_t collision_chain_depth = 0;
   size_t index = start_index;
-  ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
   while (table[index].is_used()) {
-    size_t next_index = index + stride;
-    if (next_index >= _num_entries) {
-      next_index -= _num_entries;
-    }
-    // Issue the prefetch even before we know if we'll need this value; leave enough time to get the memory.
-    ShenandoahPrefetch::prefetch(cast_to_oop(&table[next_index]));
     if (table[index].is_original(region_base, original)) {
-      HeapWord* forwardee = table[index].forwardee_from_entry_without_barrier();
-      original_depth = collision_chain_depth;
-      if (found_mark_word_collision) {
-        new_depth = depth_of_mark_word_collision;
-
-        if constexpr (std::is_same_v<Entry, CompactFwdTableEntry>) {
-          Entry const entry(region_base, original, forwardee);
-          insert_forwarding<Entry>(index_of_mark_word_collision, entry);
-        } else {
-          table[index_of_mark_word_collision].overwrite_forwardee(forwardee);
-          // Make sure that _forwardee is set before anybody has the opportunity to match the new value of _original.
-          // The previous value of _original will not match, as it is a mark word.
-          OrderAccess::storestore();
-          // Note: there is no race on publication of original.  If some other thread sees the old value of original while
-          // it is searching to resolve a forwarded address, it will eventually resolve.  It will just not see the "short cut".
-          table[index_of_mark_word_collision].overwrite_original(original);
-        }
-      } else {
-        // no change to depth of this collision chain
-        new_depth = collision_chain_depth;
-      }
-      return;
+      return collision_chain_depth;
     }
-
-    if (!found_mark_word_collision && !table[index].is_entry()) {
-      found_mark_word_collision = true;
-      index_of_mark_word_collision = index;
-      depth_of_mark_word_collision = collision_chain_depth;
+    if (!table[index].is_entry()) {
+      if constexpr (std::is_same_v<Entry, CompactFwdTableEntry>) {
+        Entry const entry(region_base, original, forwardee);
+        insert_forwarding<Entry>(index, entry);
+      } else {
+        table[index].overwrite_forwardee(forwardee);
+        // Make sure that _forwardee is set before anybody has the opportunity to match the new value of _original.
+        // The previous value of _original will not match, as it is a mark word.
+        OrderAccess::storestore();
+        // Note: there is no race on publication of original.  If some other thread sees the old value of original while
+        // it is searching to resolve a forwarded address, it will eventually resolve.  It will just not see the "short cut".
+        table[index].overwrite_original(original);
+      }
+      return collision_chain_depth;
     }
     collision_chain_depth++;
-    index = next_index;
-    assert(index != start_index, "Existing forward table should never wrap around to initial probe");
+    index += stride;
+    if (index >= _num_entries) {
+      index -= _num_entries;
+    }
+    guarantee(index != start_index, "Existing forward table should never wrap around to initial probe");
   }
-  assert(false, "table[index].is_used() should be true until we find the forwardee");
+  guarantee(false, "table[index].is_used() should be true until we find the forwardee");
+  return collision_chain_depth;
 }
 
 // How many probes on the chain required to resolve original?

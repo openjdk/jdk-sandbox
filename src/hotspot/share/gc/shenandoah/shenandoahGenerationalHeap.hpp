@@ -96,8 +96,7 @@ public:
   // In the generational mode, we will use this function for young, mixed, and global collections.
   // For young and mixed, the generation argument will be the young generation, otherwise it will be the global generation.
   void update_heap_references(ShenandoahGeneration* generation, bool concurrent,
-                              size_t num_workers, size_t num_early_recycled_regions,
-                              ShenandoahHeapRegion* early_recycledregions[]) override;
+                              size_t num_workers) override;
   void final_update_refs_update_region_states() override;
 
 private:

@@ -27,6 +27,7 @@
 
 #include "gc/shenandoah/shenandoahAgeCensus.hpp"
 #include "gc/shenandoah/shenandoahCollectionSet.hpp"
+#include "gc/shenandoah/shenandoahCollectionSet.inline.hpp"
 #include "gc/shenandoah/shenandoahGenerationalHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahHeapRegion.inline.hpp"
@@ -125,6 +126,22 @@ void ShenandoahCollectionSet::switch_to_forward_table(ShenandoahHeapRegion* r) {
 void ShenandoahCollectionSet::switch_to_reusable_markword(ShenandoahHeapRegion* r) {
   assert(is_in(r), "Must be in collection set");
   AtomicAccess::store(&_cset_map._cset_map[r->index()], CSetState::REUSABLE_MARKWORD);
+}
+
+void ShenandoahCollectionSet::optimize_reused_forwarding(size_t start_index, size_t stride) {
+  if (ShenandoahCSetAllocationForwardingTable && ShenandoahPruneFWTCollisionChains) {
+    ShenandoahHeap* heap = ShenandoahHeap::heap();
+    size_t num_regions = heap->num_regions();
+    for (size_t idx = start_index; idx < num_regions; idx += stride) {
+      if (!is_in(idx)) {
+        continue;
+      }
+      ShenandoahHeapRegion* r = heap->get_region(idx);
+      if (use_forward_table(r)) {
+        r->forwarding_table().prune_collision_chains();
+      }
+    }
+  }
 }
 
 void ShenandoahCollectionSet::remove_region(ShenandoahHeapRegion* r) {

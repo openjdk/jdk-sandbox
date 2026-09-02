@@ -317,10 +317,6 @@ public:
     return _fwd_table;
   }
 
-  inline size_t fwd_table_max_depth() {
-    return _fwd_table.max_required_probes();
-  }
-
   inline static size_t required_regions(size_t bytes) {
     return (bytes + ShenandoahHeapRegion::region_size_bytes() - 1) >> ShenandoahHeapRegion::region_size_bytes_shift();
   }

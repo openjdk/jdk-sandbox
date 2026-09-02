@@ -439,33 +439,7 @@ void ShenandoahDegenGC::op_recycle_collection_set() {
 void ShenandoahDegenGC::op_update_refs() {
   ShenandoahHeap* const heap = ShenandoahHeap::heap();
   ShenandoahGCPhase phase(ShenandoahPhaseTimings::degen_gc_update_refs);
-  // Handed over from concurrent update references phase
-  size_t num_early_recycled_regions = 0;
-  ShenandoahHeapRegion** early_recycled_region_array = nullptr;
-  ShenandoahFreeSet* free_set = heap->free_set();
-  if (ShenandoahPruneFWTCollisionChains) {
-    ShenandoahHeapLocker locker(heap->lock());
-    num_early_recycled_regions =
-      free_set->num_tlab_regions() + free_set->num_shared_alloc_regions() + free_set->num_retired_regions();
-    early_recycled_region_array = (ShenandoahHeapRegion**) alloca(num_early_recycled_regions * sizeof(ShenandoahHeapRegion**));
-    size_t num_tlab_regions = free_set->num_tlab_regions();
-    for (size_t i = 0; i < num_tlab_regions; i++) {
-      early_recycled_region_array[i] = free_set->get_tlab_region(i);
-    }
-    size_t num_shared_regions = free_set->num_shared_alloc_regions();
-    for (size_t i = 0; i < num_shared_regions; i++) {
-      early_recycled_region_array[num_tlab_regions + i] = free_set->get_shared_alloc_region(i);
-    }
-    size_t num_retired_regions = free_set->num_retired_regions();
-    for (size_t i = 0; i < num_retired_regions; i++) {
-      early_recycled_region_array[num_tlab_regions + num_shared_regions + i] = free_set->get_retired_region(i);
-    }
-  } else {
-    num_early_recycled_regions = 0;
-    early_recycled_region_array = nullptr;
-  }
-  heap->update_heap_references(_generation, false /*concurrent*/,
-                               ParallelGCThreads, num_early_recycled_regions, early_recycled_region_array);
+  heap->update_heap_references(_generation, false /*concurrent*/, ParallelGCThreads);
 
   heap->set_update_refs_in_progress(false);
   heap->set_has_forwarded_objects(false);
