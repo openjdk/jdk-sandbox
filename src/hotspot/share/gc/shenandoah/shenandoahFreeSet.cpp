@@ -2597,12 +2597,6 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
   assert(orig_partition == ShenandoahFreeSetPartitionId::NotFree, "cset regions should be in the NotFree partition");
   // Since orig_partition is NotFree, we don't have to adjust capacity, available, and used for orig_partition
 
-  if (r->reserved_bytes() > 0) {
-    // Above, we increased the capacity of the Mutator partition by region_size_bytes.
-    /* Remove because we do not count early-recycled regions as part of partition accounting
-       _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, r->reserved_bytes());
-    */
-  }
   recycled_bytes += available;
   recycled_regions++;
   return true;
@@ -2650,12 +2644,10 @@ void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* 
                                                           size_t& early_recycled_allocation_regions) {
   ShenandoahFreeSetPartitionId p = _partitions.membership(r->index());
   size_t tail = r->reserved_bytes();
-  size_t available = r->capacity() - tail;
-  size_t min_size = PLAB::min_size() * HeapWordSize;
   size_t region_free = r->free();
   assert(tail <= region_free, "Region free is how much memory can be allocated in this region after repurposing the fwt");
   assert(p == ShenandoahFreeSetPartitionId::NotFree, "Early recycled regions are not in free-set partitions");
-  if (tail > 0) {
+  if (r->was_early_recycled()) {
     // Some regions that would otherwise qualify to be early recycled are not recycled due to pinning.
 
     // See shenandoahDegeneratedGC.cpp, around line 248
