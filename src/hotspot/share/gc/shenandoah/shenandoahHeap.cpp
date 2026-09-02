@@ -2829,41 +2829,11 @@ void ShenandoahHeap::update_heap_references(ShenandoahGeneration* generation, bo
     ShenandoahUpdateHeapRefsTask<true> task(&_update_refs_iterator, num_workers,
                                             num_early_recycled_regions, early_recycled_regions);
     workers()->run_task(&task);
-#ifdef KELVIN_DEPRECATE
-    if (ShenandoahPruneFWTCollisionChains) {
-      average_chain_depth_before_prune =
-        (task.total_original_collisions() + task.forwarded_objects()) / ((double) task.forwarded_objects());
-      // Chain depth is 1 more than number of collisions.
-      max_chain_depth_before_prune = task.max_original_collisions() + 1;
-      average_chain_depth_after_prune = 
-        (task.total_pruned_collisions() + task.forwarded_objects()) / ((double) task.forwarded_objects());
-      max_chain_depth_after_prune = task.max_pruned_collisions() + 1;
-    }
-#endif
   } else {
     ShenandoahUpdateHeapRefsTask<false> task(&_update_refs_iterator, num_workers,
                                              num_early_recycled_regions, early_recycled_regions);
     workers()->run_task(&task);
-#ifdef KELVIN_DEPRECATE
-    if (ShenandoahPruneFWTCollisionChains) {
-      average_chain_depth_before_prune =
-        (task.total_original_collisions() + task.forwarded_objects()) / ((double) task.forwarded_objects());
-      // Chain depth is 1 more than number of collisions.
-      max_chain_depth_before_prune = task.max_original_collisions() + 1;
-      average_chain_depth_after_prune = 
-        (task.total_pruned_collisions() + task.forwarded_objects()) / ((double) task.forwarded_objects());
-      max_chain_depth_after_prune = task.max_pruned_collisions() + 1;
-    }
-#endif
   }
-#ifdef KELVIN_DEPRECATE
-  // Not sure there is sufficient vaue in this report to justify the costs of collecting it.
-  if (ShenandoahPruneFWTCollisionChains) {
-    log_info(gc, ergo)("Update heap reference pruned %zu early-recycled regions before (average/max): %.3f/%zu, after: %.3f/%zu",
-                       num_early_recycled_regions, average_chain_depth_before_prune, max_chain_depth_before_prune,
-                       average_chain_depth_after_prune, max_chain_depth_after_prune);
-  }
-#endif
 }
 
 void ShenandoahHeap::update_heap_region_states(bool concurrent) {

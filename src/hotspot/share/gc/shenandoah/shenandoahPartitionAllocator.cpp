@@ -58,6 +58,9 @@ HeapWord* ShenandoahPartitionAllocator<PARTITION>::allocate(ShenandoahAllocReque
 
   if constexpr (PARTITION == ShenandoahFreeSetPartitionId::Mutator) {
     if (prefer_early_recycled && _free_set->allocating_from_early_recycled_regions()) {
+      // Kelvin thinks we might want finer grain distinctions here.
+      // If we are using FWT: we generally want to allocate shared here, but not labs
+      // If we are early recycling without FWT: I think we probably don't want any early recycled here
       HeapWord* result = req.is_lab_alloc()
         ? _free_set->try_allocate_lab_from_early_recycled(req)
         : _free_set->try_allocate_shared_from_early_recycled(req);

@@ -337,42 +337,31 @@ void ShenandoahForwardingTable::clear_unused_slots(const BitMap& used) {
 }
 
 template<class Entry>
-size_t ShenandoahForwardingTable::reserve_forwarding(BitMap& used, size_t index, size_t stride) {
-  size_t const first_index = index;
-  size_t const max_probes = _common_max_probes;
-  size_t depth = 1;
-  while (used.at(index)) {
-    if (max_probes != 0 && depth >= max_probes) {
-      _abandoned = true; // pathological chain
-      return _num_entries;
-    }
-    index += stride;
-    if (index >= _num_entries) {
-      index -= _num_entries;
-    }
-    guarantee(index != first_index, "must find a usable slot, _num_entries: %zu, actual forwardings: %zu, live_words: %zu"
-              ", first_index: %zu, index: %zu, stride: %zu, depth: %zu",
-              _num_entries, _num_actual_forwardings, _num_live_words, first_index, index, stride, depth);
-    depth++;
-  }
-  used.set_bit(index);
-  if (depth > _max_required_probes) {
-    _max_required_probes = depth;
-  }
-  _num_actual_forwardings++;
-  assert(_num_actual_forwardings <= _num_expected_forwardings, "must not exceed number of forwardings");
-  return index;
-}
-
-template<class Entry>
-void ShenandoahForwardingTable::enter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee) {
+void ShenandoahForwardingTable::enter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee, Entry& replaced,
+                                                 size_t& replaced_index, size_t& replaced_stride, size_t& replaced_probes) {
   if (_abandoned) {
     return;
   }
   size_t index, stride;
   probe_of(original, index, stride);
   Entry const entry(_region->bottom(), original, forwardee);
-  index = reserve_forwarding<Entry>(used, index, stride);
+  index = reserve_forwarding<Entry>(used, index, stride, replaced, replaced_index, replaced_stride, replaced_probes);
+  if (index == _num_entries) {
+    assert(_abandoned, "only an abandoned table reserves no slot");
+    return;
+  }
+  insert_forwarding<Entry>(index, entry);
+}
+
+template<class Entry>
+void ShenandoahForwardingTable::reenter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee,
+                                                   size_t index, size_t stride, size_t probes, Entry& replaced,
+                                                   size_t& replaced_index, size_t& replaced_stride, size_t& replaced_probes) {
+  if (_abandoned) {
+    return;
+  }
+  Entry const entry(_region->bottom(), original, forwardee);
+  index = reserve_new_forwarding<Entry>(used, index, stride, probes, replaced, replaced_index, replaced_stride, replaced_probes);
   if (index == _num_entries) {
     assert(_abandoned, "only an abandoned table reserves no slot");
     return;
@@ -387,18 +376,13 @@ void ShenandoahForwardingTable::log_stats() const {
   log_debug(gc)("Forwarding table size: %lu (== %lu bytes)", _num_entries, sizeof(Entry) * _num_entries);
   log_debug(gc)("Forwarding table expected: %lu, actual: %lu, live words: %lu", _num_expected_forwardings, _num_actual_forwardings, _num_live_words);
 #endif
-#undef KELVIN_VERBOSE
-#ifdef KELVIN_VERBOSE
-  log_debug(gc, fwt)("Forwarding table load factor: %f", (float)(_num_actual_forwardings + _num_live_words) / (float) (_num_entries));
-  log_debug(gc, fwt)("Forwarding table size: %lu (== %lu bytes)", _num_entries, sizeof(Entry) * _num_entries);
-  log_debug(gc, fwt)("Forwarding table expected: %lu, actual: %lu, live words: %lu", _num_expected_forwardings, _num_actual_forwardings, _num_live_words);
-#endif
 }
 
 template<class Entry>
 void ShenandoahForwardingTable::fill_forwardings(BitMap& used) {
   class FillForwardingsClosure {
     ShenandoahForwardingTable& _fwt;
+    HeapWord* _region_base;
     BitMap&         _used;
     HeapWord* const _fwt_start;
     size_t    const _region_idx;
@@ -406,7 +390,7 @@ void ShenandoahForwardingTable::fill_forwardings(BitMap& used) {
   public:
     FillForwardingsClosure(ShenandoahForwardingTable& fwt, BitMap& used,
                            HeapWord* fwt_start, size_t region_idx)
-      : _fwt(fwt), _used(used), _fwt_start(fwt_start), _region_idx(region_idx) {}
+        : _fwt(fwt), _region_base(fwt.region()->bottom()), _used(used), _fwt_start(fwt_start), _region_idx(region_idx) {}
 
     void do_object(oop obj) {
       HeapWord* original = cast_from_oop<HeapWord*>(obj);
@@ -421,12 +405,24 @@ void ShenandoahForwardingTable::fill_forwardings(BitMap& used) {
                         p2i(original), _region_idx);
       }
 #endif
-      _fwt.enter_forwarding<Entry>(_used, original, forwardee);
+      Entry replaced = Entry();       // no-arg constructor builds Entry that !is_entry()
+      size_t index;
+      size_t stride;
+      size_t probe_count;
+      _fwt.enter_forwarding<Entry>(_used, original, forwardee, replaced, index, stride, probe_count);
+      while (replaced.is_entry()) {
+        original = replaced.original(_region_base);
+        forwardee = replaced.forwardee_from_entry_without_barrier();
+        replaced.reset();
+        _fwt.reenter_forwarding<Entry>(_used, original, forwardee, index, stride, probe_count,
+                                       replaced, index, stride, probe_count);
+      }
     }
   } cl(*this, used, start(), _region->index());
 
   ShenandoahHeap::heap()->marked_object_iterate(_region, &cl);
-  assert(_abandoned || _num_actual_forwardings == _num_expected_forwardings, "must enter exact number of forwardings, actual: %lu, expected: %lu", _num_actual_forwardings, _num_expected_forwardings);
+  assert(_abandoned || _num_actual_forwardings == _num_expected_forwardings,
+         "must enter exact number of forwardings, actual: %lu, expected: %lu", _num_actual_forwardings, _num_expected_forwardings);
   log_stats<Entry>();
 }
 

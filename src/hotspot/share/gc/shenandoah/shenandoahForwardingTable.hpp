@@ -60,6 +60,7 @@ public:
   // Used on the forwardee lookup path. At construction time the scratch BitMap is used instead.
   bool is_used() const { return _original != nullptr || _forwardee != nullptr; }
   bool is_original(HeapWord* region_base, HeapWord* original);
+  void reset() { _forwardee = nullptr; _original = nullptr; };
 };
 
 class CompactFwdTableEntry {
@@ -74,7 +75,7 @@ class CompactFwdTableEntry {
   static const uint64_t FORWARDEE_MASK = right_n_bits(FORWARDEE_BITS) << FORWARDEE_SHIFT;
 
   static HeapWord* _heap_base;
-  uint64_t const _encoded;
+  uint64_t _encoded;
 
   static uint64_t encode(HeapWord* region_base, HeapWord* original, HeapWord* forwardee);
 
@@ -114,6 +115,7 @@ public:
   bool is_entry() const { return _encoded & ENTRY_MARKER; }
   bool is_used() const { return _encoded != 0; }
   bool is_original(HeapWord* region_base, HeapWord* original);
+  void reset() { _encoded = 0; }
 };
 
 class ShenandoahForwardingTable {
@@ -148,13 +150,24 @@ class ShenandoahForwardingTable {
   void probe_of(HeapWord* original, size_t& index, size_t& stride) const;
 
   template<class Entry>
-  size_t reserve_forwarding(BitMap& used, size_t index, size_t stride);
+  inline size_t reserve_forwarding(BitMap& used, size_t index, size_t stride, Entry& replaced,
+                                   size_t& replaced_index, size_t& replaced_stride, size_t& replaced_probes);
+
+  template<class Entry>
+  inline size_t reserve_new_forwarding(BitMap& used, size_t index, size_t stride, size_t probes,
+                                       Entry& replaced, size_t& replaced_index, size_t& replaced_stride, size_t& replaced_probes);
 
   template<class Entry>
   inline void insert_forwarding(size_t index, const Entry& entry);
 
   template<class Entry>
-  void enter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee);
+  void enter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee,
+                        Entry& replaced, size_t& replaced_index, size_t& replaced_stride, size_t& replaced_probes);
+
+  template<class Entry>
+  void reenter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee,
+                          size_t index, size_t stride, size_t probed_count,
+                          Entry& replaced, size_t& replaced_index, size_t& replaced_stride, size_t& replaced_probes);
 
   template<class Entry>
   void fill_forwardings(BitMap& used);
@@ -205,6 +218,9 @@ public:
   HeapWord* start() const {
     return reinterpret_cast<HeapWord*>(_table);
   }
+
+  ShenandoahHeapRegion* region() const { return _region; }
+  
 #ifdef USE_SENTINELS
   void install_sentinels();
 #endif
@@ -215,6 +231,9 @@ public:
 
   template<class Entry>
   HeapWord* forwardee(HeapWord* orginal) const;
+
+  template<class Entry>
+  inline size_t probes(HeapWord* original, size_t& stride) const;
 };
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHFORWARDINGTABLE_HPP
