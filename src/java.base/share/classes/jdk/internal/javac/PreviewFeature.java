@@ -69,13 +69,14 @@ public @interface PreviewFeature {
      * Values should be annotated with the feature's {@code JEP}.
      */
     public enum Feature {
+        @JEP(number = 539, title = "Strict Field Initialization in the JVM", status = "Preview")
+        STRICT_FIELDS,
+        @JEP(number=401, title="Value Classes and Objects", status = "Preview")
+        VALUE_OBJECTS,
         @JEP(number=533, title="Structured Concurrency", status="Seventh Preview")
         STRUCTURED_CONCURRENCY,
         @JEP(number = 531, title = "Lazy Constants", status = "Third Preview")
         LAZY_CONSTANTS,
-        @JEP(number=538, title="PEM Encodings of Cryptographic Objects",
-            status="Third Preview")
-        PEM_API,
         @JEP(number=31337, title="TLS support for the QUIC transport",
             status="First Preview") // TODO JEP number
         QUIC_API,
