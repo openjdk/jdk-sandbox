@@ -1705,7 +1705,8 @@ HeapWord* ShenandoahFreeSet::allocate_contiguous(ShenandoahAllocRequest& req, bo
       }
       r->set_update_watermark(r->bottom());
       total_used += r->used();
-      if  (r->free() < PLAB::min_size() * HeapWordSize) {
+      bool no_usable_space = (r->free() < PLAB::min_size() * HeapWordSize);
+      if (no_usable_space) {
         // retire_from_partition() will adjust bounds on Mutator free set if appropriate and will recompute affiliated.
         // It also increases used for the waste bytes, which includes bytes filled at retirement and bytes too small
         // to be filled.  Only the last iteration may have non-zero waste_bytes.
@@ -2664,7 +2665,8 @@ void ShenandoahFreeSet::finish_recycle_of_one_cset_region(ShenandoahHeapRegion* 
       if (early_recycle_allocated > 0) {
         assert(r->is_regular() || r->is_regular_pinned(), "Should be made regular before we get here");
         early_recycled_allocation_regions++;
-        size_t used_by = early_recycle_allocated;
+        bool no_usable_space = (r->free() < PLAB::min_size() * HeapWordSize);
+        size_t used_by = no_usable_space ? region_size_bytes : early_recycle_allocated;
         _partitions.raw_assign_membership(r->index(), ShenandoahFreeSetPartitionId::Mutator);
         _partitions.increase_capacity(ShenandoahFreeSetPartitionId::Mutator, region_size_bytes);
         _partitions.increase_used(ShenandoahFreeSetPartitionId::Mutator, used_by);
