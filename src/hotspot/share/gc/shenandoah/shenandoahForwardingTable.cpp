@@ -271,8 +271,9 @@ bool ShenandoahForwardingTable::initialize(size_t num_entries) {
   _table = reinterpret_cast<Entry*>(table_start);
 #ifdef ASSERT
   HeapWord* table_address = (HeapWord*) _table;
-  assert((table_address >= bottom) && (table_address < end) && is_object_aligned(table_address),
-         "_table must be within range and aligned");
+  assert((table_address >= bottom) && (table_address < end) &&
+         is_aligned(table_address, entry_words * HeapWordSize),
+         "_table must be within range and aligned to entry");
 #endif
   _num_entries = prime_entries;
   assert(_num_entries <= max_juint, "num_entries %zu must fit in 32 bits for the multiply-shift probe reduction", _num_entries);
