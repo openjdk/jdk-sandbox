@@ -51,19 +51,10 @@ HeapWord* ShenandoahPartitionAllocator<PARTITION>::allocate(ShenandoahAllocReque
 
   bool boundary_changed = false;
   size_t min_req_words = req.is_lab_alloc() ? req.min_size() : req.size();
-  const bool prefer_early_recycled_for_shared = ShenandoahCSetAllocationForwardingTable || ShenandoahPreferCSetAllocation;
-  const bool prefer_early_recycled_for_tlab = ShenandoahPreferCSetAllocation;
-  const bool prefer_early_recycled =
-    req.is_lab_alloc() ? prefer_early_recycled_for_tlab : prefer_early_recycled_for_shared;
-
+  const bool prefer_lazy_early_recycling = !ShenandoahCSetAllocationForwardingTable;
   if constexpr (PARTITION == ShenandoahFreeSetPartitionId::Mutator) {
-    if (prefer_early_recycled && _free_set->allocating_from_early_recycled_regions()) {
-      // Kelvin thinks we might want finer grain distinctions here.
-      // If we are using FWT: we generally want to allocate shared here, but not labs
-      // If we are early recycling without FWT: I think we probably don't want any early recycled here
-      HeapWord* result = req.is_lab_alloc()
-        ? _free_set->try_allocate_lab_from_early_recycled(req)
-        : _free_set->try_allocate_shared_from_early_recycled(req);
+    if (!prefer_lazy_early_recycling && !req.is_lab_alloc() && _free_set->allocating_from_early_recycled_regions()) {
+      HeapWord* result = _free_set->try_allocate_shared_from_early_recycled(req);
       if (result != nullptr) {
         in_new_region = false;
         return result;
@@ -122,10 +113,17 @@ HeapWord* ShenandoahPartitionAllocator<PARTITION>::allocate(ShenandoahAllocReque
   }
 
   if constexpr (PARTITION == ShenandoahFreeSetPartitionId::Mutator) {
-    if (!prefer_early_recycled && _free_set->allocating_from_early_recycled_regions()) {
-      HeapWord* result = req.is_lab_alloc()
-        ? _free_set->try_allocate_lab_from_early_recycled(req)
-        : _free_set->try_allocate_shared_from_early_recycled(req);
+    if (_free_set->allocating_from_early_recycled_regions()) {
+      HeapWord* result;
+      if (prefer_lazy_early_recycling) {
+        result = req.is_lab_alloc()
+          ? _free_set->try_allocate_lab_from_early_recycled(req)
+          : _free_set->try_allocate_shared_from_early_recycled(req);
+      } else if (req.is_lab_alloc()) {
+        result = _free_set->try_allocate_lab_from_early_recycled(req);
+      } else {
+        result = nullptr;
+      }
       if (result != nullptr) {
         in_new_region = false;
         return result;

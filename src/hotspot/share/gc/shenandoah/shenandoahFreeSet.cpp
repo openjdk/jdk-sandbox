@@ -3819,7 +3819,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_shared_from_early_recycled(ShenandoahA
         }
       }
       // Note: Since the current implementation only supports Mutator allocations, there's no need to register
-      //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
+      //  objects or clear remembered set cards.  Usage has been adjusted by try_allocate_shared_in_early_recycled().
       return result;
     }
   }
@@ -3844,7 +3844,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_shared_from_early_recycled(ShenandoahA
         }
       }
       // Note: Since the current implementation only supports Mutator allocations, there's no need to register
-      //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
+      //  objects or clear remembered set cards.  Usage has been adjusted by try_allocate_shared_in_early_recycled().
       req.set_actual_size(req.size());
       req.set_waste(result - orig_top);
       assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Do not YET support early recycle during evac");
@@ -3884,7 +3884,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_lab_from_early_recycled(ShenandoahAllo
         }
       }
       // Note: Since the current implementation only supports Mutator allocations, there's no need to register
-      //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
+      //  objects or clear remembered set cards.  Usage has been adjusted by try_allocate_shared_in_early_recycled().
       req.set_actual_size(actual_size);
       req.set_waste(result - orig_top);
       return result;
@@ -3911,7 +3911,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_lab_from_early_recycled(ShenandoahAllo
           }
         }
         // Note: Since the current implementation only supports Mutator allocations, there's no need to register
-        //  objects or clear remembered set cards.  Usage has been adjusted by try_allocated_shared_in_early_recycled().
+        //  objects or clear remembered set cards.  Usage has been adjusted by try_allocate_shared_in_early_recycled().
         req.set_actual_size(actual_size);
         req.set_waste(result - orig_top);
         assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Do not YET support early recycle during evac");
