@@ -3768,21 +3768,27 @@ size_t ShenandoahFreeSet::early_recycled_tlab_available_size(ShenandoahHeapRegio
   size_t largest_tlab_seen = 0;
   HeapWord* alloc_limit = r->alloc_end();
   HeapWord* orig_top = r->top();
+  const size_t min_fill = ShenandoahHeap::min_fill_size();
   ShenandoahMarkingContext* ctx = _heap->marking_context();
   for (size_t pad = 0; pad <= ShenandoahCSetAllocationMaxTLABPad; pad++) {
     HeapWord* candidate_start = orig_top + pad;
     if (candidate_start >= alloc_limit) {
       break;
     }
-    if (!ctx->is_marked_ignore_tams(candidate_start)) {
-      HeapWord* end_of_candidate_tlab = ctx->get_next_marked_addr_ignore_tams(candidate_start, alloc_limit);
-      size_t candidate_tlab_size = end_of_candidate_tlab - candidate_start;
-      if (candidate_tlab_size > largest_tlab_seen) {
-        largest_tlab_seen = candidate_tlab_size;
+    // Mirror try_allocate_TLAB_in_early_recycled(): in FWT mode a TLAB cannot start at pad in [1, min_fill].
+    if ((pad == 0) || (pad > min_fill) || !ShenandoahCSetAllocationForwardingTable) {
+      if (!ctx->is_marked_ignore_tams(candidate_start)) {
+        HeapWord* end_of_candidate_tlab = ctx->get_next_marked_addr_ignore_tams(candidate_start, alloc_limit);
+        size_t candidate_tlab_size = end_of_candidate_tlab - candidate_start;
+        // Mirror the carve's rounding.
+        candidate_tlab_size = align_down(candidate_tlab_size, (size_t)MinObjAlignment);
+        if (candidate_tlab_size > largest_tlab_seen) {
+          largest_tlab_seen = candidate_tlab_size;
+        }
+        // Skip to next open span: pad + candidate_lab_size points to next object start or alloc_limit.
+        // When we increment pad at top of loop, we will point to the word following next marked object.
+        pad += candidate_tlab_size;
       }
-      // Skip to next open span: pad + candidate_lab_size points to next object start or alloc_limit.
-      // When we increment pad at top of loop, we will point to the word following next marked object.
-      pad += candidate_tlab_size;
     }
   }
   return (largest_tlab_seen >= PLAB::min_size())? largest_tlab_seen * HeapWordSize: 0;
