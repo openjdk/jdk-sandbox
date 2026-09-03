@@ -586,6 +586,8 @@ public:
     return _fwd_table.build(num_forwardings);
   }
 
+  bool prepare_reuse_forwarding(size_t num_forwardings);
+
   void teardown_reuse_state();
 
   HeapWord* forwarding_table_start() const {

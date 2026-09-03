@@ -1456,29 +1456,14 @@ bool ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t nu
   if (r->is_pinned() || r->was_promoted_in_place() || r->has_self_forwards()) {
     return false;
   }
-  if (!ShenandoahCSetAllocationForwardingTable) {
-    r->set_alt_top(r->top());
-    r->set_reserved_body_words(num_forwardings);
-    OrderAccess::storestore();
-    r->set_top(r->bottom());
-    OrderAccess::fence();
-    collection_set()->switch_to_reusable_markword(r);
-    return true;
-  }
-  bool use_fwd_table = r->build_forwarding_table(num_forwardings);
-  if (use_fwd_table) {
-    // rebuild_forwarding_table() makes use of the original top(). We set top here to help us identify that a forwarded region
-    // has not yet had any allocations. As long as an early-recycled region has not experienced memory allocations, it
-    // is still legal, though perhaps not advisable, to use mark-word forwarding.
+  bool can_reuse = r->prepare_reuse_forwarding(num_forwardings);
+  if (can_reuse) {
     r->set_alt_top(r->top());
     r->set_top(r->bottom());
-    // Got to make sure that everybody sees the table before turning on
-    // use_forward_table. A single rendezvous after evacuation (see
-    // evacuate_collection_set) brings every thread onto the tables.
     OrderAccess::fence();
-    collection_set()->switch_to_forward_table(r);
+    collection_set()->switch_to_reuse_forwarding(r);
   }
-  return use_fwd_table;
+  return can_reuse;
 }
 
 // Clear the self_fwd bit on a live cset object, if set. Runs at a safepoint,
