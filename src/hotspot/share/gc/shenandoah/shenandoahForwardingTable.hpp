@@ -173,6 +173,9 @@ class ShenandoahForwardingTable {
   void fill_forwardings(BitMap& used);
 
   template<class Entry>
+  void prune_collision_chains();
+
+  template<class Entry>
   void log_stats() const;
 
   template<class Entry>
@@ -226,8 +229,9 @@ public:
 #endif
 
   template<class Entry>
-  inline void prune_collision_chain(ShenandoahHeapRegion* region, HeapWord* original,
-                             size_t& original_depth, size_t& new_depth);
+  inline size_t prune_collision_chain(HeapWord* original, HeapWord* forwardee);
+
+  void prune_collision_chains();
 
   template<class Entry>
   HeapWord* forwardee(HeapWord* orginal) const;

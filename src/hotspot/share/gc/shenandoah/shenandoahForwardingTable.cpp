@@ -509,6 +509,37 @@ bool ShenandoahForwardingTable::build(size_t num_entries) {
   }
 }
 
+template<class Entry>
+void ShenandoahForwardingTable::prune_collision_chains() {
+  Entry* table = reinterpret_cast<Entry*>(_table);
+  HeapWord* const region_base = _region->bottom();
+  size_t total_pruned_collisions = 0;
+  size_t max_pruned_collisions = 0;
+  for (size_t index = 0; index < _num_entries; index++) {
+    if (table[index].is_entry()) {
+      HeapWord* const original = table[index].original(region_base);
+      HeapWord* const forwardee = table[index].forwardee_from_entry_without_barrier();
+      size_t pruned_depth = prune_collision_chain<Entry>(original, forwardee);
+      total_pruned_collisions += pruned_depth;
+      if (pruned_depth > max_pruned_collisions) {
+        max_pruned_collisions = pruned_depth;
+      }
+    }
+  }
+  log_debug(gc, fwt)("Pruned region %zu (%zu forwarded objects, depth: %zu), pruned collisions: %zu, max: %zu",
+               _region->index(), _num_actual_forwardings, max_required_probes(),
+               total_pruned_collisions, max_pruned_collisions);
+  overwrite_max_required_probes(max_pruned_collisions + 1);
+}
+
+void ShenandoahForwardingTable::prune_collision_chains() {
+  if (_compact) {
+    prune_collision_chains<CompactFwdTableEntry>();
+  } else {
+    prune_collision_chains<FwdTableEntry>();
+  }
+}
+
 #ifdef USE_SENTINELS
 template<class Entry>
 void ShenandoahForwardingTable::write_at_originals(uintptr_t word, HeapWord* from, HeapWord* to) {

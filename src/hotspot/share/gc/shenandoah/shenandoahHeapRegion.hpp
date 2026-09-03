@@ -317,10 +317,6 @@ public:
     return _fwd_table;
   }
 
-  inline size_t fwd_table_max_depth() {
-    return _fwd_table.max_required_probes();
-  }
-
   inline static size_t required_regions(size_t bytes) {
     return (bytes + ShenandoahHeapRegion::region_size_bytes() - 1) >> ShenandoahHeapRegion::region_size_bytes_shift();
   }
@@ -589,6 +585,8 @@ public:
   bool build_forwarding_table(size_t num_forwardings) {
     return _fwd_table.build(num_forwardings);
   }
+
+  bool prepare_reuse_forwarding(size_t num_forwardings);
 
   void teardown_reuse_state();
 

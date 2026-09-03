@@ -43,6 +43,7 @@
 #include "oops/oop.inline.hpp"
 #include "runtime/globals_extension.hpp"
 #include "runtime/java.hpp"
+#include "runtime/orderAccess.hpp"
 #include "runtime/os.hpp"
 #include "utilities/copy.hpp"
 #include "utilities/powerOfTwo.hpp"
@@ -357,6 +358,21 @@ void ShenandoahHeapRegion::teardown_reuse_state() {
   }
   _fwd_table.reset();
   _early_recycled = false;
+}
+
+bool ShenandoahHeapRegion::prepare_reuse_forwarding(size_t num_forwardings) {
+  if (ShenandoahCSetAllocationForwardingTable) {
+    return build_forwarding_table(num_forwardings);
+  }
+  uintx const max_density = ShenandoahCSetReuseMaxDensityPercent;
+  if (max_density == 100 ||
+      num_forwardings * 100 <= region_size_words() * max_density) {
+    set_reserved_body_words(num_forwardings);
+    // Publish the reserve before finish_region_evacuation drops top to bottom, so a concurrent allocator can't see a stale zero reserve.
+    OrderAccess::storestore();
+    return true;
+  }
+  return false;
 }
 
 void ShenandoahHeapRegion::make_trash() {

@@ -76,8 +76,9 @@ public:
   // Add region to collection set
   void add_region(ShenandoahHeapRegion* r);
 
-  void switch_to_forward_table(ShenandoahHeapRegion* r);
-  void switch_to_reusable_markword(ShenandoahHeapRegion* r);
+  void switch_to_reuse_forwarding(ShenandoahHeapRegion* r);
+
+  void optimize_reused_forwarding(size_t start_index, size_t stride);
 
   // MT version
   ShenandoahHeapRegion* claim_next();
