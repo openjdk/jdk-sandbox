@@ -2047,9 +2047,10 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 
   Label safepoint_in_progress, safepoint_in_progress_done;
 
-  __ mov(rscratch1, _thread_in_vm);
-
-  __ strw(rscratch1, Address(rthread, JavaThread::thread_state_offset()));
+  // change thread state
+  __ mov(rscratch1, _thread_in_Java);
+  __ lea(rscratch2, Address(rthread, JavaThread::thread_state_offset()));
+  __ stlrw(rscratch1, rscratch2);
 
   // Force this write out before the read below
   if (!UseSystemMemoryBarrier) {
@@ -2066,11 +2067,6 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
     __ cbnzw(rscratch1, safepoint_in_progress);
     __ bind(safepoint_in_progress_done);
   }
-
-  // change thread state
-  __ mov(rscratch1, _thread_in_Java);
-  __ lea(rscratch2, Address(rthread, JavaThread::thread_state_offset()));
-  __ stlrw(rscratch1, rscratch2);
 
   if (method->is_object_wait0()) {
     // Check preemption for Object.wait()
@@ -2273,7 +2269,7 @@ nmethod* SharedRuntime::generate_native_wrapper(MacroAssembler* masm,
 #ifndef PRODUCT
   assert(frame::arg_reg_save_area_bytes == 0, "not expecting frame reg save area");
 #endif
-    __ lea(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, JavaThread::check_special_condition_for_native_trans)));
+    __ lea(rscratch1, RuntimeAddress(CAST_FROM_FN_PTR(address, SharedRuntime::check_special_condition_for_native_trans)));
     __ blr(rscratch1);
 
     // Restore any method result value
@@ -3328,6 +3324,13 @@ static void jfr_epilogue(MacroAssembler* masm) {
 // It returns a jobject handle to the event writer.
 // The handle is dereferenced and the return value is the event writer oop.
 RuntimeStub* SharedRuntime::generate_jfr_write_checkpoint() {
+  StubId id = StubId::shared_jfr_write_checkpoint_id;
+
+  CodeBlob* blob = AOTCodeCache::load_code_blob(AOTCodeEntry::SharedBlob, StubInfo::blob(id));
+  if (blob != nullptr) {
+    return blob->as_runtime_stub();
+  }
+
   enum layout {
     rbp_off,
     rbpH_off,
@@ -3338,7 +3341,7 @@ RuntimeStub* SharedRuntime::generate_jfr_write_checkpoint() {
 
   int insts_size = 1024;
   int locs_size = 64;
-  const char* name = SharedRuntime::stub_name(StubId::shared_jfr_write_checkpoint_id);
+  const char* name = SharedRuntime::stub_name(id);
   CodeBuffer code(name, insts_size, locs_size);
   OopMapSet* oop_maps = new OopMapSet();
   MacroAssembler* masm = new MacroAssembler(&code);
@@ -3361,11 +3364,19 @@ RuntimeStub* SharedRuntime::generate_jfr_write_checkpoint() {
     RuntimeStub::new_runtime_stub(name, &code, frame_complete,
                                   (framesize >> (LogBytesPerWord - LogBytesPerInt)),
                                   oop_maps, false);
+  AOTCodeCache::store_code_blob(*stub, AOTCodeEntry::SharedBlob, StubInfo::blob(id));
   return stub;
 }
 
 // For c2: call to return a leased buffer.
 RuntimeStub* SharedRuntime::generate_jfr_return_lease() {
+  StubId id = StubId::shared_jfr_return_lease_id;
+
+  CodeBlob* blob = AOTCodeCache::load_code_blob(AOTCodeEntry::SharedBlob, StubInfo::blob(id));
+  if (blob != nullptr) {
+    return blob->as_runtime_stub();
+  }
+
   enum layout {
     rbp_off,
     rbpH_off,
@@ -3377,7 +3388,7 @@ RuntimeStub* SharedRuntime::generate_jfr_return_lease() {
   int insts_size = 1024;
   int locs_size = 64;
 
-  const char* name = SharedRuntime::stub_name(StubId::shared_jfr_return_lease_id);
+  const char* name = SharedRuntime::stub_name(id);
   CodeBuffer code(name, insts_size, locs_size);
   OopMapSet* oop_maps = new OopMapSet();
   MacroAssembler* masm = new MacroAssembler(&code);
@@ -3400,6 +3411,7 @@ RuntimeStub* SharedRuntime::generate_jfr_return_lease() {
     RuntimeStub::new_runtime_stub(name, &code, frame_complete,
                                   (framesize >> (LogBytesPerWord - LogBytesPerInt)),
                                   oop_maps, false);
+  AOTCodeCache::store_code_blob(*stub, AOTCodeEntry::SharedBlob, StubInfo::blob(id));
   return stub;
 }
 
