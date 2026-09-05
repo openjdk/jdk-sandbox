@@ -432,24 +432,24 @@
           "by thread type (worker or mutator) and evacuation type (young, " \
           "old, or promotion.")                                             \
                                                                             \
-  product(bool, ShenandoahCSetReuse, true, DIAGNOSTIC,                     \
-          "Allow evacuated cset regions to be switched to address-based "  \
-          "forwarding tables.")                                            \
+  product(bool, ShenandoahCSetReuse, true, DIAGNOSTIC,                      \
+          "Allow evacuated cset regions to be switched to address-based "   \
+          "forwarding tables.")                                             \
                                                                             \
   product(bool, ShenandoahCompactFWTEntries, true, DIAGNOSTIC,              \
           "Use compact (8-byte) forwarding table entries when heap and "    \
-          "region sizes allow it. Disabling this forces wide (16-byte) "   \
+          "region sizes allow it. Disabling this forces wide (16-byte) "    \
           "entries unconditionally, which is useful for debugging.")        \
                                                                             \
-  product(bool, ShenandoahCSetRegionTLAB, true, DIAGNOSTIC,                \
-          "Allow mutator TLAB carving in collection-set regions during "   \
-          "concurrent evacuation. Disabling this makes allocate() return " \
-          "nullptr for TLAB requests in cset regions, forcing the "        \
-          "allocator to pick a non-cset region instead.")                  \
+  product(bool, ShenandoahCSetRegionTLAB, true, DIAGNOSTIC,                 \
+          "Allow mutator TLAB carving in collection-set regions during "    \
+          "concurrent evacuation. Disabling this makes allocate() return "  \
+          "nullptr for TLAB requests in cset regions, forcing the "         \
+          "allocator to pick a non-cset region instead.")                   \
                                                                             \
-  product(bool, ShenandoahCSetAllocation, true, DIAGNOSTIC,                \
-          "Early-recycle evacuated cset regions into the Mutator free "    \
-          "set, starting before update-refs.")                             \
+  product(bool, ShenandoahCSetAllocation, true, DIAGNOSTIC,                 \
+          "Early-recycle evacuated cset regions into the Mutator free "     \
+          "set, starting before update-refs.")                              \
                                                                             \
   product(bool, ShenandoahCSetAllocationForwardingTable, true, DIAGNOSTIC,  \
           "For reused cset regions, build address-based forwarding tables; "\
@@ -472,15 +472,16 @@
           "an acceptable TLAB location.")                                   \
           range(0, 32768)                                                   \
                                                                             \
-  product(uintx, ShenandoahForwardingTableMaxPercent, 10, DIAGNOSTIC,      \
-          "Switch an evacuated cset region to a forwarding table only "    \
-          "when the table tail would occupy at most this percentage of "   \
-          "the region; denser regions keep mark-word forwarding. Lowering "\
-          "it trades early memory reuse for cheaper table builds and "     \
-          "shorter sentinel runs during TLAB carving.")                    \
-          range(0, 100)                                                    \
+  product(uintx, ShenandoahForwardingTableMaxPercent, 10, DIAGNOSTIC,       \
+          "Switch an evacuated cset region to a forwarding table only "     \
+          "when the table tail would occupy at most this percentage of "    \
+          "the region; denser regions keep mark-word forwarding. Lowering " \
+          "it trades early memory reuse for cheaper table builds and "      \
+          "shorter sentinel runs during TLAB carving.")                     \
+          range(0, 100)                                                     \
                                                                             \
-  product(uintx, ShenandoahForwardingTableLoadFactorPercent, 75, DIAGNOSTIC,\
+  product(uintx, ShenandoahForwardingTableLoadFactorPercent,                \
+          75, DIAGNOSTIC,                                                   \
           "Target load factor (percent) for forwarding tables. Default 75 " \
           "(1.333x) keeps the average double-hashing chain near 1.85 for a "\
           "successful lookup. 100 is not allowed.")                         \

@@ -63,6 +63,7 @@ public:
   void reset() { _forwardee = nullptr; _original = nullptr; };
 };
 
+// Use CompactFwdTableEntry if the region size is <= 32M and the total heap size is less than 2^(41+3) = 16 GB
 class CompactFwdTableEntry {
   static const uint64_t ENTRY_MARKER = uint64_t(1) << 63;
   static const uint64_t ORIGINAL_BITS = 22; // Enough to encode 32M regions.
@@ -118,26 +119,35 @@ public:
   void reset() { _encoded = 0; }
 };
 
-class ShenandoahForwardingTable {
-  static bool _compact;
-  static size_t _common_max_probes;
+class alignas(64) ShenandoahForwardingTable {
+  static uint32_t _common_max_probes;
+  static bool _compact;         // Depends on region size and heap size only. All forwarding tables in JVM use same encoding.
 
+  // A Graviton-2 cache line is 64 bytes, representing 8 words.  All of the following instance fields should fit in a single
+  // cache line.  The first 5 fields are accessed on the hot path through forwardee(original).
   ShenandoahHeapRegion* const _region;
+  ShenandoahMarkingContext* _ctx;
   void* _table;
-  size_t _num_entries;
-  size_t _num_expected_forwardings;
-  size_t _num_actual_forwardings;
-  size_t _num_live_words;
-  size_t _max_required_probes;
+  // uint32_t _num_entries in forwarding table has max value 2^32 == 4M.  Since each entry consumes at least 8 bytes,
+  // this is sufficient to consume an entire region of size 32M. This matches the Shenandoah definition of MAX_REGION_SIZE.
+  // Note that G1 GC has a larger maximum region size, 512 MB. Even that can be supported with a uint32_t forward table size.
+  // In that configuration, each entry in the forward table consumes 16 bytes, so the maximum forward table would by 64M,
+  // representing 12.5% of the region size. Generally, we would not want to try to forward more than approximately 10% of
+  // a heap region's content, especially for such large heap regions.
+  uint32_t _num_entries;
+  uint32_t _max_required_probes;
+  uint32_t _num_expected_forwardings;
+  uint32_t _num_actual_forwardings;
+  uint32_t _num_live_words;     // Number of mark words spanned by the fwt
   bool _abandoned;
 
-  static size_t compute_common_max_probes();
+  static uint32_t compute_common_max_probes();
 
   template<class Entry>
-  bool build(size_t num_forwardings);
+  bool build(uint32_t num_forwardings);
 
   template<class Entry>
-  bool initialize(size_t num_forwardings);
+  bool initialize(uint32_t num_forwardings);
 
   template<class Entry>
   void set_marked_entries_used(BitMap& used);
@@ -147,27 +157,28 @@ class ShenandoahForwardingTable {
 
   static uint64_t hash(HeapWord* original, void* table);
 
-  void probe_of(HeapWord* original, size_t& index, size_t& stride) const;
+  inline void probe_of(HeapWord* original, uint32_t& index, uint32_t& stride) const;
 
   template<class Entry>
-  inline size_t reserve_forwarding(BitMap& used, size_t index, size_t stride, Entry& replaced,
-                                   size_t& replaced_index, size_t& replaced_stride, size_t& replaced_probes);
+  inline uint32_t reserve_forwarding(BitMap& used, uint32_t index, uint32_t stride, Entry& replaced,
+                                   uint32_t& replaced_index, uint32_t& replaced_stride, uint32_t& replaced_probes);
 
   template<class Entry>
-  inline size_t reserve_new_forwarding(BitMap& used, size_t index, size_t stride, size_t probes,
-                                       Entry& replaced, size_t& replaced_index, size_t& replaced_stride, size_t& replaced_probes);
+  inline uint32_t reserve_new_forwarding(BitMap& used, uint32_t index, uint32_t stride, uint32_t probes,
+                                       Entry& replaced, uint32_t& replaced_index, uint32_t& replaced_stride,
+                                       uint32_t& replaced_probes);
 
   template<class Entry>
-  inline void insert_forwarding(size_t index, const Entry& entry);
+  inline void insert_forwarding(uint32_t index, const Entry& entry);
 
   template<class Entry>
   void enter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee,
-                        Entry& replaced, size_t& replaced_index, size_t& replaced_stride, size_t& replaced_probes);
+                        Entry& replaced, uint32_t& replaced_index, uint32_t& replaced_stride, uint32_t& replaced_probes);
 
   template<class Entry>
   void reenter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee,
-                          size_t index, size_t stride, size_t probed_count,
-                          Entry& replaced, size_t& replaced_index, size_t& replaced_stride, size_t& replaced_probes);
+                          uint32_t index, uint32_t stride, uint32_t probed_count,
+                          Entry& replaced, uint32_t& replaced_index, uint32_t& replaced_stride, uint32_t& replaced_probes);
 
   template<class Entry>
   void fill_forwardings(BitMap& used);
@@ -191,27 +202,30 @@ class ShenandoahForwardingTable {
 
 public:
   ShenandoahForwardingTable(ShenandoahHeapRegion* region) :
-    _region(region), _table(nullptr), _num_entries(0),
+    _region(region),
+    _ctx(ShenandoahHeap::heap()->marking_context()),
+    _table(nullptr),
+    _num_entries(0),
+    _max_required_probes(0),
     _num_expected_forwardings(0),
     _num_actual_forwardings(0),
     _num_live_words(0),
-    _max_required_probes(0),
     _abandoned(false) {}
 
-  void overwrite_max_required_probes(size_t new_max_probes) {
+  void overwrite_max_required_probes(uint32_t new_max_probes) {
     // Make sure all overwrites of original/forwardee pairs have been updated before we announce an improved collision depth
     OrderAccess::storestore();
     _max_required_probes = new_max_probes;
   }
 
-  size_t max_required_probes() {
+  uint32_t max_required_probes() {
     return _max_required_probes;
   }
 
   static bool use_compact() { return _compact; }
   static void initialize_globals();
 
-  bool build(size_t num_forwardings);
+  bool build(uint32_t num_forwardings);
 
   void reset() {
     _table = nullptr;
@@ -229,7 +243,7 @@ public:
 #endif
 
   template<class Entry>
-  inline size_t prune_collision_chain(HeapWord* original, HeapWord* forwardee);
+  inline uint32_t prune_collision_chain(HeapWord* original, HeapWord* forwardee);
 
   void prune_collision_chains();
 
@@ -237,7 +251,7 @@ public:
   HeapWord* forwardee(HeapWord* orginal) const;
 
   template<class Entry>
-  inline size_t probes(HeapWord* original, size_t& stride) const;
+  inline uint32_t probes(HeapWord* original, uint32_t& stride) const;
 };
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHFORWARDINGTABLE_HPP

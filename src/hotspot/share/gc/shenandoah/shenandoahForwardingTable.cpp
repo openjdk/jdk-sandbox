@@ -36,27 +36,27 @@
 
 HeapWord* CompactFwdTableEntry::_heap_base = nullptr;
 bool ShenandoahForwardingTable::_compact = false;
-size_t ShenandoahForwardingTable::_common_max_probes = 0;
+uint32_t ShenandoahForwardingTable::_common_max_probes = 0;
 
-size_t ShenandoahForwardingTable::compute_common_max_probes() {
-  size_t const overrun = ShenandoahForwardingTableProbeOverrun;
+uint32_t ShenandoahForwardingTable::compute_common_max_probes() {
+  uint32_t const overrun = ShenandoahForwardingTableProbeOverrun;
   if (overrun == 0) {
     return 0;
   }
-  size_t const lf = ShenandoahForwardingTableLoadFactorPercent;
-  constexpr size_t largest_entry_words = sizeof(CompactFwdTableEntry) / sizeof(HeapWord*);
-  size_t const largest_max_slots = (ShenandoahHeapRegion::region_size_words() / largest_entry_words)
-                                   * ShenandoahForwardingTableMaxPercent / 100;
-  size_t const largest_max_keys = largest_max_slots * lf / 100;
+  uint32_t const lf = ShenandoahForwardingTableLoadFactorPercent;
+  constexpr uint32_t largest_entry_words = sizeof(CompactFwdTableEntry) / sizeof(HeapWord*);
+  uint32_t const largest_max_slots = ((ShenandoahHeapRegion::region_size_words() / largest_entry_words)
+                                      * ShenandoahForwardingTableMaxPercent / 100);
+  uint32_t const largest_max_keys = largest_max_slots * lf / 100;
   if (largest_max_keys == 0) {
     return 0;
   }
   assert(0 < lf && lf < 100, "load factor must be in (0, 100)");
   double const alpha = (double)lf / 100.0;
   double const expected_max = ::log((double)largest_max_keys) / ::log(1.0 / alpha);
-  size_t const probes = MAX2((size_t)(overrun * expected_max), (size_t)1);
-  log_info(gc)("Forwarding table probe limit: %zu (largest table %zu slots, load factor %zu%%, "
-               "expected longest chain %.0f, overrun %zu)",
+  uint32_t const probes = MAX2((size_t)(overrun * expected_max), (size_t)1);
+  log_info(gc)("Forwarding table probe limit: %u (largest table %u slots, load factor %u%%, "
+               "expected longest chain %.0f, overrun %u)",
                probes, largest_max_slots, lf,
                expected_max, overrun);
   return probes;
@@ -93,7 +93,7 @@ static inline bool different_entries(HeapWord* a, HeapWord* b) {
   }
 }
 
-static bool is_prime(size_t n) {
+static bool is_prime(uint32_t n) {
   if (n < 2)      return false;
   if (n % 2 == 0) return n == 2;
   if (n % 3 == 0) return n == 3;
@@ -110,7 +110,7 @@ static bool is_prime(size_t n) {
 }
 
 // n is the (planned forwardings plus the expected mark-word collisions)  / Specified LoadFactor
-static size_t next_prime(size_t n, size_t limit) {
+static uint32_t next_prime(uint32_t n, uint32_t limit) {
   if (n < 1024) {               // Give special handling to smaller tables
     if (n < 256) {
       size_t selector = n / 16;
@@ -134,7 +134,7 @@ static size_t next_prime(size_t n, size_t limit) {
        *     15        255            331           30%
        */
       assert(selector < 16, "sanity");
-      static size_t small_primes[] = { 23, 47, 71, 97, 113, 131, 151, 173, 193, 211, 233, 251, 271, 293, 313, 331 };
+      static uint32_t small_primes[] = { 23, 47, 71, 97, 113, 131, 151, 173, 193, 211, 233, 251, 271, 293, 313, 331 };
       return small_primes[selector];
     } else {
       size_t selector = n / 64;
@@ -157,7 +157,7 @@ static size_t next_prime(size_t n, size_t limit) {
        *     14        959           1049            9%
        *     15       1023           1069            4%
        */
-      static size_t medium_primes[] = { 401, 479, 557, 631, 701, 761, 829, 907, 977, 1021, 1049, 1069 };
+      static uint32_t medium_primes[] = { 401, 479, 557, 631, 701, 761, 829, 907, 977, 1021, 1049, 1069 };
       assert(selector < 16, "sanity");
       assert(selector >= 4, "sanity");
       return medium_primes[selector - 4];
@@ -177,13 +177,13 @@ static size_t next_prime(size_t n, size_t limit) {
 }
 
 template<class Entry>
-bool ShenandoahForwardingTable::initialize(size_t num_entries) {
+bool ShenandoahForwardingTable::initialize(uint32_t num_entries) {
   // Find the minimum hashtable that satisfies the target load factor. Live
   // object headers falling within the table's range are unusable slots; the
   // search below grows the table to keep enough usable slots.
-  constexpr size_t entry_words = sizeof(Entry) / sizeof(HeapWord*);
+  constexpr uint32_t entry_words = sizeof(Entry) / sizeof(HeapWord*);
   // Entry aligned and suitable for count_mark_bit_conflicts().
-  size_t const entry_obj_align = MAX2(entry_words * HeapWordSize, (size_t)MinObjAlignmentInBytes);
+  uint32_t const entry_obj_align = MAX2(entry_words * HeapWordSize, (uint32_t)MinObjAlignmentInBytes);
   HeapWord* const bottom =  _region->bottom();
   HeapWord* const top =  _region->top();
   HeapWord* const end = _region->end();
@@ -193,16 +193,16 @@ bool ShenandoahForwardingTable::initialize(size_t num_entries) {
   // ~2.2). A lower load factor yields a sparser table
   // with shorter probe chains (cheaper resolve and fill) but a larger tail, so
   // fewer dense regions fit; a higher one packs tighter.
-  size_t const lf = ShenandoahForwardingTableLoadFactorPercent;
+  uint32_t const lf = ShenandoahForwardingTableLoadFactorPercent;
   // num_required_entries is the number of usable entries in order to honor requested load factor
-  size_t const num_required_entries = (num_entries * 100 + lf - 1) / lf;
+  uint32_t const num_required_entries = (num_entries * 100 + lf - 1) / lf;
   // Optimistic last possible table start (assuming no unusable entries). We don't need to search beyond that.
   HeapWord* const last_table_start = align_down(end - num_required_entries * entry_words, entry_obj_align);
   if (last_table_start < bottom) {
     log_info(gc)("Forwarding table build failed for region %zu: "
-                 "required=%zu entries of %zu words exceed region_words=%zu (num_forwardings=%zu)",
+                 "required=%u entries of %u words exceed region_words=%u (num_forwardings=%u)",
                  _region->index(), num_required_entries, entry_words,
-                 pointer_delta(end, bottom), num_entries);
+                 (uint32_t) pointer_delta(end, bottom), num_entries);
     return false;
   }
   // Diagnostic knob: only switch to a forwarding table when its tail would
@@ -212,18 +212,18 @@ bool ShenandoahForwardingTable::initialize(size_t num_entries) {
   // body. 100 disables this check (physical fit only, enforced above); the
   // default 93 keeps ~7% of the region as reusable body.
   if (ShenandoahForwardingTableMaxPercent < 100) {
-    size_t const region_words = pointer_delta(end, bottom);
-    size_t const table_words = num_required_entries * entry_words;
+    uint32_t const region_words = pointer_delta(end, bottom);
+    uint32_t const table_words = num_required_entries * entry_words;
     if (table_words * 100 > region_words * ShenandoahForwardingTableMaxPercent) {
-      log_debug(gc)("Forwarding table skipped for region %zu: table %zu%% of region exceeds max %zu%% (num_forwardings=%zu)",
+      log_debug(gc)("Forwarding table skipped for region %zu: table %u%% of region exceeds max %u%% (num_forwardings=%u)",
                     _region->index(), table_words * 100 / region_words,
-                    (size_t)ShenandoahForwardingTableMaxPercent, num_entries);
+                    (uint32_t)ShenandoahForwardingTableMaxPercent, num_entries);
       return false;
     }
   }
   // Count number of live words in the tail [last_table_start, top).
   ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
-  size_t unusable_entries;
+  uint32_t unusable_entries;
   if (last_table_start >= top) {
     unusable_entries = 0;
   } else {
@@ -232,10 +232,10 @@ bool ShenandoahForwardingTable::initialize(size_t num_entries) {
   // Now try to find a lower bound that satisfies the target load factor.  Start at the last possible address.
   HeapWord* table_start = last_table_start;
   assert(table_start >= bottom, "table start must be in region");
-  size_t num_table_entries = (end - table_start) / entry_words;
+  uint32_t num_table_entries = (end - table_start) / entry_words;
 
   while (table_start > bottom && num_table_entries - unusable_entries < num_required_entries) {
-    size_t growth = num_required_entries + unusable_entries - num_table_entries;
+    uint32_t growth = num_required_entries + unusable_entries - num_table_entries;
     HeapWord* new_table_start = align_down(table_start - growth * entry_words, entry_obj_align);
     if (new_table_start < bottom) {
       table_start = bottom;     // Force loop to abort with failure condition.
@@ -249,21 +249,27 @@ bool ShenandoahForwardingTable::initialize(size_t num_entries) {
 
   if (num_table_entries - unusable_entries < num_required_entries) {
     log_info(gc)("Forwarding table build failed for region %zu: "
-                 "table_entries=%zu unusable=%zu required=%zu num_forwardings=%zu region_words=%zu",
+                 "table_entries=%u unusable=%u required=%u num_forwardings=%u region_words=%u",
                  _region->index(), num_table_entries, unusable_entries, num_required_entries, num_entries,
-                 pointer_delta(end, bottom));
+                 (uint32_t) pointer_delta(end, bottom));
     return false;
   }
   table_start = align_down(table_start, entry_words * HeapWordSize);
 
   // Prime table size >= 2 (a modulus of 1 would break the double-hashing stride) for
   // a later switch to double hashing.
-  size_t const region_entries = (end - bottom) / entry_words;
-  size_t const prime_entries = next_prime(MAX2(num_table_entries, (size_t)2), region_entries);
+  uint32_t const region_entries = (end - bottom) / entry_words;
+  uint32_t const max_prime_32bit = 4294967291;
+  uint32_t prime_entries;
+  if (num_table_entries < max_prime_32bit) {
+    prime_entries = next_prime(MAX2(num_table_entries, (uint32_t)2), region_entries);
+  } else {
+    prime_entries = 0;  /* overflow table cannot be constructed */
+  }
 
   if (prime_entries == 0) {
     log_info(gc)("Forwarding table build failed for region %zu: "
-                 "no prime table size fits (table_entries=%zu region_entries=%zu num_forwardings=%zu)",
+                 "no prime table size fits (table_entries=%u region_entries=%u num_forwardings=%u)",
                  _region->index(), num_table_entries, region_entries, num_entries);
     return false;
   }
@@ -275,7 +281,7 @@ bool ShenandoahForwardingTable::initialize(size_t num_entries) {
          "_table must be within range and aligned");
 #endif
   _num_entries = prime_entries;
-  assert(_num_entries <= max_juint, "num_entries %zu must fit in 32 bits for the multiply-shift probe reduction", _num_entries);
+  assert(_num_entries <= max_juint, "num_entries %u must fit in 32 bits for the multiply-shift probe reduction", _num_entries);
   _num_expected_forwardings = num_entries;
   _num_actual_forwardings = 0;
   _num_live_words = unusable_entries;
@@ -283,7 +289,8 @@ bool ShenandoahForwardingTable::initialize(size_t num_entries) {
   _abandoned = false;
 
   assert((void*)(reinterpret_cast<Entry*>(_table) + _num_entries) == (void*)_region->end(), "table must be anchored at region end");
-  log_develop_debug(gc)("Initialized forwarding table: table: " PTR_FORMAT ", num_entries: %lu, requested entries: %lu", p2i(_table), _num_entries, num_entries);
+  log_develop_debug(gc)("Initialized forwarding table: table: " PTR_FORMAT ", num_entries: %u, requested entries: %u",
+                        p2i(_table), _num_entries, num_entries);
   return true;
 }
 
@@ -338,11 +345,11 @@ void ShenandoahForwardingTable::clear_unused_slots(const BitMap& used) {
 
 template<class Entry>
 void ShenandoahForwardingTable::enter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee, Entry& replaced,
-                                                 size_t& replaced_index, size_t& replaced_stride, size_t& replaced_probes) {
+                                                 uint32_t& replaced_index, uint32_t& replaced_stride, uint32_t& replaced_probes) {
   if (_abandoned) {
     return;
   }
-  size_t index, stride;
+  uint32_t index, stride;
   probe_of(original, index, stride);
   Entry const entry(_region->bottom(), original, forwardee);
   index = reserve_forwarding<Entry>(used, index, stride, replaced, replaced_index, replaced_stride, replaced_probes);
@@ -355,8 +362,9 @@ void ShenandoahForwardingTable::enter_forwarding(BitMap& used, HeapWord* origina
 
 template<class Entry>
 void ShenandoahForwardingTable::reenter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee,
-                                                   size_t index, size_t stride, size_t probes, Entry& replaced,
-                                                   size_t& replaced_index, size_t& replaced_stride, size_t& replaced_probes) {
+                                                   uint32_t index, uint32_t stride, uint32_t probes, Entry& replaced,
+                                                   uint32_t& replaced_index, uint32_t& replaced_stride,
+                                                   uint32_t& replaced_probes) {
   if (_abandoned) {
     return;
   }
@@ -373,8 +381,9 @@ template<class Entry>
 void ShenandoahForwardingTable::log_stats() const {
 #ifndef PRODUCT
   log_debug(gc)("Forwarding table load factor: %f", (float)(_num_actual_forwardings + _num_live_words) / (float) (_num_entries));
-  log_debug(gc)("Forwarding table size: %lu (== %lu bytes)", _num_entries, sizeof(Entry) * _num_entries);
-  log_debug(gc)("Forwarding table expected: %lu, actual: %lu, live words: %lu", _num_expected_forwardings, _num_actual_forwardings, _num_live_words);
+  log_debug(gc)("Forwarding table size: %u (== %u bytes)", _num_entries, (uint32_t)(sizeof(Entry) * _num_entries));
+  log_debug(gc)("Forwarding table expected: %u, actual: %u, live words: %u",
+                _num_expected_forwardings, _num_actual_forwardings, _num_live_words);
 #endif
 }
 
@@ -406,9 +415,9 @@ void ShenandoahForwardingTable::fill_forwardings(BitMap& used) {
       }
 #endif
       Entry replaced = Entry();       // no-arg constructor builds Entry that !is_entry()
-      size_t index;
-      size_t stride;
-      size_t probe_count;
+      uint32_t index;
+      uint32_t stride;
+      uint32_t probe_count;
       _fwt.enter_forwarding<Entry>(_used, original, forwardee, replaced, index, stride, probe_count);
       while (replaced.is_entry()) {
         original = replaced.original(_region_base);
@@ -422,7 +431,7 @@ void ShenandoahForwardingTable::fill_forwardings(BitMap& used) {
 
   ShenandoahHeap::heap()->marked_object_iterate(_region, &cl);
   assert(_abandoned || _num_actual_forwardings == _num_expected_forwardings,
-         "must enter exact number of forwardings, actual: %lu, expected: %lu", _num_actual_forwardings, _num_expected_forwardings);
+         "must enter exact number of forwardings, actual: %u, expected: %u", _num_actual_forwardings, _num_expected_forwardings);
   log_stats<Entry>();
 }
 
@@ -470,7 +479,7 @@ void ShenandoahForwardingTable::verify_forwardings() {
 #endif
 
 template<class Entry>
-bool ShenandoahForwardingTable::build(size_t num_entries) {
+bool ShenandoahForwardingTable::build(uint32_t num_entries) {
   bool initialized = initialize<Entry>(num_entries);
   if (initialized) {
     // Track used slots in a scratch bitmap during construction, then zero
@@ -480,8 +489,8 @@ bool ShenandoahForwardingTable::build(size_t num_entries) {
     set_marked_entries_used<Entry>(used);
     fill_forwardings<Entry>(used);
     if (_abandoned) {
-      log_debug(gc)("Forwarding table abandoned for region %zu: probe chain reached %zu "
-                    "(forwardings=%zu, slots=%zu, live_words=%zu)",
+      log_debug(gc)("Forwarding table abandoned for region %zu: probe chain reached %u "
+                    "(forwardings=%u, slots=%u, live_words=%u)",
                     _region->index(), _common_max_probes, num_entries, _num_entries, _num_live_words);
       reset();
       return false;
@@ -494,14 +503,14 @@ bool ShenandoahForwardingTable::build(size_t num_entries) {
     constexpr size_t entry_words = sizeof(Entry) / sizeof(HeapWord*);
     size_t const region_words = pointer_delta(_region->end(), _region->bottom());
     size_t const table_words = _num_entries * entry_words;
-    log_debug(gc)("FWT build region %zu: forwardings=%zu, slots=%zu, table=%zu%% of region",
+    log_debug(gc)("FWT build region %zu: forwardings=%u, slots=%u, table=%u%% of region",
                   _region->index(), num_entries, _num_entries,
-                  table_words * 100 / region_words);
+                  (uint32_t) (table_words * 100 / region_words));
   }
   return initialized;
 }
 
-bool ShenandoahForwardingTable::build(size_t num_entries) {
+bool ShenandoahForwardingTable::build(uint32_t num_entries) {
   if (_compact) {
     return build<CompactFwdTableEntry>(num_entries);
   } else {
@@ -513,8 +522,8 @@ template<class Entry>
 void ShenandoahForwardingTable::prune_collision_chains() {
   Entry* table = reinterpret_cast<Entry*>(_table);
   HeapWord* const region_base = _region->bottom();
-  size_t total_pruned_collisions = 0;
-  size_t max_pruned_collisions = 0;
+  uint32_t total_pruned_collisions = 0;
+  uint32_t max_pruned_collisions = 0;
   for (size_t index = 0; index < _num_entries; index++) {
     if (table[index].is_entry()) {
       HeapWord* const original = table[index].original(region_base);
@@ -526,7 +535,7 @@ void ShenandoahForwardingTable::prune_collision_chains() {
       }
     }
   }
-  log_debug(gc, fwt)("Pruned region %zu (%zu forwarded objects, depth: %zu), pruned collisions: %zu, max: %zu",
+  log_debug(gc, fwt)("Pruned region %zu (%u forwarded objects, depth: %u), pruned collisions: %u, max: %u",
                _region->index(), _num_actual_forwardings, max_required_probes(),
                total_pruned_collisions, max_pruned_collisions);
   overwrite_max_required_probes(max_pruned_collisions + 1);

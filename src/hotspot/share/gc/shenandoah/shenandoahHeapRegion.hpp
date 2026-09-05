@@ -583,7 +583,11 @@ public:
   }
 
   bool build_forwarding_table(size_t num_forwardings) {
-    return _fwd_table.build(num_forwardings);
+    if (num_forwardings >= 0x100000000) {
+      return false;             // overflow
+    } else {
+      return _fwd_table.build((uint32_t) num_forwardings);
+    }
   }
 
   bool prepare_reuse_forwarding(size_t num_forwardings);
