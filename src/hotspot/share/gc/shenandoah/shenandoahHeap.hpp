@@ -860,7 +860,8 @@ public:
   virtual oop evacuate_object(oop src, Thread* thread);
 
   // Build and install a FWT at the region tail post-evacuation; returns false on failure.
-  bool finish_region_evacuation(ShenandoahHeapRegion* r, size_t num_forwardings, bool concurrent);
+  bool finish_region_evacuation(ShenandoahHeapRegion* r,
+                                size_t num_forwardings, bool concurrent, ShenandoahHeuristics* heuristics);
 
   // Parallel scan of flagged cset regions to clear self-forwarded bits on live
   // objects. Must be called at a safepoint; intended for the degenerated and

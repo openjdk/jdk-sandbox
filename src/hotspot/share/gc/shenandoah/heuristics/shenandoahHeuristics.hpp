@@ -83,6 +83,12 @@ private:
   double _most_recent_trigger_evaluation_time;
   double _most_recent_planned_sleep_interval;
 
+  // How many bytes are being early recycled during this GC cycle?
+  volatile size_t _early_recycled_bytes;
+
+  // How far behind pace is the mutator allocation pool compared to planned completion of GC?
+  size_t _mutator_memory_shortfall;
+
 protected:
   static constexpr uint Moving_Average_Samples = 10; // Number of samples to store in moving averages
 
@@ -214,6 +220,15 @@ protected:
     return _most_recent_planned_sleep_interval;
   }
 
+  void reset_early_recycled_bytes() {
+    AtomicAccess::store(&_early_recycled_bytes, (size_t) 0);
+  }
+
+  void set_mutator_memory_shortfall(size_t bytes_shortfall) {
+    _mutator_memory_shortfall = bytes_shortfall;
+    reset_early_recycled_bytes();
+  }
+
 public:
   ShenandoahHeuristics(ShenandoahSpaceInfo* space_info);
   virtual ~ShenandoahHeuristics();
@@ -247,6 +262,21 @@ public:
   }
 
   virtual bool should_start_gc();
+
+  // At the time we trigger, we set the mutator memory shortfall to reflect the amount by which our triggering
+  // heuristics expect the mutator memory budget to fall short with certain triggering heuristics. This information
+  // can feed into surging of GC workers and/or early recycling of CSET memory.
+  size_t mutator_memory_shortfall() {
+    return _mutator_memory_shortfall;
+  }
+
+  size_t early_recycled_bytes() {
+    return AtomicAccess::load(&_early_recycled_bytes);
+  }
+
+  void supplement_early_recycled_bytes(size_t new_bytes) {
+    AtomicAccess::add(&_early_recycled_bytes, new_bytes);
+  }
 
   inline void cancel_trigger_request() {
     _start_gc_is_pending = false;

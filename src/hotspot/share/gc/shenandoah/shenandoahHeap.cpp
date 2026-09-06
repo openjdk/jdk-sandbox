@@ -1159,6 +1159,7 @@ private:
   ShenandoahHeap* const _sh;
   ShenandoahCollectionSet* const _cs;
   bool _concurrent;
+  ShenandoahHeuristics* _heuristics;
 public:
   ShenandoahEvacuationTask(ShenandoahHeap* sh,
                            ShenandoahCollectionSet* cs,
@@ -1166,8 +1167,11 @@ public:
     WorkerTask("Shenandoah Evacuation"),
     _sh(sh),
     _cs(cs),
-    _concurrent(concurrent)
-  {}
+    _concurrent(concurrent),
+    _heuristics(ShenandoahHeap::heap()->global_generation()->heuristics())
+  {
+    assert(!ShenandoahHeap::heap()->mode()->is_generational(), "Handle generational evacuation elsewhere");
+  }
 
   void work(uint worker_id) final {
     if (_concurrent) {
@@ -1208,7 +1212,7 @@ private:
       }
       // Build the forwarding table outside the stsj scope, after the
       // region's objects have been evacuated.
-      _sh->finish_region_evacuation(r, num_forwardings, _concurrent);
+      _sh->finish_region_evacuation(r, num_forwardings, _concurrent, _heuristics);
     }
   }
 };
@@ -1440,7 +1444,8 @@ oop ShenandoahHeap::try_evacuate_object(oop p, Thread* thread, ShenandoahHeapReg
   }
 }
 
-bool ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t num_forwardings, bool concurrent) {
+bool ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t num_forwardings,
+                                              bool concurrent, ShenandoahHeuristics* heuristics) {
   assert(ShenandoahHeap::heap()->marking_context()->top_at_mark_start(r) == r->top(), "TAMS must be set to top");
   if (!ShenandoahCSetReuse) {
     return false;
@@ -1455,15 +1460,28 @@ bool ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t nu
   // There shoud be no live objects.
   if (r->is_pinned() || r->was_promoted_in_place() || r->has_self_forwards()) {
     return false;
+  } else {
+    size_t short_fall = heuristics->mutator_memory_shortfall();
+    size_t back_fill = heuristics->early_recycled_bytes();
+    if (back_fill >= short_fall) {
+      // We've already early-recycled enough memory to fill needs for this cycle. Avoid the costs of building, balancing,
+      // pruning this forward table, and avoid the overheads of allocating more slowly and updating all pointers to newly
+      // allocated objects within this potentially early recycled cset region.
+      return false;
+    }
+    bool can_reuse = r->prepare_reuse_forwarding(num_forwardings);
+    if (can_reuse) {
+      // There is a race here that we don't bother to resolve.  The race may cause us to early recycle a bit more than is really
+      // necessary. If we decide this causes measurable performance impact, we can invest in preventing the race.
+      size_t early_recycled_bytes = (r->forwarding_table_start() - r->bottom()) * HeapWordSize;
+      heuristics->supplement_early_recycled_bytes(early_recycled_bytes);
+      r->set_alt_top(r->top());
+      r->set_top(r->bottom());
+      OrderAccess::fence();
+      collection_set()->switch_to_reuse_forwarding(r);
+    }
+    return can_reuse;
   }
-  bool can_reuse = r->prepare_reuse_forwarding(num_forwardings);
-  if (can_reuse) {
-    r->set_alt_top(r->top());
-    r->set_top(r->bottom());
-    OrderAccess::fence();
-    collection_set()->switch_to_reuse_forwarding(r);
-  }
-  return can_reuse;
 }
 
 // Clear the self_fwd bit on a live cset object, if set. Runs at a safepoint,

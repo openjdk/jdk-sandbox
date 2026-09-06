@@ -175,6 +175,8 @@ bool ShenandoahYoungHeuristics::should_start_gc() {
     // ShenandoahAdaptiveHeuristics::should_start_gc() has already accepted trigger, or declined it.
     return true;
   }
+  // If ShenandoahAdaptiveHeuristics::should_start_gc() returns false, _mutator_memory_shortfall has been set to zero.
+  // There should be no need for emergency interventions with expedited GC cycles.
 
   if (trigger_expedite_promotions(heap, old_generation)) {
     return true;

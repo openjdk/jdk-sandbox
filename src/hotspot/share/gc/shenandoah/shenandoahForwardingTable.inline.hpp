@@ -166,11 +166,6 @@ HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
 
 template<class Entry>
 inline void ShenandoahForwardingTable::insert_forwarding(uint32_t index, const Entry& entry) {
-#undef KELVIN_DEBUG
-#ifdef KELVIN_DEBUG
-  log_info(gc)("insert_forwarding for region %zu, index: %u (" PTR_FORMAT ", " PTR_FORMAT ")",
-               _region->index(), index, p2i(entry.original(_region->bottom())), p2i(entry.forwardee_from_entry_without_barrier()));
-#endif
   new (reinterpret_cast<Entry*>(_table) + index) Entry(entry);
 }
 
@@ -273,25 +268,11 @@ uint32_t ShenandoahForwardingTable::reserve_forwarding(BitMap& used, uint32_t in
         _num_actual_forwardings++;
         replaced_index = index;
         replaced = Entry(region_base, entry.original(region_base), entry.forwardee_from_entry_without_barrier());
-#undef KELVIN_DEBUG
-#ifdef KELVIN_DEBUG
-        log_info(gc)("reserve_forwarding(region: %zu) replacing at depth %u (" PTR_FORMAT ", " PTR_FORMAT ") at depth %u with index %u",
-                     _region->index(), depth, p2i(entry.original(region_base)), p2i(entry.forwardee_from_entry_without_barrier()),
-                     replaced_probes, index);
-        if (depth >= 2) {
-          log_info(gc)(" initial index: %zu, stride: %u, num_entries: %u", first_index, stride, _num_entries);
-        }
-#endif
         if (depth > _max_required_probes) {
           _max_required_probes = depth;
         }
         return index;
       }
-#ifdef KELVIN_DEBUG
-      else {
-        log_info(gc)("Not replacing index %zu because its probe count is %zu and mine is %zu", index, replaced_probes, depth);
-      }
-#endif
     }
     index += stride;
     if (index >= _num_entries) {
@@ -308,13 +289,6 @@ uint32_t ShenandoahForwardingTable::reserve_forwarding(BitMap& used, uint32_t in
   }
   _num_actual_forwardings++;
   assert(_num_actual_forwardings <= _num_expected_forwardings, "must not exceed number of forwardings");
-#undef KELVIN_DEBUG
-#ifdef KELVIN_DEBUG
-  log_info(gc)("reserve_forwarding(region: %zu) at depth %zu with index %zu", _region->index(), depth, index);
-  if (depth >= 2) {
-    log_info(gc)(" initial index: %zu, stride: %zu, num_entries: %zu", first_index, stride, _num_entries);
-  }
-#endif
   return index;
 }
 
@@ -338,26 +312,12 @@ uint32_t ShenandoahForwardingTable::reserve_new_forwarding(BitMap& used, uint32_
       if (replaced_probes < depth) {
         replaced_index = index;
         replaced = Entry(region_base, entry.original(region_base), entry.forwardee_from_entry_without_barrier());
-#ifdef KELVIN_DEBUG
-        log_info(gc)("reserve_new_forwarding(region: %zu) replacing at depth %zu (" PTR_FORMAT ", " PTR_FORMAT ") at depth %zu with index %zu",
-                     _region->index(), depth, p2i(entry.original(region_base)), p2i(entry.forwardee_from_entry_without_barrier()),
-                     replaced_probes, index);
-        if (depth >= 2) {
-          log_info(gc)(" initial index: %zu, stride: %zu, num_entries: %zu", first_index, stride, _num_entries);
-        }
-#endif
         if (depth > _max_required_probes) {
           _max_required_probes = depth;
         }
         return index;
       }
     }
-#ifdef KELVIN_DEBUG
-      else {
-        log_info(gc)("Not replacing new-forwarded index %zu because its probe count is %zu and mine is %zu",
-                     index, replaced_probes, depth);
-      }
-#endif
     index += stride;
     if (index >= _num_entries) {
       index -= _num_entries;
@@ -372,13 +332,6 @@ uint32_t ShenandoahForwardingTable::reserve_new_forwarding(BitMap& used, uint32_
     _max_required_probes = depth;
   }
   assert(_num_actual_forwardings <= _num_expected_forwardings, "must not exceed number of forwardings");
-#ifdef KELVIN_DEBUG
-  log_info(gc)("reserve_new_forwarding(region: %zu) at depth %zu with index %zu",
-               _region->index(), depth, index);
-  if (depth >= 2) {
-    log_info(gc)(" initial index: %zu, stride: %zu, num_entries: %zu", first_index, stride, _num_entries);
-  }
-#endif
   return index;
 }
 

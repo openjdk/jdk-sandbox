@@ -257,7 +257,11 @@ bool ShenandoahAdaptiveHeuristics::should_start_gc() {
     return true;
   }
 
-  return ShenandoahHeuristics::should_start_gc();
+  bool result = ShenandoahHeuristics::should_start_gc();
+  if (result) {
+    set_mutator_memory_shortfall(0);
+  }
+  return result;
 }
 
 bool ShenandoahAdaptiveHeuristics::trigger_min_free_threshold(size_t available, size_t capacity) {
@@ -266,6 +270,7 @@ bool ShenandoahAdaptiveHeuristics::trigger_min_free_threshold(size_t available, 
     log_trigger("Occupancy. " PROPERFMT " free, below " PROPERFMT " threshold",
                 PROPERFMTARGS(available), PROPERFMTARGS(min_threshold));
     accept_trigger_with_type(OTHER);
+    set_mutator_memory_shortfall(0);
     return true;
   }
   return false;
@@ -280,13 +285,15 @@ bool ShenandoahAdaptiveHeuristics::trigger_learning(size_t available, size_t cap
                   _gc_times_learned + 1, ShenandoahLearningSteps,
                   PROPERFMTARGS(available), PROPERFMTARGS(init_threshold));
       accept_trigger_with_type(OTHER);
+      set_mutator_memory_shortfall(0);
       return true;
     }
   }
   return false;
 }
 
-bool ShenandoahAdaptiveHeuristics::trigger_average_allocation_rate(const ShenandoahAnticipatedConsumption& rate, const size_t allocatable_bytes) {
+bool ShenandoahAdaptiveHeuristics::trigger_average_allocation_rate(const ShenandoahAnticipatedConsumption& rate,
+                                                                   const size_t allocatable_bytes) {
   if (rate.baseline_consumption() > allocatable_bytes) {
     const ShenandoahSignedSize baseline_rate = ShenandoahSignedSize::get(rate.baseline_rate());
     log_trigger("Allocation Rate. %.2fms GC predicted, " PROPERFMT " free, "
@@ -294,6 +301,15 @@ bool ShenandoahAdaptiveHeuristics::trigger_average_allocation_rate(const Shenand
                 rate.duration_seconds() * 1000, PROPERFMTARGS(allocatable_bytes),
                 PROPERFMTARGS_SIGNED(baseline_rate));
     accept_trigger_with_type(RATE);
+    // We know planned consumption > allocatable_bytes. But allocatable bytes is conservaitve because it is shrunk by
+    // penalties and spike threshold, collectively represented by _headroom_adjustment.
+    if (rate.baseline_consumption() - allocatable_bytes > _headroom_adjustment) {
+      // If the overrun exceeds the _headroom adjustment, count the total including headroom adjustment as shortfall
+      set_mutator_memory_shortfall(rate.baseline_consumption() - allocatable_bytes);
+    } else {
+      // Otherwise, count the shortfall as none since we are close enough to avoid "emergency" intervention.
+      set_mutator_memory_shortfall(0);
+    }
     return true;
   }
   return false;
@@ -381,7 +397,8 @@ bool ShenandoahAdaptiveHeuristics::trigger_average_allocation_rate(const Shenand
 // Though larger sample size may improve quality of predictor, it also delays trigger response.  Smaller sample sizes
 // are more susceptible to false triggers based on random noise.  The default configuration uses a sample size of 8 and
 // a sample period of roughly 15 ms, spanning approximately 120 ms of execution.
-bool ShenandoahAdaptiveHeuristics::trigger_accelerating_allocation_rate(const ShenandoahAnticipatedConsumption& rate, const size_t allocatable_bytes) {
+bool ShenandoahAdaptiveHeuristics::trigger_accelerating_allocation_rate(const ShenandoahAnticipatedConsumption& rate,
+                                                                        const size_t allocatable_bytes) {
   if (rate.momentary_consumption() > allocatable_bytes) {
     const ShenandoahSignedSize momentary_rate = ShenandoahSignedSize::get(rate.momentary_rate());
     assert(rate.accelerated_consumption() == 0, "Momentary trigger is meant to exclude acceleration trigger");
@@ -390,6 +407,15 @@ bool ShenandoahAdaptiveHeuristics::trigger_accelerating_allocation_rate(const Sh
                 rate.duration_seconds() * 1000, PROPERFMTARGS(allocatable_bytes),
                 PROPERFMTARGS_SIGNED(momentary_rate));
     accept_trigger_with_type(RATE);
+    // We know planned consumption > allocatable_bytes. But allocatable bytes is conservaitve because it is shrunk by
+    // penalties and spike threshold, collectively represented by _headroom_adjustment.
+    if (rate.momentary_consumption() - allocatable_bytes > _headroom_adjustment) {
+      // If the overrun exceeds the _headroom adjustment, count the total including headroom adjustment as shortfall
+      set_mutator_memory_shortfall(rate.momentary_consumption() - allocatable_bytes);
+    } else {
+      // Otherwise, count the shortfall as none since we are close enough to avoid "emergency" intervention.
+      set_mutator_memory_shortfall(0);
+    }
     return true;
   }
 
@@ -402,6 +428,15 @@ bool ShenandoahAdaptiveHeuristics::trigger_accelerating_allocation_rate(const Sh
                 rate.duration_seconds() * 1000, PROPERFMTARGS(allocatable_bytes),
                 PROPERFMTARGS_SIGNED(predicted_rate), PROPERFMTARGS_SIGNED(acceleration));
     accept_trigger_with_type(RATE);
+    // We know planned consumption > allocatable_bytes. But allocatable bytes is conservaitve because it is shrunk by
+    // penalties and spike threshold, collectively represented by _headroom_adjustment.
+    if (rate.accelerated_consumption() - allocatable_bytes > _headroom_adjustment) {
+      // If the overrun exceeds the _headroom adjustment, count the total including headroom adjustment as shortfall
+      set_mutator_memory_shortfall(rate.accelerated_consumption() - allocatable_bytes);
+    } else {
+      // Otherwise, count the shortfall as none since we are close enough to avoid "emergency" intervention.
+      set_mutator_memory_shortfall(0);
+    }
     return true;
   }
 
