@@ -4015,7 +4015,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_TLAB_in_early_recycled(ShenandoahHeapR
     // Advance the cursor.
     HeapWord* const new_gap_start = gap_start + gap_size;
     size_t const remnant = size_t(gap_end - new_gap_start);
-    cont bool is_sub_plab = align_down(remnant, (size_t)MinObjAlignment) < PLAB::min_size();
+    const bool is_sub_plab = align_down(remnant, (size_t)MinObjAlignment) < PLAB::min_size();
     if (is_sub_plab) {
       // Rescan to the next usable gap.
       scan_reuse_gap(r, gap_end, PLAB::min_size());
