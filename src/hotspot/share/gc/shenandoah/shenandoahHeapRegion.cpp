@@ -68,6 +68,8 @@ ShenandoahHeapRegion::ShenandoahHeapRegion(HeapWord* start, size_t index, bool c
   _top_at_evac_start(start),
   _state(committed ? _empty_committed : _empty_uncommitted),
   _top(start),
+  _reuse_gap_start(nullptr),
+  _reuse_gap_end(nullptr),
   _tlab_allocs(0),
   _gclab_allocs(0),
   _plab_allocs(0),
@@ -667,6 +669,8 @@ void ShenandoahHeapRegion::reset() {
   _top_at_evac_start = _bottom;
   _mixed_candidate_garbage_words = 0;
   set_top(bottom());
+  _reuse_gap_start = nullptr;
+  _reuse_gap_end = nullptr;
   clear_live_data();
   reset_alloc_metadata();
   heap->marking_context()->reset_top_at_mark_start(this);

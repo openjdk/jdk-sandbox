@@ -265,6 +265,11 @@ private:
   // Frequently updated fields
   HeapWord* _top;
 
+  // Early reuse gap cursor. Clean gap recorded by the TLAB estimator and carve.
+  // nullptr = cursor unknown, rescan on next carve.
+  HeapWord* _reuse_gap_start;
+  HeapWord* _reuse_gap_end;
+
   size_t _tlab_allocs;
   size_t _gclab_allocs;
   size_t _plab_allocs;
@@ -581,6 +586,10 @@ public:
   inline bool was_early_recycled() const {
     return _early_recycled;
   }
+
+  inline HeapWord* reuse_gap_start() const { return _reuse_gap_start; }
+  inline HeapWord* reuse_gap_end()   const { return _reuse_gap_end; }
+  inline void set_reuse_gap(HeapWord* start, size_t size) { _reuse_gap_start = start; _reuse_gap_end = start + size; }
 
   bool build_forwarding_table(size_t num_forwardings) {
     if (num_forwardings >= 0x100000000) {

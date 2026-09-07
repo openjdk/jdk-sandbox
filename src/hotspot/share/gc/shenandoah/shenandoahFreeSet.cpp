@@ -3764,10 +3764,13 @@ void ShenandoahFreeSet::insert_retired_region(ShenandoahHeapRegion* r) {
 // Return size in bytes of candidate region size if greater than PLAB::min_size().  Otherwrise, return 0 if no TLAB available.
 size_t ShenandoahFreeSet::early_recycled_tlab_available_size(ShenandoahHeapRegion* r) {
   size_t largest_tlab_seen = 0;
+  HeapWord* largest_start = nullptr;
   HeapWord* alloc_limit = r->alloc_end();
   HeapWord* orig_top = r->top();
   const size_t min_fill = ShenandoahHeap::min_fill_size();
   ShenandoahMarkingContext* ctx = _heap->marking_context();
+  HeapWord* const gap_start = r->reuse_gap_start();
+  HeapWord* const gap_end   = r->reuse_gap_end();
   for (size_t pad = 0; pad <= ShenandoahCSetAllocationMaxTLABPad; pad++) {
     HeapWord* candidate_start = orig_top + pad;
     if (candidate_start >= alloc_limit) {
@@ -3776,12 +3779,16 @@ size_t ShenandoahFreeSet::early_recycled_tlab_available_size(ShenandoahHeapRegio
     // Mirror try_allocate_TLAB_in_early_recycled(): in FWT mode a TLAB cannot start at pad in [1, min_fill].
     if ((pad == 0) || (pad > min_fill) || !ShenandoahCSetAllocationForwardingTable) {
       if (!ctx->is_marked_ignore_tams(candidate_start)) {
-        HeapWord* end_of_candidate_tlab = ctx->get_next_marked_addr_ignore_tams(candidate_start, alloc_limit);
+        // A candidate_start inside the recorded clean gap reaches reuse_gap_end without a bitmap scan.
+        HeapWord* end_of_candidate_tlab =
+            (gap_start != nullptr && gap_start <= candidate_start && candidate_start < gap_end)
+                ? gap_end : ctx->get_next_marked_addr_ignore_tams(candidate_start, alloc_limit);
         size_t candidate_tlab_size = end_of_candidate_tlab - candidate_start;
         // Mirror the carve's rounding.
         candidate_tlab_size = align_down(candidate_tlab_size, (size_t)MinObjAlignment);
         if (candidate_tlab_size > largest_tlab_seen) {
           largest_tlab_seen = candidate_tlab_size;
+          largest_start = candidate_start;
         }
         // Skip to next open span: pad + candidate_lab_size points to next object start or alloc_limit.
         // When we increment pad at top of loop, we will point to the word following next marked object.
@@ -3789,7 +3796,12 @@ size_t ShenandoahFreeSet::early_recycled_tlab_available_size(ShenandoahHeapRegio
       }
     }
   }
-  return (largest_tlab_seen >= PLAB::min_size())? largest_tlab_seen * HeapWordSize: 0;
+  if (largest_tlab_seen >= PLAB::min_size()) {
+    r->set_reuse_gap(largest_start, largest_tlab_seen);
+    return largest_tlab_seen * HeapWordSize;
+  }
+  r->set_reuse_gap(alloc_limit, 0);
+  return 0;
 }
 
 static inline bool too_small_for_plab(ShenandoahHeapRegion* r) {
@@ -3962,6 +3974,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_TLAB_in_early_recycled(ShenandoahHeapR
           size_t used_before = r->used_with_reserve();
           r->set_top(orig_top + size + pad);
           increase_early_recycled_tlab_regions_used(r->used_with_reserve() - used_before);
+          r->set_reuse_gap(candidate_start, candidate_tlab_size);
           log_debug(gc, alloc)("TLAB allocated %zu words at " PTR_FORMAT " in FWT region %zu"
                                " [" PTR_FORMAT ", " PTR_FORMAT ")"
                                " region=[" PTR_FORMAT ", " PTR_FORMAT ") alloc_limit=" PTR_FORMAT,
