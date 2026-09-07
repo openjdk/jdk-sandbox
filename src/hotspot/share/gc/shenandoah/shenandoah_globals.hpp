@@ -459,6 +459,11 @@
           "Force both shared and TLAB mutator allocations to prefer early-" \
           "recycled cset regions.")                                         \
                                                                             \
+  product(bool, ShenandoahLazyReuseCursor, true, DIAGNOSTIC,                \
+          "Carve early-recycled regions through a per-region clean gap "    \
+          "cursor: allocate within the cached gap with no bitmap scan, "    \
+          "rescanning once for the next usable gap on a miss.")             \
+                                                                            \
   product(uintx, ShenandoahCSetReuseMaxDensityPercent, 100, DIAGNOSTIC,     \
           "Reuse an evacuated cset region without a table only when its "   \
           "reserved mark words occupy at most this percentage of the "      \

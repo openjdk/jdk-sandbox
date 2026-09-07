@@ -636,6 +636,15 @@ private:
   void shift_retired_regions_up();
 
   size_t early_recycled_tlab_available_size(ShenandoahHeapRegion* r);
+
+  // Find the first clean run of at least 'floor' words starting at max('from', top()), record it in
+  // r's gap cursor, and return its size in words; park at alloc_end and return 0 if none remain.
+  size_t scan_reuse_gap(ShenandoahHeapRegion* r, HeapWord* from, size_t floor);
+
+  // Find and return the region's current usable reuse gap size in words.
+  // If not zero, the gap cursor points at the gap.
+  size_t reuse_gap_available(ShenandoahHeapRegion* r);
+
   // Place an early-recycled region into the right priority heap after an allocation shrank it.
   void reclassify_shared_alloc_region_after_alloc(ShenandoahHeapRegion* r, size_t idx);
   void reclassify_tlab_region_after_alloc(ShenandoahHeapRegion* r, size_t idx);
