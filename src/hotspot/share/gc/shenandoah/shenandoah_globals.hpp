@@ -455,6 +455,10 @@
           "For reused cset regions, build address-based forwarding tables; "\
           "disable to keep mark-word forwarding and reuse the whole body.") \
                                                                             \
+  product(bool, ShenandoahPreferCSetAllocation, false, DIAGNOSTIC,          \
+          "Force both shared and TLAB mutator allocations to prefer early-" \
+          "recycled cset regions.")                                         \
+                                                                            \
   product(uintx, ShenandoahCSetReuseMaxDensityPercent, 100, DIAGNOSTIC,     \
           "Reuse an evacuated cset region without a table only when its "   \
           "reserved mark words occupy at most this percentage of the "      \
