@@ -3529,8 +3529,8 @@ void ShenandoahFreeSet::heapify_tlab_regions_upward(size_t index) {
       _early_recycled_tlab_regions_data[index] = t;
 
       ShenandoahHeapRegion* r = _early_recycled_tlab_regions[largest_index];
-      _early_recycled_tlab_regions[largest_index] = _early_recycled_tlab_regions[index];
-      _early_recycled_tlab_regions[index] = r;
+      set_tlab_region_slot(largest_index, _early_recycled_tlab_regions[index]);
+      set_tlab_region_slot(index, r);
 
       // Iterate, with new value of index
       index = parent_index;
@@ -3578,8 +3578,8 @@ void ShenandoahFreeSet::heapify_tlab_regions_downward(size_t index) {
       _early_recycled_tlab_regions_data[index] = t;
 
       ShenandoahHeapRegion* r = _early_recycled_tlab_regions[largest_index];
-      _early_recycled_tlab_regions[largest_index] = _early_recycled_tlab_regions[index];
-      _early_recycled_tlab_regions[index] = r;
+      set_tlab_region_slot(largest_index, _early_recycled_tlab_regions[index]);
+      set_tlab_region_slot(index, r);
 
       // Iterate, with swapped child as the new parent
       index = largest_index;
@@ -3596,7 +3596,7 @@ void ShenandoahFreeSet::insert_tlab_region(ShenandoahHeapRegion* r, size_t max_t
     shift_retired_regions_down();
   }
   _early_recycled_tlab_used += r->used_with_reserve();
-  _early_recycled_tlab_regions[_early_recycled_tlab_regions_count] = r;
+  set_tlab_region_slot(_early_recycled_tlab_regions_count, r);
   _early_recycled_tlab_regions_data[_early_recycled_tlab_regions_count++] = max_tlab_size;
   heapify_tlab_regions_upward(_early_recycled_tlab_regions_count - 1);
 }
@@ -3609,9 +3609,8 @@ void ShenandoahFreeSet::remove_tlab_region(size_t index) {
     _early_recycled_tlab_regions_count--;
   } else {
     // Move the last entry into position of the removed entry. Then heapify downward and upward.
-    size_t last_index = _early_recycled_tlab_regions_count - 1;
     _early_recycled_tlab_regions_count--;
-    _early_recycled_tlab_regions[index] = _early_recycled_tlab_regions[_early_recycled_tlab_regions_count];
+    set_tlab_region_slot(index, _early_recycled_tlab_regions[_early_recycled_tlab_regions_count]);
     _early_recycled_tlab_regions_data[index] = _early_recycled_tlab_regions_data[_early_recycled_tlab_regions_count];
     heapify_tlab_regions_downward(index);
     heapify_tlab_regions_upward(index);
@@ -3661,8 +3660,8 @@ void ShenandoahFreeSet::heapify_shared_alloc_regions_upward(size_t index) {
       _early_recycled_shared_alloc_regions_data[-index] = t;
 
       ShenandoahHeapRegion* r = _early_recycled_shared_alloc_regions[-largest_index];
-      _early_recycled_shared_alloc_regions[-largest_index] = _early_recycled_shared_alloc_regions[-index];
-      _early_recycled_shared_alloc_regions[-index] = r;
+      set_shared_alloc_region_slot(largest_index, _early_recycled_shared_alloc_regions[-index]);
+      set_shared_alloc_region_slot(index, r);
 
       // Iterate, with new value of index
       index = parent_index;
@@ -3710,8 +3709,8 @@ void ShenandoahFreeSet::heapify_shared_alloc_regions_downward(size_t index) {
       _early_recycled_shared_alloc_regions_data[-index] = t;
 
       ShenandoahHeapRegion* r = _early_recycled_shared_alloc_regions[-largest_index];
-      _early_recycled_shared_alloc_regions[-largest_index] = _early_recycled_shared_alloc_regions[-index];
-      _early_recycled_shared_alloc_regions[-index] = r;
+      set_shared_alloc_region_slot(largest_index, _early_recycled_shared_alloc_regions[-index]);
+      set_shared_alloc_region_slot(index, r);
 
       // Iterate, with swapped child as the new parent
       index = largest_index;
@@ -3730,7 +3729,7 @@ void ShenandoahFreeSet::insert_shared_alloc_region(ShenandoahHeapRegion* r) {
     shift_retired_regions_up();
   }
   _early_recycled_shared_alloc_used += r->used_with_reserve();
-  _early_recycled_shared_alloc_regions[-_early_recycled_shared_alloc_regions_count] = r;
+  set_shared_alloc_region_slot(_early_recycled_shared_alloc_regions_count, r);
   _early_recycled_shared_alloc_regions_data[-_early_recycled_shared_alloc_regions_count++] = shared_allocatable_words;
   heapify_shared_alloc_regions_upward(_early_recycled_shared_alloc_regions_count - 1);
 }
@@ -3743,10 +3742,9 @@ void ShenandoahFreeSet::remove_shared_alloc_region(size_t index) {
     _early_recycled_shared_alloc_regions_count--;
   } else {
     // Move the last entry into position of the removed entry. Then heapify downward and upward.
-    size_t last_index = _early_recycled_shared_alloc_regions_count - 1;
     _early_recycled_shared_alloc_regions_count--;
-    _early_recycled_shared_alloc_regions[-index] =
-      _early_recycled_shared_alloc_regions[-_early_recycled_shared_alloc_regions_count];
+    set_shared_alloc_region_slot(index,
+      _early_recycled_shared_alloc_regions[-_early_recycled_shared_alloc_regions_count]);
     _early_recycled_shared_alloc_regions_data[-index] =
       _early_recycled_shared_alloc_regions_data[-_early_recycled_shared_alloc_regions_count];
     heapify_shared_alloc_regions_downward(index);
@@ -3794,6 +3792,41 @@ size_t ShenandoahFreeSet::early_recycled_tlab_available_size(ShenandoahHeapRegio
   return (largest_tlab_seen >= PLAB::min_size())? largest_tlab_seen * HeapWordSize: 0;
 }
 
+static inline bool too_small_for_plab(ShenandoahHeapRegion* r) {
+  return r->top() + PLAB::min_size() >= r->alloc_end();
+}
+
+// Retire when no PLAB-sized tail remains, migrate to the tlab heap when it can still host a LAB,
+// else keep it in the shared-alloc heap.
+void ShenandoahFreeSet::reclassify_shared_alloc_region_after_alloc(ShenandoahHeapRegion* r, size_t idx) {
+  if (too_small_for_plab(r)) {
+    remove_shared_alloc_region(idx);
+    insert_retired_region(r);
+  } else {
+    size_t potential_tlab_size = early_recycled_tlab_available_size(r);
+    if (potential_tlab_size > PLAB::min_size()) {
+      remove_shared_alloc_region(idx);
+      insert_tlab_region(r, potential_tlab_size);
+    } else {
+      heapify_shared_alloc_regions_downward(idx);
+    }
+  }
+}
+
+void ShenandoahFreeSet::reclassify_tlab_region_after_alloc(ShenandoahHeapRegion* r, size_t idx) {
+  remove_tlab_region(idx);
+  if (too_small_for_plab(r)) {
+    insert_retired_region(r);
+  } else {
+    size_t potential_tlab_size = early_recycled_tlab_available_size(r);
+    if (potential_tlab_size > PLAB::min_size()) {
+      insert_tlab_region(r, potential_tlab_size);
+    } else {
+      insert_shared_alloc_region(r);
+    }
+  }
+}
+
 
 HeapWord* ShenandoahFreeSet::try_allocate_shared_from_early_recycled(ShenandoahAllocRequest& req) {
   assert(req.affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "Precondition");
@@ -3807,23 +3840,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_shared_from_early_recycled(ShenandoahA
     if (result != nullptr) { // Successful allocation.
       req.set_actual_size(req.size());
       req.set_waste(result - orig_top);
-      size_t used_bytes = (req.actual_size() + req.waste()) * HeapWordSize;
-      // Only remove from shared_alloc_regions if remnaining memory is smaller than PLAB::min_size
-      if (r->top() + PLAB::min_size() >= r->alloc_end()) {
-        remove_shared_alloc_region(i);
-        insert_retired_region(r);
-      } else {
-        size_t potential_tlab_size = early_recycled_tlab_available_size(r);
-        if (potential_tlab_size > PLAB::min_size()) {
-          remove_shared_alloc_region(i);
-          insert_tlab_region(r, potential_tlab_size);
-        } else {
-          // Otherwise, this region continues to serve as a shared-alloc region.  But we may want to adjust its
-          // position in the heap.  This region's allocatable memory has shrunk. It's allocatable is still smaller than
-          // parent's, so only need to heapify downward.
-          heapify_shared_alloc_regions_downward(i);
-        }
-      }
+      reclassify_shared_alloc_region_after_alloc(r, i);
       // Note: Since the current implementation only supports Mutator allocations, there's no need to register
       //  objects or clear remembered set cards.  Usage has been adjusted by try_allocate_shared_in_early_recycled().
       return result;
@@ -3838,17 +3855,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_shared_from_early_recycled(ShenandoahA
     HeapWord* orig_top = r->top();
     HeapWord* result = try_allocate_shared_in_early_recycled(r, req.size(), true /* is_tlab_region */);
     if (result != nullptr) { // Successful allocation.
-      remove_tlab_region(i - 1);
-      if (r->top() + PLAB::min_size() >= r->alloc_end()) {
-        insert_retired_region(r);
-      } else {
-        size_t potential_tlab_size = early_recycled_tlab_available_size(r);
-        if (potential_tlab_size > PLAB::min_size()) {
-          insert_tlab_region(r, potential_tlab_size);
-        } else {
-          insert_shared_alloc_region(r);
-        }
-      }
+      reclassify_tlab_region_after_alloc(r, i - 1);
       // Note: Since the current implementation only supports Mutator allocations, there's no need to register
       //  objects or clear remembered set cards.  Usage has been adjusted by try_allocate_shared_in_early_recycled().
       req.set_actual_size(req.size());
@@ -3877,18 +3884,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_lab_from_early_recycled(ShenandoahAllo
       size_t actual_size;
       HeapWord* result = try_allocate_TLAB_in_early_recycled(r, req, actual_size);
       assert(result != nullptr, "By construction of the TLAB-allocation set");
-      remove_tlab_region(i);
-      if (r->top() + PLAB::min_size() >= r->alloc_end()) {
-        // The remaining memory is too small to serve future allocation needs
-        insert_retired_region(r);
-      } else {
-        size_t potential_tlab_size = early_recycled_tlab_available_size(r);
-        if (potential_tlab_size > PLAB::min_size()) {
-          insert_tlab_region(r, potential_tlab_size);
-        } else {
-          insert_shared_alloc_region(r);
-        }
-      }
+      reclassify_tlab_region_after_alloc(r, i);
       // Note: Since the current implementation only supports Mutator allocations, there's no need to register
       //  objects or clear remembered set cards.  Usage has been adjusted by try_allocate_shared_in_early_recycled().
       req.set_actual_size(actual_size);
@@ -3904,18 +3900,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_lab_from_early_recycled(ShenandoahAllo
       size_t actual_size;
       HeapWord* result = try_allocate_TLAB_in_early_recycled(r, req, actual_size);
       if (result != nullptr) {
-        remove_tlab_region(i);
-        if (r->top() + PLAB::min_size() >= r->alloc_end()) {
-          // The remaining memory is too small to serve future allocation needs
-          insert_retired_region(r);
-        } else {
-          size_t potential_tlab_size = early_recycled_tlab_available_size(r);
-          if (potential_tlab_size > PLAB::min_size()) {
-            insert_tlab_region(r, potential_tlab_size);
-          } else {
-            insert_shared_alloc_region(r);
-          }
-        }
+        reclassify_tlab_region_after_alloc(r, i);
         // Note: Since the current implementation only supports Mutator allocations, there's no need to register
         //  objects or clear remembered set cards.  Usage has been adjusted by try_allocate_shared_in_early_recycled().
         req.set_actual_size(actual_size);

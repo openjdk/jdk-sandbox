@@ -514,6 +514,13 @@ public:
   // Any call to insert or remove a shared-alloc retion may renumber the shared-alloc regions.
   ShenandoahHeapRegion* get_shared_alloc_region(size_t index);
 
+  inline void set_tlab_region_slot(size_t slot, ShenandoahHeapRegion* r) {
+    _early_recycled_tlab_regions[slot] = r;
+  }
+  inline void set_shared_alloc_region_slot(size_t slot, ShenandoahHeapRegion* r) {
+    _early_recycled_shared_alloc_regions[-(ssize_t)slot] = r;
+  }
+
   // Return retired region at index position between 0 and num_retired_regions() - 1.
   // Any call to insert() or remove tlab, shared-alloc, or retired regions may cause renumbering of the retired regions.
   ShenandoahHeapRegion* get_retired_region(size_t index);
@@ -629,6 +636,9 @@ private:
   void shift_retired_regions_up();
 
   size_t early_recycled_tlab_available_size(ShenandoahHeapRegion* r);
+  // Place an early-recycled region into the right priority heap after an allocation shrank it.
+  void reclassify_shared_alloc_region_after_alloc(ShenandoahHeapRegion* r, size_t idx);
+  void reclassify_tlab_region_after_alloc(ShenandoahHeapRegion* r, size_t idx);
   HeapWord* try_allocate_TLAB_in_early_recycled(ShenandoahHeapRegion* r, const ShenandoahAllocRequest& req, size_t& size);
   HeapWord* try_allocate_shared_in_early_recycled(ShenandoahHeapRegion* r, size_t size, bool is_tlab_region = false);
   // If only affiliation changes are promote-in-place and generation sizes have not changed,
