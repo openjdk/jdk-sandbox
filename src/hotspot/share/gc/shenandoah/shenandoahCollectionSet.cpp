@@ -117,15 +117,25 @@ void ShenandoahCollectionSet::add_region(ShenandoahHeapRegion* r) {
   r->make_cset();
 }
 
-void ShenandoahCollectionSet::switch_to_reuse_forwarding(ShenandoahHeapRegion* r) {
-  assert(is_in(r), "Must be in collection set");
+void ShenandoahCollectionSet::switch_to_reuse_forwarding() {
   CSetState state;
   if (ShenandoahCSetAllocationForwardingTable) {
     state = ShenandoahForwardingTable::use_compact() ? CSetState::REUSABLE_FWDTABLE_COMPACT : CSetState::REUSABLE_FWDTABLE_WIDE;
   } else {
     state = CSetState::REUSABLE_MARKWORD;
   }
-  AtomicAccess::store(&_cset_map._cset_map[r->index()], state);
+  ShenandoahHeap* heap = ShenandoahHeap::heap();
+  size_t num_regions = heap->num_regions();
+  for (size_t idx = 0; idx < num_regions; idx++) {
+    if (!is_in(idx)) {
+      continue;
+    }
+    ShenandoahHeapRegion* r = heap->get_region(idx);
+    const bool is_reuse_prepared = r->top() == r->bottom();
+    if (is_reuse_prepared) {
+      AtomicAccess::store(&_cset_map._cset_map[idx], state);
+    }
+  }
 }
 
 void ShenandoahCollectionSet::optimize_reused_forwarding(size_t start_index, size_t stride) {

@@ -190,6 +190,7 @@ void ShenandoahGenerationalHeap::evacuate_collection_set(ShenandoahGeneration* g
   // Single post-evacuation rendezvous; see ShenandoahHeap::evacuate_collection_set.
   if (concurrent && ShenandoahCSetReuse) {
     rendezvous_threads("Switch to Forward Table");
+    collection_set()->switch_to_reuse_forwarding();
   }
 }
 

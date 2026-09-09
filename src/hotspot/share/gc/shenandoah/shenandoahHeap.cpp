@@ -1286,6 +1286,7 @@ void ShenandoahHeap::evacuate_collection_set(ShenandoahGeneration* generation, b
   workers()->run_task(&task);
   if (concurrent && ShenandoahCSetReuse) {
     rendezvous_threads("Switch to Forward Table");
+    _collection_set->switch_to_reuse_forwarding();
   }
 }
 
@@ -1444,22 +1445,22 @@ oop ShenandoahHeap::try_evacuate_object(oop p, Thread* thread, ShenandoahHeapReg
   }
 }
 
-bool ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t num_forwardings,
+void ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t num_forwardings,
                                               bool concurrent, ShenandoahHeuristics* heuristics) {
   assert(ShenandoahHeap::heap()->marking_context()->top_at_mark_start(r) == r->top(), "TAMS must be set to top");
   if (!ShenandoahCSetReuse) {
-    return false;
+    return;
   }
   // STW GC uses mark-word forwarding.
   if (!concurrent) {
-    return false;
+    return;
   }
   if (r->is_old()) {
-    return false;
+    return;
   }
   // There shoud be no live objects.
   if (r->is_pinned() || r->was_promoted_in_place() || r->has_self_forwards()) {
-    return false;
+    return;
   } else {
     size_t short_fall = heuristics->mutator_memory_shortfall();
     size_t back_fill = heuristics->early_recycled_bytes();
@@ -1467,7 +1468,7 @@ bool ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t nu
       // We've already early-recycled enough memory to fill needs for this cycle. Avoid the costs of building, balancing,
       // pruning this forward table, and avoid the overheads of allocating more slowly and updating all pointers to newly
       // allocated objects within this potentially early recycled cset region.
-      return false;
+      return;
     }
     bool can_reuse = r->prepare_reuse_forwarding(num_forwardings);
     if (can_reuse) {
@@ -1478,9 +1479,7 @@ bool ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t nu
       r->set_alt_top(r->top());
       r->set_top(r->bottom());
       OrderAccess::fence();
-      collection_set()->switch_to_reuse_forwarding(r);
     }
-    return can_reuse;
   }
 }
 
