@@ -101,7 +101,7 @@ inline void ShenandoahForwardingTable::probe_of(HeapWord* original, uint32_t& in
 
 template<class Entry>
 HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
-  if (!ShenandoahHeap::heap()->is_full_gc_in_progress() && !_ctx->is_marked_ignore_tams(original)) {
+  if (!ShenandoahHeap::heap()->is_stw_gc_in_progress() && !_ctx->is_marked_ignore_tams(original)) {
     return original;
   }
   uint32_t start_index, stride;
