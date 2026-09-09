@@ -51,7 +51,7 @@ public final class QuicTLSContext {
      */
     public static boolean isQuicCompatible(final SSLContext sslContext) {
         try {
-            sslContext.createSSLEngine(null, -1, new QuicTLSAdapter() {
+            sslContext.createSSLEngine(new QuicTLSAdapter() {
                 @Override
                 public void deriveHandshakeReadSecrets(SecretKey secretKey, String cipherSuite) {
                 }
@@ -80,7 +80,8 @@ public final class QuicTLSContext {
                 }
             });
             return true;
-        } catch (Exception e) {
+        } catch (UnsupportedOperationException e) {
+            // SSLContext does not support QUIC
             return false;
         }
     }
