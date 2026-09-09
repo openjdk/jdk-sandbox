@@ -203,6 +203,16 @@ void ShenandoahFullGC::do_it(GCCause::Cause gc_cause) {
     // c. Update roots if this full GC is due to evac-oom, which may carry from-space pointers in roots.
     if (has_forwarded_objects) {
       update_roots(true /*full_gc*/);
+      ShenandoahCollectionSet* cset = heap->collection_set();
+      // Disable the forward table bloom filter before we reset the marking ocntext.
+      for (size_t i = 0; i < heap->num_regions(); i++) {
+        if (cset->is_in(i)) {
+          ShenandoahHeapRegion* r = heap->get_region(i);
+          if (cset->use_forward_table(r)) {
+            r->start_fullgc();
+          }
+        }
+      }
     }
 
     // d. Abandon reference discovery and clear all discovered references.

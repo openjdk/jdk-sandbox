@@ -140,6 +140,7 @@ class alignas(64) ShenandoahForwardingTable {
   uint32_t _num_actual_forwardings;
   uint32_t _num_live_words;     // Number of mark words spanned by the fwt
   bool _abandoned;
+  bool _fullgc_fixup;
 
   static uint32_t compute_common_max_probes();
 
@@ -210,7 +211,8 @@ public:
     _num_expected_forwardings(0),
     _num_actual_forwardings(0),
     _num_live_words(0),
-    _abandoned(false) {}
+    _abandoned(false),
+    _fullgc_fixup(false) {}
 
   void overwrite_max_required_probes(uint32_t new_max_probes) {
     // Make sure all overwrites of original/forwardee pairs have been updated before we announce an improved collision depth
@@ -222,6 +224,10 @@ public:
     return _max_required_probes;
   }
 
+  void start_fullgc() {
+    _fullgc_fixup = true;
+  }
+
   static bool use_compact() { return _compact; }
   static void initialize_globals();
 
@@ -230,6 +236,8 @@ public:
   void reset() {
     _table = nullptr;
     _num_entries = 0;
+    _abandoned = false;
+    _fullgc_fixup = false;
   }
 
   HeapWord* start() const {

@@ -587,6 +587,10 @@ public:
     return _early_recycled;
   }
 
+  inline void start_fullgc() {
+    _fwd_table.start_fullgc();
+  }
+
   inline HeapWord* reuse_gap_start() const { return _reuse_gap_start; }
   inline HeapWord* reuse_gap_end()   const { return _reuse_gap_end; }
   inline void set_reuse_gap(HeapWord* start, size_t size) { _reuse_gap_start = start; _reuse_gap_end = start + size; }
