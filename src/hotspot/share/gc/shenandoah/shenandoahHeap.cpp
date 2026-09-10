@@ -1462,13 +1462,15 @@ void ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t nu
   if (r->is_pinned() || r->was_promoted_in_place() || r->has_self_forwards()) {
     return;
   } else {
-    size_t short_fall = heuristics->mutator_memory_shortfall();
-    size_t back_fill = heuristics->early_recycled_bytes();
-    if (back_fill >= short_fall) {
-      // We've already early-recycled enough memory to fill needs for this cycle. Avoid the costs of building, balancing,
-      // pruning this forward table, and avoid the overheads of allocating more slowly and updating all pointers to newly
-      // allocated objects within this potentially early recycled cset region.
-      return;
+    if (ShenandoahCSetAllocationForwardingTable) {
+      size_t short_fall = heuristics->mutator_memory_shortfall();
+      size_t back_fill = heuristics->early_recycled_bytes();
+      if (back_fill >= short_fall) {
+        // We've already early-recycled enough memory to fill needs for this cycle. Avoid the costs of building, balancing,
+        // pruning this forward table, and avoid the overheads of allocating more slowly and updating all pointers to newly
+        // allocated objects within this potentially early recycled cset region.
+        return;
+      }
     }
     bool can_reuse = r->prepare_reuse_forwarding(num_forwardings);
     if (can_reuse) {
