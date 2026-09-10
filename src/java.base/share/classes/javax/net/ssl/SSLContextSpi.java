@@ -170,7 +170,7 @@ public abstract class SSLContextSpi {
      * @see     SSLContext#createSSLEngine(QuicTLSAdapter)
      * @since   TBD
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.QUIC_API)
+    @PreviewFeature(feature = PreviewFeature.Feature.QUIC_TLS)
     protected SSLEngine engineCreateSSLEngine(QuicTLSAdapter quicTLSAdapter) {
         throw new UnsupportedOperationException();
     }
@@ -199,7 +199,7 @@ public abstract class SSLContextSpi {
      * @see     SSLContext#createSSLEngine(String, int, QuicTLSAdapter)
      * @since   TBD
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.QUIC_API)
+    @PreviewFeature(feature = PreviewFeature.Feature.QUIC_TLS)
     protected SSLEngine engineCreateSSLEngine(String host, int port, QuicTLSAdapter quicTLSAdapter) {
         throw new UnsupportedOperationException();
     }

@@ -76,7 +76,7 @@ import java.util.Set;
  * @see SSLEngine
  * @since TBD
  */
-@PreviewFeature(feature = PreviewFeature.Feature.QUIC_API)
+@PreviewFeature(feature = PreviewFeature.Feature.QUIC_TLS)
 public interface QuicTLSAdapter {
     /**
      * Called by the {@link SSLEngine} when the read secrets associated

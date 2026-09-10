@@ -442,7 +442,7 @@ public class SSLContext {
      * @since   TBD
      * @see SSLEngine##quic Using SSLEngine to secure QUIC
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.QUIC_API)
+    @PreviewFeature(feature = PreviewFeature.Feature.QUIC_TLS)
     public final SSLEngine createSSLEngine(QuicTLSAdapter quicTLSAdapter) {
         Objects.requireNonNull(quicTLSAdapter, "null quicTLSAdapter");
         return contextSpi.engineCreateSSLEngine(quicTLSAdapter);
@@ -476,7 +476,7 @@ public class SSLContext {
      * @since   TBD
      * @see SSLEngine##quic Using SSLEngine to secure QUIC
      */
-    @PreviewFeature(feature = PreviewFeature.Feature.QUIC_API)
+    @PreviewFeature(feature = PreviewFeature.Feature.QUIC_TLS)
     public final SSLEngine createSSLEngine(String peerHost, int peerPort,
                                            QuicTLSAdapter quicTLSAdapter) {
         Objects.requireNonNull(quicTLSAdapter, "null quicTLSAdapter");
