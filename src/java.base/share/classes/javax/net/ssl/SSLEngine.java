@@ -447,9 +447,8 @@ import java.util.function.BiFunction;
  * <P>
  * The {@link SSLSession#getPacketBufferSize()} method has no meaning for QUIC.
  * The {@code wrap()} method supports any buffer size.
- * It is implementation-dependent if the {@code unwrap()} method buffers data
- * internally or if it reports a {@link SSLEngineResult.Status#BUFFER_UNDERFLOW}
- * status when it detects an incomplete message.
+ * The {@code unwrap()} method buffers data internally and never reports
+ * a {@link SSLEngineResult.Status#BUFFER_UNDERFLOW} status.
  * <P>
  * Handshake failures (alerts) are reported to the QUIC layer
  * through the {@link QuicTLSAdapter#cryptoError(int, Exception)} callback.
