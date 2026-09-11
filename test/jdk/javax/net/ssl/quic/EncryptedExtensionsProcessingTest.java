@@ -36,6 +36,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * @bug 8383849
  * @summary Test to exercise client-side EncryptedExtensions processing
  * @key randomness
+ * @enablePreview
  * @library /test/lib /javax/net/ssl/templates
  * @build QuicSSLEngineTemplate jdk.test.lib.RandomFactory
  * @run junit/othervm EncryptedExtensionsProcessingTest

@@ -50,6 +50,7 @@ import java.util.Set;
  * @bug 8383849
  * @summary Basic QUIC SSLEngine test
  * @key randomness
+ * @enablePreview
  * @library /test/lib
  * @build SSLContextTemplate jdk.test.lib.RandomFactory
  * @run main/othervm QuicSSLEngineTemplate

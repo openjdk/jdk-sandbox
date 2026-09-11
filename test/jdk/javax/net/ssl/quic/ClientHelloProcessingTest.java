@@ -35,6 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * @bug 8383849
  * @summary Test to exercise server-side ClientHello processing
  * @key randomness
+ * @enablePreview
  * @library /test/lib /javax/net/ssl/templates
  * @build QuicSSLEngineTemplate jdk.test.lib.RandomFactory
  * @run junit/othervm ClientHelloProcessingTest

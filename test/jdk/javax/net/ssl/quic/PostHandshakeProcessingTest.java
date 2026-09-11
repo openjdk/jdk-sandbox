@@ -39,6 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  * @summary Test to exercise post-handshake message rejection.
  * Verifies that all message types other than NewSessionTicket are rejected
  * @key randomness
+ * @enablePreview
  * @library /test/lib /javax/net/ssl/templates
  * @build QuicSSLEngineTemplate jdk.test.lib.RandomFactory
  * @run junit/othervm PostHandshakeProcessingTest
