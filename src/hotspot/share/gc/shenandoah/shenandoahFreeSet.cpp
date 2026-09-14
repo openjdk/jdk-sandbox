@@ -4085,32 +4085,12 @@ HeapWord* ShenandoahFreeSet::try_allocate_TLAB_in_early_recycled(ShenandoahHeapR
 HeapWord* ShenandoahFreeSet::try_allocate_shared_in_early_recycled(ShenandoahHeapRegion* r, size_t size, bool is_tlab_region) {
   assert(r->was_early_recycled(), "Precondition");
   if (ShenandoahLazyReuseCursor) {
-    HeapWord* const top = r->top();
-    HeapWord* gap_start = r->reuse_gap_start();
-    HeapWord* gap_end = r->reuse_gap_end();
-    size_t gap = (gap_start != nullptr && gap_start >= top && gap_end > gap_start)
-                   ? align_down(size_t(gap_end - gap_start), (size_t)MinObjAlignment) : 0;
-    if (gap < size) {
-      gap = scan_reuse_gap(r, top, size);
-      if (gap < size) {
-        return nullptr;
-      }
-      gap_start = r->reuse_gap_start();
-      gap_end = r->reuse_gap_end();
+    const size_t available = reuse_gap_available(r, size);
+    if (available < size) {
+      return nullptr;
     }
-    r->set_affiliation(ShenandoahAffiliation::YOUNG_GENERATION);
-    size_t const used_before = r->used_with_reserve();
-    HeapWord* const new_top = gap_start + size;
-    r->set_top(new_top);
-    size_t const used_delta = r->used_with_reserve() - used_before;
-    if (is_tlab_region) {
-      increase_early_recycled_tlab_regions_used(used_delta);
-    } else {
-      increase_early_recycled_shared_alloc_regions_used(used_delta);
-    }
-    r->set_reuse_gap(new_top, align_down(size_t(gap_end - new_top), (size_t)MinObjAlignment));
-    log_debug(gc, alloc)("Share (lazy) allocated %zu words at " PTR_FORMAT " in region %zu gap=[" PTR_FORMAT ", " PTR_FORMAT ")",
-                         size, p2i(gap_start), r->index(), p2i(gap_start), p2i(gap_end));
+    HeapWord* const gap_start = r->reuse_gap_start();
+    commit_reuse_alloc(r, gap_start, available, size, is_tlab_region);
     return gap_start;
   }
   const size_t    min_fill  = ShenandoahHeap::min_fill_size();
