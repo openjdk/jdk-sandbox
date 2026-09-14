@@ -3856,7 +3856,7 @@ static inline bool too_small_for_plab(ShenandoahHeapRegion* r) {
 
 // Retire when no PLAB-sized tail remains, migrate to the tlab heap when it can still host a LAB,
 // else keep it in the shared-alloc heap.
-void ShenandoahFreeSet::reclassify_shared_alloc_region_after_alloc(ShenandoahHeapRegion* r, size_t idx) {
+void ShenandoahFreeSet::reclassify_shared_alloc_region(ShenandoahHeapRegion* r, size_t idx) {
   if (too_small_for_plab(r)) {
     remove_shared_alloc_region(idx);
     insert_retired_region(r);
@@ -3871,7 +3871,7 @@ void ShenandoahFreeSet::reclassify_shared_alloc_region_after_alloc(ShenandoahHea
   }
 }
 
-void ShenandoahFreeSet::reclassify_tlab_region_after_alloc(ShenandoahHeapRegion* r, size_t idx) {
+void ShenandoahFreeSet::reclassify_tlab_region(ShenandoahHeapRegion* r, size_t idx) {
   remove_tlab_region(idx);
   if (too_small_for_plab(r)) {
     insert_retired_region(r);
@@ -3898,7 +3898,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_shared_from_early_recycled(ShenandoahA
     if (result != nullptr) { // Successful allocation.
       req.set_actual_size(req.size());
       req.set_waste(result - orig_top);
-      reclassify_shared_alloc_region_after_alloc(r, i);
+      reclassify_shared_alloc_region(r, i);
       // Note: Since the current implementation only supports Mutator allocations, there's no need to register
       //  objects or clear remembered set cards.  Usage has been adjusted by try_allocate_shared_in_early_recycled().
       return result;
@@ -3913,7 +3913,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_shared_from_early_recycled(ShenandoahA
     HeapWord* orig_top = r->top();
     HeapWord* result = try_allocate_shared_in_early_recycled(r, req.size(), true /* is_tlab_region */);
     if (result != nullptr) { // Successful allocation.
-      reclassify_tlab_region_after_alloc(r, i - 1);
+      reclassify_tlab_region(r, i - 1);
       // Note: Since the current implementation only supports Mutator allocations, there's no need to register
       //  objects or clear remembered set cards.  Usage has been adjusted by try_allocate_shared_in_early_recycled().
       req.set_actual_size(req.size());
@@ -3942,7 +3942,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_lab_from_early_recycled(ShenandoahAllo
       size_t actual_size;
       HeapWord* result = try_allocate_TLAB_in_early_recycled(r, req, actual_size);
       assert(result != nullptr, "By construction of the TLAB-allocation set");
-      reclassify_tlab_region_after_alloc(r, i);
+      reclassify_tlab_region(r, i);
       // Note: Since the current implementation only supports Mutator allocations, there's no need to register
       //  objects or clear remembered set cards.  Usage has been adjusted by try_allocate_shared_in_early_recycled().
       req.set_actual_size(actual_size);
@@ -3958,7 +3958,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_lab_from_early_recycled(ShenandoahAllo
       size_t actual_size;
       HeapWord* result = try_allocate_TLAB_in_early_recycled(r, req, actual_size);
       if (result != nullptr) {
-        reclassify_tlab_region_after_alloc(r, i);
+        reclassify_tlab_region(r, i);
         // Note: Since the current implementation only supports Mutator allocations, there's no need to register
         //  objects or clear remembered set cards.  Usage has been adjusted by try_allocate_shared_in_early_recycled().
         req.set_actual_size(actual_size);
