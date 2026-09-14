@@ -643,7 +643,10 @@ private:
 
   // Find and return the region's current usable reuse gap size in words.
   // If not zero, the gap cursor points at the gap.
-  size_t reuse_gap_available(ShenandoahHeapRegion* r);
+  size_t reuse_gap_available(ShenandoahHeapRegion* r, size_t min_size);
+
+  void commit_reuse_alloc(ShenandoahHeapRegion* r, HeapWord* gap_start, size_t gap_words,
+                          size_t alloc_words, bool is_tlab_region);
 
   // Place an early-recycled region into the right priority heap after an allocation shrank it.
   void reclassify_shared_alloc_region(ShenandoahHeapRegion* r, size_t idx);
