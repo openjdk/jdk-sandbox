@@ -641,9 +641,11 @@ private:
   // r's gap cursor, and return its size in words; park at alloc_end and return 0 if none remain.
   size_t scan_reuse_gap(ShenandoahHeapRegion* r, HeapWord* from, size_t floor);
 
+  size_t reuse_gap_cached(ShenandoahHeapRegion* r, size_t min_size);
+
   // Find and return the region's current usable reuse gap size in words.
   // If not zero, the gap cursor points at the gap.
-  size_t reuse_gap_available(ShenandoahHeapRegion* r, size_t min_size);
+  size_t prepare_reuse_gap(ShenandoahHeapRegion* r, size_t min_size);
 
   void commit_reuse_alloc(ShenandoahHeapRegion* r, HeapWord* gap_start, size_t gap_words,
                           size_t alloc_words, bool is_tlab_region);

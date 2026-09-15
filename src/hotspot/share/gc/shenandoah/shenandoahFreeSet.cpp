@@ -3797,22 +3797,30 @@ size_t ShenandoahFreeSet::scan_reuse_gap(ShenandoahHeapRegion* r, HeapWord* from
 
 // Current usable reuse gap for an early-recycled region, in words: the cursor's cached clean gap when it is
 // still valid after top(), else recalculate it; 0 when the region is exhausted.
-size_t ShenandoahFreeSet::reuse_gap_available(ShenandoahHeapRegion* r, size_t min_size) {
-  assert(r->was_early_recycled(), "Precondition");
+size_t ShenandoahFreeSet::reuse_gap_cached(ShenandoahHeapRegion* r, size_t min_size) {
   HeapWord* const top = r->top();
   HeapWord* const gap_start = r->reuse_gap_start();
   HeapWord* const gap_end = r->reuse_gap_end();
-  if (gap_start != nullptr && gap_start >= top) {
-    if (gap_end > gap_start) {
-      size_t const aligned_size = align_down(size_t(gap_end - gap_start), (size_t)MinObjAlignment);
-      if (aligned_size >= min_size) {
-        return aligned_size;
-      }
-    } else if (gap_start >= r->alloc_end()) {
-      return 0;
+  if (gap_start != nullptr && gap_start >= top && gap_end > gap_start) {
+    size_t const aligned_size = align_down(size_t(gap_end - gap_start), (size_t)MinObjAlignment);
+    if (aligned_size >= min_size) {
+      return aligned_size;
     }
   }
-  return scan_reuse_gap(r, top, min_size);
+  return 0;
+}
+
+size_t ShenandoahFreeSet::prepare_reuse_gap(ShenandoahHeapRegion* r, size_t min_size) {
+  assert(r->was_early_recycled(), "Precondition");
+  size_t const cached = reuse_gap_cached(r, min_size);
+  if (cached != 0) {
+    return cached;
+  }
+  HeapWord* const gap_start = r->reuse_gap_start();
+  if (gap_start != nullptr && gap_start >= r->alloc_end()) {
+    return 0;
+  }
+  return scan_reuse_gap(r, r->top(), min_size);
 }
 
 void ShenandoahFreeSet::commit_reuse_alloc(ShenandoahHeapRegion* r, HeapWord* gap_start, size_t gap_words,
@@ -3838,7 +3846,7 @@ void ShenandoahFreeSet::commit_reuse_alloc(ShenandoahHeapRegion* r, HeapWord* ga
 size_t ShenandoahFreeSet::early_recycled_tlab_available_size(ShenandoahHeapRegion* r) {
   if (ShenandoahLazyReuseCursor) {
     // Find a gap suitable at least for shared
-    return reuse_gap_available(r, ShenandoahHeap::min_fill_size());
+    return prepare_reuse_gap(r, ShenandoahHeap::min_fill_size());
   }
   size_t largest_tlab_seen = 0;
   HeapWord* largest_start = nullptr;
@@ -4036,7 +4044,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_TLAB_in_early_recycled(ShenandoahHeapR
   ShenandoahMarkingContext* ctx = _heap->marking_context();
 
   if (ShenandoahLazyReuseCursor) {
-    const size_t available = reuse_gap_available(r, min_fill);
+    const size_t available = prepare_reuse_gap(r, min_fill);
     if (available < min_size) {
       // Cached gap is too small, leave it for a smaller request.
       return nullptr;
@@ -4097,7 +4105,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_TLAB_in_early_recycled(ShenandoahHeapR
 HeapWord* ShenandoahFreeSet::try_allocate_shared_in_early_recycled(ShenandoahHeapRegion* r, size_t size, bool is_tlab_region) {
   assert(r->was_early_recycled(), "Precondition");
   if (ShenandoahLazyReuseCursor) {
-    const size_t available = reuse_gap_available(r, size);
+    const size_t available = prepare_reuse_gap(r, size);
     if (available < size) {
       return nullptr;
     }
