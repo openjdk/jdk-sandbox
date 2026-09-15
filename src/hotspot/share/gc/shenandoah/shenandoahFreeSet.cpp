@@ -3771,6 +3771,7 @@ size_t ShenandoahFreeSet::scan_reuse_gap(ShenandoahHeapRegion* r, HeapWord* from
   if (p < r->top()) {
     p = r->top();
   }
+  size_t largest_gap = 0;
   while (p < limit) {
     HeapWord* const end = ctx->get_next_marked_addr_ignore_tams(p, limit);
     if (end == p) {
@@ -3782,9 +3783,15 @@ size_t ShenandoahFreeSet::scan_reuse_gap(ShenandoahHeapRegion* r, HeapWord* from
       r->set_reuse_gap(p, gap);
       return gap;
     }
+    if (gap > largest_gap) {
+      largest_gap = gap;
+    }
     p = end;
   }
-  r->set_reuse_gap(limit, 0);
+  if (largest_gap < ShenandoahHeap::min_fill_size()) {
+    // park cursor
+    r->set_reuse_gap(limit, 0);
+  }
   return 0;
 }
 
