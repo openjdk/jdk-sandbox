@@ -2571,7 +2571,10 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
     return false;
   } else {
     size_t potential_tlab_size = early_recycled_tlab_available_size(r);
-    if (ShenandoahCSetRegionTLAB && (potential_tlab_size != 0)) {
+    if (ShenandoahLazyReuseCursor && potential_tlab_size < ShenandoahHeap::min_fill_size()) {
+      // No usable gap; exclude r from allocation.
+      insert_retired_region(r);
+    } else if (ShenandoahCSetRegionTLAB && (potential_tlab_size >= PLAB::min_size())) {
       insert_tlab_region(r, potential_tlab_size);
     } else {
       insert_shared_alloc_region(r);
@@ -3824,16 +3827,11 @@ void ShenandoahFreeSet::commit_reuse_alloc(ShenandoahHeapRegion* r, HeapWord* ga
                        alloc_words, p2i(gap_start), r->index(), p2i(gap_start), p2i(gap_start + gap_words));
 }
 
-// Return size in bytes of candidate region size if greater than PLAB::min_size().  Otherwrise, return 0 if no TLAB available.
+// Return size in words of the region's usable reuse gap, or 0 if none. May be sub-PLAB (shared-only).
 size_t ShenandoahFreeSet::early_recycled_tlab_available_size(ShenandoahHeapRegion* r) {
   if (ShenandoahLazyReuseCursor) {
     // Find a gap suitable at least for shared
-    size_t const gap_words = reuse_gap_available(r, ShenandoahHeap::min_fill_size());
-    if (gap_words >= PLAB::min_size()) {
-      return gap_words * HeapWordSize;
-    }
-    // Reclassify r for shared allocations
-    return 0;
+    return reuse_gap_available(r, ShenandoahHeap::min_fill_size());
   }
   size_t largest_tlab_seen = 0;
   HeapWord* largest_start = nullptr;
@@ -3870,7 +3868,7 @@ size_t ShenandoahFreeSet::early_recycled_tlab_available_size(ShenandoahHeapRegio
   }
   if (largest_tlab_seen >= PLAB::min_size()) {
     r->set_reuse_gap(largest_start, largest_tlab_seen);
-    return largest_tlab_seen * HeapWordSize;
+    return largest_tlab_seen;
   }
   r->set_reuse_gap(alloc_limit, 0);
   return 0;
@@ -3888,7 +3886,11 @@ void ShenandoahFreeSet::reclassify_shared_alloc_region(ShenandoahHeapRegion* r, 
     insert_retired_region(r);
   } else {
     size_t potential_tlab_size = early_recycled_tlab_available_size(r);
-    if (potential_tlab_size > PLAB::min_size()) {
+    if (ShenandoahLazyReuseCursor && potential_tlab_size < ShenandoahHeap::min_fill_size()) {
+      // No usable gap; exclude r from allocation.
+      remove_shared_alloc_region(idx);
+      insert_retired_region(r);
+    } else if (potential_tlab_size >= PLAB::min_size()) {
       remove_shared_alloc_region(idx);
       insert_tlab_region(r, potential_tlab_size);
     } else {
@@ -3903,7 +3905,10 @@ void ShenandoahFreeSet::reclassify_tlab_region(ShenandoahHeapRegion* r, size_t i
     insert_retired_region(r);
   } else {
     size_t potential_tlab_size = early_recycled_tlab_available_size(r);
-    if (potential_tlab_size > PLAB::min_size()) {
+    if (ShenandoahLazyReuseCursor && potential_tlab_size < ShenandoahHeap::min_fill_size()) {
+      // No usable gap; exclude r from allocation.
+      insert_retired_region(r);
+    } else if (potential_tlab_size >= PLAB::min_size()) {
       insert_tlab_region(r, potential_tlab_size);
     } else {
       insert_shared_alloc_region(r);
