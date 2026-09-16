@@ -859,8 +859,8 @@ public:
   // self-forwarded bit on src, flags src's region, and returns src.
   virtual oop evacuate_object(oop src, Thread* thread);
 
-  // Build and install a FWT at the region tail post-evacuation; returns false on failure.
-  bool finish_region_evacuation(ShenandoahHeapRegion* r,
+  // Build and install a FWT after evacuation; resets top to bottom on success.
+  void finish_region_evacuation(ShenandoahHeapRegion* r,
                                 size_t num_forwardings, bool concurrent, ShenandoahHeuristics* heuristics);
 
   // Parallel scan of flagged cset regions to clear self-forwarded bits on live

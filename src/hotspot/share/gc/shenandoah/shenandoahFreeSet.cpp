@@ -2571,7 +2571,10 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
     return false;
   } else {
     size_t potential_tlab_size = early_recycled_tlab_available_size(r);
-    if (ShenandoahCSetRegionTLAB && (potential_tlab_size != 0)) {
+    if (ShenandoahLazyReuseCursor && potential_tlab_size < ShenandoahHeap::min_fill_size()) {
+      // No usable gap; exclude r from allocation.
+      insert_retired_region(r);
+    } else if (ShenandoahCSetRegionTLAB && (potential_tlab_size >= PLAB::min_size())) {
       insert_tlab_region(r, potential_tlab_size);
     } else {
       insert_shared_alloc_region(r);
@@ -3768,6 +3771,7 @@ size_t ShenandoahFreeSet::scan_reuse_gap(ShenandoahHeapRegion* r, HeapWord* from
   if (p < r->top()) {
     p = r->top();
   }
+  size_t largest_gap = 0;
   while (p < limit) {
     HeapWord* const end = ctx->get_next_marked_addr_ignore_tams(p, limit);
     if (end == p) {
@@ -3779,35 +3783,70 @@ size_t ShenandoahFreeSet::scan_reuse_gap(ShenandoahHeapRegion* r, HeapWord* from
       r->set_reuse_gap(p, gap);
       return gap;
     }
+    if (gap > largest_gap) {
+      largest_gap = gap;
+    }
     p = end;
   }
-  r->set_reuse_gap(limit, 0);
+  if (largest_gap < ShenandoahHeap::min_fill_size()) {
+    // park cursor
+    r->set_reuse_gap(limit, 0);
+  }
   return 0;
 }
 
 // Current usable reuse gap for an early-recycled region, in words: the cursor's cached clean gap when it is
-// still a valid TLAB gap after top(), else recalculate it; 0 when the region is exhausted.
-size_t ShenandoahFreeSet::reuse_gap_available(ShenandoahHeapRegion* r) {
+// still valid after top(), else recalculate it; 0 when the region is exhausted.
+size_t ShenandoahFreeSet::reuse_gap_cached(ShenandoahHeapRegion* r, size_t min_size) {
   HeapWord* const top = r->top();
   HeapWord* const gap_start = r->reuse_gap_start();
   HeapWord* const gap_end = r->reuse_gap_end();
-  if (gap_start != nullptr && gap_start >= top) {
-    if (gap_end > gap_start) {
-      size_t const cached = align_down(size_t(gap_end - gap_start), (size_t)MinObjAlignment);
-      if (cached >= PLAB::min_size()) {
-        return cached;
-      }
-    } else if (gap_start >= r->alloc_end()) {
-      return 0;
+  if (gap_start != nullptr && gap_start >= top && gap_end > gap_start) {
+    size_t const aligned_size = align_down(size_t(gap_end - gap_start), (size_t)MinObjAlignment);
+    if (aligned_size >= min_size) {
+      return aligned_size;
     }
   }
-  return scan_reuse_gap(r, top, PLAB::min_size());
+  return 0;
 }
 
-// Return size in bytes of candidate region size if greater than PLAB::min_size().  Otherwrise, return 0 if no TLAB available.
+size_t ShenandoahFreeSet::prepare_reuse_gap(ShenandoahHeapRegion* r, size_t min_size) {
+  assert(r->was_early_recycled(), "Precondition");
+  size_t const cached = reuse_gap_cached(r, min_size);
+  if (cached != 0) {
+    return cached;
+  }
+  HeapWord* const gap_start = r->reuse_gap_start();
+  if (gap_start != nullptr && gap_start >= r->alloc_end()) {
+    return 0;
+  }
+  return scan_reuse_gap(r, r->top(), min_size);
+}
+
+void ShenandoahFreeSet::commit_reuse_alloc(ShenandoahHeapRegion* r, HeapWord* gap_start, size_t gap_words,
+                                           size_t alloc_words, bool is_tlab_region) {
+  assert(r->is_young(), "Early-recycled regions are set young at recycle");
+  size_t const used_before = r->used_with_reserve();
+  HeapWord* const new_top = gap_start + alloc_words;
+  // no filler - below-top is not walked as raw oops.
+  r->set_top(new_top);
+  // Advance the cursor.
+  r->set_reuse_gap(new_top, gap_words - alloc_words);
+  size_t const used_delta = r->used_with_reserve() - used_before;
+  if (is_tlab_region) {
+    increase_early_recycled_tlab_regions_used(used_delta);
+  } else {
+    increase_early_recycled_shared_alloc_regions_used(used_delta);
+  }
+  log_debug(gc, alloc)("Reuse (lazy) allocated %zu words at " PTR_FORMAT " in region %zu gap=[" PTR_FORMAT ", " PTR_FORMAT ")",
+                       alloc_words, p2i(gap_start), r->index(), p2i(gap_start), p2i(gap_start + gap_words));
+}
+
+// Return size in words of the region's usable reuse gap, or 0 if none. May be sub-PLAB (shared-only).
 size_t ShenandoahFreeSet::early_recycled_tlab_available_size(ShenandoahHeapRegion* r) {
   if (ShenandoahLazyReuseCursor) {
-    return reuse_gap_available(r) * HeapWordSize;
+    // Find a gap suitable at least for shared
+    return prepare_reuse_gap(r, ShenandoahHeap::min_fill_size());
   }
   size_t largest_tlab_seen = 0;
   HeapWord* largest_start = nullptr;
@@ -3844,7 +3883,7 @@ size_t ShenandoahFreeSet::early_recycled_tlab_available_size(ShenandoahHeapRegio
   }
   if (largest_tlab_seen >= PLAB::min_size()) {
     r->set_reuse_gap(largest_start, largest_tlab_seen);
-    return largest_tlab_seen * HeapWordSize;
+    return largest_tlab_seen;
   }
   r->set_reuse_gap(alloc_limit, 0);
   return 0;
@@ -3856,13 +3895,17 @@ static inline bool too_small_for_plab(ShenandoahHeapRegion* r) {
 
 // Retire when no PLAB-sized tail remains, migrate to the tlab heap when it can still host a LAB,
 // else keep it in the shared-alloc heap.
-void ShenandoahFreeSet::reclassify_shared_alloc_region_after_alloc(ShenandoahHeapRegion* r, size_t idx) {
+void ShenandoahFreeSet::reclassify_shared_alloc_region(ShenandoahHeapRegion* r, size_t idx) {
   if (too_small_for_plab(r)) {
     remove_shared_alloc_region(idx);
     insert_retired_region(r);
   } else {
     size_t potential_tlab_size = early_recycled_tlab_available_size(r);
-    if (potential_tlab_size > PLAB::min_size()) {
+    if (ShenandoahLazyReuseCursor && potential_tlab_size < ShenandoahHeap::min_fill_size()) {
+      // No usable gap; exclude r from allocation.
+      remove_shared_alloc_region(idx);
+      insert_retired_region(r);
+    } else if (potential_tlab_size >= PLAB::min_size()) {
       remove_shared_alloc_region(idx);
       insert_tlab_region(r, potential_tlab_size);
     } else {
@@ -3871,13 +3914,16 @@ void ShenandoahFreeSet::reclassify_shared_alloc_region_after_alloc(ShenandoahHea
   }
 }
 
-void ShenandoahFreeSet::reclassify_tlab_region_after_alloc(ShenandoahHeapRegion* r, size_t idx) {
+void ShenandoahFreeSet::reclassify_tlab_region(ShenandoahHeapRegion* r, size_t idx) {
   remove_tlab_region(idx);
   if (too_small_for_plab(r)) {
     insert_retired_region(r);
   } else {
     size_t potential_tlab_size = early_recycled_tlab_available_size(r);
-    if (potential_tlab_size > PLAB::min_size()) {
+    if (ShenandoahLazyReuseCursor && potential_tlab_size < ShenandoahHeap::min_fill_size()) {
+      // No usable gap; exclude r from allocation.
+      insert_retired_region(r);
+    } else if (potential_tlab_size >= PLAB::min_size()) {
       insert_tlab_region(r, potential_tlab_size);
     } else {
       insert_shared_alloc_region(r);
@@ -3898,7 +3944,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_shared_from_early_recycled(ShenandoahA
     if (result != nullptr) { // Successful allocation.
       req.set_actual_size(req.size());
       req.set_waste(result - orig_top);
-      reclassify_shared_alloc_region_after_alloc(r, i);
+      reclassify_shared_alloc_region(r, i);
       // Note: Since the current implementation only supports Mutator allocations, there's no need to register
       //  objects or clear remembered set cards.  Usage has been adjusted by try_allocate_shared_in_early_recycled().
       return result;
@@ -3913,7 +3959,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_shared_from_early_recycled(ShenandoahA
     HeapWord* orig_top = r->top();
     HeapWord* result = try_allocate_shared_in_early_recycled(r, req.size(), true /* is_tlab_region */);
     if (result != nullptr) { // Successful allocation.
-      reclassify_tlab_region_after_alloc(r, i - 1);
+      reclassify_tlab_region(r, i - 1);
       // Note: Since the current implementation only supports Mutator allocations, there's no need to register
       //  objects or clear remembered set cards.  Usage has been adjusted by try_allocate_shared_in_early_recycled().
       req.set_actual_size(req.size());
@@ -3941,8 +3987,10 @@ HeapWord* ShenandoahFreeSet::try_allocate_lab_from_early_recycled(ShenandoahAllo
       HeapWord* orig_top = r->top();
       size_t actual_size;
       HeapWord* result = try_allocate_TLAB_in_early_recycled(r, req, actual_size);
-      assert(result != nullptr, "By construction of the TLAB-allocation set");
-      reclassify_tlab_region_after_alloc(r, i);
+      reclassify_tlab_region(r, i);
+      if (result == nullptr) {
+        return nullptr;
+      }
       // Note: Since the current implementation only supports Mutator allocations, there's no need to register
       //  objects or clear remembered set cards.  Usage has been adjusted by try_allocate_shared_in_early_recycled().
       req.set_actual_size(actual_size);
@@ -3958,7 +4006,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_lab_from_early_recycled(ShenandoahAllo
       size_t actual_size;
       HeapWord* result = try_allocate_TLAB_in_early_recycled(r, req, actual_size);
       if (result != nullptr) {
-        reclassify_tlab_region_after_alloc(r, i);
+        reclassify_tlab_region(r, i);
         // Note: Since the current implementation only supports Mutator allocations, there's no need to register
         //  objects or clear remembered set cards.  Usage has been adjusted by try_allocate_shared_in_early_recycled().
         req.set_actual_size(actual_size);
@@ -3996,35 +4044,15 @@ HeapWord* ShenandoahFreeSet::try_allocate_TLAB_in_early_recycled(ShenandoahHeapR
   ShenandoahMarkingContext* ctx = _heap->marking_context();
 
   if (ShenandoahLazyReuseCursor) {
-    const size_t available = reuse_gap_available(r);
+    const size_t available = prepare_reuse_gap(r, min_fill);
     if (available < min_size) {
       // Cached gap is too small, leave it for a smaller request.
       return nullptr;
     }
     HeapWord* const gap_start = r->reuse_gap_start();
-    HeapWord* const gap_end = r->reuse_gap_end();
-    const size_t gap_size = (max_size < available) ? max_size : available;
-    size = gap_size;
-    HeapWord* const obj = gap_start;
-    // top jumps past hidden waste [orig_top, gap_start)
-    // no filler - below-top is not walked as raw oops.
-    r->set_affiliation(ShenandoahAffiliation::YOUNG_GENERATION);
-    size_t const used_before = r->used_with_reserve();
-    r->set_top(gap_start + gap_size);
-    increase_early_recycled_tlab_regions_used(r->used_with_reserve() - used_before);
-    // Advance the cursor.
-    HeapWord* const new_gap_start = gap_start + gap_size;
-    size_t const remnant = size_t(gap_end - new_gap_start);
-    const bool is_sub_plab = align_down(remnant, (size_t)MinObjAlignment) < PLAB::min_size();
-    if (is_sub_plab) {
-      // Rescan to the next usable gap.
-      scan_reuse_gap(r, gap_end, PLAB::min_size());
-    } else {
-      r->set_reuse_gap(new_gap_start, remnant);
-    }
-    log_debug(gc, alloc)("TLAB (lazy) allocated %zu words at " PTR_FORMAT " in region %zu gap=[" PTR_FORMAT ", " PTR_FORMAT ")",
-                         gap_size, p2i(obj), r->index(), p2i(gap_start), p2i(gap_end));
-    return obj;
+    size = MIN2(max_size, available);
+    commit_reuse_alloc(r, gap_start, available, size, true /* is_tlab_region */);
+    return gap_start;
   }
 
   HeapWord* candidate_limit = alloc_limit - min_size;
@@ -4076,6 +4104,15 @@ HeapWord* ShenandoahFreeSet::try_allocate_TLAB_in_early_recycled(ShenandoahHeapR
 // Returns nullptr without modifying top() if allocation fails.
 HeapWord* ShenandoahFreeSet::try_allocate_shared_in_early_recycled(ShenandoahHeapRegion* r, size_t size, bool is_tlab_region) {
   assert(r->was_early_recycled(), "Precondition");
+  if (ShenandoahLazyReuseCursor) {
+    const size_t available = prepare_reuse_gap(r, size);
+    if (available < size) {
+      return nullptr;
+    }
+    HeapWord* const gap_start = r->reuse_gap_start();
+    commit_reuse_alloc(r, gap_start, available, size, is_tlab_region);
+    return gap_start;
+  }
   const size_t    min_fill  = ShenandoahHeap::min_fill_size();
   HeapWord* const alloc_limit = r->alloc_end();
   HeapWord* orig_top = r->top();

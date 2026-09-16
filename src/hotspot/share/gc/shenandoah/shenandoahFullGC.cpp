@@ -204,7 +204,7 @@ void ShenandoahFullGC::do_it(GCCause::Cause gc_cause) {
     if (has_forwarded_objects) {
       update_roots(true /*full_gc*/);
       ShenandoahCollectionSet* cset = heap->collection_set();
-      // Disable the forward table bloom filter before we reset the marking ocntext.
+      // Disable the forward table bloom filter before we reset the marking context.
       for (size_t i = 0; i < heap->num_regions(); i++) {
         if (cset->is_in(i)) {
           ShenandoahHeapRegion* r = heap->get_region(i);

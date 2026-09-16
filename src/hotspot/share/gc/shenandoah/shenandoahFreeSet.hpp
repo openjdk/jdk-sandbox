@@ -641,13 +641,18 @@ private:
   // r's gap cursor, and return its size in words; park at alloc_end and return 0 if none remain.
   size_t scan_reuse_gap(ShenandoahHeapRegion* r, HeapWord* from, size_t floor);
 
+  size_t reuse_gap_cached(ShenandoahHeapRegion* r, size_t min_size);
+
   // Find and return the region's current usable reuse gap size in words.
   // If not zero, the gap cursor points at the gap.
-  size_t reuse_gap_available(ShenandoahHeapRegion* r);
+  size_t prepare_reuse_gap(ShenandoahHeapRegion* r, size_t min_size);
+
+  void commit_reuse_alloc(ShenandoahHeapRegion* r, HeapWord* gap_start, size_t gap_words,
+                          size_t alloc_words, bool is_tlab_region);
 
   // Place an early-recycled region into the right priority heap after an allocation shrank it.
-  void reclassify_shared_alloc_region_after_alloc(ShenandoahHeapRegion* r, size_t idx);
-  void reclassify_tlab_region_after_alloc(ShenandoahHeapRegion* r, size_t idx);
+  void reclassify_shared_alloc_region(ShenandoahHeapRegion* r, size_t idx);
+  void reclassify_tlab_region(ShenandoahHeapRegion* r, size_t idx);
   HeapWord* try_allocate_TLAB_in_early_recycled(ShenandoahHeapRegion* r, const ShenandoahAllocRequest& req, size_t& size);
   HeapWord* try_allocate_shared_in_early_recycled(ShenandoahHeapRegion* r, size_t size, bool is_tlab_region = false);
   // If only affiliation changes are promote-in-place and generation sizes have not changed,

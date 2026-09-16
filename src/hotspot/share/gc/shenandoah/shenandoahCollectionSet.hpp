@@ -76,7 +76,7 @@ public:
   // Add region to collection set
   void add_region(ShenandoahHeapRegion* r);
 
-  void switch_to_reuse_forwarding(ShenandoahHeapRegion* r);
+  void switch_to_reuse_forwarding();
 
   void optimize_reused_forwarding(size_t start_index, size_t stride);
 
