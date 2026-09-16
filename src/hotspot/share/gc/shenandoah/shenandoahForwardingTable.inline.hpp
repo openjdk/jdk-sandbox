@@ -297,7 +297,7 @@ uint32_t ShenandoahForwardingTable<use_forward_table>::reserve_forwarding(BitMap
     _u._fwt._max_required_probes = depth;
   }
   _u._fwt._num_actual_forwardings++;
-  assert(_num_actual_forwardings <= _num_expected_forwardings, "must not exceed number of forwardings");
+  assert(_u._fwt._num_actual_forwardings <= _u._fwt._num_expected_forwardings, "must not exceed number of forwardings");
   return index;
 }
 
@@ -341,7 +341,7 @@ uint32_t ShenandoahForwardingTable<use_forward_table>::reserve_new_forwarding(Bi
   if (depth > _u._fwt._max_required_probes) {
     _u._fwt._max_required_probes = depth;
   }
-  assert(_num_actual_forwardings <= _num_expected_forwardings, "must not exceed number of forwardings");
+  assert(_u._fwt._num_actual_forwardings <= _u._fwt._num_expected_forwardings, "must not exceed number of forwardings");
   return index;
 }
 
