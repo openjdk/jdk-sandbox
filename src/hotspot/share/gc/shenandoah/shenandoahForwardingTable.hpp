@@ -123,8 +123,11 @@ public:
 // The forwarding_table() method of ShenandoahHeapRegion should probably be changed to early_recycle_info().
 template <bool use_forward_table>
 class alignas(64) ShenandoahForwardingTable {
-  static uint32_t _common_max_probes;
-  static bool _compact;         // Depends on region size and heap size only. All forwarding tables in JVM use same encoding.
+
+  static inline uint32_t _common_max_probes = 0;
+
+  // Depends on region size and heap size only. All forwarding tables in JVM use same encodin
+  static inline bool _compact = false;
 
   // A Graviton-2 cache line is 64 bytes, representing 8 words.  All of the following instance fields should fit in a single
   // cache line.  The first 5 fields are accessed on the hot path through forwardee(original). If !use_forward_table, the

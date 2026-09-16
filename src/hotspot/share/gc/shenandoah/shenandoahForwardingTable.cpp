@@ -284,14 +284,16 @@ bool ShenandoahForwardingTable<use_forward_table>::initialize(uint32_t num_entri
            "_table must be within range and aligned to entry");
 #endif
     _u._fwt._num_entries = prime_entries;
-    assert(_u._fwt._num_entries <= max_juint, "num_entries %u must fit in 32 bits for the multiply-shift probe reduction", _num_entries);
+    assert(_u._fwt._num_entries <= max_juint, "num_entries %u must fit in 32 bits for the multiply-shift probe reduction",
+           _u._fwt._num_entries);
     _u._fwt._num_expected_forwardings = num_entries;
     _u._fwt._num_actual_forwardings = 0;
     _u._fwt._num_live_words = unusable_entries;
     _u._fwt._max_required_probes = 0;
     _u._fwt._abandoned = false;
 
-    assert((void*)(reinterpret_cast<Entry*>(_table) + _u._fwt._num_entries) == (void*)_region->end(), "table must be anchored at region end");
+    assert((void*)(reinterpret_cast<Entry*>(_u._fwt._table) + _u._fwt._num_entries) == (void*)_region->end(),
+           "table must be anchored at region end");
     log_develop_debug(gc)("Initialized forwarding table: table: " PTR_FORMAT ", num_entries: %u, requested entries: %u",
                         p2i(_u._fwt._table), _u._fwt._num_entries, num_entries);
     return true;
@@ -301,7 +303,7 @@ bool ShenandoahForwardingTable<use_forward_table>::initialize(uint32_t num_entri
 template <bool use_forward_table>
 template <class Entry, bool b, typename>
 void ShenandoahForwardingTable<use_forward_table>::set_marked_entries_used(BitMap& used) {
-  assert((void*)(reinterpret_cast<Entry*>(_table) + _num_entries) == (void*)_region->end(),
+  assert((void*)(reinterpret_cast<Entry*>(_u._fwt._table) + _u._fwt._num_entries) == (void*)_region->end(),
          "table must be anchored at region end");
 
   ShenandoahMarkingContext* const ctx = ShenandoahHeap::heap()->marking_context();
@@ -363,7 +365,7 @@ void ShenandoahForwardingTable<use_forward_table>::enter_forwarding(BitMap& used
   Entry const entry(_region->bottom(), original, forwardee);
   index = reserve_forwarding<Entry>(used, index, stride, replaced, replaced_index, replaced_stride, replaced_probes);
   if (index == _u._fwt._num_entries) {
-    assert(_abandoned, "only an abandoned table reserves no slot");
+    assert(_u._fwt._abandoned, "only an abandoned table reserves no slot");
     return;
   }
   insert_forwarding<Entry>(index, entry);
@@ -381,7 +383,7 @@ void ShenandoahForwardingTable<use_forward_table>::reenter_forwarding(BitMap& us
   Entry const entry(_region->bottom(), original, forwardee);
   index = reserve_new_forwarding<Entry>(used, index, stride, probes, replaced, replaced_index, replaced_stride, replaced_probes);
   if (index == _u._fwt._num_entries) {
-    assert(_abandoned, "only an abandoned table reserves no slot");
+    assert(_u._fwt._abandoned, "only an abandoned table reserves no slot");
     return;
   }
   insert_forwarding<Entry>(index, entry);
@@ -450,7 +452,7 @@ void ShenandoahForwardingTable<use_forward_table>::fill_forwardings(BitMap& used
   } cl(*this, used, start(), _region->index());
 
   ShenandoahHeap::heap()->marked_object_iterate(_region, &cl);
-  assert(_u__fwt._abandoned || _u._fwt._num_actual_forwardings == _u._fwt._num_expected_forwardings,
+  assert(_u._fwt._abandoned || _u._fwt._num_actual_forwardings == _u._fwt._num_expected_forwardings,
          "must enter exact number of forwardings, actual: %u, expected: %u",
          _u._fwt._num_actual_forwardings, _u._fwt._num_expected_forwardings);
   log_fwt_stats<Entry>();
