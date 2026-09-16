@@ -4105,6 +4105,18 @@ HeapWord* ShenandoahFreeSet::try_allocate_TLAB_in_early_recycled(ShenandoahHeapR
 HeapWord* ShenandoahFreeSet::try_allocate_shared_in_early_recycled(ShenandoahHeapRegion* r, size_t size, bool is_tlab_region) {
   assert(r->was_early_recycled(), "Precondition");
   if (ShenandoahLazyReuseCursor) {
+    if (ShenandoahCSetAllocationForwardingTable) {
+      if (prepare_reuse_gap(r, ShenandoahHeap::min_fill_size()) == 0) {
+        return nullptr;
+      }
+      HeapWord* const gap_start = r->reuse_gap_start();
+      if (size_t(r->alloc_end() - gap_start) < size) {
+        return nullptr;
+      }
+      commit_reuse_alloc(r, gap_start, size, size, is_tlab_region);
+      scan_reuse_gap(r, r->top(), ShenandoahHeap::min_fill_size());
+      return gap_start;
+    }
     const size_t available = prepare_reuse_gap(r, size);
     if (available < size) {
       return nullptr;
