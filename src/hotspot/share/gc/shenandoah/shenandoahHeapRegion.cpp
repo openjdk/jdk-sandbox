@@ -84,9 +84,7 @@ ShenandoahHeapRegion::ShenandoahHeapRegion(HeapWord* start, size_t index, bool c
   _needs_bitmap_reset(false),
   _early_recycled(false),
   _reserved_body_words(0),
-  _fwd_table(this)
-  {
-
+  _u{ ShenandoahForwardingTable<true>(this) } {
   assert(Universe::on_page_boundary(_bottom) && Universe::on_page_boundary(_end),
          "invalid space boundaries");
   if (ZapUnusedHeapArea && committed) {
@@ -309,7 +307,7 @@ void ShenandoahHeapRegion::recycle_early(bool reuse_body) {
       reset();
       if (reuse_body) {
 #ifdef USE_SENTINELS
-        _fwd_table.install_sentinels();
+        _u._fwd_table.install_sentinels();
 #endif
         _early_recycled = true;
       }
@@ -358,7 +356,7 @@ void ShenandoahHeapRegion::teardown_reuse_state() {
   if (ZapUnusedHeapArea) {
     SpaceMangler::mangle_region(MemRegion(alloc_end(), end()));
   }
-  _fwd_table.reset();
+  _u._fwd_table.reset();
   _early_recycled = false;
 }
 

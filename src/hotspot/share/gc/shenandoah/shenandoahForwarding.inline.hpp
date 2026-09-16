@@ -160,6 +160,17 @@ union _metadata {
 // lives in the evacuated copy.
 static oop resolve_if_fwt(oop obj, bool& was_table_forwarded) {
   ShenandoahHeap* heap = ShenandoahHeap::heap();
+
+  // on this very hot path during evac and update-refs, we resolve
+  // region index multiple times.  does the compiler figure that out?
+  // or should we rewrite the code to make the optimzation more
+  // obvious?
+
+  // also wondering if we can make collection_set() and region more
+  // easily available?
+
+  // maybe this is not so hot.  is this only used for verification and assertions?
+
   switch (heap->collection_set()->cset_state(obj)) {
     case CSetState::REUSABLE_FWDTABLE_COMPACT:
       was_table_forwarded = true;

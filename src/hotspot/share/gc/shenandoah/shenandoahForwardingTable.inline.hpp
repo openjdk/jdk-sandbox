@@ -76,12 +76,16 @@ inline bool CompactFwdTableEntry::is_marked(ShenandoahMarkingContext* ctx) const
  return is_object_aligned(addr) && ctx->is_marked_ignore_tams(addr);
 }
 
-inline uint64_t ShenandoahForwardingTable::hash(HeapWord* original, void* table) {
+template <bool use_forward_table>
+template <bool b, typename>
+inline uint64_t ShenandoahForwardingTable<use_forward_table>::hash(HeapWord* original, void* table) {
  return FastHash::get_hash64(reinterpret_cast<uint64_t>(original), reinterpret_cast<uint64_t>(table));
 }
 
-inline void ShenandoahForwardingTable::probe_of(HeapWord* original, uint32_t& index, uint32_t& stride) const {
-  uint64_t const h = hash(original, _table);
+template <bool use_forward_table>
+template <bool b, typename>
+inline void ShenandoahForwardingTable<use_forward_table>::probe_of(HeapWord* original, uint32_t& index, uint32_t& stride) const {
+  uint64_t const h = hash(original, _u._fwt._table);
   uint64_t const truncated_h = h & 0xffffffff;
   // [0, N-1] from low bits of h
   // Assume that the low-order bits of h hold a "randomly distributed" pattern of bits derived from original and _table.
@@ -90,28 +94,29 @@ inline void ShenandoahForwardingTable::probe_of(HeapWord* original, uint32_t& in
   // probe will also be well distributed.  We use multiply rather than divide because 64-bit multiply is up to nine times
   // faster than a 32-bit divide on typical "modern hardware", and multiply instructions are more effectively pipelined.
   // Since both factors are 32-bit, the 64-bit product will not overflow.
-  index  = static_cast<uint32_t>(((truncated_h * _num_entries) >> 32) & 0xffffffff);
-  assert(_num_entries > 16, "invariant");
-  uint32_t basis = _num_entries / 16;
+  index  = static_cast<uint32_t>(((truncated_h * _u._fwt._num_entries) >> 32) & 0xffffffff);
+  assert(_u._fwt._num_entries > 16, "invariant");
+  uint32_t basis = _u._fwt._num_entries / 16;
   uint32_t high_bits = static_cast<uint32_t>((h >> 32) & 0xffffffff);
   uint32_t one_to_eight = (((high_bits >> 29) & 0x7) & 0x7) + 1;
   // Stride is between (1/16 of entries and 8/16 of entries) + some_portion of 1/16 of entries.
   stride = static_cast<uint32_t> (basis * one_to_eight + (basis & high_bits));
 }
 
-template<class Entry>
-HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
-  if (!_fullgc_fixup && !_ctx->is_marked_ignore_tams(original)) {
+template <bool use_forward_table>
+template <class Entry, bool b, typename>
+HeapWord* ShenandoahForwardingTable<use_forward_table>::forwardee(HeapWord* const original) const {
+  if (!_u._fwt._fullgc_fixup && !_ctx->is_marked_ignore_tams(original)) {
     return original;
   }
   uint32_t start_index, stride;
-  Entry* table = reinterpret_cast<Entry*>(_table);
+  Entry* table = reinterpret_cast<Entry*>(_u._fwt._table);
   probe_of(original, start_index, stride);
   size_t index = start_index;
   uint probes = 0;
   // In the case that we are searching a forwardee at the same time the collision chains are being pruned, we need
   // to make sure that we use the value of _max_required_probes that was valid at the moment we started our traversal.
-  size_t max_required_probes = _max_required_probes;
+  size_t max_required_probes = _u._fwt._max_required_probes;
   // If we see an update value of max_collision_depth, we also need to see the updated values of all original/forwardee pairs.
   OrderAccess::loadload();
 
@@ -148,8 +153,8 @@ HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
       break;
     }
     index += stride;
-    if (index >= _num_entries) {
-      index -= _num_entries;
+    if (index >= _u._fwt._num_entries) {
+      index -= _u._fwt._num_entries;
     }
     if (index == start_index) {
       break;
@@ -164,15 +169,17 @@ HeapWord* ShenandoahForwardingTable::forwardee(HeapWord* const original) const {
   return original;
 }
 
-template<class Entry>
-inline void ShenandoahForwardingTable::insert_forwarding(uint32_t index, const Entry& entry) {
-  new (reinterpret_cast<Entry*>(_table) + index) Entry(entry);
+template <bool use_forward_table>
+template <class Entry, bool b, typename>
+inline void ShenandoahForwardingTable<use_forward_table>::insert_forwarding(uint32_t index, const Entry& entry) {
+  new (reinterpret_cast<Entry*>(_u._fwt._table) + index) Entry(entry);
 }
 
-template<class Entry>
-inline uint32_t ShenandoahForwardingTable::prune_collision_chain(HeapWord* original, HeapWord* forwardee) {
+template <bool use_forward_table>
+template <class Entry, bool b, typename>
+inline uint32_t ShenandoahForwardingTable<use_forward_table>::prune_collision_chain(HeapWord* original, HeapWord* forwardee) {
   uint32_t start_index, stride;
-  Entry* table = reinterpret_cast<Entry*>(_table);
+  Entry* table = reinterpret_cast<Entry*>(_u._fwt._table);
   HeapWord* const region_base = _region->bottom();
   probe_of(original, start_index, stride);
   uint32_t collision_chain_depth = 0;
@@ -198,8 +205,8 @@ inline uint32_t ShenandoahForwardingTable::prune_collision_chain(HeapWord* origi
     }
     collision_chain_depth++;
     index += stride;
-    if (index >= _num_entries) {
-      index -= _num_entries;
+    if (index >= _u._fwt._num_entries) {
+      index -= _u._fwt._num_entries;
     }
     guarantee(index != start_index, "Existing forward table should never wrap around to initial probe");
   }
@@ -208,12 +215,13 @@ inline uint32_t ShenandoahForwardingTable::prune_collision_chain(HeapWord* origi
 }
 
 // How many probes on the chain required to resolve original?
-template<class Entry>
-uint32_t ShenandoahForwardingTable::probes(HeapWord* original, uint32_t& stride) const {
+template <bool use_forward_table>
+template <class Entry, bool b, typename>
+uint32_t ShenandoahForwardingTable<use_forward_table>::probes(HeapWord* original, uint32_t& stride) const {
   // This service is typically called during construction of forward table. We expect typical depth to be no more than 5
   // and expect forward table to be mostly in cache.  Thus, we iterate to end of chanin rather than trying to figure out
   // complicated wrap-around divide calculation.
-  Entry* table = reinterpret_cast<Entry*>(_table);
+  Entry* table = reinterpret_cast<Entry*>(_u._fwt._table);
   uint32_t start_index;
   probe_of(original, start_index, stride);
   uint32_t index = start_index;
@@ -239,72 +247,74 @@ uint32_t ShenandoahForwardingTable::probes(HeapWord* original, uint32_t& stride)
     }
     probes++;
     index += stride;
-    if (index >= _num_entries) {
-      index -= _num_entries;
+    if (index >= _u._fwt._num_entries) {
+      index -= _u._fwt._num_entries;
     }
   }
   assert(false, "probes() must find forwardee");
   return probes;
 }
 
-template<class Entry>
-uint32_t ShenandoahForwardingTable::reserve_forwarding(BitMap& used, uint32_t index, uint32_t stride, Entry& replaced,
-                                                       uint32_t& replaced_index, uint32_t& replaced_stride,
-                                                       uint32_t& replaced_probes) {
+template <bool use_forward_table>
+template <class Entry, bool b, typename>
+uint32_t ShenandoahForwardingTable<use_forward_table>::reserve_forwarding(BitMap& used, uint32_t index, uint32_t stride,
+                                                                          Entry& replaced, uint32_t& replaced_index,
+                                                                          uint32_t& replaced_stride, uint32_t& replaced_probes) {
   uint32_t const first_index = index;
   uint32_t const max_probes = _common_max_probes;
   uint32_t depth = 1;
   HeapWord* const region_base = _region->bottom();
-  Entry* table = reinterpret_cast<Entry*>(_table);
+  Entry* table = reinterpret_cast<Entry*>(_u._fwt._table);
   while (used.at(index)) {
     if (max_probes != 0 && depth >= max_probes) {
-      _abandoned = true; // pathological chain
-      return _num_entries;
+      _u._fwt._abandoned = true; // pathological chain
+      return _u._fwt._num_entries;
     }
     Entry& entry = table[index];
     if (entry.is_entry()) {
       replaced_probes = ShenandoahForwardingTable::probes<Entry>(entry.original(region_base), replaced_stride);
       if (replaced_probes < depth) {
-        _num_actual_forwardings++;
+        _u._fwt._num_actual_forwardings++;
         replaced_index = index;
         replaced = Entry(region_base, entry.original(region_base), entry.forwardee_from_entry_without_barrier());
-        if (depth > _max_required_probes) {
-          _max_required_probes = depth;
+        if (depth > _u._fwt._max_required_probes) {
+          _u._fwt._max_required_probes = depth;
         }
         return index;
       }
     }
     index += stride;
-    if (index >= _num_entries) {
-      index -= _num_entries;
+    if (index >= _u._fwt._num_entries) {
+      index -= _u._fwt._num_entries;
     }
     guarantee(index != first_index, "must find a usable slot, _num_entries: %u, actual forwardings: %u, live_words: %u"
               ", first_index: %u, index: %u, stride: %u, depth: %u",
-              _num_entries, _num_actual_forwardings, _num_live_words, first_index, index, stride, depth);
+              _u._fwt._num_entries, _u._fwt._num_actual_forwardings, _u._fwt._num_live_words, first_index, index, stride, depth);
     depth++;
   }
   used.set_bit(index);
-  if (depth > _max_required_probes) {
-    _max_required_probes = depth;
+  if (depth > _u._fwt._max_required_probes) {
+    _u._fwt._max_required_probes = depth;
   }
-  _num_actual_forwardings++;
+  _u._fwt._num_actual_forwardings++;
   assert(_num_actual_forwardings <= _num_expected_forwardings, "must not exceed number of forwardings");
   return index;
 }
 
-template<class Entry>
-uint32_t ShenandoahForwardingTable::reserve_new_forwarding(BitMap& used, uint32_t index, uint32_t stride, uint32_t depth,
-                                                           Entry& replaced, uint32_t& replaced_index, uint32_t& replaced_stride,
-                                                           uint32_t& replaced_probes)
-{
+template <bool use_forward_table>
+template <class Entry, bool b, typename>
+uint32_t ShenandoahForwardingTable<use_forward_table>::reserve_new_forwarding(BitMap& used, uint32_t index, uint32_t stride,
+                                                                              uint32_t depth, Entry& replaced,
+                                                                              uint32_t& replaced_index, uint32_t& replaced_stride,
+                                                                              uint32_t& replaced_probes) {
   uint32_t const first_index = index;
   uint32_t const max_probes = _common_max_probes;
   HeapWord* const region_base = _region->bottom();
-  Entry* table = reinterpret_cast<Entry*>(_table);
+  Entry* table = reinterpret_cast<Entry*>(_u._fwt._table);
   while (used.at(index)) {
     if (max_probes != 0 && depth >= max_probes) {
-      _abandoned = true; // pathological chain
-      return _num_entries;
+      _u._fwt._abandoned = true; // pathological chain
+      return _u._fwt._num_entries;
     }
     Entry& entry = table[index];
     if (entry.is_entry()) {
@@ -312,24 +322,24 @@ uint32_t ShenandoahForwardingTable::reserve_new_forwarding(BitMap& used, uint32_
       if (replaced_probes < depth) {
         replaced_index = index;
         replaced = Entry(region_base, entry.original(region_base), entry.forwardee_from_entry_without_barrier());
-        if (depth > _max_required_probes) {
-          _max_required_probes = depth;
+        if (depth > _u._fwt._max_required_probes) {
+          _u._fwt._max_required_probes = depth;
         }
         return index;
       }
     }
     index += stride;
-    if (index >= _num_entries) {
-      index -= _num_entries;
+    if (index >= _u._fwt._num_entries) {
+      index -= _u._fwt._num_entries;
     }
     guarantee(index != first_index, "must find a usable slot, _num_entries: %u, actual forwardings: %u, live_words: %u"
               ", first_index: %u, index: %u, stride: %u, depth: %u",
-              _num_entries, _num_actual_forwardings, _num_live_words, first_index, index, stride, depth);
+              _u._fwt._num_entries, _u._fwt._num_actual_forwardings, _u._fwt._num_live_words, first_index, index, stride, depth);
     depth++;
   }
   used.set_bit(index);
-  if (depth > _max_required_probes) {
-    _max_required_probes = depth;
+  if (depth > _u._fwt._max_required_probes) {
+    _u._fwt._max_required_probes = depth;
   }
   assert(_num_actual_forwardings <= _num_expected_forwardings, "must not exceed number of forwardings");
   return index;

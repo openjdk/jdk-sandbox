@@ -208,11 +208,11 @@ inline void ShenandoahHeapRegion::restore_top_before_promote() {
 }
 
 inline oop ShenandoahHeapRegion::forwardee_compact(oop obj) const {
-  return cast_to_oop(_fwd_table.forwardee<CompactFwdTableEntry>(cast_from_oop<HeapWord*>(obj)));
+  return cast_to_oop(_u._fwd_table.forwardee<CompactFwdTableEntry>(cast_from_oop<HeapWord*>(obj)));
 }
 
 inline oop ShenandoahHeapRegion::forwardee_wide(oop obj) const {
-  return cast_to_oop(_fwd_table.forwardee<FwdTableEntry>(cast_from_oop<HeapWord*>(obj)));
+  return cast_to_oop(_u._fwd_table.forwardee<FwdTableEntry>(cast_from_oop<HeapWord*>(obj)));
 }
 
 inline void ShenandoahHeapRegion::record_pin(size_t value) {

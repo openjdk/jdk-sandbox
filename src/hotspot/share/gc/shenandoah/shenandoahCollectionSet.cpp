@@ -121,7 +121,8 @@ void ShenandoahCollectionSet::switch_to_reuse_forwarding(ShenandoahHeapRegion* r
   assert(is_in(r), "Must be in collection set");
   CSetState state;
   if (ShenandoahCSetAllocationForwardingTable) {
-    state = ShenandoahForwardingTable::use_compact() ? CSetState::REUSABLE_FWDTABLE_COMPACT : CSetState::REUSABLE_FWDTABLE_WIDE;
+    state = ShenandoahForwardingTable<true>::use_compact() ?
+      CSetState::REUSABLE_FWDTABLE_COMPACT : CSetState::REUSABLE_FWDTABLE_WIDE;
   } else {
     state = CSetState::REUSABLE_MARKWORD;
   }

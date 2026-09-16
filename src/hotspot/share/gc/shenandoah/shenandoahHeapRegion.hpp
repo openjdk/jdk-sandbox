@@ -300,7 +300,11 @@ private:
 
   size_t _reserved_body_words;
 
-  ShenandoahForwardingTable _fwd_table;
+  union {
+    ShenandoahForwardingTable<true> _fwd_table;
+    ShenandoahForwardingTable<false> _notbl_info;
+  } _u;
+
 
 public:
   ShenandoahHeapRegion(HeapWord* start, size_t index, bool committed);
@@ -317,9 +321,14 @@ public:
     return _empty_time;
   }
 
-  inline ShenandoahForwardingTable& forwarding_table() {
+  inline ShenandoahForwardingTable<true>& forwarding_table() {
     assert(ShenandoahCSetAllocationForwardingTable, "must not access forwarding table if mark-word forwarding is used");
-    return _fwd_table;
+    return _u._fwd_table;
+  }
+
+  inline ShenandoahForwardingTable<false>& no_tbl_info() {
+    assert(ShenandoahCSetAllocationForwardingTable, "must not access forwarding table if mark-word forwarding is used");
+    return _u._notbl_info;
   }
 
   inline static size_t required_regions(size_t bytes) {
@@ -588,7 +597,7 @@ public:
   }
 
   inline void start_fullgc() {
-    _fwd_table.start_fullgc();
+    _u._fwd_table.start_fullgc();
   }
 
   inline HeapWord* reuse_gap_start() const { return _reuse_gap_start; }
@@ -598,8 +607,10 @@ public:
   bool build_forwarding_table(size_t num_forwardings) {
     if (num_forwardings >= 0x100000000) {
       return false;             // overflow
+    } else if (ShenandoahForwardingTable<true>::use_compact()) {
+      return _u._fwd_table.build<CompactFwdTableEntry>((uint32_t) num_forwardings);
     } else {
-      return _fwd_table.build((uint32_t) num_forwardings);
+      return _u._fwd_table.build<FwdTableEntry>((uint32_t) num_forwardings);
     }
   }
 
@@ -608,7 +619,7 @@ public:
   void teardown_reuse_state();
 
   HeapWord* forwarding_table_start() const {
-    return _fwd_table.start();
+    return _u._fwd_table.start();
   }
 
   oop forwardee_compact(oop obj) const;

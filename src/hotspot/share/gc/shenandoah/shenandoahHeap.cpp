@@ -323,7 +323,7 @@ jint ShenandoahHeap::initialize() {
                               "Cannot commit bitmap memory");
   }
 
-  ShenandoahForwardingTable::initialize_globals();
+  ShenandoahForwardingTable<true>::initialize_globals();
 
   _marking_context = new ShenandoahMarkingContext(_heap_region, _bitmap_region, _num_regions);
 
