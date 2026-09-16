@@ -464,11 +464,11 @@
           "cursor: allocate within the cached gap with no bitmap scan, "    \
           "rescanning once for the next usable gap on a miss.")             \
                                                                             \
-  product(uintx, ShenandoahCSetReuseMaxDensityPercent, 100, DIAGNOSTIC,     \
-          "Reuse an evacuated cset region without a table only when its "   \
-          "reserved mark words occupy at most this percentage of the "      \
-          "region; denser regions are not reused early. 100 disables the "  \
-          "check.")                                                         \
+  product(uintx, ShenandoahCSetReuseMaxDensityPercent, 10, DIAGNOSTIC,      \
+          "Reuse an evacuated cset region (table or mark-word forwarding) " \
+          "only when its live objects occupy at most this percentage of "   \
+          "the region; denser regions are not reused early. 100 disables "  \
+          "the check.")                                                     \
           range(0, 100)                                                     \
                                                                             \
   product(uintx, ShenandoahCSetAllocationMaxTLABPad, 4, EXPERIMENTAL,       \
@@ -480,14 +480,6 @@
           "and larger pads result in more time trying to find an "          \
           "an acceptable TLAB location.")                                   \
           range(0, 32768)                                                   \
-                                                                            \
-  product(uintx, ShenandoahForwardingTableMaxPercent, 10, DIAGNOSTIC,       \
-          "Switch an evacuated cset region to a forwarding table only "     \
-          "when the table tail would occupy at most this percentage of "    \
-          "the region; denser regions keep mark-word forwarding. Lowering " \
-          "it trades early memory reuse for cheaper table builds and "      \
-          "shorter sentinel runs during TLAB carving.")                     \
-          range(0, 100)                                                     \
                                                                             \
   product(uintx, ShenandoahForwardingTableLoadFactorPercent,                \
           75, DIAGNOSTIC,                                                   \

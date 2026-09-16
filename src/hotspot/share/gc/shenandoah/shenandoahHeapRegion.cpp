@@ -361,18 +361,17 @@ void ShenandoahHeapRegion::teardown_reuse_state() {
 }
 
 bool ShenandoahHeapRegion::prepare_reuse_forwarding(size_t num_forwardings) {
+  uintx const max_density = ShenandoahCSetReuseMaxDensityPercent;
+  if (max_density != 100 && num_forwardings * 100 > region_size_words() * max_density) {
+    return false;
+  }
   if (ShenandoahCSetAllocationForwardingTable) {
     return build_forwarding_table(num_forwardings);
   }
-  uintx const max_density = ShenandoahCSetReuseMaxDensityPercent;
-  if (max_density == 100 ||
-      num_forwardings * 100 <= region_size_words() * max_density) {
-    set_reserved_body_words(num_forwardings);
-    // Publish the reserve before finish_region_evacuation drops top to bottom, so a concurrent allocator can't see a stale zero reserve.
-    OrderAccess::storestore();
-    return true;
-  }
-  return false;
+  set_reserved_body_words(num_forwardings);
+  // Publish the reserve before finish_region_evacuation drops top to bottom, so a concurrent allocator can't see a stale zero reserve.
+  OrderAccess::storestore();
+  return true;
 }
 
 void ShenandoahHeapRegion::make_trash() {
