@@ -1476,8 +1476,11 @@ void ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t nu
     if (can_reuse) {
       // There is a race here that we don't bother to resolve.  The race may cause us to early recycle a bit more than is really
       // necessary. If we decide this causes measurable performance impact, we can invest in preventing the race.
-      size_t early_recycled_bytes = (r->forwarding_table_start() - r->bottom()) * HeapWordSize;
-      heuristics->supplement_early_recycled_bytes(early_recycled_bytes);
+      size_t body_words = r->forwarding_table_start() - r->bottom();
+      size_t region_words = r->region_size_words();
+      size_t live_words = r->get_live_data_words();
+      size_t usable_words = body_words * (region_words - live_words) / region_words;
+      heuristics->supplement_early_recycled_bytes(usable_words * HeapWordSize);
       r->set_alt_top(r->top());
       r->set_top(r->bottom());
       OrderAccess::fence();
