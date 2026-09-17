@@ -46,14 +46,13 @@ uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::compute_common_max_probe
     return 0;
   }
   uint32_t const lf = ShenandoahForwardingTableLoadFactorPercent;
-  constexpr uint32_t largest_entry_words = sizeof(CompactFwdTableEntry) / sizeof(HeapWord*);
-  uint32_t const largest_max_slots = ((ShenandoahHeapRegion::region_size_words() / largest_entry_words)
-                                      * ShenandoahForwardingTableMaxPercent / 100);
-  uint32_t const largest_max_keys = largest_max_slots * lf / 100;
+  uint32_t const largest_max_keys = (uint32_t)(ShenandoahHeapRegion::region_size_words()
+                                               * ShenandoahCSetReuseMaxDensityPercent / 100);
   if (largest_max_keys == 0) {
     return 0;
   }
   assert(0 < lf && lf < 100, "load factor must be in (0, 100)");
+  uint32_t const largest_max_slots = largest_max_keys * 100 / lf;
   double const alpha = (double)lf / 100.0;
   double const expected_max = ::log((double)largest_max_keys) / ::log(1.0 / alpha);
   uint32_t const probes = MAX2((size_t)(overrun * expected_max), (size_t)1);
@@ -208,22 +207,6 @@ bool ShenandoahEarlyRecycleInfo<use_forward_table>::initialize(uint32_t num_entr
                  _region->index(), num_required_entries, entry_words,
                  (uint32_t) pointer_delta(end, bottom), num_entries);
     return false;
-  }
-  // Diagnostic knob: only switch to a forwarding table when its tail would
-  // occupy at most ShenandoahForwardingTableMaxPercent of the region. Denser
-  // regions keep mark-word forwarding: nothing to build here, and no sentinel
-  // run to skip during TLAB carving, at the cost of not early-reclaiming the
-  // body. 100 disables this check (physical fit only, enforced above); the
-  // default 93 keeps ~7% of the region as reusable body.
-  if (ShenandoahForwardingTableMaxPercent < 100) {
-    uint32_t const region_words = pointer_delta(end, bottom);
-    uint32_t const table_words = num_required_entries * entry_words;
-    if (table_words * 100 > region_words * ShenandoahForwardingTableMaxPercent) {
-      log_debug(gc)("Forwarding table skipped for region %zu: table %u%% of region exceeds max %u%% (num_forwardings=%u)",
-                    _region->index(), table_words * 100 / region_words,
-                    (uint32_t)ShenandoahForwardingTableMaxPercent, num_entries);
-      return false;
-    }
   }
   if (use_forward_table) {
     // Count number of live words in the tail [last_table_start, top).
