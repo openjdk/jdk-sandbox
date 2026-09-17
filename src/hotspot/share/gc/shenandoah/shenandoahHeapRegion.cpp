@@ -84,7 +84,7 @@ ShenandoahHeapRegion::ShenandoahHeapRegion(HeapWord* start, size_t index, bool c
   _needs_bitmap_reset(false),
   _early_recycled(false),
   _reserved_body_words(0),
-  _u{ ShenandoahForwardingTable<true>(this) } {
+  _u{ ShenandoahEarlyRecycleInfo<true>(this) } {
   assert(Universe::on_page_boundary(_bottom) && Universe::on_page_boundary(_end),
          "invalid space boundaries");
   if (ZapUnusedHeapArea && committed) {

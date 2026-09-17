@@ -78,13 +78,13 @@ inline bool CompactFwdTableEntry::is_marked(ShenandoahMarkingContext* ctx) const
 
 template <bool use_forward_table>
 template <bool b, typename>
-inline uint64_t ShenandoahForwardingTable<use_forward_table>::hash(HeapWord* original, void* table) {
+inline uint64_t ShenandoahEarlyRecycleInfo<use_forward_table>::hash(HeapWord* original, void* table) {
  return FastHash::get_hash64(reinterpret_cast<uint64_t>(original), reinterpret_cast<uint64_t>(table));
 }
 
 template <bool use_forward_table>
 template <bool b, typename>
-inline void ShenandoahForwardingTable<use_forward_table>::probe_of(HeapWord* original, uint32_t& index, uint32_t& stride) const {
+inline void ShenandoahEarlyRecycleInfo<use_forward_table>::probe_of(HeapWord* original, uint32_t& index, uint32_t& stride) const {
   uint64_t const h = hash(original, _u._fwt._table);
   uint64_t const truncated_h = h & 0xffffffff;
   // [0, N-1] from low bits of h
@@ -105,7 +105,7 @@ inline void ShenandoahForwardingTable<use_forward_table>::probe_of(HeapWord* ori
 
 template <bool use_forward_table>
 template <class Entry, bool b, typename>
-HeapWord* ShenandoahForwardingTable<use_forward_table>::forwardee(HeapWord* const original) const {
+HeapWord* ShenandoahEarlyRecycleInfo<use_forward_table>::forwardee(HeapWord* const original) const {
   if (!_u._fwt._fullgc_fixup && !_ctx->is_marked_ignore_tams(original)) {
     return original;
   }
@@ -171,13 +171,13 @@ HeapWord* ShenandoahForwardingTable<use_forward_table>::forwardee(HeapWord* cons
 
 template <bool use_forward_table>
 template <class Entry, bool b, typename>
-inline void ShenandoahForwardingTable<use_forward_table>::insert_forwarding(uint32_t index, const Entry& entry) {
+inline void ShenandoahEarlyRecycleInfo<use_forward_table>::insert_forwarding(uint32_t index, const Entry& entry) {
   new (reinterpret_cast<Entry*>(_u._fwt._table) + index) Entry(entry);
 }
 
 template <bool use_forward_table>
 template <class Entry, bool b, typename>
-inline uint32_t ShenandoahForwardingTable<use_forward_table>::prune_collision_chain(HeapWord* original, HeapWord* forwardee) {
+inline uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::prune_collision_chain(HeapWord* original, HeapWord* forwardee) {
   uint32_t start_index, stride;
   Entry* table = reinterpret_cast<Entry*>(_u._fwt._table);
   HeapWord* const region_base = _region->bottom();
@@ -217,7 +217,7 @@ inline uint32_t ShenandoahForwardingTable<use_forward_table>::prune_collision_ch
 // How many probes on the chain required to resolve original?
 template <bool use_forward_table>
 template <class Entry, bool b, typename>
-uint32_t ShenandoahForwardingTable<use_forward_table>::probes(HeapWord* original, uint32_t& stride) const {
+uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::probes(HeapWord* original, uint32_t& stride) const {
   // This service is typically called during construction of forward table. We expect typical depth to be no more than 5
   // and expect forward table to be mostly in cache.  Thus, we iterate to end of chanin rather than trying to figure out
   // complicated wrap-around divide calculation.
@@ -257,7 +257,7 @@ uint32_t ShenandoahForwardingTable<use_forward_table>::probes(HeapWord* original
 
 template <bool use_forward_table>
 template <class Entry, bool b, typename>
-uint32_t ShenandoahForwardingTable<use_forward_table>::reserve_forwarding(BitMap& used, uint32_t index, uint32_t stride,
+uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::reserve_forwarding(BitMap& used, uint32_t index, uint32_t stride,
                                                                           Entry& replaced, uint32_t& replaced_index,
                                                                           uint32_t& replaced_stride, uint32_t& replaced_probes) {
   uint32_t const first_index = index;
@@ -272,7 +272,7 @@ uint32_t ShenandoahForwardingTable<use_forward_table>::reserve_forwarding(BitMap
     }
     Entry& entry = table[index];
     if (entry.is_entry()) {
-      replaced_probes = ShenandoahForwardingTable::probes<Entry>(entry.original(region_base), replaced_stride);
+      replaced_probes = ShenandoahEarlyRecycleInfo::probes<Entry>(entry.original(region_base), replaced_stride);
       if (replaced_probes < depth) {
         _u._fwt._num_actual_forwardings++;
         replaced_index = index;
@@ -303,7 +303,7 @@ uint32_t ShenandoahForwardingTable<use_forward_table>::reserve_forwarding(BitMap
 
 template <bool use_forward_table>
 template <class Entry, bool b, typename>
-uint32_t ShenandoahForwardingTable<use_forward_table>::reserve_new_forwarding(BitMap& used, uint32_t index, uint32_t stride,
+uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::reserve_new_forwarding(BitMap& used, uint32_t index, uint32_t stride,
                                                                               uint32_t depth, Entry& replaced,
                                                                               uint32_t& replaced_index, uint32_t& replaced_stride,
                                                                               uint32_t& replaced_probes) {
@@ -318,7 +318,7 @@ uint32_t ShenandoahForwardingTable<use_forward_table>::reserve_new_forwarding(Bi
     }
     Entry& entry = table[index];
     if (entry.is_entry()) {
-      replaced_probes = ShenandoahForwardingTable::probes<Entry>(entry.original(region_base), replaced_stride);
+      replaced_probes = ShenandoahEarlyRecycleInfo::probes<Entry>(entry.original(region_base), replaced_stride);
       if (replaced_probes < depth) {
         replaced_index = index;
         replaced = Entry(region_base, entry.original(region_base), entry.forwardee_from_entry_without_barrier());

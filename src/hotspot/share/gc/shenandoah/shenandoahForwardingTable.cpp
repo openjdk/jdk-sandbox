@@ -34,10 +34,13 @@
 
 #include <math.h>
 
+ShenandoahEarlyRecycleSubsetCoordinator _early_recycle_locks[NUM_EARLY_RECYCLE_SUBSETS];
+
+
 HeapWord* CompactFwdTableEntry::_heap_base = nullptr;
 
 template <bool use_forward_table>
-uint32_t ShenandoahForwardingTable<use_forward_table>::compute_common_max_probes() {
+uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::compute_common_max_probes() {
   uint32_t const overrun = ShenandoahForwardingTableProbeOverrun;
   if (overrun == 0) {
     return 0;
@@ -62,7 +65,7 @@ uint32_t ShenandoahForwardingTable<use_forward_table>::compute_common_max_probes
 }
 
 template <bool use_forward_table>
-void ShenandoahForwardingTable<use_forward_table>::initialize_globals() {
+void ShenandoahEarlyRecycleInfo<use_forward_table>::initialize_globals() {
   _common_max_probes = compute_common_max_probes();
   if (!ShenandoahCompactFWTEntries) {
     _compact = false;
@@ -178,7 +181,7 @@ static uint32_t next_prime(uint32_t n, uint32_t limit) {
 
 template <bool use_forward_table>
 template <class Entry, bool b, typename>
-bool ShenandoahForwardingTable<use_forward_table>::initialize(uint32_t num_entries) {
+bool ShenandoahEarlyRecycleInfo<use_forward_table>::initialize(uint32_t num_entries) {
   // Find the minimum hashtable that satisfies the target load factor. Live
   // object headers falling within the table's range are unusable slots; the
   // search below grows the table to keep enough usable slots.
@@ -302,7 +305,7 @@ bool ShenandoahForwardingTable<use_forward_table>::initialize(uint32_t num_entri
 
 template <bool use_forward_table>
 template <class Entry, bool b, typename>
-void ShenandoahForwardingTable<use_forward_table>::set_marked_entries_used(BitMap& used) {
+void ShenandoahEarlyRecycleInfo<use_forward_table>::set_marked_entries_used(BitMap& used) {
   assert((void*)(reinterpret_cast<Entry*>(_u._fwt._table) + _u._fwt._num_entries) == (void*)_region->end(),
          "table must be anchored at region end");
 
@@ -343,7 +346,7 @@ void ShenandoahForwardingTable<use_forward_table>::set_marked_entries_used(BitMa
 
 template <bool use_forward_table>
 template <class Entry, bool b, typename>
-void ShenandoahForwardingTable<use_forward_table>::clear_unused_slots(const BitMap& used) {
+void ShenandoahEarlyRecycleInfo<use_forward_table>::clear_unused_slots(const BitMap& used) {
   Entry* table = reinterpret_cast<Entry*>(_u._fwt._table);
   BitMap::idx_t current = used.find_first_clear_bit(0);
   while (current < _u._fwt._num_entries) {
@@ -354,7 +357,7 @@ void ShenandoahForwardingTable<use_forward_table>::clear_unused_slots(const BitM
 
 template <bool use_forward_table>
 template <class Entry, bool b, typename>
-void ShenandoahForwardingTable<use_forward_table>::enter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee,
+void ShenandoahEarlyRecycleInfo<use_forward_table>::enter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee,
                                                                     Entry& replaced, uint32_t& replaced_index,
                                                                     uint32_t& replaced_stride, uint32_t& replaced_probes) {
   if (_u._fwt._abandoned) {
@@ -373,7 +376,7 @@ void ShenandoahForwardingTable<use_forward_table>::enter_forwarding(BitMap& used
 
 template <bool use_forward_table>
 template <class Entry, bool b, typename>
-void ShenandoahForwardingTable<use_forward_table>::reenter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee,
+void ShenandoahEarlyRecycleInfo<use_forward_table>::reenter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee,
                                                                       uint32_t index, uint32_t stride, uint32_t probes,
                                                                       Entry& replaced, uint32_t& replaced_index,
                                                                       uint32_t& replaced_stride, uint32_t& replaced_probes) {
@@ -391,7 +394,7 @@ void ShenandoahForwardingTable<use_forward_table>::reenter_forwarding(BitMap& us
 
 template <bool use_forward_table>
 template <class Entry, bool b, typename> 
-void ShenandoahForwardingTable<use_forward_table>::log_fwt_stats() const {
+void ShenandoahEarlyRecycleInfo<use_forward_table>::log_fwt_stats() const {
 #ifndef PRODUCT
   log_debug(gc)("Forwarding table load factor: %f",
                 (float)(_u._fwt._num_actual_forwardings + _u._fwt._num_live_words) / (float) (_u._fwt._num_entries));
@@ -404,22 +407,22 @@ void ShenandoahForwardingTable<use_forward_table>::log_fwt_stats() const {
 
 template <bool use_forward_table>
 template <class Entry, bool b, typename> 
-void ShenandoahForwardingTable<use_forward_table>::log_no_tbl_stats() const {
+void ShenandoahEarlyRecycleInfo<use_forward_table>::log_no_tbl_stats() const {
   log_debug(gc)("Early recycle region with no forwarding table, density: %.3f", _u._no_fwt._density_at_most_recent_sift);
 }
 
 template <bool use_forward_table>
 template <class Entry, bool b, typename>
-void ShenandoahForwardingTable<use_forward_table>::fill_forwardings(BitMap& used) {
+void ShenandoahEarlyRecycleInfo<use_forward_table>::fill_forwardings(BitMap& used) {
   class FillForwardingsClosure {
-    ShenandoahForwardingTable& _fwt;
+    ShenandoahEarlyRecycleInfo& _fwt;
     HeapWord* _region_base;
     BitMap&         _used;
     HeapWord* const _fwt_start;
     size_t    const _region_idx;
 
     public:
-    FillForwardingsClosure(ShenandoahForwardingTable& fwt, BitMap& used,
+    FillForwardingsClosure(ShenandoahEarlyRecycleInfo& fwt, BitMap& used,
                            HeapWord* fwt_start, size_t region_idx)
         : _fwt(fwt), _region_base(fwt.region()->bottom()), _used(used), _fwt_start(fwt_start), _region_idx(region_idx) {}
 
@@ -461,7 +464,7 @@ void ShenandoahForwardingTable<use_forward_table>::fill_forwardings(BitMap& used
 #ifndef PRODUCT
 template <bool use_forward_table>
 template <class Entry, bool b, typename>
-void ShenandoahForwardingTable<use_forward_table>::verify_forwardings() {
+void ShenandoahEarlyRecycleInfo<use_forward_table>::verify_forwardings() {
   if (!ShenandoahVerify) {
     return;
   }
@@ -506,7 +509,7 @@ void ShenandoahForwardingTable<use_forward_table>::verify_forwardings() {
 
 template <bool use_forward_table>
 template<class Entry, bool b, typename>
-bool ShenandoahForwardingTable<use_forward_table>::build(uint32_t num_entries) {
+bool ShenandoahEarlyRecycleInfo<use_forward_table>::build(uint32_t num_entries) {
   bool initialized = initialize<Entry>(num_entries);
   if (initialized) {
     // Track used slots in a scratch bitmap during construction, then zero
@@ -539,7 +542,7 @@ bool ShenandoahForwardingTable<use_forward_table>::build(uint32_t num_entries) {
 
 template <bool use_forward_table>
 template <bool b, typename>
-bool ShenandoahForwardingTable<use_forward_table>::build(uint32_t num_entries) {
+bool ShenandoahEarlyRecycleInfo<use_forward_table>::build(uint32_t num_entries) {
   if (_compact) {
     return build<CompactFwdTableEntry>(num_entries);
   } else {
@@ -549,7 +552,7 @@ bool ShenandoahForwardingTable<use_forward_table>::build(uint32_t num_entries) {
 
 template <bool use_forward_table>
 template<class Entry, bool b, typename>
-void ShenandoahForwardingTable<use_forward_table>::prune_collision_chains() {
+void ShenandoahEarlyRecycleInfo<use_forward_table>::prune_collision_chains() {
   Entry* table = reinterpret_cast<Entry*>(_u._fwt._table);
   HeapWord* const region_base = _region->bottom();
   uint32_t total_pruned_collisions = 0;
@@ -573,7 +576,7 @@ void ShenandoahForwardingTable<use_forward_table>::prune_collision_chains() {
 
 template <bool use_forward_table>
 template <bool b, typename>
-void ShenandoahForwardingTable<use_forward_table>::prune_collision_chains() {
+void ShenandoahEarlyRecycleInfo<use_forward_table>::prune_collision_chains() {
   if (_compact) {
     prune_collision_chains<CompactFwdTableEntry>();
   } else {
@@ -584,7 +587,7 @@ void ShenandoahForwardingTable<use_forward_table>::prune_collision_chains() {
 #ifdef USE_SENTINELS
 template <bool use_forward_table>
 template<class Entry, bool b, typename>
-void ShenandoahForwardingTable<use_forward_table>::write_at_originals(uintptr_t word, HeapWord* from, HeapWord* to) {
+void ShenandoahEarlyRecycleInfo<use_forward_table>::write_at_originals(uintptr_t word, HeapWord* from, HeapWord* to) {
   assert(_u._fwt._table != nullptr, "FWT must be built before writing sentinels");
   Entry* table = reinterpret_cast<Entry*>(_u._fwt._table);
   HeapWord* region_base = _region->bottom();
@@ -619,7 +622,7 @@ void ShenandoahForwardingTable<use_forward_table>::write_at_originals(uintptr_t 
 }
 
 template <bool use_forward_table>
-void ShenandoahForwardingTable<use_forward_table>::install_sentinels() {
+void ShenandoahEarlyRecycleInfo<use_forward_table>::install_sentinels() {
   HeapWord* fwt_start = start();
   HeapWord* bottom    = _region->bottom();
   if (_compact) {
@@ -634,7 +637,7 @@ void ShenandoahForwardingTable<use_forward_table>::install_sentinels() {
 // NECESSARY.  REDUNDANT.
 template <bool use_forward_table>
 template <class Entry, bool b, typename>
-void ShenandoahForwardingTable<use_forward_table>::add_marks_above_tams() {
+void ShenandoahEarlyRecycleInfo<use_forward_table>::add_marks_above_tams() {
   assert(_u._fwt._table != nullptr, "FWT must be built before writing sentinels");
   Entry* table = reinterpret_cast<Entry*>(_u._fwt._table);
   ShenandoahMarkingContext* ctx = ShenandoahHeap::heap()->marking_context();
@@ -654,15 +657,15 @@ void ShenandoahForwardingTable<use_forward_table>::add_marks_above_tams() {
 
 // The non-in-lined definitions above need to be explicitly instantiated or they will fail to link.
 
-template class ShenandoahForwardingTable<true>;
-template class ShenandoahForwardingTable<false>;
+template class ShenandoahEarlyRecycleInfo<true>;
+template class ShenandoahEarlyRecycleInfo<false>;
 
-template void ShenandoahForwardingTable<true>::prune_collision_chains<true, void>();
+template void ShenandoahEarlyRecycleInfo<true>::prune_collision_chains<true, void>();
 
-template bool ShenandoahForwardingTable<true>::build<FwdTableEntry, true, void>(uint32_t);
-template bool ShenandoahForwardingTable<true>::build<CompactFwdTableEntry, true, void>(uint32_t);
-template void ShenandoahForwardingTable<true>::prune_collision_chains<FwdTableEntry, true, void>();
-template void ShenandoahForwardingTable<true>::prune_collision_chains<CompactFwdTableEntry, true, void>();
+template bool ShenandoahEarlyRecycleInfo<true>::build<FwdTableEntry, true, void>(uint32_t);
+template bool ShenandoahEarlyRecycleInfo<true>::build<CompactFwdTableEntry, true, void>(uint32_t);
+template void ShenandoahEarlyRecycleInfo<true>::prune_collision_chains<FwdTableEntry, true, void>();
+template void ShenandoahEarlyRecycleInfo<true>::prune_collision_chains<CompactFwdTableEntry, true, void>();
 
 #endif
 

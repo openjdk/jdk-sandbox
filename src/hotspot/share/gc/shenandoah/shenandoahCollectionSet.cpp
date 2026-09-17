@@ -120,7 +120,7 @@ void ShenandoahCollectionSet::add_region(ShenandoahHeapRegion* r) {
 void ShenandoahCollectionSet::switch_to_reuse_forwarding() {
   CSetState state;
   if (ShenandoahCSetAllocationForwardingTable) {
-    state = ShenandoahForwardingTable<true>::use_compact() ?
+    state = ShenandoahEarlyRecycleInfo<true>::use_compact() ?
       CSetState::REUSABLE_FWDTABLE_COMPACT : CSetState::REUSABLE_FWDTABLE_WIDE;
   } else {
     state = CSetState::REUSABLE_MARKWORD;

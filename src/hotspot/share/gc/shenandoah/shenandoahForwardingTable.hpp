@@ -31,6 +31,13 @@ class BitMap;
 class ShenandoahHeapRegion;
 class ShenandoahMarkingContext;
 
+enum ShenandoahEarlyRecycleSubsets {
+  TLAB_ALLOCATABLES,
+  SHARED_ALLOCATABLES,
+  NO_TBL_ALLOCATABLES,
+  NUM_EARLY_RECYCLE_SUBSETS
+};
+
 class FwdTableEntry {
   static const uint64_t ENTRY_MARKER = uint64_t(1) << 63;
   HeapWord* _original;
@@ -119,10 +126,56 @@ public:
   void reset() { _encoded = 0; }
 };
 
-// Should we rename to EarlyRecycleInfo?  Make name change after all the rest of the changes have been integrated.
-// The forwarding_table() method of ShenandoahHeapRegion should probably be changed to early_recycle_info().
+#define CACHE_LINE_SIZE_IN_BYTES 64
+
+// Align each subset coordinator on a different cache line
+class alignas(CACHE_LINE_SIZE_IN_BYTES) ShenandoahEarlyRecycleSubsetCoordinator {
+  // High-order 32 bits represent the number of requests made since last prioritization of allocation regions.
+  // Low-order 32 bits represent the number of requests made since last prioritization of allocation regions have been completed.
+  volatile uint64_t _requests_and_completions;
+  uint32_t _size;
+
+public:
+
+  static const uint64_t LOCK_SUBSET_SENTINEL = 0xffffffffffffffffUL;
+  static const uint32_t NO_REGION_FOUND = 0xffffffffUL;
+
+  ShenandoahEarlyRecycleSubsetCoordinator(): 
+    _requests_and_completions(0),
+    _size(0) {
+  }
+
+  // Busy wait for all region locks to be individually released; then locks the entire subset.
+  // the 
+  void lock_entire_subset() {
+    // first raise _requests to _size to prevent new mutator requests,
+    // then wait for in-process requests to finish
+    // Then set L
+
+  }
+
+  // This unlocks the entire subset lock, setting size to the value of num_regions argument.
+  void reset_lock(uint32_t num_regions) {
+    _size = num_regions;
+  }
+
+  // Returns the index of the locked region within its respective subset, or NO_REGION_FOUND if we cannot lock a region.
+  uint32_t lock_one_region() {
+
+    return NO_REGION_FOUND;
+  }
+
+  // Assumes we hold the lock.  
+  void unlock_one_region() {
+
+  }
+  
+};
+
+extern ShenandoahEarlyRecycleSubsetCoordinator _early_recycle_locks[];
+
 template <bool use_forward_table>
-class alignas(64) ShenandoahForwardingTable {
+class alignas(CACHE_LINE_SIZE_IN_BYTES) ShenandoahEarlyRecycleInfo {
 
   static inline uint32_t _common_max_probes = 0;
 
@@ -134,9 +187,12 @@ class alignas(64) ShenandoahForwardingTable {
   // count resets each time completions equals requests.
   ShenandoahHeapRegion* const _region;
   ShenandoahMarkingContext* _ctx;
-  // High-order 32 bits represent the number of requests made since last prioritization of allocation regions.
-  // Low-order 32 bits represent the number of requests made since last prioritization of allocation regions have been completed.
-  volatile uint64_t _requests_and_completions;
+
+
+  // Two instance fields above consume 16 bytes
+  // The _no_fwt_info union member consumes 8 + 4*4 = 24 bytes
+  // the _fwt_info union member consumes 8 + 5*4 + 2 = 30 bytes
+
   union {
     struct no_fwt_info {
       // No-fwt allocatable regions are sorted by mark-word density. We prefer to allocate in regions that have low mark-word
@@ -158,6 +214,7 @@ class alignas(64) ShenandoahForwardingTable {
       // This is initialized to zero at final mark, is updated following each allocation to represent the number of markword
       // spanned by the waste associated with the allocation.
       uint32_t _consumed_mark_words;
+
     } _no_fwt;
     struct fwt_info {
       void* _table;
@@ -170,8 +227,10 @@ class alignas(64) ShenandoahForwardingTable {
       uint32_t _num_entries;
       uint32_t _max_required_probes;
       uint32_t _num_expected_forwardings;
-      uint32_t _num_actual_forwardings;
-      uint32_t _num_live_words;     // Number of mark words spanned by the fwt
+      uint32_t _num_actual_forwardings;  // kelvin says we should not need to keep this info around.  We can tally
+                                         // up the number of actual forwardings when we build the forward table and can
+                                         // validate at that time that it equals _num_expected_forewardings.
+      uint32_t _num_live_words;     // Number of mark words spanned by the fwt.  We also do not need to keep this around
       bool _abandoned;
       bool _fullgc_fixup;
     } _fwt;
@@ -237,10 +296,9 @@ class alignas(64) ShenandoahForwardingTable {
 #endif
 
 public:
-  ShenandoahForwardingTable(ShenandoahHeapRegion* region) :
+  ShenandoahEarlyRecycleInfo(ShenandoahHeapRegion* region) :
     _region(region),
-    _ctx(ShenandoahHeap::heap()->marking_context()),
-    _requests_and_completions(0) {
+    _ctx(ShenandoahHeap::heap()->marking_context()) {
     if (use_forward_table) {
       _u._fwt._table = nullptr;
       _u._fwt._num_entries = 0;

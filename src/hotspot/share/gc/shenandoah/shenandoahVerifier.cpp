@@ -1208,7 +1208,7 @@ void ShenandoahVerifier::verify_no_fwt_sentinel_refs() {
       if (_cset->use_forward_table(obj)) {
         ShenandoahMarkingContext* ctx = _heap->marking_context();
         ShenandoahHeapRegion* region = _heap->heap_region_containing(obj);
-        oop forwardee = ShenandoahForwardingTable<true>::use_compact()
+        oop forwardee = ShenandoahEarlyRecycleInfo<true>::use_compact()
             ? region->forwardee_compact(obj)
             : region->forwardee_wide(obj);
         if (ctx->is_marked(obj)) {

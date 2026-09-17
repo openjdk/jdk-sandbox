@@ -301,8 +301,8 @@ private:
   size_t _reserved_body_words;
 
   union {
-    ShenandoahForwardingTable<true> _fwd_table;
-    ShenandoahForwardingTable<false> _notbl_info;
+    ShenandoahEarlyRecycleInfo<true> _fwd_table;
+    ShenandoahEarlyRecycleInfo<false> _notbl_info;
   } _u;
 
 
@@ -321,12 +321,12 @@ public:
     return _empty_time;
   }
 
-  inline ShenandoahForwardingTable<true>& forwarding_table() {
+  inline ShenandoahEarlyRecycleInfo<true>& forwarding_table() {
     assert(ShenandoahCSetAllocationForwardingTable, "must not access forwarding table if mark-word forwarding is used");
     return _u._fwd_table;
   }
 
-  inline ShenandoahForwardingTable<false>& no_tbl_info() {
+  inline ShenandoahEarlyRecycleInfo<false>& no_tbl_info() {
     assert(ShenandoahCSetAllocationForwardingTable, "must not access forwarding table if mark-word forwarding is used");
     return _u._notbl_info;
   }
@@ -607,7 +607,7 @@ public:
   bool build_forwarding_table(size_t num_forwardings) {
     if (num_forwardings >= 0x100000000) {
       return false;             // overflow
-    } else if (ShenandoahForwardingTable<true>::use_compact()) {
+    } else if (ShenandoahEarlyRecycleInfo<true>::use_compact()) {
       return _u._fwd_table.build<CompactFwdTableEntry>((uint32_t) num_forwardings);
     } else {
       return _u._fwd_table.build<FwdTableEntry>((uint32_t) num_forwardings);
