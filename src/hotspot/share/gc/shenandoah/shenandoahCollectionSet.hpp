@@ -103,12 +103,16 @@ public:
   inline CSetState cset_state(ShenandoahHeapRegion* r) const;
   inline CSetState cset_state(oop obj) const;
 
+  // Type filter
+  inline bool is_reuse_eligible(ShenandoahHeapRegion* r) const;
+  // Forwarding state
+  inline bool is_reusable(ShenandoahHeapRegion* r) const;
+
   inline bool use_forward_table(oop obj) const;
   inline bool use_forward_table(ShenandoahHeapRegion* r) const;
 
   // A CSet region where new allocations may land.
   inline bool is_midcycle(oop obj) const;
-  inline bool is_reusable(ShenandoahHeapRegion* r) const;
 
   // Remove a single region from the collection set.
   void remove_region(ShenandoahHeapRegion* r);

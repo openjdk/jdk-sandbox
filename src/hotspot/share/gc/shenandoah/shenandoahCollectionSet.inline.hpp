@@ -32,6 +32,7 @@
 #include "gc/shenandoah/shenandoahHeap.hpp"
 #include "gc/shenandoah/shenandoahHeap.inline.hpp"
 #include "gc/shenandoah/shenandoahHeapRegion.hpp"
+#include "gc/shenandoah/shenandoahHeapRegion.inline.hpp"
 
 bool ShenandoahCollectionSet::is_in(size_t region_idx) const {
   assert(region_idx < _heap->num_regions(), "Sanity");
@@ -74,6 +75,10 @@ bool ShenandoahCollectionSet::is_midcycle(oop obj) const {
 
 bool ShenandoahCollectionSet::is_reusable(ShenandoahHeapRegion* r) const {
   return _cset_map.is_reusable(r);
+}
+
+bool ShenandoahCollectionSet::is_reuse_eligible(ShenandoahHeapRegion* r) const {
+  return !r->is_old() && !r->is_pinned() && !r->was_promoted_in_place() && !r->has_self_forwards();
 }
 
 size_t ShenandoahCollectionSet::get_live_bytes_in_old_regions() const {

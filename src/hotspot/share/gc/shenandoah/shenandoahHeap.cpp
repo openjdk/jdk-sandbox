@@ -1455,11 +1455,7 @@ void ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t nu
   if (!concurrent) {
     return;
   }
-  if (r->is_old()) {
-    return;
-  }
-  // There shoud be no live objects.
-  if (r->is_pinned() || r->was_promoted_in_place() || r->has_self_forwards()) {
+  if (!collection_set()->is_reuse_eligible(r)) {
     return;
   } else {
     if (ShenandoahCSetAllocationForwardingTable) {
