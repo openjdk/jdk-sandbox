@@ -327,7 +327,7 @@ public:
   }
 
   inline ShenandoahEarlyRecycleInfo<false>& no_tbl_info() {
-    assert(ShenandoahCSetAllocationForwardingTable, "must not access forwarding table if mark-word forwarding is used");
+    assert(!ShenandoahCSetAllocationForwardingTable, "must not access mark-word reuse info when a forwarding table is used");
     return _u._notbl_info;
   }
 
