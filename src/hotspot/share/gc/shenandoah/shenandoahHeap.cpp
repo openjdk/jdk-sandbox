@@ -1464,8 +1464,10 @@ void ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t nu
   } else {
     if (ShenandoahCSetAllocationForwardingTable) {
       size_t short_fall = heuristics->mutator_memory_shortfall();
+      // We'll need at least 1 extra region because of the fragmentation
+      size_t potential = r->garbage();
       size_t back_fill = heuristics->early_recycled_bytes();
-      if (back_fill >= short_fall) {
+      if (back_fill >= short_fall + potential) {
         // We've already early-recycled enough memory to fill needs for this cycle. Avoid the costs of building, balancing,
         // pruning this forward table, and avoid the overheads of allocating more slowly and updating all pointers to newly
         // allocated objects within this potentially early recycled cset region.
@@ -1476,10 +1478,11 @@ void ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t nu
     if (can_reuse) {
       // There is a race here that we don't bother to resolve.  The race may cause us to early recycle a bit more than is really
       // necessary. If we decide this causes measurable performance impact, we can invest in preventing the race.
-      size_t body_words = r->forwarding_table_start() - r->bottom();
-      size_t region_words = r->region_size_words();
-      size_t live_words = r->get_live_data_words();
-      size_t usable_words = body_words * (region_words - live_words) / region_words;
+      size_t span_words = r->alloc_end() - r->bottom();
+      size_t evacuated = r->get_live_data_words();
+      size_t tombstones = r->forwarding_table().num_live_words();
+      size_t occupied = evacuated > tombstones ? evacuated - tombstones : 0;
+      size_t usable_words = span_words > occupied ? span_words - occupied : 0;
       heuristics->supplement_early_recycled_bytes(usable_words * HeapWordSize);
       r->set_alt_top(r->top());
       r->set_top(r->bottom());
