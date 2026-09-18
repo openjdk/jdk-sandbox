@@ -359,7 +359,7 @@ public:
 
   ShenandoahHeapRegion* region() const { return _region; }
 
-  uint32_t num_live_words() const { return _num_live_words; }
+  uint32_t num_live_words() const { return _u._fwt._num_live_words; }
 
 #ifdef USE_SENTINELS
   template <bool b = use_forward_table, typename = std::enable_if_t<b == true>>
