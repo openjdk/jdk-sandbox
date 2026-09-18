@@ -265,7 +265,7 @@ inline ShenandoahMarkBitMap::idx_t ShenandoahMarkBitMap::get_prev_one_offset(idx
 
 template<BitMap::bm_word_t flip, bool aligned_left>
 inline ShenandoahMarkBitMap::idx_t ShenandoahMarkBitMap::get_last_bit_impl(idx_t beg, idx_t end) const {
-  STATIC_ASSERT(flip == find_ones_flip || flip == find_zeros_flip);
+  static_assert(flip == find_ones_flip || flip == find_zeros_flip);
   verify_range(beg, end);
   assert(!aligned_left || is_aligned(beg, BitsPerWord), "beg not aligned");
 
