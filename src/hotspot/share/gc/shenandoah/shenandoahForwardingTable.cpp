@@ -638,6 +638,26 @@ void ShenandoahEarlyRecycleInfo<use_forward_table>::add_marks_above_tams() {
   }
 }
 
+template <bool use_forward_table>
+size_t ShenandoahEarlyRecycleInfo<use_forward_table>::estimate_reusable_words(size_t num_forwardings, size_t live_words) const {
+  size_t const region_words = ShenandoahHeapRegion::region_size_words();
+  if (region_words == 0) {
+    return 0;
+  }
+  double const density = (double) live_words / (double) region_words;
+  size_t body_span = region_words;
+  if constexpr (use_forward_table) {
+    if (num_forwardings > 0 && density < 1.0) {
+      uint32_t const lf = ShenandoahForwardingTableLoadFactorPercent;
+      size_t const entry_words = use_compact() ? 1 : (sizeof(FwdTableEntry) / sizeof(HeapWord*));
+      size_t const slots_words = (num_forwardings * 100 / lf) * entry_words;
+      size_t const table_words = (size_t) ((double) slots_words / (1.0 - density));
+      body_span = region_words > table_words ? region_words - table_words : 0;
+    }
+  }
+  return (size_t) ((double) body_span * (1.0 - density));
+}
+
 // The non-in-lined definitions above need to be explicitly instantiated or they will fail to link.
 
 template class ShenandoahEarlyRecycleInfo<true>;

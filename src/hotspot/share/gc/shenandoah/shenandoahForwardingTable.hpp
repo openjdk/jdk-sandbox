@@ -361,6 +361,8 @@ public:
 
   uint32_t num_live_words() const { return use_forward_table ? _u._fwt._num_live_words : 0; }
 
+  size_t estimate_reusable_words(size_t num_forwardings, size_t live_words) const;
+
 #ifdef USE_SENTINELS
   template <bool b = use_forward_table, typename = std::enable_if_t<b == true>>
   void install_sentinels();

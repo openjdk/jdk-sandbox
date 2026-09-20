@@ -455,6 +455,10 @@
           "For reused cset regions, build address-based forwarding tables; "\
           "disable to keep mark-word forwarding and reuse the whole body.") \
                                                                             \
+  product(bool, ShenandoahForwardingTableShortfallCutoff, true, DIAGNOSTIC, \
+          "Target the estimated mutator shortfall when early-recycling "    \
+          "FWT cset regions; disable to early-recycle all eligible.")        \
+                                                                            \
   product(bool, ShenandoahPreferCSetAllocation, false, DIAGNOSTIC,          \
           "Force both shared and TLAB mutator allocations to prefer early-" \
           "recycled cset regions.")                                         \

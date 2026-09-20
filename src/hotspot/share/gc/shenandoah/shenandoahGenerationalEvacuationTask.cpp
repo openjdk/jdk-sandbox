@@ -144,7 +144,6 @@ void ShenandoahGenerationalEvacuationTask::evacuate_and_promote_regions() {
   ShenandoahInPlacePromoter promoter(_heap);
   ShenandoahHeapRegion* r;
 
-  ShenandoahHeuristics* heuristics = _heap->young_generation()->heuristics();
   while ((r = _regions->next()) != nullptr) {
     if (lt.is_enabled()) {
       LogStream ls(lt);
@@ -170,7 +169,7 @@ void ShenandoahGenerationalEvacuationTask::evacuate_and_promote_regions() {
       }
       // Build the forwarding table outside the stsj scope, after the
       // region's objects have been evacuated.
-      _heap->finish_region_evacuation(r, num_forwardings, _concurrent, heuristics);
+      _heap->finish_region_evacuation(r, num_forwardings, _concurrent);
     } else {
       SuspendibleThreadSetJoiner stsj(_concurrent);
       promoter.maybe_promote_region(r);

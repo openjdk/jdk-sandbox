@@ -1161,7 +1161,6 @@ private:
   ShenandoahHeap* const _sh;
   ShenandoahCollectionSet* const _cs;
   bool _concurrent;
-  ShenandoahHeuristics* _heuristics;
 public:
   ShenandoahEvacuationTask(ShenandoahHeap* sh,
                            ShenandoahCollectionSet* cs,
@@ -1169,8 +1168,7 @@ public:
     WorkerTask("Shenandoah Evacuation"),
     _sh(sh),
     _cs(cs),
-    _concurrent(concurrent),
-    _heuristics(ShenandoahHeap::heap()->global_generation()->heuristics())
+    _concurrent(concurrent)
   {
     assert(!ShenandoahHeap::heap()->mode()->is_generational(), "Handle generational evacuation elsewhere");
   }
@@ -1214,7 +1212,7 @@ private:
       }
       // Build the forwarding table outside the stsj scope, after the
       // region's objects have been evacuated.
-      _sh->finish_region_evacuation(r, num_forwardings, _concurrent, _heuristics);
+      _sh->finish_region_evacuation(r, num_forwardings, _concurrent);
     }
   }
 };
@@ -1473,7 +1471,7 @@ oop ShenandoahHeap::try_evacuate_object(oop p, Thread* thread, ShenandoahHeapReg
 }
 
 void ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t num_forwardings,
-                                              bool concurrent, ShenandoahHeuristics* heuristics) {
+                                              bool concurrent) {
   assert(ShenandoahHeap::heap()->marking_context()->top_at_mark_start(r) == r->top(), "TAMS must be set to top");
   if (!ShenandoahCSetReuse) {
     return;
@@ -1485,28 +1483,11 @@ void ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t nu
   if (!collection_set()->is_reuse_eligible(r)) {
     return;
   } else {
-    if (ShenandoahCSetAllocationForwardingTable) {
-      size_t short_fall = heuristics->mutator_memory_shortfall();
-      // We'll need at least 1 extra region because of the fragmentation
-      size_t potential = r->garbage();
-      size_t back_fill = heuristics->early_recycled_bytes();
-      if (back_fill >= short_fall + potential) {
-        // We've already early-recycled enough memory to fill needs for this cycle. Avoid the costs of building, balancing,
-        // pruning this forward table, and avoid the overheads of allocating more slowly and updating all pointers to newly
-        // allocated objects within this potentially early recycled cset region.
-        return;
-      }
+    if (ShenandoahCSetAllocationForwardingTable && ShenandoahForwardingTableShortfallCutoff && !collection_set()->is_planned_for_reuse(r)) {
+      return;
     }
     bool can_reuse = r->prepare_reuse_forwarding(num_forwardings);
     if (can_reuse) {
-      // There is a race here that we don't bother to resolve.  The race may cause us to early recycle a bit more than is really
-      // necessary. If we decide this causes measurable performance impact, we can invest in preventing the race.
-      size_t span_words = r->alloc_end() - r->bottom();
-      size_t evacuated = r->get_live_data_words();
-      size_t tombstones = r->forwarding_table().num_live_words();
-      size_t occupied = evacuated > tombstones ? evacuated - tombstones : 0;
-      size_t usable_words = span_words > occupied ? span_words - occupied : 0;
-      heuristics->supplement_early_recycled_bytes(usable_words * HeapWordSize);
       r->set_alt_top(r->top());
       r->set_top(r->bottom());
       OrderAccess::fence();

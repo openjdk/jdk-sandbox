@@ -360,6 +360,17 @@ void ShenandoahHeapRegion::teardown_reuse_state() {
   _early_recycled = false;
 }
 
+size_t ShenandoahHeapRegion::estimate_reuse() {
+  ShenandoahMarkingContext* const ctx = ShenandoahHeap::heap()->marking_context();
+  size_t const num_forwardings = ctx->count_mark_bit_conflicts<1>(bottom(), top());
+  size_t const live_words = get_live_data_words();
+  if (ShenandoahCSetAllocationForwardingTable) {
+    return forwarding_table().estimate_reusable_words(num_forwardings, live_words) * HeapWordSize;
+  } else {
+    return no_tbl_info().estimate_reusable_words(num_forwardings, live_words) * HeapWordSize;
+  }
+}
+
 bool ShenandoahHeapRegion::prepare_reuse_forwarding(size_t num_forwardings) {
   uintx const max_density = ShenandoahCSetReuseMaxDensityPercent;
   if (max_density != 100 && num_forwardings * 100 > region_size_words() * max_density) {

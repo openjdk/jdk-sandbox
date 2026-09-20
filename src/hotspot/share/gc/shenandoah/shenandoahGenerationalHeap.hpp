@@ -88,6 +88,8 @@ public:
   void evacuate_collection_set(ShenandoahGeneration* generation, bool concurrent) override;
   void promote_regions_in_place(ShenandoahGeneration* generation, bool concurrent);
 
+  void plan_early_reuse();
+
   size_t plab_min_size() const { return _min_plab_size; }
   size_t plab_max_size() const { return _max_plab_size; }
 

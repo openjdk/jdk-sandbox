@@ -81,6 +81,14 @@ bool ShenandoahCollectionSet::is_reuse_eligible(ShenandoahHeapRegion* r) const {
   return !r->is_old() && !r->is_pinned() && !r->was_promoted_in_place() && !r->has_self_forwards();
 }
 
+bool ShenandoahCollectionSet::is_planned_for_reuse(ShenandoahHeapRegion* r) const {
+  return _planned_for_reuse.at(r->index());
+}
+
+void ShenandoahCollectionSet::set_planned_for_reuse(ShenandoahHeapRegion* r) {
+  _planned_for_reuse.set_bit(r->index());
+}
+
 size_t ShenandoahCollectionSet::get_live_bytes_in_old_regions() const {
   return _old_bytes_to_evacuate;
 }

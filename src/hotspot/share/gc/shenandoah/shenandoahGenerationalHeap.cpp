@@ -25,6 +25,7 @@
 
 #include "gc/shenandoah/shenandoahAgeCensus.hpp"
 #include "gc/shenandoah/shenandoahClosures.inline.hpp"
+#include "gc/shenandoah/shenandoahCollectionSet.inline.hpp"
 #include "gc/shenandoah/shenandoahCollectorPolicy.hpp"
 #include "gc/shenandoah/shenandoahForwarding.inline.hpp"
 #include "gc/shenandoah/shenandoahFreeSet.hpp"
@@ -46,7 +47,9 @@
 #include "gc/shenandoah/shenandoahWorkerPolicy.hpp"
 #include "gc/shenandoah/shenandoahYoungGeneration.hpp"
 #include "logging/log.hpp"
+#include "memory/resourceArea.hpp"
 #include "utilities/events.hpp"
+#include "utilities/quickSort.hpp"
 
 
 class ShenandoahGenerationalInitLogger : public ShenandoahInitLogger {
@@ -176,6 +179,56 @@ bool ShenandoahGenerationalHeap::requires_barriers(stackChunkOop obj) const {
   }
 
   return false;
+}
+
+struct ReuseEstimate {
+  ShenandoahHeapRegion* _region;
+  size_t _volume;
+};
+
+static int compare_by_reuse_estimate(ReuseEstimate a, ReuseEstimate b) {
+  if (a._volume > b._volume) return -1;
+  if (a._volume < b._volume) return 1;
+  return 0;
+}
+
+void ShenandoahGenerationalHeap::plan_early_reuse() {
+  if (!ShenandoahCSetReuse || !ShenandoahForwardingTableShortfallCutoff || !ShenandoahCSetAllocationForwardingTable) {
+    return;
+  }
+  ShenandoahCollectionSet* const cset = collection_set();
+  if (cset->is_empty()) {
+    return;
+  }
+  size_t const short_fall = young_generation()->heuristics()->mutator_memory_shortfall();
+
+  ResourceMark rm;
+  ReuseEstimate* const estimates = NEW_RESOURCE_ARRAY(ReuseEstimate, cset->count());
+  size_t n = 0;
+
+  cset->clear_current_index();
+  for (ShenandoahHeapRegion* r = cset->next(); r != nullptr; r = cset->next()) {
+    if (!cset->is_reuse_eligible(r)) {
+      continue;
+    }
+    estimates[n]._region = r;
+    estimates[n]._volume = r->estimate_reuse();
+    n++;
+  }
+  cset->clear_current_index();
+
+  QuickSort::sort(estimates, n, compare_by_reuse_estimate);
+
+  size_t back_fill = 0;
+  for (size_t i = 0; i < n; i++) {
+    size_t const potential = estimates[i]._volume;
+    // We'll need at least 1 extra region because of the fragmentation
+    if (back_fill >= short_fall + potential) {
+      break;
+    }
+    cset->set_planned_for_reuse(estimates[i]._region);
+    back_fill += potential;
+  }
 }
 
 void ShenandoahGenerationalHeap::evacuate_collection_set(ShenandoahGeneration* generation, bool concurrent) {

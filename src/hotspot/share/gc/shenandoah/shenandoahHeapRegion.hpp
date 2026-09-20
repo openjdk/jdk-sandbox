@@ -596,6 +596,8 @@ public:
     return _early_recycled;
   }
 
+  size_t estimate_reuse();
+
   inline void start_fullgc() {
     _u._fwd_table.start_fullgc();
   }

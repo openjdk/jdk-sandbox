@@ -861,7 +861,7 @@ public:
 
   // Build and install a FWT after evacuation; resets top to bottom on success.
   void finish_region_evacuation(ShenandoahHeapRegion* r,
-                                size_t num_forwardings, bool concurrent, ShenandoahHeuristics* heuristics);
+                                size_t num_forwardings, bool concurrent);
 
   // Parallel scan of flagged cset regions to clear self-forwarded bits on live
   // objects. Must be called at a safepoint; intended for the degenerated and
