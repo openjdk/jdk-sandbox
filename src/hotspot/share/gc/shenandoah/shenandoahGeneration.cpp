@@ -248,6 +248,19 @@ void ShenandoahGeneration::merge_write_table() {
 }
 
 void ShenandoahGeneration::prepare_gc() {
+  // called by ShenandoahDegenGC::op_reset()
+  if (ShenandoahCSetReuse && ShenandoahCSetAllocationForwardingTable) {
+    ShenandoahHeap* heap = ShenandoahHeap::heap();
+    ShenandoahCollectionSet* cset = heap->collection_set();
+    for (size_t i = 0; i < heap->num_regions(); i++) {
+      if (cset->is_in(i)) {
+        ShenandoahHeapRegion* r = heap->get_region(i);
+        if (cset->use_forward_table(r)) {
+          r->start_fullgc();
+        }
+      }
+    }
+  }
   reset_mark_bitmap<true>();
 }
 
