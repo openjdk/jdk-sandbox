@@ -48,6 +48,11 @@ ShenandoahBarrierSetC2State::ShenandoahBarrierSetC2State(Arena* comp_arena) :
     _stubs_current_total_size(0) {
 }
 
+static inline bool cset_reuse_destroys_from_space() {
+  // Shared FWT allocations overwrite markwords
+  return ShenandoahCSetReuse && ShenandoahCSetAllocationForwardingTable;
+}
+
 static void set_barrier_data(C2Access& access, bool load, bool store) {
   if (!access.is_oop()) {
     return;
@@ -59,7 +64,7 @@ static void set_barrier_data(C2Access& access, bool load, bool store) {
   bool on_weak = (decorators & ON_WEAK_OOP_REF) != 0;
   bool on_phantom = (decorators & ON_PHANTOM_OOP_REF) != 0;
 
-  if (tightly_coupled) {
+  if (tightly_coupled && !(load && cset_reuse_destroys_from_space())) {
     access.set_barrier_data(ShenandoahBitElided);
     return;
   }
@@ -195,9 +200,7 @@ bool ShenandoahBarrierSetC2::can_remove_load_barrier(Node* root) {
   // of the runtime system. In this case, we can elide the LRB barrier. We bail
   // out with false at the first sight of trouble.
 
-  // Reusing an early-recycled cset region destroys the from-space objects' mark words,
-  // so an unbarriered from-space source is not valid.
-  if (ShenandoahCSetReuse || !ShenandoahCSetAllocationForwardingTable) {
+  if (cset_reuse_destroys_from_space()) {
     return false;
   }
 
@@ -465,7 +468,7 @@ void ShenandoahBarrierSetC2::elide_dominated_barrier(MachNode* node, MachNode* d
     }
   }
 
-  if (ShenandoahCSetReuse || !ShenandoahCSetAllocationForwardingTable) {
+  if (cset_reuse_destroys_from_space()) {
     // A dominated load may still read an unfixed from-space ref (its field was not
     // necessarily healed to to-space), which is only valid while from-space is intact.
     // Reusing an early-recycled cset region destroys the from-space objects' mark words.
@@ -543,7 +546,7 @@ bool ShenandoahBarrierSetC2::array_copy_requires_gc_barriers(bool tightly_couple
   if (!is_oop) {
     return false;
   }
-  if (ShenandoahSATBBarrier && tightly_coupled_alloc) {
+  if (ShenandoahSATBBarrier && tightly_coupled_alloc && !cset_reuse_destroys_from_space()) {
     if (phase == Optimization) {
       return false;
     }
