@@ -78,14 +78,6 @@ bool ShenandoahCollectionSet::is_reusable(ShenandoahHeapRegion* r) const {
 }
 
 bool ShenandoahCollectionSet::is_reuse_eligible(ShenandoahHeapRegion* r) const {
-  // ShenandoahUpdateThreadRootsAndFlushOldSatbBuffers relies on cset regions
-  // staying intact until after update-refs. Refilling a cset region mid-cycle
-  // breaks that invariant, so later marks crash. The flag is frozen for the
-  // cycle after op_init_mark (covers reuse window).
-  if (ShenandoahHeap::heap()->is_concurrent_old_mark_in_progress()) {
-    return false;
-  }
-
   return !r->is_old() && !r->is_pinned() && !r->was_promoted_in_place() && !r->has_self_forwards();
 }
 
