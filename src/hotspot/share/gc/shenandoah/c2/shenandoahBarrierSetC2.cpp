@@ -40,7 +40,7 @@
 #include "opto/rootnode.hpp"
 #include "opto/runtime.hpp"
 
-ShenandoahBarrierSetC2* ShenandoahBarrierSetC2::bsc2() {
+ShenandoahBarrierSetC2* ShenandoahBarrierSetC2::bs() {
   return reinterpret_cast<ShenandoahBarrierSetC2*>(BarrierSet::barrier_set()->barrier_set_c2());
 }
 
@@ -464,13 +464,19 @@ void ShenandoahBarrierSetC2::elide_dominated_barrier(MachNode* node, MachNode* d
   }
 
   if (orig_bd != bd) {
-    // We are already in final output.
-    // Strip the extra barrier data if no real bits are left.
-    if ((bd & ShenandoahBitsReal) != 0) {
-      node->set_barrier_data(bd);
-    } else {
-      node->set_barrier_data(0);
-    }
+#ifdef ASSERT
+    PhaseRegAlloc* ra = Compile::current()->regalloc();
+    uint old_size = node->size(ra);
+#endif
+    // We are already in final output. This means all nodes have already matched,
+    // and we are about to use Shenandoah match rules with stripped-down barriers.
+    // In this case, we must *not* strip non-real bits, because it would shift the
+    // encoding.
+    node->set_barrier_data(bd);
+#ifdef ASSERT
+    uint new_size = node->size(ra);
+    assert(new_size <= old_size, "Node must not grow: %u -> %u", old_size, new_size);
+#endif
   }
 }
 
@@ -665,10 +671,6 @@ void ShenandoahBarrierSetC2::clone_at_expansion(PhaseMacroExpand* phase, ArrayCo
 
 void* ShenandoahBarrierSetC2::create_barrier_state(Arena* comp_arena) const {
   return new(comp_arena) ShenandoahBarrierSetC2State(comp_arena);
-}
-
-ShenandoahBarrierSetC2State* ShenandoahBarrierSetC2::state() const {
-  return reinterpret_cast<ShenandoahBarrierSetC2State*>(Compile::current()->barrier_set_state());
 }
 
 void ShenandoahBarrierSetC2::print_barrier_data(outputStream* os, uint8_t data) {
@@ -889,7 +891,7 @@ void ShenandoahBarrierSetC2::emit_stubs(CodeBuffer& cb) const {
         skipped_after, skipped_before, skipped_after - skipped_before);
 #endif
 
-  masm.flush();
+  // Code will be copied. No ICache sync required.
 }
 
 void ShenandoahBarrierStubC2::register_stub(ShenandoahBarrierStubC2* stub) {
@@ -915,7 +917,7 @@ void ShenandoahBarrierStubC2::load_post(MacroAssembler* masm, const MachNode* no
     check |= needs_keep_alive_barrier(node)    ? ShenandoahHeap::MARKING : 0;
     check |= needs_load_ref_barrier(node)      ? ShenandoahHeap::HAS_FORWARDED : 0;
     check |= needs_load_ref_barrier_weak(node) ? ShenandoahHeap::WEAK_ROOTS : 0;
-    stub->enter_if_gc_state(*masm, check, tmp1);
+    stub->enter_if_gc_state(*masm, check, tmp1, tmp2);
   }
 }
 
@@ -924,7 +926,7 @@ void ShenandoahBarrierStubC2::store_pre(MacroAssembler* masm, const MachNode* no
   if (needs_slow_barrier(node)) {
     assert(!needs_load_ref_barrier(node), "Should not be required for stores");
     ShenandoahBarrierStubC2* const stub = create(node, tmp1, addr, tmp2, tmp3, narrow, /* do_load = */ true);
-    stub->enter_if_gc_state(*masm, ShenandoahHeap::MARKING, tmp1);
+    stub->enter_if_gc_state(*masm, ShenandoahHeap::MARKING, tmp1, tmp2);
   }
 }
 
@@ -942,7 +944,7 @@ void ShenandoahBarrierStubC2::load_store_pre(MacroAssembler* masm, const MachNod
     check |= needs_keep_alive_barrier(node) ? ShenandoahHeap::MARKING : 0;
     check |= needs_load_ref_barrier(node)   ? ShenandoahHeap::HAS_FORWARDED : 0;
     assert(!needs_load_ref_barrier_weak(node), "Not supported for Load/Stores");
-    stub->enter_if_gc_state(*masm, check, tmp1);
+    stub->enter_if_gc_state(*masm, check, tmp1, tmp2);
   }
 }
 
@@ -996,12 +998,12 @@ Register ShenandoahBarrierStubC2::select_temp_register(bool& selected_live, Regi
 }
 
 int ShenandoahBarrierStubC2::fast_save_slots_available() {
-   return MIN2(ShenandoahFastSaveSlots, (ShenandoahBarrierSetC2::bsc2()->reserved_slots() - _save_slots_idx));
+  return MIN2(ShenandoahFastSaveSlots, (ShenandoahBarrierSetC2::bs()->reserved_slots() - _save_slots_idx));
 }
 
 int ShenandoahBarrierStubC2::push_save_slot() {
-  assert(_save_slots_idx < ShenandoahBarrierSetC2::bsc2()->reserved_slots(), "Enough slots are reserved: %d, %d",
-         _save_slots_idx, ShenandoahBarrierSetC2::bsc2()->reserved_slots());
+  assert(_save_slots_idx < ShenandoahBarrierSetC2::bs()->reserved_slots(), "Enough slots are reserved: %d, %d",
+         _save_slots_idx, ShenandoahBarrierSetC2::bs()->reserved_slots());
   return barrier_set_state()->save_slots_stack_offset() + (_save_slots_idx++) * sizeof(address);
 }
 
