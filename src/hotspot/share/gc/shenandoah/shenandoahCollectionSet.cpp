@@ -194,6 +194,33 @@ void ShenandoahCollectionSet::clear() {
 }
 
 ShenandoahHeapRegion* ShenandoahCollectionSet::claim_next() {
+  // This code is optimized to provide regions in order of increasing anticipated forward table size, as derived from
+  // number of objects marked within eachregion. This correlates with, but is not identical to, live data.  In the case
+  // that a small number of very large objects consumes a particular region, then a region with small number of forwarded
+  // objects may have more live data than a region with larger number of forwarded objects.
+
+  // The collection set, ordered from small live data to large live data, is stored in the early-recycle tlab segment of
+  // the free-set early_recycled_regions array.
+  ShenandoahFreeSet* free_set = _heap->free_set();
+  size_t cset_size = count();
+
+  // _current_index, initialized to 0, identifies next region to be claimed.
+  size_t old = _current_index.load_relaxed();
+  while (old < cset_size) {
+    assert(is_in(free_set->get_tlab_region(old)), "Precondition");
+    size_t cur = _current_index.compare_exchange(old, old + 1, memory_order_relaxed);
+    if (cur == old) {
+      // Successfully moved the claim index, this is our region.
+      return free_set->get_tlab_region(old);
+    } else {
+      // Somebody else moved the claim index, restart from there.
+      old = cur;
+    }
+  }
+  return nullptr;               // All cset regions have been claimed
+}
+
+#ifdef KELVIN_DEPRECATE
   // This code is optimized for the case when collection set contains only
   // a few regions. In this case, it is more constructive to check for is_in
   // before hitting the (potentially contended) atomic index.
@@ -216,7 +243,7 @@ ShenandoahHeapRegion* ShenandoahCollectionSet::claim_next() {
     }
   }
   return nullptr;
-}
+#endif
 
 ShenandoahHeapRegion* ShenandoahCollectionSet::next() {
   assert(ShenandoahSafepoint::is_at_shenandoah_safepoint(), "Must be at a safepoint");

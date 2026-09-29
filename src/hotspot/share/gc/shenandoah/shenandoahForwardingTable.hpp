@@ -174,10 +174,29 @@ public:
 
 extern ShenandoahEarlyRecycleSubsetCoordinator _early_recycle_locks[];
 
+/*
+      bool _abandoned;                   // Set abandon if unable to build fwt due to constraint violations
+      bool _filled;                      // Set after the fwt table has been constructed
+*/
+enum class ShenandoahEarlyRecycleStatus: uint8_t {
+  Planned_NO_FWT,               // We plan to maybe recycle this region without a forward table
+  Prepared_NO_FWT,              // We have prepared this region for recycling without a forward table (no publication necessary)
+  Claimed_NO_FWT,               // The N0-FWT region has been claimed by a GC worker or is an allocation subset
+  Retired_NO_FWT,               // The NO-FWT region has been retired because available memory is < PLAB::min_size (or density?)
+  Planned_FWT,                  // We plan to recycle this region early using a forward table
+  Prepared_FWT,                 // The forward table has been constructed
+  Publishing_FWT,               // We are starting a handshake to publish this forward table
+  Published_FWT,                // The forward table has been published by handshake
+  Claimed_FWT,                  // The forward table has been claimed by a GC worker or is in an allocation subset
+  Retired_FWT,                  // The forward table has been retired because aailable memory is < PLAB:min_size()
+  Abandoned                     // The forward has been abandoned before preparation due to some "problem" (may deprecate)
+};
+
 template <bool use_forward_table>
 class alignas(CACHE_LINE_SIZE_IN_BYTES) ShenandoahEarlyRecycleInfo {
 
   static inline uint32_t _common_max_probes = 0;
+  static inline uint32_t const _max_prime_32bit = 4294967291;
 
   // Depends on region size and heap size only. All forwarding tables in JVM use same encodin
   static inline bool _compact = false;
@@ -190,10 +209,11 @@ class alignas(CACHE_LINE_SIZE_IN_BYTES) ShenandoahEarlyRecycleInfo {
 
 
   // Two instance fields above consume 16 bytes
-  // The _no_fwt_info union member consumes 8 + 4*4 = 24 bytes
-  // the _fwt_info union member consumes 8 + 5*4 + 2 = 30 bytes
+  // The _no_fwt_info union member consumes 8 + 3*4 = 20 bytes
+  // The _fwt_info union member consumes 8 + 5*4 + 2 = 30 bytes
+  // The _status field below consumes 1 byte
 
-  union {
+  union AlternateRecycleInfo {
     struct no_fwt_info {
       // No-fwt allocatable regions are sorted by mark-word density. We prefer to allocate in regions that have low mark-word
       // density, as allocations are easier with fewer conflicts.  As allocations are made, mark words may be "consumed" (or
@@ -202,6 +222,7 @@ class alignas(CACHE_LINE_SIZE_IN_BYTES) ShenandoahEarlyRecycleInfo {
       // regions.
 
       // What is the next marked word above current _region->top()?
+      // Invariant: top() is not marked.
       HeapWord* _next_marked_cursor;
 
       // _density_at_most_recent_sift initially holds the density computed at final mark. Its value is updated
@@ -227,19 +248,30 @@ class alignas(CACHE_LINE_SIZE_IN_BYTES) ShenandoahEarlyRecycleInfo {
       uint32_t _num_entries;
       uint32_t _max_required_probes;
       uint32_t _num_expected_forwardings;
-      uint32_t _num_actual_forwardings;  // kelvin says we should not need to keep this info around.  We can tally
-                                         // up the number of actual forwardings when we build the forward table and can
-                                         // validate at that time that it equals _num_expected_forewardings.
-      uint32_t _num_live_words;     // Number of mark words spanned by the fwt.  We also do not need to keep this around
-      bool _abandoned;
-      bool _fullgc_fixup;
+      uint32_t _num_actual_forwardings;  // kelvin says we should not need to keep this info around. Maybe the field and
+                                         // all definitions thereof should be placed under #ifdef ASSERT
+
+      uint32_t _num_live_words;          // Number of mark words spanned by the fwt.  We also do not need to keep this around
+      bool _fullgc_fixup;                // Set if forward table is being used during full GC marking - required special handling
+      char pad;                          // Make size even number of bytes
     } _fwt;
+    // Default constructor for union assumes early recycle forward table
+    AlternateRecycleInfo() {
+      _fwt._table = nullptr;
+      _fwt._num_entries = 0;
+      _fwt._max_required_probes = 0;
+      _fwt._num_expected_forwardings = 0;
+      _fwt._num_actual_forwardings = 0;
+      _fwt._num_live_words = 0;
+      _fwt._fullgc_fixup = false;
+    }
   } _u;
+  Atomic<ShenandoahEarlyRecycleStatus> _status;
 
   static uint32_t compute_common_max_probes();
 
   template <class Entry, bool b = use_forward_table, typename = std::enable_if_t<b == true>>
-  bool initialize(uint32_t num_forwardings);
+  bool initialize();
 
   template <class Entry, bool b = use_forward_table, typename = std::enable_if_t<b == true>>
   void set_marked_entries_used(BitMap& used);
@@ -289,31 +321,43 @@ class alignas(CACHE_LINE_SIZE_IN_BYTES) ShenandoahEarlyRecycleInfo {
 #ifdef USE_SENTINELS
   template <class Entry, bool b = use_forward_table, typename = std::enable_if_t<b == true>>
   void write_at_originals(uintptr_t word, HeapWord* from, HeapWord* to);
-#else
-  // KELVIN THINKS WE DO NOT NEED THIS AND CAN DEPRECATE.
-  template <class Entry, bool b = use_forward_table, typename = std::enable_if_t<b == true>>
-  void add_marks_above_tams();
 #endif
 
 public:
   ShenandoahEarlyRecycleInfo(ShenandoahHeapRegion* region) :
     _region(region),
     _ctx(ShenandoahHeap::heap()->marking_context()) {
-    if (use_forward_table) {
-      _u._fwt._table = nullptr;
-      _u._fwt._num_entries = 0;
-      _u._fwt._max_required_probes = 0;
-      _u._fwt._num_expected_forwardings = 0;
-      _u._fwt._num_actual_forwardings = 0;
-      _u._fwt._num_live_words = 0;
-      _u._fwt._abandoned = false;
-      _u._fwt._fullgc_fixup = false;
-    } else {
+    // Assume until otherwise
+    if (!use_forward_table) {
+      // The default constructo initializes _u under assumption that use_forward_table is true.
       _u._no_fwt._next_marked_cursor = nullptr;
       _u._no_fwt._density_at_most_recent_sift = 0.0;
       _u._no_fwt._evacuated_objects = 0;
       _u._no_fwt._consumed_mark_words = 0;
+      _status.store_relaxed(ShenandoahEarlyRecycleStatus::Planned_NO_FWT);
+    } else {
+      _status.store_relaxed(ShenandoahEarlyRecycleStatus::Planned_FWT);
     }
+  }
+
+  template <bool b = use_forward_table, typename = std::enable_if_t<b == false>>
+  void set_mark_words(uint32_t num_forwarded) {
+    _u._no_fwt._evacuated_objects = num_forwarded;
+  }
+
+  template <bool b = use_forward_table, typename = std::enable_if_t<b == false>>
+  void set_density_at_most_recent_sift(float density) {
+    _u._no_fwt._density_at_most_recent_sift = density;
+  }
+
+  template <bool b = use_forward_table, typename = std::enable_if_t<b == false>>
+  void set_consumed_mark_words(uint32_t consumed_mark_words) {
+    _u._no_fwt._consumed_mark_words = consumed_mark_words;
+  }
+
+  template <bool b = use_forward_table, typename = std::enable_if_t<b == false>>
+  void set_next_conflict(HeapWord* conflict) {
+    _u._no_fwt._next_marked_cursor = conflict;
   }
 
   template <bool b = use_forward_table, typename = std::enable_if_t<b == true>>
@@ -329,6 +373,26 @@ public:
   }
 
   template <bool b = use_forward_table, typename = std::enable_if_t<b == true>>
+  uint32_t expected_forwardings() {
+    return _u._fwt._num_expected_forwardings;
+  }
+
+  template <bool b = use_forward_table, typename = std::enable_if_t<b == true>>
+  void set_expected_forwardings(uint32_t forwardings) {
+    _u._fwt._num_expected_forwardings = forwardings;
+  }
+
+  template <bool b = use_forward_table, typename = std::enable_if_t<b == true>>
+  uint32_t num_entries() {
+    return _u._fwt._num_entries;
+  }
+
+  template <bool b = use_forward_table, typename = std::enable_if_t<b == true>>
+  void set_num_entries(uint32_t entries) {
+    _u._fwt._num_entries = entries;
+  }
+
+  template <bool b = use_forward_table, typename = std::enable_if_t<b == true>>
   void start_fullgc() {
     _u._fwt._fullgc_fixup = true;
   }
@@ -336,20 +400,47 @@ public:
   template <bool b = use_forward_table, typename = std::enable_if_t<b == true>>
   static bool use_compact() { return _compact; }
 
+  template <bool b = use_forward_table, typename = std::enable_if_t<b == true>>
+    static size_t entry_size_words() {
+    if (use_compact()) {
+      return sizeof(CompactFwdTableEntry) / HeapWordSize;
+    } else {
+      return sizeof(FwdTableEntry) / HeapWordSize;
+    }
+  }
+
   static void initialize_globals();
 
   template <class Entry, bool b = use_forward_table, typename = std::enable_if_t<b == true>>
-  bool build(uint32_t num_forwardings);
+  uint32_t compute_entries(uint32_t num_forwardings);
+
+  template <class Entry, bool b = use_forward_table, typename = std::enable_if_t<b == true>>
+  bool build();
 
   template <bool b = use_forward_table, typename = std::enable_if_t<b == true>>
-  bool build(uint32_t num_forwardings);    
+  bool build();    
 
   template <bool b = use_forward_table, typename = std::enable_if_t<b == true>>
   void reset() {
     _u._fwt._table = nullptr;
     _u._fwt._num_entries = 0;
-    _u._fwt._abandoned = false;
     _u._fwt._fullgc_fixup = false;
+    _status.store_relaxed(ShenandoahEarlyRecycleStatus::Planned_FWT);
+  }
+
+  template <bool b = use_forward_table, typename = std::enable_if_t<b == true>>
+  bool compare_set_status(ShenandoahEarlyRecycleStatus original, ShenandoahEarlyRecycleStatus new_status) {
+    return _status.compare_set(original, new_status, memory_order_relaxed);
+  }
+
+  template <bool b = use_forward_table, typename = std::enable_if_t<b == true>>
+  void set_status(ShenandoahEarlyRecycleStatus new_status) {
+    _status.store_relaxed(new_status);
+  }
+
+  template <bool b = use_forward_table, typename = std::enable_if_t<b == true>>
+  ShenandoahEarlyRecycleStatus get_status() const {
+    return _status.load_relaxed();
   }
 
   template <bool b = use_forward_table, typename = std::enable_if_t<b == true>>

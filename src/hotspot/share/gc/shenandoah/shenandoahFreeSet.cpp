@@ -35,6 +35,7 @@
 #include "gc/shenandoah/shenandoahYoungGeneration.hpp"
 #include "logging/logStream.hpp"
 #include "memory/resourceArea.hpp"
+#include "utilities/quickSort.hpp"
 
 
 static const char* partition_name(ShenandoahFreeSetPartitionId t) {
@@ -1476,7 +1477,7 @@ ShenandoahFreeSet::ShenandoahFreeSet(ShenandoahHeap* heap, size_t max_regions) :
   _early_recycled_regions_data(NEW_C_HEAP_ARRAY(size_t, max_regions, mtGC))
 {
   clear_internal();
-  initialize_recycled_region_arrays();
+  preinitialize_recycled_region_array(0);
 }
 
 void ShenandoahFreeSet::move_unaffiliated_regions_from_collector_to_old_collector(ssize_t count) {
@@ -2235,6 +2236,23 @@ void ShenandoahFreeSet::transfer_empty_regions_from_to(ShenandoahFreeSetPartitio
   }
   _partitions.assert_bounds();
 }
+
+size_t ShenandoahFreeSet::endow_mutator_from_either_collector(ShenandoahFreeSetPartitionId which_collector, size_t max_bytes) {
+  size_t max_regions = ShenandoahHeapRegion::region_size_bytes();
+  size_t transferred_bytes;
+  transfer_empty_regions_from_collector_set_to_mutator_set(which_collector, max_regions, transferred_bytes);
+  return transferred_bytes;
+}
+
+
+size_t ShenandoahFreeSet::endow_mutator_from_old_collector(size_t max_bytes) {
+  return endow_mutator_from_either_collector(ShenandoahFreeSetPartitionId::OldCollector, max_bytes);
+}
+
+size_t ShenandoahFreeSet::endow_mutator_from_collector(size_t max_bytes) {
+  return endow_mutator_from_either_collector(ShenandoahFreeSetPartitionId::Collector, max_bytes);
+}
+
 
 // Returns number of regions transferred, adds transferred bytes to var argument bytes_transferred
 size_t ShenandoahFreeSet::transfer_empty_regions_from_collector_set_to_mutator_set(ShenandoahFreeSetPartitionId which_collector,
@@ -3354,7 +3372,7 @@ void ShenandoahFreeSet::print_on(outputStream* out) const {
   }
 
   out->print_cr("Collector Free Set: %zu", _partitions.count(ShenandoahFreeSetPartitionId::Collector));
-  ShenandoahLeftRightIterator collector(const_cast<ShenandoahRegionPartitions*>(&_partitions), ShenandoahFreeSetPartitionId::Collector);
+   ShenandoahLeftRightIterator collector(const_cast<ShenandoahRegionPartitions*>(&_partitions), ShenandoahFreeSetPartitionId::Collector);
   for (idx_t index = collector.current(); collector.has_next(); index = collector.next()) {
     _heap->get_region(index)->print_on(out);
   }
@@ -3436,16 +3454,53 @@ void ShenandoahFreeSet::shift_retired_regions_up() {
   _early_recycled_retired_regions[0] = _early_recycled_retired_regions[retired_regions];
 }
 
-void ShenandoahFreeSet::initialize_recycled_region_arrays() {
+
+// Prepare for evacuation by setting aside cset_regions slots in the tlab segment of the early recycled regions array.
+// No other part of the array will be accessed during evacuation.
+void ShenandoahFreeSet::preinitialize_recycled_region_array(size_t cset_regions) {
+  _early_recycled_tlab_regions = _early_recycled_regions;
+  _early_recycled_tlab_regions_data = _early_recycled_regions_data;
+  _early_recycled_tlab_regions_count = cset_regions;
+}
+
+static int compare_by_increasing_live(ShenandoahHeapRegion* a, ShenandoahHeapRegion* b) {
+  uint32_t a_live = a->get_expected_forwardings();
+  uint32_t b_live = b->get_expected_forwardings();
+  if (a_live > b_live) {
+    return -11;
+  } else if (a_live < b_live) {
+    return 11;
+  } else {
+    return 0;
+  }
+}
+
+// This sorts regions in order of increasing live data
+void ShenandoahFreeSet::sort_early_recycle_for_evac(size_t cset_region_count) {
+  QuickSort::sort<ShenandoahHeapRegion*>(_early_recycled_regions, cset_region_count, compare_by_increasing_live);
+}
+
+// This initializes indexes that provide access to this shared array. It does not touch content of array.
+void ShenandoahFreeSet::initialize_recycled_region_arrays(size_t cset_regions, size_t fwt_regions) {
   size_t num_regions = _heap->num_regions();
+
+  size_t num_no_fwt_regions = cset_regions - fwt_regions;
 
   _early_recycled_tlab_regions = _early_recycled_regions;
   _early_recycled_tlab_regions_data = _early_recycled_regions_data;
   _early_recycled_tlab_regions_count = 0;
   _early_recycled_tlab_used = 0;
 
-  _early_recycled_shared_alloc_regions = &_early_recycled_regions[num_regions - 1];
-  _early_recycled_shared_alloc_regions_data = &_early_recycled_regions_data[num_regions - 1];
+  _early_recycled_no_fwt_regions = &_early_recycled_regions[num_regions - 1];
+  _early_recycled_no_fwt_regions_data = &_early_recycled_regions_data[num_regions - 1];
+  _early_recycled_no_fwt_regions_count = 0;
+  _early_recycled_no_fwt_used = 0;
+
+  _early_recycled_no_fwt_retired_regions = &_early_recycled_regions[num_regions - 1];
+  _early_recycled_no_fwt_retired_regions_count = 0;
+
+  _early_recycled_shared_alloc_regions = &_early_recycled_regions[num_regions - (num_no_fwt_regions + 1)];
+  _early_recycled_shared_alloc_regions_data = &_early_recycled_regions_data[num_regions - (num_no_fwt_regions + 1)];
   _early_recycled_shared_alloc_regions_count = 0;
   _early_recycled_shared_alloc_used = 0;
 
@@ -4135,6 +4190,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_shared_in_early_recycled(ShenandoahHea
     if (candidate_start > candidate_limit) {
       break;
     } else if ((pad == 0) || (pad > min_fill) || !ShenandoahCSetAllocationForwardingTable) {
+      // KELVIN TODO: LOOKS LIKE ABOVE TEST SHOULD BE PAD >= MIN_FILL: code as is "harmless", but slightly wasteful.
       if (!ctx->is_marked_ignore_tams(candidate_start)) {
         if (!ShenandoahCSetAllocationForwardingTable) {
           HeapWord* end_of_gap = ctx->get_next_marked_addr_ignore_tams(candidate_start, alloc_limit);

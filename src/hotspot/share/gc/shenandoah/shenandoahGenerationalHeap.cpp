@@ -185,10 +185,12 @@ bool ShenandoahGenerationalHeap::requires_barriers(stackChunkOop obj) const {
 
 void ShenandoahGenerationalHeap::evacuate_collection_set(ShenandoahGeneration* generation, bool concurrent) {
   ShenandoahRegionIterator regions;
-  ShenandoahGenerationalEvacuationTask task(this, generation, &regions, concurrent, false /* only promote regions */);
+  ShenandoahGenerationalEvacuationTask task(this, generation, &regions, concurrent,
+                                            false /* only promote regions */, workers()->active_workers());
   workers()->run_task(&task);
   // Single post-evacuation rendezvous; see ShenandoahHeap::evacuate_collection_set.
-  if (concurrent && ShenandoahCSetReuse) {
+  ShenandoahFreeSet* free_set = this->free_set();
+  if (concurrent && ShenandoahCSetReuse && (free_set->fwt_bytes_prepared() > free_set->fwt_bytes_published())) {
     rendezvous_threads("Switch to Forward Table");
     collection_set()->switch_to_reuse_forwarding();
   }
@@ -196,7 +198,8 @@ void ShenandoahGenerationalHeap::evacuate_collection_set(ShenandoahGeneration* g
 
 void ShenandoahGenerationalHeap::promote_regions_in_place(ShenandoahGeneration* generation, bool concurrent) {
   ShenandoahRegionIterator regions;
-  ShenandoahGenerationalEvacuationTask task(this, generation, &regions, concurrent, true /* only promote regions */);
+  ShenandoahGenerationalEvacuationTask task(this, generation, &regions, concurrent,
+                                            true /* only promote regions */, workers()->active_workers());
   workers()->run_task(&task);
 }
 

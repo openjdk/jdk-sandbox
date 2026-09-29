@@ -267,7 +267,9 @@ uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::reserve_forwarding(BitMa
   Entry* table = reinterpret_cast<Entry*>(_u._fwt._table);
   while (used.at(index)) {
     if (max_probes != 0 && depth >= max_probes) {
-      _u._fwt._abandoned = true; // pathological chain
+      // Kelvin TODO: remove this behavior now that we have collision chain balancing and pruning.
+      // Pathological chain.
+      compare_set_status(ShenandoahEarlyRecycleStatus::Planned_FWT, ShenandoahEarlyRecycleStatus::Abandoned);
       return _u._fwt._num_entries;
     }
     Entry& entry = table[index];
@@ -313,7 +315,9 @@ uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::reserve_new_forwarding(B
   Entry* table = reinterpret_cast<Entry*>(_u._fwt._table);
   while (used.at(index)) {
     if (max_probes != 0 && depth >= max_probes) {
-      _u._fwt._abandoned = true; // pathological chain
+      // Kelvin TODO: remove this behavior now that we have collision chain balancing and pruning.
+      // Pathological chain.
+      compare_set_status(ShenandoahEarlyRecycleStatus::Planned_FWT, ShenandoahEarlyRecycleStatus::Abandoned);
       return _u._fwt._num_entries;
     }
     Entry& entry = table[index];

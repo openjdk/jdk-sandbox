@@ -360,18 +360,38 @@ void ShenandoahHeapRegion::teardown_reuse_state() {
   _early_recycled = false;
 }
 
-bool ShenandoahHeapRegion::prepare_reuse_forwarding(size_t num_forwardings) {
+#ifdef KELVIN_DEPRECATE
+// it appears that ShenandoahHeap::finish_no_table_region_evacuation()
+// does not need to delegate anything to this service.
+
+bool ShenandoahHeapRegion::prepare_reuse_no_table() {
+#ifdef KELVIN_DEPRECATE
+  // kelvin wants to get rid of this test. instead, we are prioritizing for low density, but if there are not enough low density
+  // regions, we may need to use some that are higher density
   uintx const max_density = ShenandoahCSetReuseMaxDensityPercent;
+  if (max_density != 100 && (num_forwardings * 100 > region_size_words() * max_density)) {
+    return false;
+  }
+#endif
+  set_reserved_body_words(get_expected_forwardings());
+  // Publish the reserve before finish_region_evacuation drops top to bottom,
+  //  so a concurrent allocator can't see a stale zero reserve.
+  OrderAccess::storestore();
+  return true;
+}
+#endif
+
+bool ShenandoahHeapRegion::prepare_reuse_forwarding() {
+  uintx const max_density = ShenandoahCSetReuseMaxDensityPercent;
+#ifdef KELVIN_DEPRECATE
+  // kelvin wants to get rid of this test. instead, we are prioritizing for low density, but if there are not enough low density
+  // regions, we may need to use some that are higher density
   if (max_density != 100 && num_forwardings * 100 > region_size_words() * max_density) {
     return false;
   }
-  if (ShenandoahCSetAllocationForwardingTable) {
-    return build_forwarding_table(num_forwardings);
-  }
-  set_reserved_body_words(num_forwardings);
-  // Publish the reserve before finish_region_evacuation drops top to bottom, so a concurrent allocator can't see a stale zero reserve.
-  OrderAccess::storestore();
-  return true;
+#endif
+  assert (ShenandoahCSetAllocationForwardingTable, "Don't be here unless forward tables are enabled");
+  return build_forwarding_table();
 }
 
 void ShenandoahHeapRegion::make_trash() {

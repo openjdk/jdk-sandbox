@@ -305,7 +305,8 @@ bool ShenandoahAdaptiveHeuristics::trigger_average_allocation_rate(const Shenand
     // penalties and spike threshold, collectively represented by _headroom_adjustment.
     if (rate.baseline_consumption() - allocatable_bytes > _headroom_adjustment) {
       // If the overrun exceeds the _headroom adjustment, count the total including headroom adjustment as shortfall
-      set_mutator_memory_shortfall(rate.baseline_consumption() - allocatable_bytes);
+      size_t adjusted_shortfall = (size_t) ((rate.baseline_consumption() - allocatable_bytes) * ShenandoahEarlyRecycleWaste);
+      set_mutator_memory_shortfall(adjusted_shortfall);
     } else {
       // Otherwise, count the shortfall as none since we are close enough to avoid "emergency" intervention.
       set_mutator_memory_shortfall(0);
@@ -411,7 +412,8 @@ bool ShenandoahAdaptiveHeuristics::trigger_accelerating_allocation_rate(const Sh
     // penalties and spike threshold, collectively represented by _headroom_adjustment.
     if (rate.momentary_consumption() - allocatable_bytes > _headroom_adjustment) {
       // If the overrun exceeds the _headroom adjustment, count the total including headroom adjustment as shortfall
-      set_mutator_memory_shortfall(rate.momentary_consumption() - allocatable_bytes);
+      size_t adjusted_shortfall = (size_t) ((rate.momentary_consumption() - allocatable_bytes) * ShenandoahEarlyRecycleWaste);
+      set_mutator_memory_shortfall(adjusted_shortfall);
     } else {
       // Otherwise, count the shortfall as none since we are close enough to avoid "emergency" intervention.
       set_mutator_memory_shortfall(0);
@@ -432,7 +434,8 @@ bool ShenandoahAdaptiveHeuristics::trigger_accelerating_allocation_rate(const Sh
     // penalties and spike threshold, collectively represented by _headroom_adjustment.
     if (rate.accelerated_consumption() - allocatable_bytes > _headroom_adjustment) {
       // If the overrun exceeds the _headroom adjustment, count the total including headroom adjustment as shortfall
-      set_mutator_memory_shortfall(rate.accelerated_consumption() - allocatable_bytes);
+      size_t adjusted_shortfall = (size_t) ((rate.accelerated_consumption() - allocatable_bytes) * ShenandoahEarlyRecycleWaste);
+      set_mutator_memory_shortfall(adjusted_shortfall);
     } else {
       // Otherwise, count the shortfall as none since we are close enough to avoid "emergency" intervention.
       set_mutator_memory_shortfall(0);

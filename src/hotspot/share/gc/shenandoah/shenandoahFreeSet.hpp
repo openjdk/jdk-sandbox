@@ -31,6 +31,7 @@
 #include "gc/shenandoah/shenandoahLock.hpp"
 #include "gc/shenandoah/shenandoahSimpleBitMap.hpp"
 #include "logging/logStream.hpp"
+#include "runtime/atomic.hpp"
 
 typedef ShenandoahLock                           ShenandoahRebuildLock;
 typedef ShenandoahLocker<ShenandoahRebuildLock>  ShenandoahRebuildLocker;
@@ -504,7 +505,7 @@ public:
   // In general, lower index numbers have larger allocatable tlab memory than higher index numbers.  See discussion
   // of heapsort algorithm.
   //
-  // Any call to insert or remove a shared-alloc retion may renumber the shared-alloc regions.
+  // Any call to insert or remove a shared-alloc region may renumber the shared-alloc regions.
   ShenandoahHeapRegion* get_tlab_region(size_t index);
 
   // Get the shared allocation region at requested index position.  Index 0 represents entry with largest allocatable memory.
@@ -524,6 +525,8 @@ public:
   // Return retired region at index position between 0 and num_retired_regions() - 1.
   // Any call to insert() or remove tlab, shared-alloc, or retired regions may cause renumbering of the retired regions.
   ShenandoahHeapRegion* get_retired_region(size_t index);
+
+  void sort_early_recycle_for_evac(size_t regions);
 
 private:
   // Prerequisite: _total_young_used and _total_old_used are valid
@@ -554,6 +557,200 @@ private:
 
   bool _allocating_from_early_recycled_regions;
 
+  // The following early-recycle accounting fields are initialized to zero at start of evacuation.
+  // They are updated with Atomic relaxed operations.
+  //
+  // After each forward table is built, we increment _fwt_regions_prepared. Then we ask if it is time to publish (handshake):
+  //  Consult _fwt_handhsakes_started_and_finished.  If handshake is already in process, do not start.
+  //  Consult _fwt_regions_published first.  Then subtract _fwt_regions_consumed_by_gc.  If difference is >= num_workers,
+  //    do not start because there's plenty of runway and no urgency.
+  //  Is (_fwt_regions_prepared - _fwt_regions_published) < half num_workers.  If so, publish.
+  //    Publication is "atomic".  If  multiple workers attempt to publish simultaneously, one will succeed and others will fail.
+  //    The worker that succeeds waits for handshake to finish.  Then it updates _fwt_regions_published and
+  //    _fwt_bytes_available_to_gc.
+
+  // After a publication handshake completes, the initiating worker thread updates _fwt_regions_published and
+  // _fwt_bytes_available_to_gc.  Even though these bytes have not yet been "consumed" by the GC, they are now available
+  // to the GC, so we can transfer memory from the free-set reserves.
+  //  We don't yet know whether these bytes will be consumed by the young or old collector. Let's assume memory will be used by
+  //  young first (because it's easier to flip mutator reserves back to young GC if our assumption is invalid).
+  //    Let available_xfer_bytes = _fwt_bytes_available_to_gc - (_young_fwt_bytes_to_mutator + _old_fwt_bytes_to_mutator)
+  //    Transfer up to available_xfer_bytes from Collector partition to mutator partition and adjust _young_fwt_bytes_to_mutator
+  //    Recompute available_xfer_bytes
+  //    Transfer up to available_xfer_bytes from OldCollector partition to mutator partition and adjust _old_fwt_bytes_to_mutator
+
+  // When a GC worker obtains a PLAB or GCLAB from the _fwt_regions_published, it increases _fwt_regions_consumed_by_gc
+  // and _fwt_bytes_consumed_by_young_gc or _fwt_bytes_consumed_by_old_gc. Reevaluate the question if
+  //      (_fwt_regions_published - _fwt_regions_consumed_by_gc) < num_workers.
+  // If true and if
+  //      (_fwt_regions_prepared - _fwt_regions_published >= half num_workers)
+  // start a publication handshake using the same protocol as above.
+
+  Atomic<size_t> _fwt_regions_prepared;             // This many regions have been evacuated with built fwt
+  Atomic<size_t> _fwt_bytes_prepared;               // This many bytes are available for allocation in regions with built fwt
+
+  Atomic<size_t> _fwt_regions_published;            // Handshake has made these visible/available to all threads
+
+  Atomic<size_t> _fwt_bytes_published;              // This many bytes available in published fwt regions (excludes fwt memory)
+                                                    //  (aka bytes available to gc)
+
+  // Regions/bytes consumed by GC may shrink when regions are unclaimed by GC workers which no longer have need for allocation.
+  Atomic<size_t> _fwt_regions_consumed_by_gc;       // GC workers are allocating out of this many fwt regions
+  Atomic<size_t> _fwt_bytes_consumed_by_young_gc;   // This many fwt bytes are claimed by GC workers for young evac
+  Atomic<size_t> _fwt_bytes_consumed_by_old_gc;     // This many fwt bytes are claimed by GC workers for old/mixed evac
+
+  // Bytes are transferred from reserves to mutator as soon as the bytes have been published rather than waiting for them
+  // to be claimed.
+  Atomic<size_t> _young_fwt_bytes_to_mutator;       // This many bytes were transferred from Collector to Mutator
+  Atomic<size_t> _old_fwt_bytes_to_mutator;         // This many bytes were transferred from OldCollector to Mutator
+
+  // High-order 32 unsigned bits represent started handshakes, low-order represents finished hanshakes.  If these values
+  // are not equal, a handshake is in process.
+  Atomic<uint64_t> _fwt_handshakes_started_and_finished;
+
+  // Although we begin evacuation of regions in order of increasing density, it may be that we finish evacuation and
+  // preparation of forward tables out of order. This may require us to allocate the regions out of order.  Each alloc
+  // request by a GC worker starts its search at _fwt_gc_alloc_low_water_index in hopes that the region is now published.
+  // We only allocate regions that have been published. We cannot overwrite mark words until the region has been publsihed.
+  // The low-water mark is adjusted downward when a evacuating GC worker thread releases the unused memory within its
+  // allocating memory after it has no more evacuation to perform.
+
+  // Within early_recycle_regions array, no young or unaffiliated published regions below are unclaimed (available)
+  Atomic<size_t> _first_unclaimed_young_fwt; 
+  // Within early_recycle_regions array, no young or unaffiliated published regions above are unclaimed (available)
+  Atomic<size_t> _last_unclaimed_young_fwt;
+
+  // Within early_recycle_regions array, no old or unaffiliated published regions below are unclaimed (available)
+  Atomic<size_t> _first_unclaimed_old_fwt; 
+  // Within early_recycle_regions array, no old or unaffiliated publsihed regions above are unclaimed (available)
+  Atomic<size_t> _last_unclaimed_old_fwt;
+  
+  Atomic<size_t> _first_unpublished_fwt;   // Within early_recycle_regions array, all regions below have been published
+  Atomic<size_t> _last_unpublished_fwt;    // Within early_recycle_regions array, none above are prepared and published
+
+public:
+  // Set up the early-recycled region array to support efficient evacuation
+  void preinitialize_recycled_region_array(size_t cset_size);
+
+  size_t first_unpublished_fwt() {
+    return _first_unpublished_fwt.load_relaxed();
+  }
+  size_t last_unpublished_fwt() {
+    return _first_unpublished_fwt.load_relaxed();
+  }
+  bool compare_set_first_unpublished_fwt(size_t original, size_t modified) {
+    return _first_unpublished_fwt.compare_set(original, modified, memory_order_relaxed);
+  }
+  bool compare_set_last_unpublished_fwt(size_t original, size_t modified) {
+    return _last_unpublished_fwt.compare_set(original, modified, memory_order_relaxed);
+  }
+
+  size_t fwt_regions_prepared() {
+    return _fwt_regions_prepared.load_relaxed();
+  }
+  bool compare_set_fwt_regions_prepared(size_t original, size_t modified) {
+    return _fwt_regions_prepared.compare_set(original, modified, memory_order_relaxed);
+  }
+  size_t fwt_bytes_prepared() {
+    return _fwt_bytes_prepared.load_relaxed();
+  }
+  bool compare_set_fwt_bytes_prepared(size_t original, size_t modified) {
+    return _fwt_bytes_prepared.compare_set(original, modified, memory_order_relaxed);
+  }
+  size_t fwt_regions_published() {
+    return _fwt_regions_published.load_relaxed();
+  }
+  void set_fwt_regions_published(size_t new_value) {
+    _fwt_regions_published.store_relaxed(new_value);
+  }
+  size_t add_to_fwt_regions_published(size_t new_regions) {
+    return _fwt_regions_published.add_then_fetch(new_regions);
+  }
+  size_t fwt_bytes_published() {
+    return _fwt_bytes_published.load_relaxed();
+  }
+  size_t add_to_fwt_bytes_published(size_t new_bytes) {
+    return _fwt_bytes_published.add_then_fetch(new_bytes);
+  }
+  size_t fwt_regions_consumed_by_gc() {
+    return _fwt_regions_consumed_by_gc.load_relaxed();
+  }
+  size_t compare_set_fwt_regions_consumed_by_gc(size_t original, size_t modified) {
+    return _fwt_regions_consumed_by_gc.compare_set(original, modified, memory_order_relaxed);
+  }
+  size_t young_fwt_bytes_to_mutator() {
+    return _young_fwt_bytes_to_mutator.load_relaxed();
+  }
+  size_t old_fwt_bytes_to_mutator() {
+    return _old_fwt_bytes_to_mutator.load_relaxed();
+  }
+  void set_young_fwt_bytes_to_mutator(size_t modified) {
+    _young_fwt_bytes_to_mutator.store_relaxed(modified);
+  }
+  void set_old_fwt_bytes_to_mutator(size_t modified) {
+    _old_fwt_bytes_to_mutator.store_relaxed(modified);
+  }
+  ShenandoahHeapRegion* gc_worker_claim_early_recycle_young_region() {
+    // Search the range for a published region between _fwt_gc_alloc_low_water_index and _fwt_gc_alloc_high_water_index;
+    // We don't want a global lock.
+    //  Use CAS to claim the region by changing its _status field to CLAiMED
+    // Then use CAS to adjust low-water-index to next region after CLAIMED
+    
+    return nullptr;
+  }
+  ShenandoahHeapRegion* gc_worker_claim_early_recycle_old_region() {
+    // Search the range for a published region between _fwt_gc_alloc_low_water_index and _fwt_gc_alloc_high_water_index;
+    // We don't want a global lock.
+    //  Use CAS to claim the region by changing its _status field to CLAiMED
+    // Then use CAS to adjust low-water-index to next region after CLAIMED
+    
+    return nullptr;
+  }
+  void gc_worker_unclaim_early_recycle_region(ShenandoahHeapRegion* r) {
+    // The worker had a claim on this region, but no longer needs it, and it has at least PLAB::min_size() allocatable memory
+
+  }
+
+  // A GC worker may retire a region either because the region is fully expended (within PLAB::min_size()), or because
+  // the GC worker has finished its work and no longer needs to allocate. In the case that there is still memory available
+  // in the region, put this region back into the "published available" pool of regions.
+  void gc_worker_retire_early_recycle_region(ShenandoahHeapRegion* r) {
+    // Use CAS to unclaim the region.  change _status field to PUBLISHED or RETIRED, depending 
+    // Then change low-water-index if the region is 
+
+  }
+
+  void fwt_handshakes(uint32_t& started, uint32_t& finished) {
+    uint64_t handshake_data = _fwt_handshakes_started_and_finished.load_relaxed();
+    started = (uint32_t) (handshake_data >> 32);
+    finished = (uint32_t) (handshake_data & 0xffffffff);
+  }
+  // Given that handshake data recently held started and finished, update to started+1 and finished if it hasn't changed
+  bool fwt_start_handshake(uint32_t started, uint32_t finished) {
+    uint64_t original = (((uint64_t) started) << 32) | finished;
+    uint64_t modified = (((uint64_t) (started + 1)) << 32) | finished;
+    return _fwt_handshakes_started_and_finished.compare_set(original, modified, memory_order_relaxed);
+  }
+  // Given that handshake data recently helded started and finished, update to started and finished+1 if it hasn't changed
+  bool fwt_finish_handshake(uint32_t started, uint32_t finished) {
+    uint64_t original = (((uint64_t) started) << 32) | finished;
+    uint64_t modified = (((uint64_t) started) << 32) | (finished + 1);
+    return _fwt_handshakes_started_and_finished.compare_set(original, modified, memory_order_relaxed);
+  }
+
+  // Transfer regions from the collector to mutator, up to max_bytes.  This normally happens when we've been able to replace
+  // reserve regions with early recycled regions during evacuation.
+  size_t endow_mutator_from_either_collector(ShenandoahFreeSetPartitionId which_collector, size_t max_bytes);
+
+  // Transfer regions from the collector to mutator, up to max_bytes.  This normally happens when we've been able to replace
+  // reserve regions with early recycled regions during evacuation.
+  size_t endow_mutator_from_collector(size_t max_bytes);
+
+  // Transfer regions from the old collector to mutator, up to max_bytes.  This normally happens when we've been able to replace
+  // reserve regions with early recycled regions during evacuation.
+  size_t endow_mutator_from_old_collector(size_t max_bytes);
+
+private:
   // All early recycled regions are placed into this array
   ShenandoahHeapRegion** _early_recycled_regions;
 
@@ -590,7 +787,17 @@ private:
   // bytes of used memory within early-recycled retired regions
   size_t _early_recycled_retired_used;
 
-  void initialize_recycled_region_arrays();
+  ShenandoahHeapRegion** _early_recycled_no_fwt_regions;
+  size_t* _early_recycled_no_fwt_regions_data;
+  size_t _early_recycled_no_fwt_regions_count;
+  // bytes of used memory within early-recycled no-fwt regions
+  size_t _early_recycled_no_fwt_used;
+
+  ShenandoahHeapRegion** _early_recycled_no_fwt_retired_regions;
+  size_t _early_recycled_no_fwt_retired_regions_count;
+
+  // All collection-set regions that are not early-recycled-with-fwt are eligible for early recycling without fwt.
+  void initialize_recycled_region_arrays(size_t collection_set_regions, size_t early_recycled_fwt_regions);
 
   void insert_tlab_region(ShenandoahHeapRegion* r, size_t max_tlab_size);
   void insert_shared_alloc_region(ShenandoahHeapRegion* r);
@@ -602,6 +809,10 @@ private:
 
   void increase_early_recycled_shared_alloc_regions_used(size_t delta_bytes) {
     _early_recycled_shared_alloc_used += delta_bytes;
+  }
+
+  void increase_early_recycled_no_fwt_regions_used(size_t delta_bytes) {
+    _early_recycled_no_fwt_used += delta_bytes;
   }
 
   // How large of a tlab can we allocate in the region at specified index position?
@@ -616,15 +827,11 @@ private:
   void heapify_tlab_regions_downward(size_t index);
   void heapify_tlab_regions_upward(size_t index);
 
-  // It's most efficient to remove from index position 0 or from index position num_tlab_regions() - 1.  All other removals
-  // require tricky rebalancing, I think.
   void remove_tlab_region(size_t index);
 
   void heapify_shared_alloc_regions_downward(size_t index);
   void heapify_shared_alloc_regions_upward(size_t index);
 
-  // It's most efficient to remove from index position 0 or from index position num_shared_alloc_regions() - 1.  All other removals
-  // require tricky rebalancing, I think.
   void remove_shared_alloc_region(size_t index);
 
   // We don't bother to remove retired regions. We'll re-initialize recycled regions during next GC cycle.

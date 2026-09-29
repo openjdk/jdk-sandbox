@@ -477,19 +477,20 @@ public:
   // Returns true if the soft maximum heap has been changed using management APIs.
   bool check_soft_max_changed();
 
+  void rendezvous_threads(const char* name);
+
 protected:
   // This is shared between shConcurrentGC and shDegenerateGC so that degenerated
   // GC can resume update refs from where the concurrent GC was cancelled. It is
   // also used in shGenerationalHeap, which uses a different closure for update refs.
   ShenandoahRegionIterator _update_refs_iterator;
 
-  void rendezvous_threads(const char* name);
-
 private:
   inline void reset_cancellation_time();
 
   // GC support
   // Evacuation
+  void prepare_to_evacuate(bool concurrent);
   virtual void evacuate_collection_set(ShenandoahGeneration* generation, bool concurrent);
   // Concurrent root processing
   void prepare_concurrent_roots();
@@ -860,8 +861,10 @@ public:
   virtual oop evacuate_object(oop src, Thread* thread);
 
   // Build and install a FWT after evacuation; resets top to bottom on success.
-  void finish_region_evacuation(ShenandoahHeapRegion* r,
-                                size_t num_forwardings, bool concurrent, ShenandoahHeuristics* heuristics);
+  bool finish_fwt_region_evacuation(ShenandoahHeapRegion* r);
+
+  // Build and install a FWT after evacuation; resets top to bottom on success.
+  bool finish_no_table_region_evacuation(ShenandoahHeapRegion* r, uint32_t num_forwardings);
 
   // Parallel scan of flagged cset regions to clear self-forwarded bits on live
   // objects. Must be called at a safepoint; intended for the degenerated and

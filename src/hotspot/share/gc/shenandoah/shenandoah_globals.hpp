@@ -447,6 +447,23 @@
           "nullptr for TLAB requests in cset regions, forcing the "         \
           "allocator to pick a non-cset region instead.")                   \
                                                                             \
+  product(double, ShenandoahEarlyRecycleWaste, 1.2, EXPERIMENTAL,           \
+          "When heuristics predict a memory shortfall during concurrent "   \
+          "GC and call for early recycling of collection set memory, "      \
+          "adjust the shortfall prediction by this amount to account "      \
+          "possible waste in the early recycled regions. Waste is due "     \
+          "normal alignment padding, but also due to avoiding conflicts "   \
+          "with mark words in the recycled regions. A larger value will "   \
+          "cause more memory to be early recycled, reducing the likelihood "\
+          "that we run out of allocatable memory during concurrent GC. "    \
+          "The downside of setting this value too large is that allocating "\
+          "from early recycled memory is slower than allocating from the "  \
+          "free set's mutator partition. Further, accessing objects "       \
+          "allocated in early recycled memory is generally slower than "    \
+          "accessing objects allocated in the free set's mutator "          \
+          "partition.")                                                     \
+          range(1.0,10.0)                                                   \
+                                                                            \
   product(bool, ShenandoahCSetAllocation, true, DIAGNOSTIC,                 \
           "Early-recycle evacuated cset regions into the Mutator free "     \
           "set, starting before update-refs.")                              \

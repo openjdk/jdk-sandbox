@@ -298,6 +298,8 @@ private:
   // Not every reusable region is early recycled.
   bool _early_recycled;
 
+  // KELVIN TODO: _reserved_body_words should be part of _u._notbl_info, but take care to handle the transition from 
+  // _u._fwd_table to _u._notbl_info, because we start out storing this info as _u._fwd_table.
   size_t _reserved_body_words;
 
   union {
@@ -319,6 +321,50 @@ public:
 
   double empty_time() {
     return _empty_time;
+  }
+
+  void set_no_fwt_mark_words(uint32_t num_forwarded) {
+    _u._notbl_info.set_mark_words(num_forwarded);
+  }
+
+  void set_consumed_mark_words(uint32_t consumed_words) {
+    _u._notbl_info.set_consumed_mark_words(consumed_words);
+  }
+
+  void set_next_no_fwt_conflict(HeapWord* conflict) {
+    _u._notbl_info.set_next_conflict(conflict);
+  }
+
+  void set_density_at_most_recent_sift(float density) {
+    return _u._notbl_info.set_density_at_most_recent_sift(density);
+  }
+
+  void set_expected_forwardings(uint32_t num_forwarded) {
+    _u._fwd_table.set_expected_forwardings(num_forwarded);
+  }
+
+  uint32_t get_expected_forwardings() {
+    return _u._fwd_table.expected_forwardings();
+  }
+
+  void set_fwt_entries(uint32_t num_entries) {
+    _u._fwd_table.set_num_entries(num_entries);
+  }
+
+  uint32_t get_fwt_entries() {
+    return _u._fwd_table.num_entries();
+  }
+
+  uint32_t calculate_entries_in_forward_table() {
+    if (ShenandoahEarlyRecycleInfo<true>::use_compact()) {
+      return _u._fwd_table.compute_entries<CompactFwdTableEntry>(get_expected_forwardings());
+    } else {
+      return _u._fwd_table.compute_entries<FwdTableEntry>(get_expected_forwardings());
+    }
+  }
+
+  static size_t words_in_forwarding_entry() {
+    return ShenandoahEarlyRecycleInfo<true>::entry_size_words();
   }
 
   inline ShenandoahEarlyRecycleInfo<true>& forwarding_table() {
@@ -513,10 +559,21 @@ public:
 
   HeapWord* bottom() const      { return _bottom;  }
   HeapWord* end() const         { return _end;     }
+
   // Allocation limit: fwt start if present, else end().
   HeapWord* alloc_end() const {
     HeapWord* fwt = forwarding_table_start();
     return (fwt != nullptr) ? align_down(fwt, MinObjAlignmentInBytes) : _end;
+  }
+
+  ShenandoahEarlyRecycleStatus early_recycle_status() {
+    // Doesn't matter whether we use _u._fwd_table or _u._notbl_info: _status is not part of ShenandoahEarlyRecycleInfo union
+    return _u._fwd_table.get_status();
+  }
+
+  void set_early_recycle_status(ShenandoahEarlyRecycleStatus new_status) {
+    // Doesn't matter whether we use _u._fwd_table or _u._notbl_info: _status is not part of ShenandoahEarlyRecycleInfo union
+    _u._fwd_table.set_status(new_status);
   }
 
   size_t capacity() const       { return byte_size(bottom(), end()); }
@@ -604,17 +661,16 @@ public:
   inline HeapWord* reuse_gap_end()   const { return _reuse_gap_end; }
   inline void set_reuse_gap(HeapWord* start, size_t size) { _reuse_gap_start = start; _reuse_gap_end = start + size; }
 
-  bool build_forwarding_table(size_t num_forwardings) {
-    if (num_forwardings >= 0x100000000) {
-      return false;             // overflow
-    } else if (ShenandoahEarlyRecycleInfo<true>::use_compact()) {
-      return _u._fwd_table.build<CompactFwdTableEntry>((uint32_t) num_forwardings);
+  bool build_forwarding_table() {
+    if (ShenandoahEarlyRecycleInfo<true>::use_compact()) {
+      return _u._fwd_table.build<CompactFwdTableEntry>();
     } else {
-      return _u._fwd_table.build<FwdTableEntry>((uint32_t) num_forwardings);
+      return _u._fwd_table.build<FwdTableEntry>();
     }
   }
 
-  bool prepare_reuse_forwarding(size_t num_forwardings);
+  bool prepare_reuse_forwarding();
+  bool prepare_reuse_no_table();
 
   void teardown_reuse_state();
 

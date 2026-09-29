@@ -37,24 +37,29 @@ class ShenandoahRegionIterator;
 class ShenandoahGenerationalEvacuationTask : public WorkerTask {
 private:
   ShenandoahGenerationalHeap* const _heap;
+  ShenandoahMarkingContext* _ctx;
+  ShenandoahCollectionSet* _cset;
   ShenandoahGeneration* const _generation;
   ShenandoahRegionIterator* _regions;
+  size_t _num_workers;
   bool _concurrent;
   bool _only_promote_regions;
+  Atomic<size_t> _early_recycle_preprocessed_regions;
 
 public:
   ShenandoahGenerationalEvacuationTask(ShenandoahGenerationalHeap* sh,
                                        ShenandoahGeneration* generation,
                                        ShenandoahRegionIterator* iterator,
-                                       bool concurrent, bool only_promote_regions);
+                                       bool concurrent, bool only_promote_regions, size_t num_workers);
   void work(uint worker_id) override;
 private:
-  void do_work();
+  void do_work(uint worker_id);
   void promote_regions();
-  void evacuate_and_promote_regions();
+  void evacuate_and_promote_regions(uint worker_id);
   void maybe_promote_region(ShenandoahHeapRegion* region);
   void promote_in_place(ShenandoahHeapRegion* region);
   void promote_humongous(ShenandoahHeapRegion* region);
+  void yield_or_sleep(uint32_t& yields);
 };
 
 #endif //SHARE_GC_SHENANDOAH_SHENANDOAHGENERATIONALEVACUATIONTASK_HPP
