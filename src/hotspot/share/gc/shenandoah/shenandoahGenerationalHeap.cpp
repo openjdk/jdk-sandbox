@@ -192,6 +192,23 @@ static int compare_by_reuse_estimate(ReuseEstimate a, ReuseEstimate b) {
   return 0;
 }
 
+class ShenandoahReuseEstimateTask : public WorkerTask {
+private:
+  uint const           _nworkers;
+  ReuseEstimate* const _estimates;
+  size_t const         _count;
+public:
+  ShenandoahReuseEstimateTask(uint nworkers, ReuseEstimate* estimates, size_t count) :
+    WorkerTask("Shenandoah Reuse Estimate"),
+    _nworkers(nworkers), _estimates(estimates), _count(count) {}
+
+  void work(uint worker_id) override {
+    for (size_t i = worker_id; i < _count; i += _nworkers) {
+      _estimates[i]._volume = _estimates[i]._region->estimate_reuse();
+    }
+  }
+};
+
 void ShenandoahGenerationalHeap::plan_early_reuse() {
   if (!ShenandoahCSetReuse || !ShenandoahForwardingTableShortfallCutoff || !ShenandoahCSetAllocationForwardingTable) {
     return;
@@ -204,18 +221,20 @@ void ShenandoahGenerationalHeap::plan_early_reuse() {
 
   ResourceMark rm;
   ReuseEstimate* const estimates = NEW_RESOURCE_ARRAY(ReuseEstimate, cset->count());
-  size_t n = 0;
 
-  cset->clear_current_index();
-  for (ShenandoahHeapRegion* r = cset->next(); r != nullptr; r = cset->next()) {
-    if (!cset->is_reuse_eligible(r)) {
-      continue;
+  size_t n = 0;
+  for (size_t idx = 0; idx < num_regions() && n < cset->count(); idx++) {
+    if (cset->is_in(idx)) {
+      ShenandoahHeapRegion* const r = get_region(idx);
+      if (cset->is_reuse_eligible(r)) {
+        estimates[n]._region = r;
+        n++;
+      }
     }
-    estimates[n]._region = r;
-    estimates[n]._volume = r->estimate_reuse();
-    n++;
   }
-  cset->clear_current_index();
+
+  ShenandoahReuseEstimateTask task(workers()->active_workers(), estimates, n);
+  workers()->run_task(&task);
 
   QuickSort::sort(estimates, n, compare_by_reuse_estimate);
 

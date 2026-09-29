@@ -840,10 +840,6 @@ void ShenandoahConcurrentGC::op_final_mark() {
     // ShenandoahGeneration and ShenandoahOldGeneration for more detail.
     _generation->prepare_regions_and_collection_set(true /*concurrent*/);
 
-    if (heap->mode()->is_generational()) {
-      ShenandoahGenerationalHeap::heap()->plan_early_reuse();
-    }
-
     // Has to be done after cset selection
     heap->prepare_concurrent_roots();
 
@@ -1159,7 +1155,11 @@ void ShenandoahConcurrentGC::op_cleanup_early() {
 }
 
 void ShenandoahConcurrentGC::op_evacuate() {
-  ShenandoahHeap::heap()->evacuate_collection_set(_generation, true /*concurrent*/);
+  ShenandoahHeap* const heap = ShenandoahHeap::heap();
+  if (heap->mode()->is_generational()) {
+    ShenandoahGenerationalHeap::heap()->plan_early_reuse();
+  }
+  heap->evacuate_collection_set(_generation, true /*concurrent*/);
 }
 
 void ShenandoahConcurrentGC::op_init_update_refs() {
