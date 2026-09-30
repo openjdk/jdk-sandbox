@@ -210,7 +210,7 @@ public:
 };
 
 void ShenandoahGenerationalHeap::plan_early_reuse() {
-  if (!ShenandoahCSetReuse || !ShenandoahForwardingTableShortfallCutoff || !ShenandoahCSetAllocationForwardingTable) {
+  if (!ShenandoahCSetReuse || !ShenandoahForwardingTableShortfallCutoff) {
     return;
   }
   ShenandoahCollectionSet* const cset = collection_set();

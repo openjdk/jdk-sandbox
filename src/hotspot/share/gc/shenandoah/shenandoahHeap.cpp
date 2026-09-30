@@ -1483,7 +1483,7 @@ void ShenandoahHeap::finish_region_evacuation(ShenandoahHeapRegion* r, size_t nu
   if (!collection_set()->is_reuse_eligible(r)) {
     return;
   } else {
-    if (ShenandoahCSetAllocationForwardingTable && ShenandoahForwardingTableShortfallCutoff && !collection_set()->is_planned_for_reuse(r)) {
+    if (ShenandoahForwardingTableShortfallCutoff && !collection_set()->is_planned_for_reuse(r)) {
       return;
     }
     bool can_reuse = r->prepare_reuse_forwarding(num_forwardings);
