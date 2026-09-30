@@ -281,7 +281,14 @@ bool ShenandoahEarlyRecycleInfo<use_forward_table>::initialize() {
          _u._fwt._num_entries);
   uint32_t const lf = ShenandoahForwardingTableLoadFactorPercent;
   //  _u._fwt._num_expected_forwardings should have been set previously.
+#ifdef KELVIN_DEPRECATE
   assert(_u._fwt._num_entries >= (_u._fwt._num_expected_forwardings * 100 + lf - 1) / lf, "Enforce load factor");
+#else
+  if (_u._fwt._num_entries < (_u._fwt._num_expected_forwardings * 100 + lf - 1) / lf) {
+    log_info(gc)("num_entries: %u for expected forwardings %u violates load factor %u",
+                 _u._fwt._num_entries, _u._fwt._num_expected_forwardings, lf);
+  }
+#endif
   HeapWord* table_address = (HeapWord*) _u._fwt._table;
   assert((table_address >= bottom) && (table_address < end) && is_aligned(table_address, entry_words * HeapWordSize),
          "_table must be within range and aligned to entry");

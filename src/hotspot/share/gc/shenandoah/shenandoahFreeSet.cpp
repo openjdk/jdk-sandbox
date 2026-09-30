@@ -1474,7 +1474,10 @@ ShenandoahFreeSet::ShenandoahFreeSet(ShenandoahHeap* heap, size_t max_regions) :
   _total_global_regions(0),
   _allocating_from_early_recycled_regions(false),
   _early_recycled_regions(NEW_C_HEAP_ARRAY(ShenandoahHeapRegion*, max_regions, mtGC)),
-  _early_recycled_regions_data(NEW_C_HEAP_ARRAY(size_t, max_regions, mtGC))
+  _early_recycled_regions_data(NEW_C_HEAP_ARRAY(size_t, max_regions, mtGC)),
+  _early_recycled_tlab_used(0),
+  _early_recycled_shared_alloc_used(0),
+  _early_recycled_retired_used(0)
 {
   clear_internal();
   preinitialize_recycled_region_array(0);
@@ -3524,7 +3527,8 @@ ShenandoahHeapRegion* ShenandoahFreeSet::get_tlab_region(size_t index) {
 }
 
 size_t ShenandoahFreeSet::get_tlab_allocatable_size(size_t index) {
-  assert(index < _early_recycled_tlab_regions_count, "Precondition");
+  assert(index < _early_recycled_tlab_regions_count, "Precondition: index: %zu, count: %zu",
+         index, _early_recycled_tlab_regions_count);
   return _early_recycled_tlab_regions_data[index];
 }
 
