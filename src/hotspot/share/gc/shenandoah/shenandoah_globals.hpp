@@ -441,12 +441,6 @@
           "region sizes allow it. Disabling this forces wide (16-byte) "    \
           "entries unconditionally, which is useful for debugging.")        \
                                                                             \
-  product(bool, ShenandoahCSetRegionTLAB, true, DIAGNOSTIC,                 \
-          "Allow mutator TLAB carving in collection-set regions during "    \
-          "concurrent evacuation. Disabling this makes allocate() return "  \
-          "nullptr for TLAB requests in cset regions, forcing the "         \
-          "allocator to pick a non-cset region instead.")                   \
-                                                                            \
   product(bool, ShenandoahCSetAllocation, true, DIAGNOSTIC,                 \
           "Early-recycle evacuated cset regions into the Mutator free "     \
           "set, starting before update-refs.")                              \
@@ -459,31 +453,12 @@
           "Target the estimated mutator shortfall when early-recycling "    \
           "FWT cset regions; disable to early-recycle all eligible.")        \
                                                                             \
-  product(bool, ShenandoahPreferCSetAllocation, false, DIAGNOSTIC,          \
-          "Force both shared and TLAB mutator allocations to prefer early-" \
-          "recycled cset regions.")                                         \
-                                                                            \
-  product(bool, ShenandoahLazyReuseCursor, true, DIAGNOSTIC,                \
-          "Carve early-recycled regions through a per-region clean gap "    \
-          "cursor: allocate within the cached gap with no bitmap scan, "    \
-          "rescanning once for the next usable gap on a miss.")             \
-                                                                            \
   product(uintx, ShenandoahCSetReuseMaxDensityPercent, 10, DIAGNOSTIC,      \
           "Reuse an evacuated cset region (table or mark-word forwarding) " \
           "only when its live objects occupy at most this percentage of "   \
           "the region; denser regions are not reused early. 100 disables "  \
           "the check.")                                                     \
           range(0, 100)                                                     \
-                                                                            \
-  product(uintx, ShenandoahCSetAllocationMaxTLABPad, 4, EXPERIMENTAL,       \
-          "How many words of padding do we allow to precede an "            \
-          "allocated TLAB within an early recycled cset region? "           \
-          "Allowing more pad words increases the likelihood that "          \
-          "we can successfully allocate a TLAB within this region "         \
-          "with the downsides that larger pads result in more waste "       \
-          "and larger pads result in more time trying to find an "          \
-          "an acceptable TLAB location.")                                   \
-          range(0, 32768)                                                   \
                                                                             \
   product(uintx, ShenandoahForwardingTableLoadFactorPercent,                \
           75, DIAGNOSTIC,                                                   \

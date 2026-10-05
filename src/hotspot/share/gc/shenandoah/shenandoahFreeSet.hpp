@@ -518,12 +518,8 @@ public:
     _early_recycled_tlab_regions[slot] = r;
   }
   inline void set_shared_alloc_region_slot(size_t slot, ShenandoahHeapRegion* r) {
-    _early_recycled_shared_alloc_regions[-(ssize_t)slot] = r;
+    _early_recycled_shared_alloc_regions[slot] = r;
   }
-
-  // Return retired region at index position between 0 and num_retired_regions() - 1.
-  // Any call to insert() or remove tlab, shared-alloc, or retired regions may cause renumbering of the retired regions.
-  ShenandoahHeapRegion* get_retired_region(size_t index);
 
 private:
   // Prerequisite: _total_young_used and _total_old_used are valid
@@ -554,38 +550,24 @@ private:
 
   bool _allocating_from_early_recycled_regions;
 
-  // All early recycled regions are placed into this array
-  ShenandoahHeapRegion** _early_recycled_regions;
-
-  // This array associates a size_t value with each early recycled region.
-  //  For tlab regions, this represents the maximum size of the allocatable tlab.
-  //  For shared-alloc regions, this represents the allocatable memory (between top and end_of_alloc)
-  //  For retired regions, this is a don't care.
-  size_t* _early_recycled_regions_data;
-
-  // This is an alias for _early_recycled_region_data.  The first N entries of the array represents regions
-  // that are ideal candidates for tlab allocations.
   ShenandoahHeapRegion** _early_recycled_tlab_regions;
   size_t* _early_recycled_tlab_regions_data;
   size_t _early_recycled_tlab_regions_count;
   // bytes of used memory within early-recycled tlab regions
   size_t _early_recycled_tlab_used;
 
-  // This points to the last element of _early_recycled_region_data. We prioritize allocation from the regions that have
-  // largest allocatable memory since these regions presumably have the fewest conflicts with forwarded objects (and the
-  // smallest forwarding tables). If all goes well, we will finish updating memory before we have to allocate from the
-  // regions that are "crowded" with forwarded objects. This list is sorted according to "original" allocatable memory
-  // at the start of update refs. We do a sequential search from low to high index to find the allocation region. If
-  // allocation from the region results in less than PLAB::min_size() remaining available, we retire the region.
+  // We prioritize allocation from the regions that have largest allocatable memory since these regions presumably have
+  // the fewest conflicts with forwarded objects (and the smallest forwarding tables). If all goes well, we will finish
+  // updating memory before we have to allocate from the regions that are "crowded" with forwarded objects. We do a
+  // sequential search from low to high index to find the allocation region. If allocation from the region results in
+  // less than PLAB::min_size() remaining available, we retire the region.
   ShenandoahHeapRegion** _early_recycled_shared_alloc_regions;
   size_t* _early_recycled_shared_alloc_regions_data;
   size_t _early_recycled_shared_alloc_regions_count;
   // bytes of used memory within early-recycled shared-alloc regions
   size_t _early_recycled_shared_alloc_used;
 
-  // This points somewhere in the middle of the _early_recycled_region_data array, to an area of the array that does not
-  // conflit with either the tlab or shared-allocation regions.
-  ShenandoahHeapRegion** _early_recycled_retired_regions;
+  // We don't bother to remove retired regions. We'll re-initialize recycled regions during next GC cycle.
   size_t _early_recycled_retired_regions_count;
   // bytes of used memory within early-recycled retired regions
   size_t _early_recycled_retired_used;
@@ -604,15 +586,6 @@ private:
     _early_recycled_shared_alloc_used += delta_bytes;
   }
 
-  // How large of a tlab can we allocate in the region at specified index position?
-  // Any call to insert or remove a shared-alloc retion may renumber the shared-alloc regions.
-  size_t get_tlab_allocatable_size(size_t index);
-
-  // How much memory is currently available in this region for the purposes of shared allocations (minus any padding that
-  // might be required to avoid allocating at a forwarded address).
-  // Any call to insert or remove a shared-alloc retion may renumber the shared-alloc regions.
-  size_t get_shared_allocatable_size(size_t index);
-
   void heapify_tlab_regions_downward(size_t index);
   void heapify_tlab_regions_upward(size_t index);
 
@@ -626,14 +599,6 @@ private:
   // It's most efficient to remove from index position 0 or from index position num_shared_alloc_regions() - 1.  All other removals
   // require tricky rebalancing, I think.
   void remove_shared_alloc_region(size_t index);
-
-  // We don't bother to remove retired regions. We'll re-initialize recycled regions during next GC cycle.
-
-  // Make room for expansion of tlab regions
-  void shift_retired_regions_down();
-
-  // Make room for expansion of shared-allocation regions
-  void shift_retired_regions_up();
 
   size_t early_recycled_tlab_available_size(ShenandoahHeapRegion* r);
 
@@ -653,8 +618,8 @@ private:
   // Place an early-recycled region into the right priority heap after an allocation shrank it.
   void reclassify_shared_alloc_region(ShenandoahHeapRegion* r, size_t idx);
   void reclassify_tlab_region(ShenandoahHeapRegion* r, size_t idx);
-  HeapWord* try_allocate_TLAB_in_early_recycled(ShenandoahHeapRegion* r, const ShenandoahAllocRequest& req, size_t& size);
-  HeapWord* try_allocate_shared_in_early_recycled(ShenandoahHeapRegion* r, size_t size, bool is_tlab_region = false);
+  NOINLINE HeapWord* try_allocate_TLAB_in_early_recycled(ShenandoahHeapRegion* r, const ShenandoahAllocRequest& req, size_t& size);
+  NOINLINE HeapWord* try_allocate_shared_in_early_recycled(ShenandoahHeapRegion* r, size_t size, bool is_tlab_region = false);
   // If only affiliation changes are promote-in-place and generation sizes have not changed,
   //    we have AffiliatedChangesAreGlobalNeutral
   // If only affiliation changes are non-empty regions moved from Mutator to Collector and young size has not changed,

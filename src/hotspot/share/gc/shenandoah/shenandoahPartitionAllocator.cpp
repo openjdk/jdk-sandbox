@@ -52,18 +52,9 @@ HeapWord* ShenandoahPartitionAllocator<PARTITION>::allocate(ShenandoahAllocReque
   bool boundary_changed = false;
   size_t min_req_words = req.is_lab_alloc() ? req.min_size() : req.size();
   const bool prefer_lazy_early_recycling = !ShenandoahCSetAllocationForwardingTable;
-  const bool prefer_cset_first = ShenandoahPreferCSetAllocation; // use for testing
   if constexpr (PARTITION == ShenandoahFreeSetPartitionId::Mutator) {
     if (!prefer_lazy_early_recycling && !req.is_lab_alloc() && _free_set->allocating_from_early_recycled_regions()) {
       HeapWord* result = _free_set->try_allocate_shared_from_early_recycled(req);
-      if (result != nullptr) {
-        in_new_region = false;
-        return result;
-      }
-    } else if (prefer_cset_first && _free_set->allocating_from_early_recycled_regions()) {
-      HeapWord* result = req.is_lab_alloc()
-        ? _free_set->try_allocate_lab_from_early_recycled(req)
-        : _free_set->try_allocate_shared_from_early_recycled(req);
       if (result != nullptr) {
         in_new_region = false;
         return result;
@@ -122,8 +113,7 @@ HeapWord* ShenandoahPartitionAllocator<PARTITION>::allocate(ShenandoahAllocReque
   }
 
   if constexpr (PARTITION == ShenandoahFreeSetPartitionId::Mutator) {
-    // With prefer_cset_first, early-recycled regions were already tried above.
-    if (!prefer_cset_first && _free_set->allocating_from_early_recycled_regions()) {
+    if (_free_set->allocating_from_early_recycled_regions()) {
       HeapWord* result;
       if (prefer_lazy_early_recycling) {
         result = req.is_lab_alloc()
