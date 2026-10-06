@@ -84,8 +84,8 @@ inline uint64_t ShenandoahEarlyRecycleInfo<use_forward_table>::hash(HeapWord* or
 
 template <bool use_forward_table>
 template <bool b, typename>
-inline void ShenandoahEarlyRecycleInfo<use_forward_table>::probe_of(HeapWord* original, uint32_t& index, uint32_t& stride) const {
-  uint64_t const h = hash(original, _u._fwt._table);
+inline void ShenandoahEarlyRecycleInfo<use_forward_table>::probe_of(void* table, uint32_t num_entries, HeapWord* original, uint32_t& index, uint32_t& stride) const {
+  uint64_t const h = hash(original, table);
   uint64_t const truncated_h = h & 0xffffffff;
   // [0, N-1] from low bits of h
   // Assume that the low-order bits of h hold a "randomly distributed" pattern of bits derived from original and _table.
@@ -94,9 +94,9 @@ inline void ShenandoahEarlyRecycleInfo<use_forward_table>::probe_of(HeapWord* or
   // probe will also be well distributed.  We use multiply rather than divide because 64-bit multiply is up to nine times
   // faster than a 32-bit divide on typical "modern hardware", and multiply instructions are more effectively pipelined.
   // Since both factors are 32-bit, the 64-bit product will not overflow.
-  index  = static_cast<uint32_t>(((truncated_h * _u._fwt._num_entries) >> 32) & 0xffffffff);
-  assert(_u._fwt._num_entries > 16, "invariant");
-  uint32_t basis = _u._fwt._num_entries / 16;
+  index  = static_cast<uint32_t>(((truncated_h * num_entries) >> 32) & 0xffffffff);
+  assert(num_entries > 16, "invariant");
+  uint32_t basis = num_entries / 16;
   uint32_t high_bits = static_cast<uint32_t>((h >> 32) & 0xffffffff);
   uint32_t one_to_eight = (((high_bits >> 29) & 0x7) & 0x7) + 1;
   // Stride is between (1/16 of entries and 8/16 of entries) + some_portion of 1/16 of entries.
@@ -111,7 +111,7 @@ HeapWord* ShenandoahEarlyRecycleInfo<use_forward_table>::forwardee(HeapWord* con
   }
   uint32_t start_index, stride;
   Entry* table = reinterpret_cast<Entry*>(_u._fwt._table);
-  probe_of(original, start_index, stride);
+  probe_of(table, _u._fwt._num_entries, original, start_index, stride);
   size_t index = start_index;
   uint probes = 0;
   // In the case that we are searching a forwardee at the same time the collision chains are being pruned, we need
@@ -171,8 +171,8 @@ HeapWord* ShenandoahEarlyRecycleInfo<use_forward_table>::forwardee(HeapWord* con
 
 template <bool use_forward_table>
 template <class Entry, bool b, typename>
-inline void ShenandoahEarlyRecycleInfo<use_forward_table>::insert_forwarding(uint32_t index, const Entry& entry) {
-  new (reinterpret_cast<Entry*>(_u._fwt._table) + index) Entry(entry);
+inline void ShenandoahEarlyRecycleInfo<use_forward_table>::insert_forwarding(Entry* table, uint32_t index, const Entry& entry) {
+  new (table + index) Entry(entry);
 }
 
 template <bool use_forward_table>
@@ -181,7 +181,7 @@ inline uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::prune_collision_c
   uint32_t start_index, stride;
   Entry* table = reinterpret_cast<Entry*>(_u._fwt._table);
   HeapWord* const region_base = _region->bottom();
-  probe_of(original, start_index, stride);
+  probe_of(table, _u._fwt._num_entries, original, start_index, stride);
   uint32_t collision_chain_depth = 0;
   uint32_t index = start_index;
   while (table[index].is_used()) {
@@ -191,7 +191,7 @@ inline uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::prune_collision_c
     if (!table[index].is_entry()) {
       if constexpr (std::is_same_v<Entry, CompactFwdTableEntry>) {
         Entry const entry(region_base, original, forwardee);
-        insert_forwarding<Entry>(index, entry);
+        insert_forwarding<Entry>(table, index, entry);
       } else {
         table[index].overwrite_forwardee(forwardee);
         // Make sure that _forwardee is set before anybody has the opportunity to match the new value of _original.
@@ -217,13 +217,12 @@ inline uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::prune_collision_c
 // How many probes on the chain required to resolve original?
 template <bool use_forward_table>
 template <class Entry, bool b, typename>
-uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::probes(HeapWord* original, uint32_t& stride) const {
+uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::probes(Entry* table, uint32_t num_entries, HeapWord* original, uint32_t& stride) const {
   // This service is typically called during construction of forward table. We expect typical depth to be no more than 5
   // and expect forward table to be mostly in cache.  Thus, we iterate to end of chanin rather than trying to figure out
   // complicated wrap-around divide calculation.
-  Entry* table = reinterpret_cast<Entry*>(_u._fwt._table);
   uint32_t start_index;
-  probe_of(original, start_index, stride);
+  probe_of(table, num_entries, original, start_index, stride);
   uint32_t index = start_index;
   uint32_t probes = 1;
   HeapWord* const region_base = _region->bottom();
@@ -247,8 +246,8 @@ uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::probes(HeapWord* origina
     }
     probes++;
     index += stride;
-    if (index >= _u._fwt._num_entries) {
-      index -= _u._fwt._num_entries;
+    if (index >= num_entries) {
+      index -= num_entries;
     }
   }
   assert(false, "probes() must find forwardee");
@@ -257,91 +256,95 @@ uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::probes(HeapWord* origina
 
 template <bool use_forward_table>
 template <class Entry, bool b, typename>
-uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::reserve_forwarding(BitMap& used, uint32_t index, uint32_t stride,
+uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::reserve_forwarding(fwt_build& build, BitMap& used, uint32_t index, uint32_t stride,
                                                                           Entry& replaced, uint32_t& replaced_index,
                                                                           uint32_t& replaced_stride, uint32_t& replaced_probes) {
   uint32_t const first_index = index;
   uint32_t const max_probes = _common_max_probes;
   uint32_t depth = 1;
   HeapWord* const region_base = _region->bottom();
-  Entry* table = reinterpret_cast<Entry*>(_u._fwt._table);
+  fwt_info& desc = build._desc;
+  Entry* const table = reinterpret_cast<Entry*>(desc._table);
+  uint32_t const num_entries = desc._num_entries;
   while (used.at(index)) {
     if (max_probes != 0 && depth >= max_probes) {
-      _u._fwt._abandoned = true; // pathological chain
-      return _u._fwt._num_entries;
+      build._complete = false; // pathological chain
+      return num_entries;
     }
     Entry& entry = table[index];
     if (entry.is_entry()) {
-      replaced_probes = ShenandoahEarlyRecycleInfo::probes<Entry>(entry.original(region_base), replaced_stride);
+      replaced_probes = ShenandoahEarlyRecycleInfo::probes<Entry>(table, num_entries, entry.original(region_base), replaced_stride);
       if (replaced_probes < depth) {
-        _u._fwt._num_actual_forwardings++;
+        build._num_actual++;
         replaced_index = index;
         replaced = Entry(region_base, entry.original(region_base), entry.forwardee_from_entry_without_barrier());
-        if (depth > _u._fwt._max_required_probes) {
-          _u._fwt._max_required_probes = depth;
+        if (depth > desc._max_required_probes) {
+          desc._max_required_probes = depth;
         }
         return index;
       }
     }
     index += stride;
-    if (index >= _u._fwt._num_entries) {
-      index -= _u._fwt._num_entries;
+    if (index >= num_entries) {
+      index -= num_entries;
     }
     guarantee(index != first_index, "must find a usable slot, _num_entries: %u, actual forwardings: %u, live_words: %u"
               ", first_index: %u, index: %u, stride: %u, depth: %u",
-              _u._fwt._num_entries, _u._fwt._num_actual_forwardings, _u._fwt._num_live_words, first_index, index, stride, depth);
+              num_entries, build._num_actual, build._num_live, first_index, index, stride, depth);
     depth++;
   }
   used.set_bit(index);
-  if (depth > _u._fwt._max_required_probes) {
-    _u._fwt._max_required_probes = depth;
+  if (depth > desc._max_required_probes) {
+    desc._max_required_probes = depth;
   }
-  _u._fwt._num_actual_forwardings++;
-  assert(_u._fwt._num_actual_forwardings <= _u._fwt._num_expected_forwardings, "must not exceed number of forwardings");
+  build._num_actual++;
+  assert(build._num_actual <= build._num_expected, "must not exceed number of forwardings");
   return index;
 }
 
 template <bool use_forward_table>
 template <class Entry, bool b, typename>
-uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::reserve_new_forwarding(BitMap& used, uint32_t index, uint32_t stride,
+uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::reserve_new_forwarding(fwt_build& build, BitMap& used, uint32_t index, uint32_t stride,
                                                                               uint32_t depth, Entry& replaced,
                                                                               uint32_t& replaced_index, uint32_t& replaced_stride,
                                                                               uint32_t& replaced_probes) {
   uint32_t const first_index = index;
   uint32_t const max_probes = _common_max_probes;
   HeapWord* const region_base = _region->bottom();
-  Entry* table = reinterpret_cast<Entry*>(_u._fwt._table);
+  fwt_info& desc = build._desc;
+  Entry* const table = reinterpret_cast<Entry*>(desc._table);
+  uint32_t const num_entries = desc._num_entries;
   while (used.at(index)) {
     if (max_probes != 0 && depth >= max_probes) {
-      _u._fwt._abandoned = true; // pathological chain
-      return _u._fwt._num_entries;
+      build._complete = false; // pathological chain
+      return num_entries;
     }
     Entry& entry = table[index];
     if (entry.is_entry()) {
-      replaced_probes = ShenandoahEarlyRecycleInfo::probes<Entry>(entry.original(region_base), replaced_stride);
+      replaced_probes = ShenandoahEarlyRecycleInfo::probes<Entry>(table, num_entries, entry.original(region_base), replaced_stride);
       if (replaced_probes < depth) {
         replaced_index = index;
         replaced = Entry(region_base, entry.original(region_base), entry.forwardee_from_entry_without_barrier());
-        if (depth > _u._fwt._max_required_probes) {
-          _u._fwt._max_required_probes = depth;
+        if (depth > desc._max_required_probes) {
+          desc._max_required_probes = depth;
         }
         return index;
       }
     }
     index += stride;
-    if (index >= _u._fwt._num_entries) {
-      index -= _u._fwt._num_entries;
+    if (index >= num_entries) {
+      index -= num_entries;
     }
     guarantee(index != first_index, "must find a usable slot, _num_entries: %u, actual forwardings: %u, live_words: %u"
               ", first_index: %u, index: %u, stride: %u, depth: %u",
-              _u._fwt._num_entries, _u._fwt._num_actual_forwardings, _u._fwt._num_live_words, first_index, index, stride, depth);
+              num_entries, build._num_actual, build._num_live, first_index, index, stride, depth);
     depth++;
   }
   used.set_bit(index);
-  if (depth > _u._fwt._max_required_probes) {
-    _u._fwt._max_required_probes = depth;
+  if (depth > desc._max_required_probes) {
+    desc._max_required_probes = depth;
   }
-  assert(_u._fwt._num_actual_forwardings <= _u._fwt._num_expected_forwardings, "must not exceed number of forwardings");
+  assert(build._num_actual <= build._num_expected, "must not exceed number of forwardings");
   return index;
 }
 
