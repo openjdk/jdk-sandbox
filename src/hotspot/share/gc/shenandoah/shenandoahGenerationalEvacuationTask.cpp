@@ -95,7 +95,7 @@ ShenandoahGenerationalEvacuationTask::ShenandoahGenerationalEvacuationTask(Shena
 }
 
 void ShenandoahGenerationalEvacuationTask::yield_or_sleep(uint32_t& yields) {
-  // This code was borrowed from ShenandohLock, where it was tested with different values of N, and chose 3 for best performance.
+  // This code was borrowed from ShenandoahLock, where it was tested with different values of N, and chose 3 for best performance.
   // Simple yield-sleep policy: do one 100us sleep after every N yields.
   if (yields < 3) {
     os::naked_yield();
@@ -133,10 +133,10 @@ void ShenandoahGenerationalEvacuationTask::do_work(uint worker_id) {
 
 void log_region(const ShenandoahHeapRegion* r, LogStream* ls) {
   ls->print_cr("GenerationalEvacuationTask, looking at %s region %zu, (age: %d) [%s, %s, %s]",
-              r->is_old()? "old": r->is_young()? "young": "free", r->index(), r->age(),
-              r->is_active()? "active": "inactive",
-              r->is_humongous()? (r->is_humongous_start()? "humongous_start": "humongous_continuation"): "regular",
-              r->is_cset()? "cset": "not-cset");
+               r->is_old()? "old": r->is_young()? "young": "free", r->index(), r->age(),
+               r->is_active()? "active": "inactive",
+               r->is_humongous()? (r->is_humongous_start()? "humongous_start": "humongous_continuation"): "regular",
+               r->is_cset()? "cset": "not-cset");
 }
 
 void ShenandoahGenerationalEvacuationTask::promote_regions() {
@@ -166,10 +166,17 @@ void ShenandoahGenerationalEvacuationTask::evacuate_and_promote_regions(uint wor
   size_t entry_size_bytes = entry_size_words * HeapWordSize;
   size_t num_regions = _heap->num_regions();
   ShenandoahFreeSet* free_set = _heap->free_set();
+#define KELVIN_DEBUG
+#ifdef KELVIN_DEBUG
+  log_info(gc)("ShenGenEvacTask::evac_and_promote_regions(%u)", worker_id);
+#endif
   if (_concurrent && (worker_id == 0)) {
     // The first worker is responsible for selecting which regions will be early recycled with forward table.
     // Regions have already been sorted in increasing live data, which is a light-weight approximation of increasing
     // forward table size (aka increasing mark-word-density).
+#ifdef KELVIN_DEBUG
+  log_info(gc)("ShenGenEvacTask::evac_and_promote_regions(%u) is selecting fwt regions", worker_id);
+#endif
 
     // Set aside enough regions for early recycle with FWT to satisfy the anticipated memory shortfall.
     size_t short_fall = _heap->young_generation()->heuristics()->mutator_memory_shortfall();
@@ -189,7 +196,7 @@ void ShenandoahGenerationalEvacuationTask::evacuate_and_promote_regions(uint wor
           back_fill += early_available_words;
           r->set_expected_forwardings(num_forwardings);
           r->set_fwt_entries(num_entries);
-          assert(r->early_recycle_status() == ShenandoahEarlyRecycleStatus::Planned_FWT, "Precondition");
+          assert(r->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Planned_FWT, "Precondition");
           fwt_regions++;
           continue;
         }
@@ -225,6 +232,9 @@ void ShenandoahGenerationalEvacuationTask::evacuate_and_promote_regions(uint wor
   bool cset_is_finished = false;
   LogTarget(Debug, gc) lt;
   while (true) {
+#ifdef KELVIN_DEBUG
+    log_info(gc)("ShenGenEvacTask::evac_and_promote_regions(%u) is about to claim_next()", worker_id);
+#endif
     r = _cset->claim_next();
     if (lt.is_enabled()) {
       LogStream ls(lt);
@@ -309,14 +319,12 @@ void ShenandoahGenerationalEvacuationTask::evacuate_and_promote_regions(uint wor
             now_prepared_bytes = free_set->fwt_bytes_prepared();
           }
 
-          // Publish if approprirate
+          // Publish if approprriate
           if (cset_is_finished || (fwt_regions_recycled > 0)) {
+            // We intend to publish.  If we do publish, we might want to publish more than once. So we loop. While we are
+            // publishing, other workers that prepare more regions for publication are prohibited from publishing.
             while (true) {
-              // We'll break out of this loop if we decide not to publish.  But if we publish once, we may be the
-              // only opportunity to publish again, because all the workers that have been preparing during out publication
-              // were forbidden from publishing while we held the publication lock.
               size_t original_published = free_set->fwt_regions_published();
-
               // Publish if:
               //  Nothing has been published yet and we have at least one (probably more) prepared regions, or
               //  Prepared > previously published by at least _num_workers / 2, or
@@ -325,105 +333,61 @@ void ShenandoahGenerationalEvacuationTask::evacuate_and_promote_regions(uint wor
               if (((original_published == 0) && (now_prepared > 0)) ||
                   ((now_prepared > original_published) &&
                    ((now_prepared - original_published >= _num_workers / 2) || cset_is_finished))) {
-              
-                // Because of races, original_consumed may be > original_published. That only happens if other threads publish
-                // and consume after I read published, in which case I should not need to publish now, because some other thread
-                // is publishing.
-
-                // We'll publish if the available supply to GC workers is less than 1 region per worker, or if there are
-                // no more cset regions to prepare and the prepared regions have not already been published.
-                size_t original_consumed = free_set->fwt_regions_consumed_by_gc();
-                if (((original_published > original_consumed) && (original_published - original_consumed < _num_workers)) ||
-                    (cset_is_finished && (original_published > now_prepared))) {
-                  uint32_t started, finished;
-
-                  free_set->fwt_handshakes(started, finished);
-                  if (started == finished) {
-                    if (free_set->fwt_start_handshake(started, finished)) {
-                      // I hold the publication lock.
-                      // Update my counts of prepared and published since values may have changed since I sampled above
-
-                      size_t regions_to_publish = 0;
-                      size_t bytes_to_publish = 0;
-                      size_t first_unpublished_index = free_set->first_unpublished_fwt();
-                      size_t last_unpublished_index = free_set->last_unpublished_fwt();
-                      // Note: more regions might get published while I'm iterating through this loop and/or while I'm
-                      // performing the handshake.  We won't count those as published until some subsequent publication.
-                      for (size_t index = first_unpublished_index; index <= last_unpublished_index; index++) {
-                        ShenandoahHeapRegion* r = free_set->get_tlab_region(index);
-                        if (r->early_recycle_status() == ShenandoahEarlyRecycleStatus::Prepared_FWT) {
-                          r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Publishing_FWT);
-                          regions_to_publish++;
-                          bytes_to_publish += region_size_bytes - r->get_fwt_entries() * entry_size_bytes;
-                        }
-                      }
-                      
-                      // Everything stored above should become visible to other threads after handshake
-                      OrderAccess::storeload();
-
-                      // Force mutators into handshake to assure that they no longer use mark-word forwarding on any of the
-                      // now-prepared regions.
-                      assert(!Thread::current()->is_suspendible_thread(), "must not hold STS join across rendezvous");
-                      _heap->rendezvous_threads("Switch to Forward Table");
-
-                      for (size_t index = first_unpublished_index; index <= last_unpublished_index; index++) {
-                        ShenandoahHeapRegion* r = free_set->get_tlab_region(index);
-                        if (r->early_recycle_status() == ShenandoahEarlyRecycleStatus::Publishing_FWT) {
-                          r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Published_FWT);
-                        }
-                      }
-
-                      // Published is at least as much as was prepared before our handshake.  It's likely more, but we
-                      // don't know that for sure, so we act conservatively.
-                      free_set->add_to_fwt_regions_published(regions_to_publish);
-                      size_t total_available_to_xfer = free_set->add_to_fwt_bytes_published(bytes_to_publish);
-                      
-                      // Still holding the handshake lock, transfer as much memory as possible from Reserves to Mutator.
-                      // now_prepared_bytes is aka as fwt_bytes_published
-                      size_t young_transfers = free_set->young_fwt_bytes_to_mutator();
-                      size_t old_transfers = free_set->old_fwt_bytes_to_mutator();
-                      size_t transferable = total_available_to_xfer - (young_transfers + old_transfers);
-                      size_t newly_transferred = free_set->endow_mutator_from_collector(transferable);
-                      free_set->set_young_fwt_bytes_to_mutator(young_transfers + newly_transferred);
-                      transferable -= newly_transferred;
-                      newly_transferred = free_set->endow_mutator_from_old_collector(transferable);
-                      free_set->set_old_fwt_bytes_to_mutator(old_transfers + newly_transferred);
-
-                      // Release the publication lock
-                      bool result = free_set->fwt_finish_handshake(started+1, finished);
-                      assert(result, "Nobody else should modify starts and finishes while I hold the lock");
-                    } else {
-                      // if started != finished, that means some other thread holds the publication lock and is
-                      // in the process of of publishing. If that other thread started its handshake before certain
-                      // regions were prepared, it will recheck conditions and perform another handshake if appropriate.
-                      // I will not be responsible for publishing my newly prepared regions.
-                      break;
+                uint32_t started, finished;
+                free_set->fwt_handshakes(started, finished);
+                if (free_set->fwt_start_handshake(started, finished)) {
+                  // We hold exclusive lock for publishing fwt regions.
+                  size_t bytes_to_publish = 0;
+                  size_t regions_to_publish = 0;
+                  size_t first_unpublished = free_set->upper_bound_on_unpublished_fwt();
+                  size_t upper_bound_on_unpublished = free_set->upper_bound_on_unpublished_fwt();
+                  for (size_t index = first_unpublished; index < upper_bound_on_unpublished; index++) {
+                    ShenandoahHeapRegion* r = free_set->get_tlab_region(index);
+                    if (r->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Prepared_FWT) {
+                      bool success = r->compare_set_early_recycle_status(ShenandoahEarlyRecycleStatus::Prepared_FWT,
+                                                                        ShenandoahEarlyRecycleStatus::Publishing_FWT);
+                      assert(success, "Lock violation");
+                      regions_to_publish++;
+                      bytes_to_publish += (r->alloc_end() - r->top()) * HeapWordSize;
                     }
-                  } else {
-                    // otherwise, some other thread was already working on a handshake, so we'll just move on
-                    break;
                   }
-                } else {
-                  // There's plenty of runway for the number of workers, so no need to publish right now.
-                  break;
-                }
-              } else {
-                // There are not enough newly prepared regions to make publication worthwhile, so let's wait for more preparation
-                break;
-              }
-              // Each worker, upon detecting cset_is_finished, will have at least one chance to do one final publication of
-              // prepared regions. If I prepare a region but do not publish because some other worker was already publishing,
-              // that other worker will consult prepared regions after it finishes its current handshake and will perform
-              // a second handshake, either because that other worker already saw that cset_is_finished, or because it will see
-              // that cset_is_finished on its next iteration through the cset iterator.
-              if (cset_is_finished) {
-                break;
-              }
-            }  // This ends the while(true) loop. Either we published, or we decided not to publish.
-          }
-          // else, there were no fwt regions recycled and the cset is not finished, so no need to publish anything.
+
+                  _heap->rendezvous_threads("Switch to selected forward tables");
+                  for (size_t index = first_unpublished; index < upper_bound_on_unpublished; index++) {
+                    if (r->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Publishing_FWT) {
+                      bool success = r->compare_set_early_recycle_status(ShenandoahEarlyRecycleStatus::Publishing_FWT,
+                                                                         ShenandoahEarlyRecycleStatus::Published_FWT);
+                      assert(success, "Lock violation");
+                    }
+                  }
+
+                  // Published is at least as much as was prepared before our handshake. It's likely more, but we
+                  // don't know that for sure, so we act conservatively.
+                  free_set->add_to_fwt_regions_published(regions_to_publish);
+                  size_t total_available_to_xfer = free_set->add_to_fwt_bytes_published(bytes_to_publish);
+
+                  // Still holding the handshake lock, transfer as much memory as possible from Reserves to Mutator.
+                  // now_prepared_bytes is aka as fwt_bytes_published
+                  size_t young_transfers = free_set->young_fwt_bytes_to_mutator();
+                  size_t old_transfers = free_set->old_fwt_bytes_to_mutator();
+                  size_t transferable = total_available_to_xfer - (young_transfers + old_transfers);
+                  size_t newly_transferred = free_set->endow_mutator_from_collector(transferable);
+                  free_set->set_young_fwt_bytes_to_mutator(young_transfers + newly_transferred);
+                  transferable -= newly_transferred;
+                  newly_transferred = free_set->endow_mutator_from_old_collector(transferable);
+                  free_set->set_old_fwt_bytes_to_mutator(old_transfers + newly_transferred);
+
+                  // Release the publication lock
+                  bool result = free_set->fwt_finish_handshake(started+1, finished);
+                  assert(result, "Nobody else should modify starts and finishes while I hold the lock");
+                } // else, we did not get the publication lock
+              } // else, not worthwhile to publish.  we'll wait until the need is greater or more unpublished have accumulated
+              // If we fall through to here, we "chose" not to publish, so no need to publish again.
+              break;
+            } // End of loop to repeatedly publish
+          } // else, there were no fwt regions recycled and the cset is not finished, so no need to publish anything.
         } else {
-          // Since pre-processing is not yet done, we don't know whether we should build a forwarding table for this
+          // Preprocessing is not finished. We don't know whether we should build a forwarding table for this
           // evacuated region. Remember the region in my queue while I work on evacuating more regions.
           if (queued_regions < QueueSize) {
             await_queue_forwardings[queued_regions] = num_forwardings;
@@ -438,8 +402,8 @@ void ShenandoahGenerationalEvacuationTask::evacuate_and_promote_regions(uint wor
             }
           }
         }
-      }
-    }
-  }
+      } // This finishes the else branch for (!preprocessing_finished)
+    } // This ends the else branch for r != nullptr. There's nothing to be done here.
+  } // This ends the "while (true)" loop. Even if cset_is_finished,  we still iterate for whate reason. why?
 }
 

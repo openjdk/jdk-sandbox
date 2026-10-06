@@ -1490,6 +1490,10 @@ public:
       ShenandoahParallelWorkerSession worker_session(worker_id);
       do_work(worker_id);
     }
+#define KELVIN_DEBUG
+#ifdef KELVIN_DEBUG
+    log_info(gc)("ShenEvacTask::work(%u) is done", worker_id);
+#endif
   }
 
 private:
@@ -1528,8 +1532,15 @@ private:
       size_t short_fall = _heuristics->mutator_memory_shortfall();
       size_t back_fill = 0;
       size_t cset_region_count = _cs->count();
+#ifdef KELVIN_DEBUG
+      log_info(gc)("Preparing to evacuate with %zu cset regions, short_fall: %zu", cset_region_count, short_fall);
+#endif
+
       for (size_t i = 0; i < cset_region_count; i++) {
         r = free_set->get_tlab_region(i);
+#ifdef KELVIN_DEBUG
+        log_info(gc)("Examining region %zu, with %zu live words", r->index(), r->get_live_data_words());
+#endif
         size_t num_entries;
         if (back_fill < short_fall) {
           // For now, calculate num_forwardings only for regions that we plan to early recycle with forwarding table.
@@ -1537,21 +1548,30 @@ private:
           // the early recycle regions array is approximately the order of increasing mark-word density.
           size_t num_forwardings = _ctx->count_mark_bit_conflicts<1>(r->bottom(), r->end());
           size_t num_entries = r->calculate_entries_in_forward_table();
+#ifdef KELVIN_DEBUG
+          log_info(gc)("  Region %zu has %zu forwardings, %zu entries", r->index(), num_forwardings, num_entries);
+#endif
           if (num_entries > 0) {
             size_t early_available_words = region_size_words - fwt_entry_size * num_entries;
+#ifdef KELVIN_DEBUG
+            log_info(gc)("  Early allocatable words: %zu", early_available_words);
+#endif
             back_fill += early_available_words;
             r->set_expected_forwardings(num_forwardings);
             r->set_fwt_entries(num_entries);
-            assert(r->early_recycle_status() == ShenandoahEarlyRecycleStatus::Planned_FWT, "Precondition");
+            assert(r->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Planned_FWT, "Precondition");
             fwt_regions++;
             continue;
           }
         }
         // This region will not be early recycled with forward table.
+#ifdef KELVIN_DEBUG
+        log_info(gc)("  Region %zu is rejected for fwt", r->index());
+#endif
         r->set_fwt_entries(0);
       }
 
-#ifdef KELVIN_TRACE
+#ifdef KELVIN_DEBUG
       log_info(gc)("After evac pre-init, cset region count: %zu, fwt regions: %zu, no-table regions: %zu",
                    cset_region_count, fwt_regions, cset_region_count - fwt_regions);
       log_info(gc)("  shortfall: %zu, back_fill: %zu", short_fall, back_fill);
@@ -1582,6 +1602,9 @@ private:
       size_t num_forwardings = 0;
       if (r == nullptr) {
         cset_is_finished = true;
+#ifdef KELVIN_DEBUG
+        log_info(gc)(" Worker %zu sees that cset_is_finished", worker_id);
+#endif
       } else {
         if (_cs->is_reusable(r)) {
           // Already evacuated and recycled. Degenerated GC resumes here.
@@ -1590,6 +1613,9 @@ private:
           ShenandoahConcurrentEvacuateRegionObjectClosure cl(_sh, r);
           SuspendibleThreadSetJoiner stsj(_concurrent);
           evacuate_region(r, cl);
+#ifdef KELVIN_DEBUG
+          log_info(gc)("  Region %zu has been evacuated by worker %zu", r->index(), worker_id);
+#endif
           num_forwardings = cl.num_forwardings();
         }
       }
@@ -1607,14 +1633,32 @@ private:
             // for preprocessing to finish.
             while (true) {
               size_t num_entries;
+
+#ifdef KELVIN_DEBUG
+              log_info(gc)("Worker %zu is postprocessing region %zu with num_forwardings %zu, entries %u",
+                           worker_id, r->index(), num_forwardings, r->get_fwt_entries());
+#endif
+
               if ((num_entries = r->get_fwt_entries()) == 0) {
                 // We plan that this region will not be early recycled with a forwarding table. We might choose to early recycle
                 // this region without a forwarding table. Save the number of forwarded objects now, so that we can use mark-word
                 // density to prioritize no-table recycling if necessary.
+#ifdef KELVIN_DEBUG
+                log_info(gc)("Worker %zu is finishing region %zu for no_table recycle with num_forwardings %zu",
+                             worker_id, r->index(), num_forwardings);
+#endif
                 _sh->finish_no_table_region_evacuation(r, num_forwardings);
+#ifdef KELVIN_DEBUG
+                log_info(gc)("Worker %zu finished region %zu for no_table recycle with num_forwardings %zu",
+                             worker_id, r->index(), num_forwardings);
+#endif
               } else {
                 // Recycle with fwt, using num_entries that are stored in the region.
                 // finish_fwt_region_evacuation() informs the free set that this region is ready to receive evacuations.
+#ifdef KELVIN_DEBUG
+                log_info(gc)("Worker %zu is finishing region %zu for fwt recycle with num_forwardings %zu",
+                             worker_id, r->index(), num_forwardings);
+#endif
                 _sh->finish_fwt_region_evacuation(r);
                 fwt_regions_recycled++;
                 fwt_bytes_recycled += (region_size_words - num_entries * fwt_entry_size) * HeapWordSize;
@@ -1688,22 +1732,22 @@ private:
                     if (free_set->fwt_start_handshake(started, finished)) {
                       // I hold the publication lock.
                       // Update my counts of prepared and published since values may have changed since I sampled above
-
+                      
                       size_t regions_to_publish = 0;
                       size_t bytes_to_publish = 0;
                       size_t first_unpublished_index = free_set->first_unpublished_fwt();
-                      size_t last_unpublished_index = free_set->last_unpublished_fwt();
+                      size_t upper_bound_on_unpublished = free_set->upper_bound_on_unpublished_fwt();
                       // Note: more regions might get published while I'm iterating through this loop and/or while I'm
                       // performing the handshake.  We won't count those as published until some subsequent publication.
-                      for (size_t index = first_unpublished_index; index <= last_unpublished_index; index++) {
+                      for (size_t index = first_unpublished_index; index < upper_bound_on_unpublished; index++) {
                         ShenandoahHeapRegion* r = free_set->get_tlab_region(index);
-                        if (r->early_recycle_status() == ShenandoahEarlyRecycleStatus::Prepared_FWT) {
+                        if (r->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Prepared_FWT) {
                           r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Publishing_FWT);
                           regions_to_publish++;
                           bytes_to_publish += region_size_bytes - r->get_fwt_entries() * entry_size_bytes;
                         }
                       }
-                      
+
                       // Everything stored above should become visible to other threads after handshake
                       OrderAccess::storeload();
 
@@ -1713,10 +1757,10 @@ private:
                       _sh->rendezvous_threads("Switch to Forward Table");
 
                       size_t new_first_unpublished_index = 0xffffffffffffffff;
-                      size_t new_last_unpublished_index = 0;
-                      for (size_t index = first_unpublished_index; index <= last_unpublished_index; index++) {
+                      size_t new_upper_bound = 0;
+                      for (size_t index = first_unpublished_index; index < upper_bound_on_unpublished; index++) {
                         ShenandoahHeapRegion* r = free_set->get_tlab_region(index);
-                        ShenandoahEarlyRecycleStatus status = r->early_recycle_status();
+                        ShenandoahEarlyRecycleStatus status = r->get_early_recycle_status();
                         switch (status) {
                           case ShenandoahEarlyRecycleStatus::Publishing_FWT:
                             r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Published_FWT);
@@ -1725,8 +1769,8 @@ private:
                             if (index < new_first_unpublished_index) {
                               new_first_unpublished_index = index;
                             }
-                            if (index > new_last_unpublished_index) {
-                              new_last_unpublished_index = index;
+                            if (index > new_upper_bound) {
+                              new_upper_bound = index;
                             }
                             break;
                           default:
@@ -1738,13 +1782,13 @@ private:
                       // Expected behavior: first_unpublished only advances if it was initially empty.  last_unpublished
                       // grows because other threads finish preparing regions while this thread is publishing.
                       free_set->compare_set_first_unpublished_fwt(first_unpublished_index, new_first_unpublished_index);
-                      free_set->compare_set_last_unpublished_fwt(last_unpublished_index, new_last_unpublished_index);
+                      free_set->compare_set_upper_bound_on_unpublished_fwt(upper_bound_on_unpublished, new_upper_bound);
 
                       // Published is at least as much as was prepared before our handshake.  It's likely more, but we
                       // don't know that for sure, so we act conservatively.
                       free_set->add_to_fwt_regions_published(regions_to_publish);
                       size_t total_available_to_xfer = free_set->add_to_fwt_bytes_published(bytes_to_publish);
-                      
+
                       // Still holding the handshake lock, transfer as much memory as possible from Reserves to Mutator.
                       // now_prepared_bytes is aka as fwt_bytes_published
                       size_t young_transfers = free_set->young_fwt_bytes_to_mutator();
@@ -1787,10 +1831,9 @@ private:
                 break;
               }
             }  // This ends the while(true) loop. Either we published, or we decided not to publish.
-          }
-          // else, there were no fwt regions recycled and the cset is not finished, so no need to publish anything.
+          } // else, there were no fwt regions recycled and the cset is not finished, so no need to publish anything.
         } else {
-          // Since pre-processing is not yet done, we don't know whether we should build a forwarding table for this
+          // Preprocessing is not yet done: we don't know whether we should build a forwarding table for this
           // evacuated region. Remember the region in my queue while I work on evacuating more regions.
           if (queued_regions < QueueSize) {
             await_queue_forwardings[queued_regions] = num_forwardings;
@@ -1805,10 +1848,16 @@ private:
             }
           }
         }
+      } // else, !_concurrent so no need to early recycle regions.
+      if (cset_is_finished) {
+        break;
       }
-    }
-  }
-};
+    } // This ends the outer-most while (true) loop, which repeatedly publishes as long as there is more to be published
+#ifdef KELVIN_DEBUG
+      log_info(gc)("We are done with do_work(%zu)", worker_id);
+#endif
+  } // This closes definition of do_work() method
+}; // This closes definition of ShenandoahEvacuationTask
 
 class ShenandoahRetireGCLABClosure : public ThreadClosure {
 private:
@@ -1873,19 +1922,23 @@ private:
   ShenandoahGCStatePropagatorHandshakeClosure _propagator;
 };
 
-void ShenandoahHeap::prepare_to_evacuate(bool concurrent) {
+void ShenandoahHeap::prepare_to_evacuate(bool prepare_for_early_recycle) {
   ShenandoahFreeSet* free_set = this->free_set();
   ShenandoahCollectionSet* cset = collection_set();
   ShenandoahMarkingContext* ctx = marking_context();
+
   size_t cset_region_count = cset->count();
-  free_set->preinitialize_recycled_region_array(cset_region_count);
+#ifdef KELVIN_DEBUG
+  log_info(gc)("prepare_to_evacuate() is processing %zu cset regions", cset_region_count);
+#endif
+  free_set->preinitialize_recycled_regions_array(cset_region_count);
   size_t cset_region_no = 0;
   size_t num_regions = this->num_regions();
   for (size_t i = 0; i < num_regions; i++) {
     if (cset->is_in(i)) {
       free_set->set_tlab_region_slot(cset_region_no++, get_region(i));
 #ifdef KELVIN_DEPRECATE
-      if (concurrent) {
+      if (prepare_for_early_recycle) {
         size_t marked_object_count = ctx->count_mark_bit_conflicts<1>(r->bottom(), r->top());
         r->set_expected_forwardings(marked_object_count);
       }
@@ -1893,7 +1946,7 @@ void ShenandoahHeap::prepare_to_evacuate(bool concurrent) {
       // else, we don't care about early recycling
     }
   }
-  if (concurrent) {
+  if (prepare_for_early_recycle) {
     // In the ideal, we would sort regions in order of increasing expected forwardings, but that information is not readily
     // available.  Instead, we sort by live data.
     free_set->sort_early_recycle_for_evac(cset_region_no);
@@ -1913,10 +1966,16 @@ void ShenandoahHeap::evacuate_collection_set(ShenandoahGeneration* generation, b
   ShenandoahEvacuationTask task(this, _collection_set, concurrent, workers()->active_workers());
   prepare_to_evacuate(concurrent);
   workers()->run_task(&task);
+#ifdef KELVIN_DEBUG
+  log_info(gc)("Back from running ShenEvacTask, concurrent is %d", concurrent);
+#endif
   if (concurrent && ShenandoahCSetReuse) {
     rendezvous_threads("Switch to Forward Table");
     _collection_set->switch_to_reuse_forwarding();
   }
+#ifdef KELVIN_DEBUG
+  log_info(gc)("Back from rendezvous_threads");
+#endif
 }
 
 void ShenandoahHeap::concurrent_prepare_for_update_refs() {
@@ -2083,12 +2142,20 @@ bool ShenandoahHeap::finish_no_table_region_evacuation(ShenandoahHeapRegion* r, 
   size_t pad = 0;
   size_t min_fill = min_fill_size();
   size_t region_size_words = ShenandoahHeapRegion::region_size_words();
+#ifdef KELVIN_DEBUG
+  HeapWord* next_unmarked = marking_context()->get_next_unmarked_addr_ignore_tams(r->bottom(), r->end());
+  log_info(gc)("finish_no_table_region_evacuation(region %zu), expecting to find unmarked at pad: %zu",
+               r->index(), next_unmarked - bottom);
+#endif
   while (pad < region_size_words) {
     if (((pad == 0) || (pad >= min_fill)) && !ctx->is_marked_ignore_tams(bottom + pad)) {
       break;
     }
     pad++;
   }
+#ifdef KELVIN_DEBUG
+  log_info(gc)("finish_no_table_region_evacuation() found initial unmarked at pad %zu", pad);
+#endif
   if (pad >= region_size_words) {
     r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Abandoned);
     return false;
@@ -3811,7 +3878,6 @@ void ShenandoahHeap::complete_loaded_archive_space(MemRegion archive_space) {
            "Archive space end should be at the top of last region: " PTR_FORMAT " " PTR_FORMAT,
            p2i(r->top()), p2i(end));
   }
-
 #endif
 }
 

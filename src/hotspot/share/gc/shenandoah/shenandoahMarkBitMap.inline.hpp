@@ -110,6 +110,101 @@ inline bool ShenandoahMarkBitMap::is_marked(HeapWord* addr) const {
 }
 
 template<ShenandoahMarkBitMap::bm_word_t flip, bool aligned_right>
+inline ShenandoahMarkBitMap::idx_t ShenandoahMarkBitMap::get_next_pair_of_zeros_impl(idx_t l_index, idx_t r_index) const {
+  STATIC_ASSERT(flip == find_ones_flip || flip == find_zeros_flip);
+  verify_range(l_index, r_index);
+  assert(!aligned_right || is_aligned(r_index, BitsPerWord), "r_index not aligned");
+
+  // The first word often contains an interesting bit, either due to
+  // density or because of features of the calling algorithm.  So it's
+  // important to examine that first word with a minimum of fuss,
+  // minimizing setup time for later words that will be wasted if the
+  // first word is indeed interesting.
+
+  // The benefit from aligned_right being true is relatively small.
+  // It saves an operation in the setup for the word search loop.
+  // It also eliminates the range check on the final result.
+  // However, callers often have a comparison with r_index, and
+  // inlining often allows the two comparisons to be combined; it is
+  // important when !aligned_right that return paths either return
+  // r_index or a value dominated by a comparison with r_index.
+  // aligned_right is still helpful when the caller doesn't have a
+  // range check because features of the calling algorithm guarantee
+  // an interesting bit will be present.
+#define KELVIN_TRACE
+#ifdef KELVIN_TRACE
+  log_info(gc)("get_next_paired_zeros_impl(l_index: %zd, r_index: %zd)", l_index, r_index);
+#endif
+  if (l_index < r_index) {
+    // Get the word containing l_index, and shift out low bits.
+    idx_t index = to_words_align_down(l_index);
+    bm_word_t cword = (map(index) ^ flip) >> bit_in_word(l_index);
+#ifdef KELVIN_TRACE
+    log_info(gc)(" cword: %zxb, was shifted by %zu", cword, (size_t) bit_in_word(l_index));
+    log_info(gc)("  computed from map(index): %zx ^ flip: %zx >> bit_in_word: %zu", map(index), flip, bit_in_word(l_index));
+#endif
+    if ((cword & 0x03) == 0) {
+      // The first bits (representing weak mark or strong mark) are similarly often interesting. When it matters
+      // (density or features of the calling algorithm make it likely the first bits are set), going straight to
+      // the next clause compares poorly with doing this check first; count_trailing_zeros can be relatively expensive,
+      // plus there is the additional range check.  But when the first bits are not set, the cost of having tested for
+      // them is relatively small compared to the rest of the search.
+#ifdef KELVIN_TRACE
+      log_info(gc)(" returning %zd at initial match", l_index);
+#endif
+      return l_index;
+    } else {
+      // Or with shifted or produces a zero in the even bit positions iff both strong and weak bit are off.
+      // Or with Cs assures that all odd bits are one, so that those bit positions produce 0 after xor.
+      // Xor with Fs produces a result that is non-zero iff one of the even bits was equal to zero.
+      bm_word_t zeros_found = ((cword | (cword >> 1)) | 0xccccccccccccccccL) ^ 0xffffffffffffffffL;
+#ifdef KELVIN_TRACE
+      log_info(gc)(" zeros_found: %zx", zeros_found);
+#endif
+      if (zeros_found) {
+        idx_t result = l_index + count_trailing_zeros(zeros_found);
+#ifdef KELVIN_TRACE
+        log_info(gc)(" found result: %zd, aligned_right: %d, r_index: %zd", result, aligned_right, r_index);
+        log_info(gc)("   count_trailing_zeroes: %u", count_trailing_zeros(zeros_found));
+#endif
+        if (aligned_right || (result < r_index)) return result;
+        // Result is beyond range bound; return r_index.
+      } else {
+        // Flipped and shifted first word is zero.  Word search through
+        // aligned up r_index for a non-zero flipped word.
+        idx_t limit = aligned_right
+                      ? to_words_align_down(r_index) // Minuscule savings when aligned.
+                      : to_words_align_up(r_index);
+        while (++index < limit) {
+          cword = map(index) ^ flip;
+          // See above for description of bit fiddling
+          zeros_found = ((cword | (cword >> 1)) | 0xccccccccccccccccL) ^ 0xffffffffffffffffL;
+#ifdef KELVIN_TRACE
+          log_info(gc)(" at index %zd, cword: %zx, zeros_found: %zx", index, cword, zeros_found);
+#endif
+          if (zeros_found) {
+            idx_t result = bit_index(index) + count_trailing_zeros(cword);
+#ifdef KELVIN_TRACE
+            log_info(gc)(" found result: %zd, aligned_right: %d, r_index: %zd", result, aligned_right, r_index);
+            log_info(gc)("  computed from count_trailing_zeros: %u", count_trailing_zeros(cword));
+#endif
+            if (aligned_right || (result < r_index)) return result;
+            // Result is beyond range bound; return r_index.
+            assert((index + 1) == limit, "invariant");
+            break;
+          }
+        }
+        // No bits in range; return r_index.
+      }
+    }
+  }
+#ifdef KELVIN_TRACE
+  log_info(gc)(" get_next_paired_zeros_impl is returning r_index: %zd", r_index);
+#endif
+  return r_index;
+}
+
+template<ShenandoahMarkBitMap::bm_word_t flip, bool aligned_right>
 inline ShenandoahMarkBitMap::idx_t ShenandoahMarkBitMap::get_next_bit_impl(idx_t l_index, idx_t r_index) const {
   STATIC_ASSERT(flip == find_ones_flip || flip == find_zeros_flip);
   verify_range(l_index, r_index);
@@ -253,6 +348,10 @@ inline ShenandoahMarkBitMap::idx_t ShenandoahMarkBitMap::get_prev_bit_impl(idx_t
   else {
     return r_index + 2;
   }
+}
+
+inline ShenandoahMarkBitMap::idx_t ShenandoahMarkBitMap::get_next_double_0_offset(idx_t l_offset, idx_t r_offset) const {
+  return get_next_pair_of_zeros_impl<find_ones_flip, false>(l_offset, r_offset);
 }
 
 inline ShenandoahMarkBitMap::idx_t ShenandoahMarkBitMap::get_next_one_offset(idx_t l_offset, idx_t r_offset) const {

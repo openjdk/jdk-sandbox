@@ -1480,7 +1480,7 @@ ShenandoahFreeSet::ShenandoahFreeSet(ShenandoahHeap* heap, size_t max_regions) :
   _early_recycled_retired_used(0)
 {
   clear_internal();
-  preinitialize_recycled_region_array(0);
+  preinitialize_recycled_regions_array(0);
 }
 
 void ShenandoahFreeSet::move_unaffiliated_regions_from_collector_to_old_collector(ssize_t count) {
@@ -2627,30 +2627,128 @@ bool ShenandoahFreeSet::recycle_cset_region_before_update(ShenandoahHeapRegion* 
   return true;
 }
 
+static inline bool too_small_for_plab(ShenandoahHeapRegion* r) {
+  return r->top() + PLAB::min_size() >= r->alloc_end();
+}
+
 void ShenandoahFreeSet::recycle_collection_set() {
+  // KELVIN TODO: As currently implemented, we hold the heap lock throughout this process. 
+  // Next step: do this without heap lock.  Do not set the _allocating_in_early_recycled flag until after this is done.
+
   shenandoah_assert_heaplocked();
   size_t recycled_regions = 0;
   size_t recycled_bytes = 0;
   size_t young_recycled_regions = 0;
   // Individual early-recycled regions must be forwarded before init-update-refs handhshake begins.  This code is invoked
   // following completion of init-update-refs handshake.  Here, we turn on allocations from early-recycled regions.
-  ShenandoahCollectionSet* cset = _heap->collection_set();
-  for (size_t i = 0; i < _heap->num_regions(); i++) {
-    ShenandoahHeapRegion* r = _heap->get_region(i);
-    if (cset->is_reusable(r) && !r->is_pinned()) {
-      recycle_cset_region_before_update(r, recycled_bytes, recycled_regions, young_recycled_regions);
-    }
-    // TODO:
-    // If r->is_pinned(), there is at least one object inside of r that cannot be relocated. This prevents us from fully
-    // evacuating and repurposing the region right now.  You'd think maybe we wouldn't put a region into the cset if it was
-    // pinned.  And once a region is in the cset, we should not allow it to be pinned.  Rather, the JNI code that attempts
-    // to pin it should be dealing with the to-space object, after it was evacuated from the cset region.  Let's investigate
-    // this further.
 
-    // TODO:
-    // else if (r->is_cset()) { insert this region into the early_recycled_retired_regions set; }
+  // The cset regions now occupy the first elements of _early_recycled_regions arrays.
+
+  ShenandoahFreeSet* free_set = _heap->free_set();
+  ShenandoahCollectionSet* cset = _heap->collection_set();
+  size_t num_early_recycle_regions = free_set->num_tlab_regions();
+
+  size_t num_fwt_regions = 0;
+  size_t num_no_table_regions = 0;
+
+  // In this initial loop, we:
+  // 1. Remove regions that satisfy r->has_self_forward(); they cannot be early recycled
+  // 2. Move all fwt regions to the front of queue
+  // 3. Move all no-table regions to the end of the early_recycled_regions array
+  for (size_t i = 0; i < num_early_recycle_regions; i++) {
+    ShenandoahHeapRegion* r = get_tlab_region(i);
+    assert(cset->is_reusable(r) || r->has_self_forwards(), "Should not be here");
+    if (!r->has_self_forwards()) {
+      switch (r->get_early_recycle_status()) {
+        case ShenandoahEarlyRecycleStatus::Planned_NO_FWT:
+        case ShenandoahEarlyRecycleStatus::Claimed_NO_FWT:
+        case ShenandoahEarlyRecycleStatus::Planned_FWT:
+        case ShenandoahEarlyRecycleStatus::Prepared_FWT:
+        case ShenandoahEarlyRecycleStatus::Publishing_FWT:
+        case ShenandoahEarlyRecycleStatus::Claimed_FWT:
+        default:
+          assert(false, "Should have transitions from this state: %d", (int) r->get_early_recycle_status());
+          break;
+
+        case ShenandoahEarlyRecycleStatus::Published_FWT:
+        case ShenandoahEarlyRecycleStatus::Retired_FWT:
+          set_tlab_region_slot(num_fwt_regions++, r);
+          break;
+
+        case ShenandoahEarlyRecycleStatus::Prepared_NO_FWT:
+        case ShenandoahEarlyRecycleStatus::Retired_NO_FWT:
+          set_no_table_region_slot(num_no_table_regions++, r);
+          break;
+
+        case ShenandoahEarlyRecycleStatus::Abandoned:
+          // We were not able to recycle this cset region. Remove from our tracking data by falling through.
+          // KELVIN TODO: Maybe we could just treaet as retired.
+          break;
+      }
+    } // else, skip this self_forwarded region.  
   }
 
+  initialize_recycled_region_arrays(num_fwt_regions, num_no_table_regions);
+
+  // Sift no-table regions into active and retired.
+  size_t num_retired = 0;
+  assert(!ShenandoahLazyReuseCursor, "Not supported after refactor");
+  for (size_t i = 0; i + num_retired < num_no_table_regions; i++) {
+    ShenandoahHeapRegion* r = get_no_table_region(i);
+    ShenandoahEarlyRecycleStatus status = r->get_early_recycle_status();
+    if (status == ShenandoahEarlyRecycleStatus::Prepared_NO_FWT) {
+      size_t marks_per_4096B = (size_t) (r->get_density_at_most_recent_sift() * (4096 / HeapWordSize));
+      insert_no_table_region(r, marks_per_4096B);
+    } else {
+      assert(status == ShenandoahEarlyRecycleStatus::Retired_NO_FWT, "Precondition");
+      // We will overwrite this region when we insert r into retired range
+      ShenandoahHeapRegion* overwrite_region = get_no_table_retired(num_retired);
+      insert_no_table_retired_region(r);
+      // Decrement i so we can process the overwrite_region on next iteration
+      set_no_table_region_slot(i--, overwrite_region);
+      num_retired++;
+    }
+  }
+
+  // Now, sift fwt tables into TLAB-allocatable, shared-allocatable, and retired.
+  num_retired = 0;
+  size_t num_shared_alloc = 0;
+  for (size_t i = 0; i + num_retired + num_shared_alloc < num_fwt_regions; i++) {
+    ShenandoahHeapRegion* r = free_set->get_tlab_region(i);
+    ShenandoahEarlyRecycleStatus status = r->get_early_recycle_status();
+    if (status == ShenandoahEarlyRecycleStatus::Retired_FWT) {
+      // We may overwrite the "last" tlab region when we insert r into retired range
+      ShenandoahHeapRegion* overwrite_region = get_tlab_region(num_fwt_regions - (num_retired + num_shared_alloc + 1));
+      insert_retired_region(r);
+      // Decrement i so we can process the overwrite_region on next iteration
+      set_no_table_region_slot(i--, overwrite_region);
+      num_retired++;
+    } else {
+      assert(status == ShenandoahEarlyRecycleStatus::Published_FWT, "Precondition");
+      // Decide whether this is TLAB or shared allocatable?
+      if (too_small_for_plab(r)) {
+        // We may overwrite the "last" tlab region when we insert r into retired range
+        ShenandoahHeapRegion* overwrite_region = get_tlab_region(num_fwt_regions - (num_retired + num_shared_alloc + 1));
+        r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Retired_FWT);
+        insert_retired_region(r);
+        // Decrement i so we can process the overwrite_region on next iteration
+        set_no_table_region_slot(i--, overwrite_region);
+        num_retired++;
+      } else {
+        size_t potential_tlab_size = early_recycled_tlab_available_size(r);
+        if (potential_tlab_size >= PLAB::min_size()) {
+          insert_tlab_region(r, potential_tlab_size);
+        } else {
+          // We may overwrite the "last" tlab region when we insert r into shared-allocation range
+          ShenandoahHeapRegion* overwrite_region = get_tlab_region(num_fwt_regions - (num_retired + num_shared_alloc + 1));
+          insert_shared_alloc_region(r);
+          // Decrement i so we can process the overwrite_region on next iteration
+          set_no_table_region_slot(i--, overwrite_region);
+          num_shared_alloc++;
+        }
+      }
+    }
+  }
   if (recycled_regions > 0) {
     _allocating_from_early_recycled_regions = true;
   }
@@ -3441,30 +3539,24 @@ double ShenandoahFreeSet::external_fragmentation() {
   }
 }
 
-void ShenandoahFreeSet::shift_retired_regions_down() {
-  assert(_early_recycled_retired_regions + num_retired_regions() + 1
+// was down, change to "higher_address"
+void ShenandoahFreeSet::shift_retired_regions_to_higher_address() {
+  assert(_early_recycled_retired_regions + num_retired_fwt_regions() + 1
          < _early_recycled_shared_alloc_regions - num_shared_alloc_regions(), "Too many early recycled regions!");
-  size_t retired_regions = num_retired_regions();
+  size_t retired_regions = num_retired_fwt_regions();
   _early_recycled_retired_regions[retired_regions] = _early_recycled_retired_regions[0];
   _early_recycled_retired_regions++;
 }
 
-void ShenandoahFreeSet::shift_retired_regions_up() {
+// was up, change to "lower_address"
+void ShenandoahFreeSet::shift_retired_regions_to_lower_address() {
   assert(_early_recycled_tlab_regions + num_tlab_regions() <= _early_recycled_retired_regions - 1,
          "Too many early recycled regions!");
   _early_recycled_retired_regions--;
-  size_t retired_regions = num_retired_regions();
+  size_t retired_regions = num_retired_fwt_regions();
   _early_recycled_retired_regions[0] = _early_recycled_retired_regions[retired_regions];
 }
 
-
-// Prepare for evacuation by setting aside cset_regions slots in the tlab segment of the early recycled regions array.
-// No other part of the array will be accessed during evacuation.
-void ShenandoahFreeSet::preinitialize_recycled_region_array(size_t cset_regions) {
-  _early_recycled_tlab_regions = _early_recycled_regions;
-  _early_recycled_tlab_regions_data = _early_recycled_regions_data;
-  _early_recycled_tlab_regions_count = cset_regions;
-}
 
 static int compare_by_increasing_live(ShenandoahHeapRegion* a, ShenandoahHeapRegion* b) {
   uint32_t a_live = a->get_expected_forwardings();
@@ -3483,31 +3575,49 @@ void ShenandoahFreeSet::sort_early_recycle_for_evac(size_t cset_region_count) {
   QuickSort::sort<ShenandoahHeapRegion*>(_early_recycled_regions, cset_region_count, compare_by_increasing_live);
 }
 
-// This initializes indexes that provide access to this shared array. It does not touch content of array.
-void ShenandoahFreeSet::initialize_recycled_region_arrays(size_t cset_regions, size_t fwt_regions) {
-  size_t num_regions = _heap->num_regions();
+#ifdef KELVIN_DEPRECATE
+void ShenandoahFreeSet::preinitialize_no_table_regions(size_t max_no_table_regions) {
+  size_t total_regions = _heap->num_regions();
+  _early_recycled_no_table_regions = _early_recycled_regions + total_regions - 1;
+  _early_recycled_no_table_regions_count = max_no_table_regions;
+}
+#endif
 
-  size_t num_no_fwt_regions = cset_regions - fwt_regions;
+// Prepare for evacuation by setting aside cset_regions slots in the tlab segment of the early recycled regions array.
+// No other part of the array will be accessed during evacuation.
+void ShenandoahFreeSet::preinitialize_recycled_regions_array(size_t cset_regions) {
+  _early_recycled_tlab_regions = _early_recycled_regions;
+  _early_recycled_tlab_regions_data = _early_recycled_regions_data;
+  _early_recycled_tlab_regions_count = cset_regions;
+}
+
+// This initializes indexes that provide access to this shared array. It does not touch content of array.
+void ShenandoahFreeSet::initialize_recycled_region_arrays(size_t fwd_table_regions, size_t no_table_regions) {
+  size_t total_regions = _heap->num_regions();
 
   _early_recycled_tlab_regions = _early_recycled_regions;
   _early_recycled_tlab_regions_data = _early_recycled_regions_data;
   _early_recycled_tlab_regions_count = 0;
   _early_recycled_tlab_used = 0;
 
-  _early_recycled_no_fwt_regions = &_early_recycled_regions[num_regions - 1];
-  _early_recycled_no_fwt_regions_data = &_early_recycled_regions_data[num_regions - 1];
-  _early_recycled_no_fwt_regions_count = 0;
-  _early_recycled_no_fwt_used = 0;
+  _early_recycled_no_table_regions = &_early_recycled_regions[total_regions - 1];
+  _early_recycled_no_table_regions_data = &_early_recycled_regions_data[total_regions - 1];
+  _early_recycled_no_table_regions_count = 0;
+  _early_recycled_no_table_used = 0;
 
-  _early_recycled_no_fwt_retired_regions = &_early_recycled_regions[num_regions - 1];
-  _early_recycled_no_fwt_retired_regions_count = 0;
+  _early_recycled_no_table_retired_regions = &_early_recycled_regions[total_regions - no_table_regions];
+  // Retired regions have no need for regions_data.
+  _early_recycled_no_table_regions_count = 0;
+  _early_recycled_no_table_used = 0;
 
-  _early_recycled_shared_alloc_regions = &_early_recycled_regions[num_regions - (num_no_fwt_regions + 1)];
-  _early_recycled_shared_alloc_regions_data = &_early_recycled_regions_data[num_regions - (num_no_fwt_regions + 1)];
+  _early_recycled_shared_alloc_regions = &_early_recycled_regions[total_regions - (no_table_regions + 1)];
+  _early_recycled_shared_alloc_regions_data = &_early_recycled_regions_data[total_regions - (no_table_regions + 1)];
   _early_recycled_shared_alloc_regions_count = 0;
   _early_recycled_shared_alloc_used = 0;
 
-  _early_recycled_retired_regions = &_early_recycled_regions[num_regions / 2];
+  // Since all FWT regions are initially stored in the tlab area,/ split the 
+  size_t fwt_midpoint = fwd_table_regions + (total_regions - no_table_regions + fwd_table_regions) / 2;
+  _early_recycled_retired_regions = &_early_recycled_regions[fwt_midpoint];
   _early_recycled_retired_regions_count = 0;
   _early_recycled_retired_used = 0;
 }
@@ -3542,7 +3652,7 @@ size_t ShenandoahFreeSet::get_shared_allocatable_size(size_t index) {
   return _early_recycled_shared_alloc_regions_data[-index];
 }
 
-ShenandoahHeapRegion* ShenandoahFreeSet::get_retired_region(size_t index) {
+ShenandoahHeapRegion* ShenandoahFreeSet::get_retired_fwt_region(size_t index) {
   assert(index < _early_recycled_retired_regions_count, "Precondition");
   return _early_recycled_retired_regions[index];
 }
@@ -3655,7 +3765,7 @@ void ShenandoahFreeSet::heapify_tlab_regions_downward(size_t index) {
 
 void ShenandoahFreeSet::insert_tlab_region(ShenandoahHeapRegion* r, size_t max_tlab_size) {
   if (_early_recycled_tlab_regions + _early_recycled_tlab_regions_count + 1 >= _early_recycled_retired_regions) {
-    shift_retired_regions_down();
+    shift_retired_regions_to_higher_address();
   }
   _early_recycled_tlab_used += r->used_with_reserve();
   set_tlab_region_slot(_early_recycled_tlab_regions_count, r);
@@ -3788,7 +3898,7 @@ void ShenandoahFreeSet::insert_shared_alloc_region(ShenandoahHeapRegion* r) {
   size_t shared_allocatable_words = (r->end() - r->top()) - r->reserved_bytes() / HeapWordSize;
   if (_early_recycled_shared_alloc_regions - _early_recycled_shared_alloc_regions_count <=
       _early_recycled_retired_regions + _early_recycled_retired_regions_count) {
-    shift_retired_regions_up();
+    shift_retired_regions_to_lower_address();
   }
   _early_recycled_shared_alloc_used += r->used_with_reserve();
   set_shared_alloc_region_slot(_early_recycled_shared_alloc_regions_count, r);
@@ -3817,7 +3927,7 @@ void ShenandoahFreeSet::remove_shared_alloc_region(size_t index) {
 void ShenandoahFreeSet::insert_retired_region(ShenandoahHeapRegion* r) {
   if (_early_recycled_retired_regions + _early_recycled_retired_regions_count + 1 >
       _early_recycled_shared_alloc_regions - (_early_recycled_shared_alloc_regions_count - 1)) {
-    shift_retired_regions_up();
+    shift_retired_regions_to_lower_address();
   }
   _early_recycled_retired_regions[_early_recycled_retired_regions_count++] = r;
   _early_recycled_retired_used += r->used_with_reserve();
@@ -3903,6 +4013,10 @@ void ShenandoahFreeSet::commit_reuse_alloc(ShenandoahHeapRegion* r, HeapWord* ga
 
 // Return size in words of the region's usable reuse gap, or 0 if none. May be sub-PLAB (shared-only).
 size_t ShenandoahFreeSet::early_recycled_tlab_available_size(ShenandoahHeapRegion* r) {
+  // KELVIN ASKS WHETHER THIS APPLIES TO BOTH FWT AND NO_TABLE APPLICATIONS.  THIS CODE DOES NOT DISTINGUISH AND
+  // THE DESCRIPTION IN SHENANDOAH_GLOBAL.HPP DOES NOT DISCUSS HOW WE RESOLVE CONFLICTS BETWEEN THIS PARAMETER WHICH
+  // DEFAULTS TO TRUE AND SHENANDOAHCSETALLOCATIONFORWARDINGTABLE VALUE.  IF THIS IS TRUE, IT SHORT-CIRCUITS ALL OF THE
+  // OTHER CODE BELOW.  DOESN'T LOOK RIGHT TO ME?
   if (ShenandoahLazyReuseCursor) {
     // Find a gap suitable at least for shared
     return prepare_reuse_gap(r, ShenandoahHeap::min_fill_size());
@@ -3946,10 +4060,6 @@ size_t ShenandoahFreeSet::early_recycled_tlab_available_size(ShenandoahHeapRegio
   }
   r->set_reuse_gap(alloc_limit, 0);
   return 0;
-}
-
-static inline bool too_small_for_plab(ShenandoahHeapRegion* r) {
-  return r->top() + PLAB::min_size() >= r->alloc_end();
 }
 
 // Retire when no PLAB-sized tail remains, migrate to the tlab heap when it can still host a LAB,

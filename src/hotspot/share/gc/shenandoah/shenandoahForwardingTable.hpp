@@ -351,6 +351,11 @@ public:
   }
 
   template <bool b = use_forward_table, typename = std::enable_if_t<b == false>>
+  float get_density_at_most_recent_sift() {
+    return _u._no_fwt._density_at_most_recent_sift;
+  }
+
+  template <bool b = use_forward_table, typename = std::enable_if_t<b == false>>
   void set_consumed_mark_words(uint32_t consumed_mark_words) {
     _u._no_fwt._consumed_mark_words = consumed_mark_words;
   }

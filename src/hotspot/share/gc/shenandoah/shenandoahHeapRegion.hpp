@@ -339,6 +339,10 @@ public:
     return _u._notbl_info.set_density_at_most_recent_sift(density);
   }
 
+  float get_density_at_most_recent_sift() {
+    return _u._notbl_info.get_density_at_most_recent_sift();
+  }
+
   void set_expected_forwardings(uint32_t num_forwarded) {
     _u._fwd_table.set_expected_forwardings(num_forwarded);
   }
@@ -566,7 +570,7 @@ public:
     return (fwt != nullptr) ? align_down(fwt, MinObjAlignmentInBytes) : _end;
   }
 
-  ShenandoahEarlyRecycleStatus early_recycle_status() {
+  ShenandoahEarlyRecycleStatus get_early_recycle_status() {
     // Doesn't matter whether we use _u._fwd_table or _u._notbl_info: _status is not part of ShenandoahEarlyRecycleInfo union
     return _u._fwd_table.get_status();
   }
@@ -574,6 +578,11 @@ public:
   void set_early_recycle_status(ShenandoahEarlyRecycleStatus new_status) {
     // Doesn't matter whether we use _u._fwd_table or _u._notbl_info: _status is not part of ShenandoahEarlyRecycleInfo union
     _u._fwd_table.set_status(new_status);
+  }
+
+  bool compare_set_early_recycle_status(ShenandoahEarlyRecycleStatus orig_status, ShenandoahEarlyRecycleStatus new_status) {
+    // Doesn't matter whether we use _u._fwd_table or _u._notbl_info: _status is not part of ShenandoahEarlyRecycleInfo union
+    return _u._fwd_table.compare_set_status(orig_status, new_status);
   }
 
   size_t capacity() const       { return byte_size(bottom(), end()); }

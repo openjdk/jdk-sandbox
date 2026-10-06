@@ -101,6 +101,19 @@ HeapWord* ShenandoahMarkBitMap::get_next_marked_addr_ignore_tams(const HeapWord*
   return index_to_address(nextOffset);
 }
 
+HeapWord* ShenandoahMarkBitMap::get_next_unmarked_addr_ignore_tams(const HeapWord* addr,
+                                                                   const HeapWord* limit) const {
+  // Round addr up to a possible object boundary to be safe.
+  size_t const addr_offset = address_to_index(align_up(addr, HeapWordSize << LogMinObjAlignment));
+  size_t const limit_offset = address_to_index(limit);
+  size_t const next_offset = get_next_double_0_offset(addr_offset, limit_offset);
+#define KELVIN_DEBUG
+#ifdef KELVIN_DEBUG
+  log_info(gc)("get_next_unmarked_addr_ignore_tams(), addr_offset: %zu, next_offset: %zu", addr_offset, next_offset);
+#endif
+  return index_to_address(next_offset);
+}
+
 HeapWord* ShenandoahMarkBitMap::get_last_marked_addr(const HeapWord* addr,
                                                      const HeapWord* limit) const {
 #ifdef ASSERT

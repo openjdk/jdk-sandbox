@@ -124,10 +124,18 @@ private:
   template<bm_word_t flip, bool aligned_right>
   inline idx_t get_next_bit_impl(idx_t l_index, idx_t r_index) const;
 
+  // Helper for get_next_{zero,one}_bit variants.
+  // - flip designates whether searching for 1s or 0s.  Must be one of
+  //   find_{zeros,ones}_flip.
+  // - aligned_right is true if r_index is a priori on a bm_word_t boundary.
+  template<bm_word_t flip, bool aligned_right>
+  inline idx_t get_next_pair_of_zeros_impl(idx_t l_index, idx_t r_index) const;
+
   template<bm_word_t flip, bool aligned_right>
   inline idx_t get_last_bit_impl(idx_t l_index, idx_t r_index) const;
 
   inline idx_t get_next_one_offset (idx_t l_index, idx_t r_index) const;
+  inline idx_t get_next_double_0_offset (idx_t l_index, idx_t r_index) const;
   inline idx_t get_last_one_offset (idx_t l_index, idx_t r_index) const;
 
   // Helper for get_prev_{zero,one}_bit variants.
@@ -193,6 +201,9 @@ public:
 
   HeapWord* get_next_marked_addr_ignore_tams(const HeapWord* addr,
                                              const HeapWord* limit) const;
+
+  HeapWord* get_next_unmarked_addr_ignore_tams(const HeapWord* addr,
+                                               const HeapWord* limit) const;
 
   // Finds last marked address between in interval [addr, limit), return limit, if not found.
   HeapWord* get_last_marked_addr(const HeapWord* addr,

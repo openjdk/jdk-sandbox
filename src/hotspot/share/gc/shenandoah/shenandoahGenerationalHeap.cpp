@@ -187,6 +187,7 @@ void ShenandoahGenerationalHeap::evacuate_collection_set(ShenandoahGeneration* g
   ShenandoahRegionIterator regions;
   ShenandoahGenerationalEvacuationTask task(this, generation, &regions, concurrent,
                                             false /* only promote regions */, workers()->active_workers());
+  prepare_to_evacuate(concurrent);
   workers()->run_task(&task);
   // Single post-evacuation rendezvous; see ShenandoahHeap::evacuate_collection_set.
   ShenandoahFreeSet* free_set = this->free_set();
@@ -200,6 +201,7 @@ void ShenandoahGenerationalHeap::promote_regions_in_place(ShenandoahGeneration* 
   ShenandoahRegionIterator regions;
   ShenandoahGenerationalEvacuationTask task(this, generation, &regions, concurrent,
                                             true /* only promote regions */, workers()->active_workers());
+  prepare_to_evacuate(false);
   workers()->run_task(&task);
 }
 

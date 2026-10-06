@@ -26,6 +26,7 @@
 #ifndef SHARE_GC_SHENANDOAH_SHENANDOAHFREESET_HPP
 #define SHARE_GC_SHENANDOAH_SHENANDOAHFREESET_HPP
 
+#include "gc/shared/plab.hpp"
 #include "gc/shenandoah/shenandoahHeap.hpp"
 #include "gc/shenandoah/shenandoahHeapRegionSet.hpp"
 #include "gc/shenandoah/shenandoahLock.hpp"
@@ -496,10 +497,21 @@ public:
     return _early_recycled_shared_alloc_regions_count;
   }
 
-  size_t num_retired_regions() {
+  size_t num_retired_fwt_regions() {
     return _early_recycled_retired_regions_count;
   }
 
+  ShenandoahHeapRegion* get_no_table_region(size_t index) {
+    return _early_recycled_no_table_regions[0 - index];
+  }
+
+  inline void set_no_table_region_slot(size_t slot_index, ShenandoahHeapRegion* r) {
+    _early_recycled_no_table_regions[0 - slot_index] = r;
+  }
+
+  ShenandoahHeapRegion* get_no_table_retired(size_t index) {
+    return _early_recycled_retired_regions[index];
+  }
 
   // Get the tlab region at requested index position.  Index 0 represents entry with largest allocatable tlab.
   // In general, lower index numbers have larger allocatable tlab memory than higher index numbers.  See discussion
@@ -507,6 +519,8 @@ public:
   //
   // Any call to insert or remove a shared-alloc region may renumber the shared-alloc regions.
   ShenandoahHeapRegion* get_tlab_region(size_t index);
+
+
 
   // Get the shared allocation region at requested index position.  Index 0 represents entry with largest allocatable memory.
   // In general, lower index numbers have larger allocatable tlab memory than higher index numbers.  See discussion
@@ -522,9 +536,9 @@ public:
     _early_recycled_shared_alloc_regions[-(ssize_t)slot] = r;
   }
 
-  // Return retired region at index position between 0 and num_retired_regions() - 1.
+  // Return retired region at index position between 0 and num_retired_fwt_regions() - 1.
   // Any call to insert() or remove tlab, shared-alloc, or retired regions may cause renumbering of the retired regions.
-  ShenandoahHeapRegion* get_retired_region(size_t index);
+  ShenandoahHeapRegion* get_retired_fwt_region(size_t index);
 
   void sort_early_recycle_for_evac(size_t regions);
 
@@ -610,39 +624,74 @@ private:
 
   // Although we begin evacuation of regions in order of increasing density, it may be that we finish evacuation and
   // preparation of forward tables out of order. This may require us to allocate the regions out of order.  Each alloc
-  // request by a GC worker starts its search at _fwt_gc_alloc_low_water_index in hopes that the region is now published.
+  // request by a GC worker starts its search for an unclaimed region at _first_unclaimed_young_fwt or _first_unclaimed_old_fwt.
   // We only allocate regions that have been published. We cannot overwrite mark words until the region has been publsihed.
-  // The low-water mark is adjusted downward when a evacuating GC worker thread releases the unused memory within its
-  // allocating memory after it has no more evacuation to perform.
 
   // Within early_recycle_regions array, no young or unaffiliated published regions below are unclaimed (available)
+  // Because of races and lazy updates, the region at _first_unclaimed_young_fwt may not be Published_FWT.
   Atomic<size_t> _first_unclaimed_young_fwt; 
-  // Within early_recycle_regions array, no young or unaffiliated published regions above are unclaimed (available)
-  Atomic<size_t> _last_unclaimed_young_fwt;
+  // Within early_recycle_regions array, no young or unaffiliated published regions at or above are unclaimed (available)
+  // Because of races and lazy updates, the region at _last_unclaimed_young_fwt - 1 may not be Published_FWT. Empty range is
+  // denoted by _first_unclaimed_young_fwt >= _upper_bound_on_unclaimed_young_fwt = 0.
+  Atomic<size_t> _upper_bound_on_unclaimed_young_fwt;
 
   // Within early_recycle_regions array, no old or unaffiliated published regions below are unclaimed (available)
+  // Because of races and lazy updates, the region at _first_unclaimed_young_old may not be Published_FWT.
   Atomic<size_t> _first_unclaimed_old_fwt; 
-  // Within early_recycle_regions array, no old or unaffiliated publsihed regions above are unclaimed (available)
-  Atomic<size_t> _last_unclaimed_old_fwt;
+  // Within early_recycle_regions array, no old or unaffiliated publsihed regions at or above are unclaimed (available)
+  // Because of races and lazy updates, the region at _upper_bound_on_unclaimed__old_fwt - 1 may not be Published_FWT.
+  // Empty range is denoted by _first_unclaimed_old_fwt >= _upper_bound_on_unclaimed_old_fwt = 0.
+  Atomic<size_t> _upper_bound_on_unclaimed_old_fwt;
   
-  Atomic<size_t> _first_unpublished_fwt;   // Within early_recycle_regions array, all regions below have been published
-  Atomic<size_t> _last_unpublished_fwt;    // Within early_recycle_regions array, none above are prepared and published
+  // Within early_recycle_regions array, no region below is Prepared_FWT.  Because of races and lazy updates, the
+  // region at _first_unpublished_fwt may not be Prepared_FWT.
+  Atomic<size_t> _first_unpublished_fwt;
+  // Within early_recycle_regions array, none region at or above is Prepared_FWT.  Because of races and lazy updates,
+  // the region at _upper_bound_on_unpublished_fwt - 1 may not be Prepared_FWT.
+  // Empty range is denoted by _frst_unpublished_fwt >= _upper_bound_on_unpublished_fwt - 0.
+  Atomic<size_t> _upper_bound_on_unpublished_fwt;
 
 public:
   // Set up the early-recycled region array to support efficient evacuation
-  void preinitialize_recycled_region_array(size_t cset_size);
+  void preinitialize_recycled_regions_array(size_t cset_size);
 
   size_t first_unpublished_fwt() {
     return _first_unpublished_fwt.load_relaxed();
   }
-  size_t last_unpublished_fwt() {
-    return _first_unpublished_fwt.load_relaxed();
+  size_t upper_bound_on_unpublished_fwt() {
+    return _upper_bound_on_unpublished_fwt.load_relaxed();
   }
   bool compare_set_first_unpublished_fwt(size_t original, size_t modified) {
     return _first_unpublished_fwt.compare_set(original, modified, memory_order_relaxed);
   }
-  bool compare_set_last_unpublished_fwt(size_t original, size_t modified) {
-    return _last_unpublished_fwt.compare_set(original, modified, memory_order_relaxed);
+  bool compare_set_upper_bound_on_unpublished_fwt(size_t original, size_t modified) {
+    return _upper_bound_on_unpublished_fwt.compare_set(original, modified, memory_order_relaxed);
+  }
+
+  size_t first_unclaimed_young_fwt() {
+    return _first_unclaimed_young_fwt.load_relaxed();
+  }
+  size_t upper_bound_on_unclaimed_young_fwt() {
+    return _upper_bound_on_unclaimed_young_fwt.load_relaxed();
+  }
+  bool compare_set_first_unclaimed_young_fwt(size_t original, size_t modified) {
+    return _first_unclaimed_young_fwt.compare_set(original, modified, memory_order_relaxed);
+  }
+  bool compare_set_upper_bound_on_unclaimed_young_fwt(size_t original, size_t modified) {
+    return _upper_bound_on_unclaimed_young_fwt.compare_set(original, modified, memory_order_relaxed);
+  }
+
+  size_t first_unclaimed_old_fwt() {
+    return _first_unclaimed_old_fwt.load_relaxed();
+  }
+  size_t upper_bound_on_unclaimed_old_fwt() {
+    return _upper_bound_on_unclaimed_old_fwt.load_relaxed();
+  }
+  bool compare_set_first_unclaimed_old_fwt(size_t original, size_t modified) {
+    return _first_unclaimed_old_fwt.compare_set(original, modified, memory_order_relaxed);
+  }
+  bool compare_set_upper_bound_on_unclaimed_old_fwt(size_t original, size_t modified) {
+    return _upper_bound_on_unclaimed_old_fwt.compare_set(original, modified, memory_order_relaxed);
   }
 
   size_t fwt_regions_prepared() {
@@ -690,34 +739,293 @@ public:
   void set_old_fwt_bytes_to_mutator(size_t modified) {
     _old_fwt_bytes_to_mutator.store_relaxed(modified);
   }
+
+  // Call this if I have claimed the region at original_value.  Will adjust upward.
+  void adjust_first_unclaimed_young(size_t original_value, size_t upper_bound) {
+    assert(get_tlab_region(original_value)->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Claimed_FWT, "Precondition");
+    for (size_t candidate_index = original_value + 1; candidate_index < upper_bound; candidate_index++) {
+      ShenandoahHeapRegion* r = get_tlab_region(candidate_index);
+      if ((r->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Published_FWT) && !r->is_old()) {
+        // Allow compare_set to fail when shrinking range.
+        _first_unclaimed_young_fwt.compare_set(original_value, candidate_index);
+        return;
+      }
+    }
+    // We found no unclaimed young regions. We allow compare_set to fail when we are shrinking range.
+    _first_unclaimed_young_fwt.compare_set(original_value, upper_bound);
+  }
+
+  // Call this if I have claimed the region at original_value - 1.  Will adjust downward.
+  void adjust_upper_bound_on_unclaimed_young(size_t original_value) {
+#ifdef ASSERT
+    assert(original_value > 0, "Can't claim region at index -1");
+    ShenandoahHeapRegion* orig = get_tlab_region(original_value - 1);
+    assert(orig->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Claimed_FWT, "Precondition");
+#endif
+    for (size_t candidate_upper_bound = original_value - 1; candidate_upper_bound >= 1; candidate_upper_bound--) {
+      ShenandoahHeapRegion* r = get_tlab_region(candidate_upper_bound - 1);
+      if ((r->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Published_FWT) && !r->is_old()) {
+        // Allow compare_set to fail when shrinking range.
+        _upper_bound_on_unclaimed_young_fwt.compare_set(original_value, candidate_upper_bound);
+        return;
+      }
+    }
+    // We found no unclaimed young regions. We allow compare_set to fail when we are shrinking range.
+    _upper_bound_on_unclaimed_young_fwt.compare_set(original_value, 0);
+  }
+
+  // Call this if I have claimed the region at original_value.  Will adjust upward.
+  void adjust_first_unclaimed_old(size_t original_value, size_t upper_bound) {
+    assert(get_tlab_region(original_value)->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Claimed_FWT,
+           "Precondition");
+    for (size_t candidate_index = original_value + 1; candidate_index < upper_bound; candidate_index++) {
+      ShenandoahHeapRegion* r = get_tlab_region(candidate_index);
+      if ((r->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Published_FWT) && (r->is_old() || !r->is_affiliated())) {
+        // Allow compare_set to fail when shrinking range.
+        _first_unclaimed_old_fwt.compare_set(original_value, candidate_index);
+        return;
+      }
+    }
+    // We found no unclaimed old regions. We allow compare_set to fail when we are shrinking range.
+    _first_unclaimed_old_fwt.compare_set(original_value, upper_bound);
+  }
+
+  // Call this if I have claimed the region at original_value - 1.  Will adjust downward.
+  void adjust_upper_bound_on_unclaimed_old(size_t original_value) {
+#ifdef ASSERT
+    assert(original_value > 0, "Can't claim region at index -1");
+    ShenandoahHeapRegion* orig = get_tlab_region(original_value - 1);
+    assert(orig->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Claimed_FWT, "Precondition");
+#endif
+    for (size_t candidate_upper_bound = original_value - 1; candidate_upper_bound >= 1; candidate_upper_bound--) {
+      ShenandoahHeapRegion* r = get_tlab_region(candidate_upper_bound - 1);
+      if ((r->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Published_FWT) && (r->is_old() || !r->is_affiliated())) {
+        // Allow compare_set to fail when shrinking range.
+        _upper_bound_on_unclaimed_old_fwt.compare_set(original_value, candidate_upper_bound);
+        return;
+      }
+    }
+    // We found no unclaimed old regions. We allow compare_set to fail when we are shrinking range.
+    _upper_bound_on_unclaimed_old_fwt.compare_set(original_value, 0);
+  }
+
+  // Call this if I have taken responsibility for publishing region at original_value.  Adjust upward.
+  void adjust_first_unpublished(size_t original_value, size_t upper_bound) {
+#ifdef ASSERT
+    ShenandoahHeapRegion* orig = get_tlab_region(original_value);
+    assert(orig->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Publishing_FWT, "Precondition");
+#endif
+    for (size_t candidate_index = original_value + 1; candidate_index < upper_bound; candidate_index++) {
+      ShenandoahHeapRegion* r = get_tlab_region(candidate_index);
+      if (r->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Prepared_FWT) {
+        // Allow compare_set to fail when shrinking range.
+        _first_unpublished_fwt.compare_set(original_value, candidate_index);
+        return;
+      }
+    }
+    // We found no unclaimed unpublished regions. We allow compare_set to fail when we are shrinking range.
+    _first_unpublished_fwt.compare_set(original_value, upper_bound);
+  }
+
+  // Call this if I have taken responsibility for publishing the region at original_value - 1.  Will adjust downward.
+  void adjust_upper_bound_on_unpublished(size_t original_value) {
+#ifdef ASSERT
+    assert(original_value > 0, "Can't claim region at index -1");
+    ShenandoahHeapRegion* orig = get_tlab_region(original_value - 1);
+    assert(orig->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Publishing_FWT, "Precondition");
+#endif
+    for (size_t candidate_upper_bound = original_value - 1; candidate_upper_bound >= 1; candidate_upper_bound--) {
+      ShenandoahHeapRegion* r = get_tlab_region(candidate_upper_bound - 1);
+      if (r->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Prepared_FWT) {
+        // Allow compare_set to fail when shrinking range.
+        _upper_bound_on_unpublished_fwt.compare_set(original_value, candidate_upper_bound);
+        return;
+      }
+    }
+    // We found no unclaimed unpublished regions. We allow compare_set to fail when we are shrinking range.
+    _upper_bound_on_unpublished_fwt.compare_set(original_value, 0);
+  }
+
+  ShenandoahHeapRegion* gc_worker_claim_empty_early_recycle_region() {
+    // for consolidated forward table.
+    size_t start_index = _first_unclaimed_young_fwt.load_relaxed();
+    size_t upper_bound = _upper_bound_on_unclaimed_young_fwt.load_relaxed();
+    for (size_t i = start_index; i < start_index; i++) {
+      ShenandoahHeapRegion* r = get_tlab_region(i);
+      if (r->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Published_FWT) {
+        if (!r->is_affiliated()) {
+          if (r->compare_set_early_recycle_status(ShenandoahEarlyRecycleStatus::Published_FWT,
+                                                  ShenandoahEarlyRecycleStatus::Claimed_FWT)) {
+            if (r->is_affiliated()) {
+              // Very unlikely race. Another thread has claimed, allocated, and unclaimed the region while
+              // we were placing our own claim. Unclaim the region and keep searching.
+              r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Published_FWT);
+            } else {
+              assert(r->top() == r->bottom(), "Should be affiliated");
+              if (i == start_index) {
+                adjust_first_unclaimed_young(i, num_tlab_regions());
+              }
+              if (i + 1 == upper_bound) {
+                adjust_upper_bound_on_unclaimed_young(i + 1);
+              }
+              if (i == _first_unclaimed_old_fwt.load_relaxed()) {
+                adjust_first_unclaimed_old(i, num_tlab_regions());
+              }
+              if (i + 1 == _upper_bound_on_unclaimed_old_fwt.load_relaxed()) {
+                adjust_upper_bound_on_unclaimed_old(i + 1);
+              }
+              return r;
+            }
+          } // else, we failed to claim the region
+        } // else, this region is not empty (affiliated), so keep searching
+      } // else, this region is not Published (maybe already claimed, maybe not yet Prepared, maybe Publishing)
+    } // end of for loop
+    return nullptr;
+  }
+
   ShenandoahHeapRegion* gc_worker_claim_early_recycle_young_region() {
-    // Search the range for a published region between _fwt_gc_alloc_low_water_index and _fwt_gc_alloc_high_water_index;
-    // We don't want a global lock.
-    //  Use CAS to claim the region by changing its _status field to CLAiMED
-    // Then use CAS to adjust low-water-index to next region after CLAIMED
-    
+    size_t start_index = _first_unclaimed_young_fwt.load_relaxed();
+    size_t upper_bound = _upper_bound_on_unclaimed_young_fwt.load_relaxed();
+    for (size_t i = start_index; i < start_index; i++) {
+      ShenandoahHeapRegion* r = get_tlab_region(i);
+      if (r->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Published_FWT) {
+        if (!r->is_old()) {
+          if (r->compare_set_early_recycle_status(ShenandoahEarlyRecycleStatus::Published_FWT,
+                                                  ShenandoahEarlyRecycleStatus::Claimed_FWT)) {
+            if (r->is_old()) {
+              // Very unlikely race. Another thread has claimed, allocated, and unclaimed the region while
+              // we were placing our own claim. Unclaim the region and keep searching.
+              r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Published_FWT);
+            } else {
+              if (i == start_index) {
+                adjust_first_unclaimed_young(i, num_tlab_regions());
+              }
+              if (i + 1 == upper_bound) {
+                adjust_upper_bound_on_unclaimed_young(i + 1);
+              }
+              if (!r->is_affiliated()) {
+                if (i == _first_unclaimed_old_fwt.load_relaxed()) {
+                  adjust_first_unclaimed_old(i, num_tlab_regions());
+                }
+                if (i + 1 == _upper_bound_on_unclaimed_old_fwt.load_relaxed()) {
+                  adjust_upper_bound_on_unclaimed_old(i + 1);
+                }
+              }
+            }
+            return r;
+          } // else, we failed to claim the region
+        } // else, this region is old so we can't use it as a young region.
+      } // else, this region is not Published (maybe already claimed, maybe not yet Prepared, maybe Publishing)
+    } // end of for loop
     return nullptr;
   }
+
+  // The returned region is either already affiliated with old, or it does not yet have allocations, so it can
+  // be affiliated with old.
   ShenandoahHeapRegion* gc_worker_claim_early_recycle_old_region() {
-    // Search the range for a published region between _fwt_gc_alloc_low_water_index and _fwt_gc_alloc_high_water_index;
-    // We don't want a global lock.
-    //  Use CAS to claim the region by changing its _status field to CLAiMED
-    // Then use CAS to adjust low-water-index to next region after CLAIMED
-    
+    size_t start_index = _first_unclaimed_old_fwt.load_relaxed();
+    size_t upper_bound = _upper_bound_on_unclaimed_old_fwt.load_relaxed();
+    for (size_t i = start_index; i < upper_bound; i++) {
+      ShenandoahHeapRegion* r = get_tlab_region(i);
+      if (r->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Published_FWT) {
+        if (!r->is_young()) {
+          if (r->compare_set_early_recycle_status(ShenandoahEarlyRecycleStatus::Published_FWT,
+                                                  ShenandoahEarlyRecycleStatus::Claimed_FWT)) {
+            if (r->is_young()) {
+              // Very unlikely race. Another thread has claimed, allocated, and unclaimed the region while
+              // we were placing our own claim. Upnclaim the region and keep searching.
+              r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Published_FWT);
+            } else {
+              if (i == start_index) {
+                adjust_first_unclaimed_old(i, num_tlab_regions());
+              }
+              if (i + 1 == upper_bound) {
+                adjust_upper_bound_on_unclaimed_old(i + 1);
+              }
+              if (!r->is_affiliated()) {
+                if (i == _first_unclaimed_young_fwt.load_relaxed()) {
+                  adjust_first_unclaimed_young(i, num_tlab_regions());
+                }
+                if (upper_bound == _upper_bound_on_unclaimed_young_fwt.load_relaxed()) {
+                  adjust_upper_bound_on_unclaimed_young(i + 1);
+                }
+              }
+              return r;
+            }
+          } // else, we failed to claim the region
+        } // else, this region is young and cannot be affiliated with old
+      } // else, this region is not Published (maybe already claimed, maybe not yet Prepared, maybe Publishing)
+    } // end of for loop
     return nullptr;
   }
+
+  // Use binary search with _early_recycle_regions to find index of this region.
+  size_t find_index_of_tlab_region(ShenandoahHeapRegion* r) {
+    size_t high_bound = num_tlab_regions();    // exclusive
+    size_t low_bound = 0;                      // inclusive
+    while (true) {
+      // Notes: if high_bound - low_bound == 1, midpoint is low_bound, and this matches (because high_bound is exclusive)
+      //        if high_bound - low_bound >= 2, midpoint > low_bound and midpoint < high_bound.  Progress is guaranteed.
+      size_t midpoint = low_bound + (high_bound - low_bound) / 2;
+      ShenandoahHeapRegion* candidate = get_tlab_region(midpoint);
+      if (candidate == r) {
+        return midpoint;
+      }
+      assert(high_bound - low_bound > 1, "Searched region was not found!");
+      if (candidate->get_live_data_words() < r->get_live_data_words()) {
+        low_bound = midpoint;
+      } else {
+        high_bound = midpoint;
+      }
+    }
+  }
+
   void gc_worker_unclaim_early_recycle_region(ShenandoahHeapRegion* r) {
     // The worker had a claim on this region, but no longer needs it, and it has at least PLAB::min_size() allocatable memory
-
+    assert(r->top() + PLAB::min_size() <= r->alloc_end(), "Precondition");
+    assert(r->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Claimed_FWT, "Precondition");
+    r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Published_FWT);
+    // Find the index of this region.
+    size_t index = find_index_of_tlab_region(r);
+    if (r->is_old()) {
+      size_t first_index, upper_bound;
+      do {
+        first_index = _first_unclaimed_old_fwt.load_relaxed();
+        if (first_index <= index) {
+          break;
+        }
+        // We are expanding range of unclaimed.  Require successful compare_set.
+      } while (!_first_unclaimed_old_fwt.compare_set(first_index, index));
+      do {
+        upper_bound = _upper_bound_on_unclaimed_old_fwt.load_relaxed();
+        if (upper_bound >= index + 1) {
+          break;
+        }
+        // We are expanding range of unclaimed.  Require successful compare_set.
+      } while (!_upper_bound_on_unclaimed_old_fwt.compare_set(upper_bound, index + 1));
+    } else {
+      size_t first_index, upper_bound;;
+      do {
+        first_index = _first_unclaimed_young_fwt.load_relaxed();
+        if (first_index <= index) {
+          break;
+        }
+        // We are expanding range of unclaimed.  Require successful compare_set.
+      } while (!_first_unclaimed_young_fwt.compare_set(first_index, index));
+      do {
+        upper_bound = _upper_bound_on_unclaimed_young_fwt.load_relaxed();
+        if (upper_bound >= index + 1) {
+          break;
+        }
+        // We are expanding range of unclaimed.  Require successful compare_set.
+      } while (!_upper_bound_on_unclaimed_young_fwt.compare_set(upper_bound, index + 1));
+    }
   }
 
-  // A GC worker may retire a region either because the region is fully expended (within PLAB::min_size()), or because
-  // the GC worker has finished its work and no longer needs to allocate. In the case that there is still memory available
-  // in the region, put this region back into the "published available" pool of regions.
+  // A GC worker may retire a region because the region is fully expended (available is less than PLAB::min_size()).
   void gc_worker_retire_early_recycle_region(ShenandoahHeapRegion* r) {
-    // Use CAS to unclaim the region.  change _status field to PUBLISHED or RETIRED, depending 
-    // Then change low-water-index if the region is 
-
+    r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Retired_FWT);
+    // We leave the region in place with retired status. At end of evacuation, this will be moved to the retired partition.
   }
 
   void fwt_handshakes(uint32_t& started, uint32_t& finished) {
@@ -731,7 +1039,7 @@ public:
     uint64_t modified = (((uint64_t) (started + 1)) << 32) | finished;
     return _fwt_handshakes_started_and_finished.compare_set(original, modified, memory_order_relaxed);
   }
-  // Given that handshake data recently helded started and finished, update to started and finished+1 if it hasn't changed
+  // Given that handshake data recently held started and finished, update to started and finished+1 if it hasn't changed
   bool fwt_finish_handshake(uint32_t started, uint32_t finished) {
     uint64_t original = (((uint64_t) started) << 32) | finished;
     uint64_t modified = (((uint64_t) started) << 32) | (finished + 1);
@@ -787,14 +1095,27 @@ private:
   // bytes of used memory within early-recycled retired regions
   size_t _early_recycled_retired_used;
 
-  ShenandoahHeapRegion** _early_recycled_no_fwt_regions;
-  size_t* _early_recycled_no_fwt_regions_data;
-  size_t _early_recycled_no_fwt_regions_count;
+  // The last N slots of the _early_recycled_regions array hold regions that are available for early recycling without
+  // forward table.
+  ShenandoahHeapRegion** _early_recycled_no_table_regions;
+  size_t* _early_recycled_no_table_regions_data;
+  size_t _early_recycled_no_table_regions_count;
   // bytes of used memory within early-recycled no-fwt regions
-  size_t _early_recycled_no_fwt_used;
+  size_t _early_recycled_no_table_used;
 
-  ShenandoahHeapRegion** _early_recycled_no_fwt_retired_regions;
-  size_t _early_recycled_no_fwt_retired_regions_count;
+  ShenandoahHeapRegion** _early_recycled_no_table_retired_regions;
+  size_t* _early_recycled_no_table_retired_regions_data;
+  size_t _early_recycled_no_table_retired_regions_count;
+
+
+#ifdef KELVIN_DEPRECATE
+  // Prepare the _early_recycled_regions array to hold up to max_no_table_regions.
+  void preinitialize_no_table_regions(size_t max_no_table_regions);
+
+  // This is addressed by updated mplementation of
+  // initialize_recycled_region_arrays(num_fwt_regions, num_no_table_Regions)
+
+#endif
 
   // All collection-set regions that are not early-recycled-with-fwt are eligible for early recycling without fwt.
   void initialize_recycled_region_arrays(size_t collection_set_regions, size_t early_recycled_fwt_regions);
@@ -802,6 +1123,9 @@ private:
   void insert_tlab_region(ShenandoahHeapRegion* r, size_t max_tlab_size);
   void insert_shared_alloc_region(ShenandoahHeapRegion* r);
   void insert_retired_region(ShenandoahHeapRegion* r);
+
+  void insert_no_table_region(ShenandoahHeapRegion* r, size_t marks_per_4096B);
+  void insert_no_table_retired_region(ShenandoahHeapRegion* r);
 
   void increase_early_recycled_tlab_regions_used(size_t delta_bytes) {
     _early_recycled_tlab_used += delta_bytes;
@@ -812,7 +1136,7 @@ private:
   }
 
   void increase_early_recycled_no_fwt_regions_used(size_t delta_bytes) {
-    _early_recycled_no_fwt_used += delta_bytes;
+    _early_recycled_no_table_used += delta_bytes;
   }
 
   // How large of a tlab can we allocate in the region at specified index position?
@@ -832,15 +1156,22 @@ private:
   void heapify_shared_alloc_regions_downward(size_t index);
   void heapify_shared_alloc_regions_upward(size_t index);
 
+  // No table regions are sorted by increasing density.
+  // For each region, we remember its next gap of at least min_fill_size() words.
+  // kelvin note to self: no_table_regions are like shared_alloc_regions in that they index negative from end.
+  // These are sorted in increasing value of data, unlike shared_alloc which is sorted in decreasing value of data.
+  void heapify_no_table_regions_downward(size_t index);
+  void heapify_no_table_regions_upward(size_t index);
+
   void remove_shared_alloc_region(size_t index);
 
   // We don't bother to remove retired regions. We'll re-initialize recycled regions during next GC cycle.
 
   // Make room for expansion of tlab regions
-  void shift_retired_regions_down();
+  void shift_retired_regions_to_higher_address();
 
   // Make room for expansion of shared-allocation regions
-  void shift_retired_regions_up();
+  void shift_retired_regions_to_lower_address();
 
   size_t early_recycled_tlab_available_size(ShenandoahHeapRegion* r);
 

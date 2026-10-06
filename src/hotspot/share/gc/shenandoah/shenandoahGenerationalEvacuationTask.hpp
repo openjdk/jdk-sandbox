@@ -43,7 +43,7 @@ private:
   ShenandoahRegionIterator* _regions;
   size_t _num_workers;
   bool _concurrent;
-  bool _only_promote_regions;
+  bool _only_promote_regions;   // if only promote, we do not early recycle
   Atomic<size_t> _early_recycle_preprocessed_regions;
 
 public:

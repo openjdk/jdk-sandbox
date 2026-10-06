@@ -221,6 +221,12 @@ ShenandoahHeapRegion* ShenandoahCollectionSet::claim_next() {
 }
 
 #ifdef KELVIN_DEPRECATE
+// This is the original implementation of claim_next(), before we
+// sorted the regions according to liveness.  We now sort them so that
+// we first evacuate the regions with smallest live data, helping us
+// early recycle more quickly.
+
+
   // This code is optimized for the case when collection set contains only
   // a few regions. In this case, it is more constructive to check for is_in
   // before hitting the (potentially contended) atomic index.

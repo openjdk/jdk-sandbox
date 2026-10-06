@@ -485,12 +485,16 @@ protected:
   // also used in shGenerationalHeap, which uses a different closure for update refs.
   ShenandoahRegionIterator _update_refs_iterator;
 
+protected:
+  // GC support
+  // Evacuation
+  void prepare_to_evacuate(bool prepare_for_early_recycle);
+
 private:
   inline void reset_cancellation_time();
 
   // GC support
   // Evacuation
-  void prepare_to_evacuate(bool concurrent);
   virtual void evacuate_collection_set(ShenandoahGeneration* generation, bool concurrent);
   // Concurrent root processing
   void prepare_concurrent_roots();
