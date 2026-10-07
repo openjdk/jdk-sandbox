@@ -3657,112 +3657,6 @@ ShenandoahHeapRegion* ShenandoahFreeSet::get_retired_fwt_region(size_t index) {
   return _early_recycled_retired_regions[index];
 }
 
-// The heap is represented by an array. For a node at position index within the heap, the left child of the node
-// is at 2 * index + 1 and the right child is at 2 * index + 2.
-//
-// The heap invariant: each entry's is no smaller than the value held by either of the entries held by subtrees.
-// Precondition: All nodes from position 0 .. heap_size - 1 satisfy the property that their value is no smaller than
-// either of their two child nodes except that the child at position index may be larger than its parent.
-//
-// Restore the heap invariant by swapping this node with its parent and/or its sibling nodes.
-void ShenandoahFreeSet::heapify_tlab_regions_upward(size_t index) {
-  while (true) {
-    if (index == 0) {
-      // There's nothing above me with which to compare.
-      break;
-    }
-    size_t parent_index = (index - 1) / 2;
-    size_t left_index = 2 * parent_index + 1;
-    size_t right_index = 2 * parent_index + 2;
-
-    // Assume the parent is the largest index.  If it is, we're done.  We already know that parent value is greater
-    // than index's sibling value.  We figure out below whether index is left or right sibling.
-    size_t largest_index = parent_index;
-
-    if (index == left_index) {
-      assert(left_index < _early_recycled_tlab_regions_count, "Sanity");
-      if (_early_recycled_tlab_regions_data[left_index] > _early_recycled_tlab_regions_data[largest_index]) {
-        largest_index = left_index;
-      }
-    } else {
-      assert(index == right_index, "Sanity");
-      if ((right_index < _early_recycled_tlab_regions_count) &&
-          (_early_recycled_tlab_regions_data[right_index] > _early_recycled_tlab_regions_data[largest_index])) {
-        largest_index = right_index;
-      }
-    }
-
-    // If the largest index is not the root, swap. Then upward_heapify the parent
-    if (largest_index != parent_index) {
-      // Since largest_index != index, we know that largest_index value is at least as large as its sibling's value.
-
-      size_t t = _early_recycled_tlab_regions_data[largest_index];
-      _early_recycled_tlab_regions_data[largest_index] = _early_recycled_tlab_regions_data[index];
-      _early_recycled_tlab_regions_data[index] = t;
-
-      ShenandoahHeapRegion* r = _early_recycled_tlab_regions[largest_index];
-      set_tlab_region_slot(largest_index, _early_recycled_tlab_regions[index]);
-      set_tlab_region_slot(index, r);
-
-      // Iterate, with new value of index
-      index = parent_index;
-    } else {
-      // Since largest_index == parent_index, we know its value is at least as large as each of its children's values.  We're done.
-      break;
-    }
-  }
-}
-
-// The heap is represented by an array. For a node at position index within the heap, the left child of the node
-// is at 2 * index + 1 and the right child is at 2 * index + 2.
-//
-// The heap invariant: each entry's is no smaller than the value held by either of the entries held by subtrees.
-//
-// Precondition: All nodes from position 0 .. heap_size - 1 satisfy the property that their value is no smaller than
-// either of their two child nodes except that the parent at position index may be smaller than one or both of its
-// child values.
-//
-// Restore the heap invariant by swapping this node with one of its child nodes.
-void ShenandoahFreeSet::heapify_tlab_regions_downward(size_t index) {
-  while (true) {
-    size_t parent_index = index;
-    size_t left_index = 2 * parent_index + 1;
-    size_t right_index = 2 * parent_index + 2;
-
-    // Assume the parent is the largest index.  If it is, we're done.
-    size_t largest_index = parent_index;
-
-    if ((left_index < _early_recycled_tlab_regions_count) &&
-        (_early_recycled_tlab_regions_data[left_index] > _early_recycled_tlab_regions_data[largest_index])) {
-      largest_index = left_index;
-    }                                  
-    if ((right_index < _early_recycled_tlab_regions_count) &&
-        (_early_recycled_tlab_regions_data[right_index] > _early_recycled_tlab_regions_data[largest_index])) {
-      largest_index = right_index;
-    }
-
-    // If the largest index is not the root, swap. Then upward_heapify the parent
-    if (largest_index != parent_index) {
-      // Since largest_index != index, we know that largest_index value is at least as large as its sibling's value.
-
-      size_t t = _early_recycled_tlab_regions_data[largest_index];
-      _early_recycled_tlab_regions_data[largest_index] = _early_recycled_tlab_regions_data[index];
-      _early_recycled_tlab_regions_data[index] = t;
-
-      ShenandoahHeapRegion* r = _early_recycled_tlab_regions[largest_index];
-      set_tlab_region_slot(largest_index, _early_recycled_tlab_regions[index]);
-      set_tlab_region_slot(index, r);
-
-      // Iterate, with swapped child as the new parent
-      index = largest_index;
-    } else {
-      // Since largest_index == index, we know its value is at least as large as each of its children's values.  We're done.
-      // If this node has no children, its value will be the largest and we'll terminate here.
-      break;
-    }
-  }
-}
-
 void ShenandoahFreeSet::insert_tlab_region(ShenandoahHeapRegion* r, size_t max_tlab_size) {
   if (_early_recycled_tlab_regions + _early_recycled_tlab_regions_count + 1 >= _early_recycled_retired_regions) {
     shift_retired_regions_to_higher_address();
@@ -3770,7 +3664,8 @@ void ShenandoahFreeSet::insert_tlab_region(ShenandoahHeapRegion* r, size_t max_t
   _early_recycled_tlab_used += r->used_with_reserve();
   set_tlab_region_slot(_early_recycled_tlab_regions_count, r);
   _early_recycled_tlab_regions_data[_early_recycled_tlab_regions_count++] = max_tlab_size;
-  heapify_tlab_regions_upward(_early_recycled_tlab_regions_count - 1);
+  heapify_upward<true, false>(_early_recycled_tlab_regions, _early_recycled_tlab_regions_data,
+                              _early_recycled_tlab_regions_count - 1, _early_recycled_tlab_regions_count);
 }
 
 void ShenandoahFreeSet::remove_tlab_region(size_t index) {
@@ -3784,20 +3679,43 @@ void ShenandoahFreeSet::remove_tlab_region(size_t index) {
     _early_recycled_tlab_regions_count--;
     set_tlab_region_slot(index, _early_recycled_tlab_regions[_early_recycled_tlab_regions_count]);
     _early_recycled_tlab_regions_data[index] = _early_recycled_tlab_regions_data[_early_recycled_tlab_regions_count];
-    heapify_tlab_regions_downward(index);
-    heapify_tlab_regions_upward(index);
+    heapify_downward<true, false>(_early_recycled_tlab_regions, _early_recycled_tlab_regions_data,
+                                  index, _early_recycled_tlab_regions_count);
+    heapify_upward<true, false>(_early_recycled_tlab_regions, _early_recycled_tlab_regions_data,
+                                index, _early_recycled_tlab_regions_count);
   }
 }
 
-// The heap is represented by an array. For a node at position index within the heap, the left child of the node
-// is at 2 * index + 1 and the right child is at 2 * index + 2.
-//
-// The heap invariant: each entry's is no smaller than the value held by either of the entries held by subtrees.
-// Precondition: All nodes from position 0 .. heap_size - 1 satisfy the property that their value is no smaller than
-// either of their two child nodes except that the child at position index may be larger than its parent.
-//
-// Restore the heap invariant by swapping this node with its parent and/or its sibling nodes.
-void ShenandoahFreeSet::heapify_shared_alloc_regions_upward(size_t index) {
+void ShenandoahFreeSet::insert_no_table_region(ShenandoahHeapRegion* r, size_t marks_per_4096B) {
+  size_t shared_allocatable_words = (r->end() - r->top()) - r->reserved_bytes() / HeapWordSize;
+  _early_recycled_no_table_used += r->used_with_reserve();
+  set_no_table_region_slot(_early_recycled_no_table_regions_count, r);
+  _early_recycled_no_table_regions_data[-_early_recycled_no_table_regions_count++] = marks_per_4096B;
+  heapify_upward<false, true>(_early_recycled_no_table_regions, _early_recycled_no_table_regions_data,
+                              _early_recycled_no_table_regions_count - 1, _early_recycled_no_table_regions_count);
+}
+
+void ShenandoahFreeSet::remove_no_table_region(size_t index) {
+  ShenandoahHeapRegion* r = get_no_table_region(index);
+  _early_recycled_no_table_used -= r->used_with_reserve();
+  if (index == _early_recycled_no_table_regions_count - 1) {
+    // Removing the last entry in the partition is easy.  Just decrement the count.
+    _early_recycled_no_table_regions_count--;
+  } else {
+    // Move the last entry into position of the removed entry. Then heapify downward and upward.
+    _early_recycled_no_table_regions_count--;
+    set_no_table_region_slot(index, _early_recycled_no_table_regions[-_early_recycled_no_table_regions_count]);
+    _early_recycled_no_table_regions_data[-index] = _early_recycled_no_table_regions_data[-_early_recycled_no_table_regions_count];
+    heapify_downward<false, true>(_early_recycled_no_table_regions, _early_recycled_no_table_regions_data,
+                                  index, _early_recycled_no_table_regions_count);
+    heapify_upward<false, true>(_early_recycled_no_table_regions, _early_recycled_no_table_regions_data,
+                                index, _early_recycled_no_table_regions_count);
+  }
+}
+
+template <bool parity, bool is_backward>
+void ShenandoahFreeSet::heapify_upward(ShenandoahHeapRegion** base_region, size_t* base_data, size_t index, size_t count) {
+  const size_t idx_factor = is_backward? -1: 1;
   while (true) {
     if (index == 0) {
       // There's nothing above me with which to compare.
@@ -3810,30 +3728,40 @@ void ShenandoahFreeSet::heapify_shared_alloc_regions_upward(size_t index) {
     // Assume the parent is the largest index.  If it is, we're done.  We already know that parent value is greater
     // than index's sibling value.  We figure out below whether index is left or right sibling.
     size_t largest_index = parent_index;
-
     if (index == left_index) {
       assert(left_index < _early_recycled_shared_alloc_regions_count, "Sanity");
-      if (_early_recycled_shared_alloc_regions_data[-left_index] > _early_recycled_shared_alloc_regions_data[-largest_index]) {
-        largest_index = left_index;
+      if (parity) {
+        if (base_data[idx_factor * left_index] > base_data[idx_factor * largest_index]) {
+          largest_index = left_index;
+        }
+      } else {
+        if (base_data[idx_factor * left_index] < base_data[idx_factor * largest_index]) {
+          largest_index = left_index;
+        }
       }
     } else {
       assert(index == right_index, "Sanity");
-      if ((right_index < _early_recycled_shared_alloc_regions_count) &&
-          (_early_recycled_shared_alloc_regions_data[-right_index] > _early_recycled_shared_alloc_regions_data[-largest_index])) {
-        largest_index = right_index;
+      if (parity) {
+        if ((right_index < count) && (base_data[idx_factor * right_index] > base_data[idx_factor * largest_index])) {
+          largest_index = right_index;
+        }
+      } else {
+        if ((right_index < count) && (base_data[idx_factor * right_index] < base_data[idx_factor * largest_index])) {
+          largest_index = right_index;
+        }
       }
     }
 
-    // If the largest index is not the root, swap. Then upward_heapify the parent
+    // If the largest index is not the root, swap. Then upward_heapify the parent by iterating.
     if (largest_index != parent_index) {
       // Since largest_index != index, we know that largest_index value is at least as large as its sibling's value.
-      size_t t = _early_recycled_shared_alloc_regions_data[-largest_index];
-      _early_recycled_shared_alloc_regions_data[-largest_index] = _early_recycled_shared_alloc_regions_data[-index];
-      _early_recycled_shared_alloc_regions_data[-index] = t;
+      size_t t = base_data[idx_factor * largest_index];
+      base_data[idx_factor * largest_index] = base_data[idx_factor * index];
+      base_data[idx_factor * index] = t;
 
-      ShenandoahHeapRegion* r = _early_recycled_shared_alloc_regions[-largest_index];
-      set_shared_alloc_region_slot(largest_index, _early_recycled_shared_alloc_regions[-index]);
-      set_shared_alloc_region_slot(index, r);
+      ShenandoahHeapRegion* r = base_region[idx_factor * largest_index];
+      base_region[idx_factor * largest_index] = base_region[idx_factor * index];
+      base_region[idx_factor * index] = r;
 
       // Iterate, with new value of index
       index = parent_index;
@@ -3844,17 +3772,9 @@ void ShenandoahFreeSet::heapify_shared_alloc_regions_upward(size_t index) {
   }
 }
 
-// The heap is represented by an array. For a node at position index within the heap, the left child of the node
-// is at 2 * index + 1 and the right child is at 2 * index + 2.
-//
-// The heap invariant: each entry's is no smaller than the value held by either of the entries held by subtrees.
-//
-// Precondition: All nodes from position 0 .. heap_size - 1 satisfy the property that their value is no smaller than
-// either of their two child nodes except that the parent at position index may be smaller than one or both of its
-// child values.
-//
-// Restore the heap invariant by swapping this node with one of its child nodes.
-void ShenandoahFreeSet::heapify_shared_alloc_regions_downward(size_t index) {
+template <bool parity, bool is_backward>
+void ShenandoahFreeSet::heapify_downward(ShenandoahHeapRegion** base_region, size_t* base_data, size_t index, size_t count) {
+  const size_t idx_factor = is_backward? -1: 1;
   while (true) {
     size_t parent_index = index;
     size_t left_index = 2 * parent_index + 1;
@@ -3862,27 +3782,32 @@ void ShenandoahFreeSet::heapify_shared_alloc_regions_downward(size_t index) {
 
     // Assume the parent is the largest index.  If it is, we're done.
     size_t largest_index = parent_index;
-
-    if ((left_index < _early_recycled_shared_alloc_regions_count) &&
-        (_early_recycled_shared_alloc_regions_data[-left_index] > _early_recycled_shared_alloc_regions_data[-largest_index])) {
-      largest_index = left_index;
-    }                                  
-    if ((right_index < _early_recycled_shared_alloc_regions_count) &&
-        (_early_recycled_shared_alloc_regions_data[-right_index] > _early_recycled_shared_alloc_regions_data[-largest_index])) {
-      largest_index = right_index;
+    if (parity) {
+      if ((left_index < count) && (base_data[idx_factor * left_index] > base_data[idx_factor * largest_index])) {
+        largest_index = left_index;
+      } 
+      if ((right_index < count) && (base_data[idx_factor * right_index] > base_data[idx_factor * largest_index])) {
+        largest_index = right_index;
+      }
+    } else {
+      if ((left_index < count) && (base_data[idx_factor * left_index] < base_data[idx_factor * largest_index])) {
+        largest_index = left_index;
+      }
+      if ((right_index < count) && (base_data[idx_factor * right_index] < base_data[idx_factor * largest_index])) {
+        largest_index = right_index;
+      }
     }
 
     // If the largest index is not the root, swap. Then upward_heapify the parent
     if (largest_index != parent_index) {
       // Since largest_index != index, we know that largest_index value is at least as large as its sibling's value.
+      size_t t = base_data[idx_factor * largest_index];
+      base_data[idx_factor * largest_index] = base_data[idx_factor * index];
+      base_data[idx_factor * index] = t;
 
-      size_t t = _early_recycled_shared_alloc_regions_data[-largest_index];
-      _early_recycled_shared_alloc_regions_data[-largest_index] = _early_recycled_shared_alloc_regions_data[-index];
-      _early_recycled_shared_alloc_regions_data[-index] = t;
-
-      ShenandoahHeapRegion* r = _early_recycled_shared_alloc_regions[-largest_index];
-      set_shared_alloc_region_slot(largest_index, _early_recycled_shared_alloc_regions[-index]);
-      set_shared_alloc_region_slot(index, r);
+      ShenandoahHeapRegion* r = base_region[idx_factor * largest_index];
+      base_region[idx_factor * largest_index] = base_region[idx_factor * index];
+      base_region[idx_factor * index] = r;
 
       // Iterate, with swapped child as the new parent
       index = largest_index;
@@ -3903,7 +3828,8 @@ void ShenandoahFreeSet::insert_shared_alloc_region(ShenandoahHeapRegion* r) {
   _early_recycled_shared_alloc_used += r->used_with_reserve();
   set_shared_alloc_region_slot(_early_recycled_shared_alloc_regions_count, r);
   _early_recycled_shared_alloc_regions_data[-_early_recycled_shared_alloc_regions_count++] = shared_allocatable_words;
-  heapify_shared_alloc_regions_upward(_early_recycled_shared_alloc_regions_count - 1);
+  heapify_upward<true, true>(_early_recycled_shared_alloc_regions, _early_recycled_shared_alloc_regions_data,
+                             _early_recycled_shared_alloc_regions_count - 1, _early_recycled_shared_alloc_regions_count);
 }
 
 void ShenandoahFreeSet::remove_shared_alloc_region(size_t index) {
@@ -3919,8 +3845,11 @@ void ShenandoahFreeSet::remove_shared_alloc_region(size_t index) {
       _early_recycled_shared_alloc_regions[-_early_recycled_shared_alloc_regions_count]);
     _early_recycled_shared_alloc_regions_data[-index] =
       _early_recycled_shared_alloc_regions_data[-_early_recycled_shared_alloc_regions_count];
-    heapify_shared_alloc_regions_downward(index);
-    heapify_shared_alloc_regions_upward(index);
+
+    heapify_downward<true, true>(_early_recycled_shared_alloc_regions, _early_recycled_shared_alloc_regions_data,
+                                 index, _early_recycled_shared_alloc_regions_count);
+    heapify_upward<true, true>(_early_recycled_shared_alloc_regions, _early_recycled_shared_alloc_regions_data,
+                               index, _early_recycled_shared_alloc_regions_count);
   }
 }
 
@@ -3931,6 +3860,11 @@ void ShenandoahFreeSet::insert_retired_region(ShenandoahHeapRegion* r) {
   }
   _early_recycled_retired_regions[_early_recycled_retired_regions_count++] = r;
   _early_recycled_retired_used += r->used_with_reserve();
+}
+
+void ShenandoahFreeSet::insert_no_table_retired_region(ShenandoahHeapRegion* r) {
+  _early_recycled_no_table_retired_regions[_early_recycled_retired_regions_count++] = r;
+  _early_recycled_no_table_retired_used += r->used_with_reserve();
 }
 
 size_t ShenandoahFreeSet::scan_reuse_gap(ShenandoahHeapRegion* r, HeapWord* from, size_t floor) {
@@ -4078,7 +4012,8 @@ void ShenandoahFreeSet::reclassify_shared_alloc_region(ShenandoahHeapRegion* r, 
       remove_shared_alloc_region(idx);
       insert_tlab_region(r, potential_tlab_size);
     } else {
-      heapify_shared_alloc_regions_downward(idx);
+      heapify_downward<true, true>(_early_recycled_shared_alloc_regions, _early_recycled_shared_alloc_regions_data,
+                                   idx, _early_recycled_shared_alloc_regions_count);
     }
   }
 }

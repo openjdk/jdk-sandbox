@@ -1106,7 +1106,7 @@ private:
   ShenandoahHeapRegion** _early_recycled_no_table_retired_regions;
   size_t* _early_recycled_no_table_retired_regions_data;
   size_t _early_recycled_no_table_retired_regions_count;
-
+  size_t _early_recycled_no_table_retired_used;
 
 #ifdef KELVIN_DEPRECATE
   // Prepare the _early_recycled_regions array to hold up to max_no_table_regions.
@@ -1125,7 +1125,10 @@ private:
   void insert_retired_region(ShenandoahHeapRegion* r);
 
   void insert_no_table_region(ShenandoahHeapRegion* r, size_t marks_per_4096B);
+  void remove_no_table_region(size_t index);
+
   void insert_no_table_retired_region(ShenandoahHeapRegion* r);
+  void remove_no_table_retired_region(size_t index);
 
   void increase_early_recycled_tlab_regions_used(size_t delta_bytes) {
     _early_recycled_tlab_used += delta_bytes;
@@ -1148,20 +1151,45 @@ private:
   // Any call to insert or remove a shared-alloc retion may renumber the shared-alloc regions.
   size_t get_shared_allocatable_size(size_t index);
 
-  void heapify_tlab_regions_downward(size_t index);
-  void heapify_tlab_regions_upward(size_t index);
+  // The heap is represented by an array. For a node at position index within the heap, the left child of the node
+  // is at 2 * index + 1 and the right child is at 2 * index + 2.
+  //
+  // The heap invariant: each entry's is no smaller than the value held by either of the entries held by subtrees.
+  //
+  // Precondition: All nodes from position 0 .. heap_size - 1 satisfy the property that their value is no smaller than
+  // either of their two child nodes except that the parent at position index may be smaller than one or both of its
+  // child values.
+  //
+  // Restore the heap invariant by swapping this node with one of its child nodes.
+
+  // base_region points to the heap element 0
+  // base_data points to data element 0
+  // parity determines whether element 0 has largest value (parity true), or smallest data value (partity false).
+  // is_backward is true iff the array entries are counted in the negative direction from the base pointers.
+  // Note: no-tlab regions prioritize for lowest mark-word density (partity false).
+  //       shared-alloc regions prioritize for largest available memory
+  template <bool parity, bool is_backward>
+  void heapify_downward(ShenandoahHeapRegion** base_region, size_t* base_data, size_t index, size_t count);
+
+  // The heap is represented by an array. For a node at position index within the heap, the left child of the node
+  // is at 2 * index + 1 and the right child is at 2 * index + 2.
+  //
+  // The heap invariant: each entry's is no smaller than the value held by either of the entries held by subtrees.
+  // Precondition: All nodes from position 0 .. heap_size - 1 satisfy the property that their value is no smaller than
+  // either of their two child nodes except that the child at position index may be larger than its parent.
+  //
+  // Restore the heap invariant by swapping this node with its parent and/or its sibling nodes.
+
+  // base_region points to the heap element 0
+  // base_data points to data element 0
+  // parity determines whether element 0 has largest data value (parity true), or smallest data value (partity false).
+  // is_backward is true iff the array entries are counted in the negative direction from the base pointers.
+  // Note: no-tlab regions prioritize for lowest mark-word density (partity false).
+  //       shared-alloc regions prioritize for largest available memory
+  template <bool parity, bool is_backward>
+  void heapify_upward(ShenandoahHeapRegion** base_region, size_t* base_data, size_t index, size_t count);
 
   void remove_tlab_region(size_t index);
-
-  void heapify_shared_alloc_regions_downward(size_t index);
-  void heapify_shared_alloc_regions_upward(size_t index);
-
-  // No table regions are sorted by increasing density.
-  // For each region, we remember its next gap of at least min_fill_size() words.
-  // kelvin note to self: no_table_regions are like shared_alloc_regions in that they index negative from end.
-  // These are sorted in increasing value of data, unlike shared_alloc which is sorted in decreasing value of data.
-  void heapify_no_table_regions_downward(size_t index);
-  void heapify_no_table_regions_upward(size_t index);
 
   void remove_shared_alloc_region(size_t index);
 
