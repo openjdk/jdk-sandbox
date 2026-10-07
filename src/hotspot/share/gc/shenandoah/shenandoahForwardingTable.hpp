@@ -228,6 +228,9 @@ class alignas(CACHE_LINE_SIZE_IN_BYTES) ShenandoahEarlyRecycleInfo {
   };
   struct fwt_build {
     fwt_info _desc;
+    ShenandoahHeapRegion* _carrier;
+    HeapWord* _lo;
+    HeapWord* _hi;
     uint32_t _num_expected;
     uint32_t _num_actual;
     uint32_t _num_live;

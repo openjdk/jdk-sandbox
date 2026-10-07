@@ -235,7 +235,8 @@ void ShenandoahAsserts::assert_correct(void* interior_loc, oop obj, const char* 
   if (heap->collection_set()->use_forward_table(obj)) {
     ShenandoahHeapRegion* fwt_r = heap->heap_region_containing(obj);
     HeapWord* obj_addr = cast_from_oop<HeapWord*>(obj);
-    if (obj_addr >= fwt_r->forwarding_table_start()) {
+    HeapWord* fwt_start = fwt_r->forwarding_table_start();
+    if (fwt_start >= fwt_r->bottom() && fwt_start < fwt_r->end() && obj_addr >= fwt_start) {
       // Since obj_addr >= start of fwd table, this must be a previously allocated object, and it should have been forwarded.
       oop fwd_check = ShenandoahBarrierSet::resolve_forwarded_not_null(obj);
       if (fwd_check == obj) {
