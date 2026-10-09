@@ -410,10 +410,11 @@ import java.util.function.BiFunction;
  * <P>
  * An {@code SSLEngine} can be used to interact with a QUIC transport
  * implementation in order to secure the QUIC transport.
- * In this mode of operation, QUIC is responsible for cryptographic protection
- * and reliable data delivery.
+ * In this mode of operation, the QUIC transport is responsible
+ * for cryptographic protection and reliable data delivery.
  * The {@code SSLEngine} performs the initial handshake
- * and provides updates to QUIC through the {@link QuicTLSAdapter} interface.
+ * and provides updates to the QUIC transport through
+ * the {@link QuicTLSAdapter} interface.
  * <P>
  * A QUIC-supporting {@code SSLEngine} is created by calling
  * {@link SSLContext#createSSLEngine(String, int, QuicTLSAdapter)}
