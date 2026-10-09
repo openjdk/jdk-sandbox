@@ -42,8 +42,8 @@ import java.util.Set;
  * The set of cipher suites supported by the {@code SSLEngine} may be different
  * from the set supported by the QUIC transport. The {@code SSLEngine} calls
  * {@link #getSupportedCipherSuites()}, and then only negotiates cipher suites
- * that are both {@link SSLEngine#getEnabledCipherSuites() enabled}
- * and supported by QUIC.
+ * that are both {@linkplain SSLEngine#getEnabledCipherSuites() enabled}
+ * and supported by the QUIC transport.
  * <P>
  * Each QUIC endpoint offers QUIC transport parameters to the peer.
  * The {@code SSLEngine} calls {@link #localQuicTransportParameters()}
@@ -68,7 +68,7 @@ import java.util.Set;
  * <P>
  * The methods on this interface may be called by {@code SSLEngine wrap()},
  * {@code unwrap()}, {@code beginHandshake()}, or by delegated tasks.
- * The implementations must not call {@code wrap()}, {@code unwrap()},
+ * Their implementations must not call {@code wrap()}, {@code unwrap()},
  * or run any delegated tasks.
  *
  * @spec https://www.rfc-editor.org/info/rfc9001

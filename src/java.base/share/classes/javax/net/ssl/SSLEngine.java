@@ -408,7 +408,8 @@ import java.util.function.BiFunction;
  *
  * <P id="quic"><b>Using SSLEngine to secure QUIC</b></P>
  * <P>
- * An {@code SSLEngine} can be used to secure a QUIC transport.
+ * An {@code SSLEngine} can be used to interact with a QUIC transport
+ * implementation in order to secure the QUIC transport.
  * In this mode of operation, QUIC is responsible for cryptographic protection
  * and reliable data delivery.
  * The {@code SSLEngine} performs the initial handshake
