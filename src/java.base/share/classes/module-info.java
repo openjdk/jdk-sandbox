@@ -156,7 +156,8 @@ module java.base {
         java.compiler,
         jdk.compiler,
         java.net.http, // Uses QUIC SSLEngine
-        jdk.jdeps; // Uses Valhalla reflective preview APIs
+        jdk.jdeps, // Uses Valhalla reflective preview APIs
+        jdk.incubator.json;
     exports jdk.internal.access to
         java.desktop,
         java.logging,

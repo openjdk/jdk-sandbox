@@ -59,7 +59,9 @@ enum X509Authentication implements SSLAuthentication {
     // Require EC public key
     EC          ("EC",          "EC"),
     // Edwards-Curve key
-    EDDSA       ("EdDSA",       "EdDSA");
+    EDDSA       ("EdDSA",       "EdDSA"),
+    // Require ML-DSA public key
+    MLDSA       ("ML-DSA",      "ML-DSA");
 
     final String keyAlgorithm;
     final String[] keyTypes;
