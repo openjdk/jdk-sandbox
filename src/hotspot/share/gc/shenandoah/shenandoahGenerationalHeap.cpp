@@ -25,6 +25,7 @@
 
 #include "gc/shenandoah/shenandoahAgeCensus.hpp"
 #include "gc/shenandoah/shenandoahClosures.inline.hpp"
+#include "gc/shenandoah/shenandoahCollectionSet.inline.hpp"
 #include "gc/shenandoah/shenandoahCollectorPolicy.hpp"
 #include "gc/shenandoah/shenandoahForwarding.inline.hpp"
 #include "gc/shenandoah/shenandoahFreeSet.hpp"
@@ -46,7 +47,9 @@
 #include "gc/shenandoah/shenandoahWorkerPolicy.hpp"
 #include "gc/shenandoah/shenandoahYoungGeneration.hpp"
 #include "logging/log.hpp"
+#include "memory/resourceArea.hpp"
 #include "utilities/events.hpp"
+#include "utilities/quickSort.hpp"
 
 
 class ShenandoahGenerationalInitLogger : public ShenandoahInitLogger {
@@ -161,8 +164,8 @@ void ShenandoahGenerationalHeap::start_idle_span() {
 }
 
 bool ShenandoahGenerationalHeap::requires_barriers(stackChunkOop obj) const {
-  if (is_idle()) {
-    return false;
+  if (ShenandoahHeap::requires_barriers(obj)) {
+    return true;
   }
 
   if (is_concurrent_young_mark_in_progress() && is_in_young(obj) && !marking_context()->allocated_after_mark_start(obj)) {
@@ -175,13 +178,79 @@ bool ShenandoahGenerationalHeap::requires_barriers(stackChunkOop obj) const {
     return true;
   }
 
-  if (has_forwarded_objects()) {
-    // Object may have pointers that need to be updated
-    return true;
-  }
-
   return false;
 }
+
+#ifdef DMITRY_BUILD
+struct ReuseEstimate {
+  ShenandoahHeapRegion* _region;
+  size_t _volume;
+};
+
+static int compare_by_reuse_estimate(ReuseEstimate a, ReuseEstimate b) {
+  if (a._volume > b._volume) return -1;
+  if (a._volume < b._volume) return 1;
+  return 0;
+}
+
+class ShenandoahReuseEstimateTask : public WorkerTask {
+private:
+  uint const           _nworkers;
+  ReuseEstimate* const _estimates;
+  size_t const         _count;
+public:
+  ShenandoahReuseEstimateTask(uint nworkers, ReuseEstimate* estimates, size_t count) :
+    WorkerTask("Shenandoah Reuse Estimate"),
+    _nworkers(nworkers), _estimates(estimates), _count(count) {}
+
+  void work(uint worker_id) override {
+    for (size_t i = worker_id; i < _count; i += _nworkers) {
+      _estimates[i]._volume = _estimates[i]._region->estimate_reuse();
+    }
+  }
+};
+
+void ShenandoahGenerationalHeap::plan_early_reuse() {
+  if (!ShenandoahCSetReuse || !ShenandoahForwardingTableShortfallCutoff) {
+    return;
+  }
+  ShenandoahCollectionSet* const cset = collection_set();
+  if (cset->is_empty()) {
+    return;
+  }
+  size_t const short_fall = young_generation()->heuristics()->mutator_memory_shortfall();
+
+  ResourceMark rm;
+  ReuseEstimate* const estimates = NEW_RESOURCE_ARRAY(ReuseEstimate, cset->count());
+
+  size_t n = 0;
+  for (size_t idx = 0; idx < num_regions() && n < cset->count(); idx++) {
+    if (cset->is_in(idx)) {
+      ShenandoahHeapRegion* const r = get_region(idx);
+      if (cset->is_reuse_eligible(r)) {
+        estimates[n]._region = r;
+        n++;
+      }
+    }
+  }
+
+  ShenandoahReuseEstimateTask task(workers()->active_workers(), estimates, n);
+  workers()->run_task(&task);
+
+  QuickSort::sort(estimates, n, compare_by_reuse_estimate);
+
+  size_t back_fill = 0;
+  for (size_t i = 0; i < n; i++) {
+    size_t const potential = estimates[i]._volume;
+    // We'll need at least 1 extra region because of the fragmentation
+    if (back_fill >= short_fall + potential) {
+      break;
+    }
+    cset->set_planned_for_reuse(estimates[i]._region);
+    back_fill += potential;
+  }
+}
+#endif
 
 void ShenandoahGenerationalHeap::evacuate_collection_set(ShenandoahGeneration* generation, bool concurrent) {
   ShenandoahRegionIterator regions;
@@ -880,7 +949,7 @@ private:
       oop obj = cast_to_oop(p);
       objs.do_object(obj);
       HeapWord* prev_p = p;
-      p += obj->size();
+      p += ShenandoahForwarding::size(obj);
       if (p < tams) {
         p = ctx->get_next_marked_addr(p, tams);
         // If there are no more marked objects before tams, this returns tams.  Note that tams is

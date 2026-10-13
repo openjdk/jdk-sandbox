@@ -441,12 +441,6 @@
           "region sizes allow it. Disabling this forces wide (16-byte) "    \
           "entries unconditionally, which is useful for debugging.")        \
                                                                             \
-  product(bool, ShenandoahCSetRegionTLAB, true, DIAGNOSTIC,                 \
-          "Allow mutator TLAB carving in collection-set regions during "    \
-          "concurrent evacuation. Disabling this makes allocate() return "  \
-          "nullptr for TLAB requests in cset regions, forcing the "         \
-          "allocator to pick a non-cset region instead.")                   \
-                                                                            \
   product(double, ShenandoahEarlyRecycleWaste, 1.2, EXPERIMENTAL,           \
           "When heuristics predict a memory shortfall during concurrent "   \
           "GC and call for early recycling of collection set memory, "      \
@@ -472,14 +466,9 @@
           "For reused cset regions, build address-based forwarding tables; "\
           "disable to keep mark-word forwarding and reuse the whole body.") \
                                                                             \
-  product(bool, ShenandoahPreferCSetAllocation, false, DIAGNOSTIC,          \
-          "Force both shared and TLAB mutator allocations to prefer early-" \
-          "recycled cset regions.")                                         \
-                                                                            \
-  product(bool, ShenandoahLazyReuseCursor, true, DIAGNOSTIC,                \
-          "Carve early-recycled regions through a per-region clean gap "    \
-          "cursor: allocate within the cached gap with no bitmap scan, "    \
-          "rescanning once for the next usable gap on a miss.")             \
+  product(bool, ShenandoahForwardingTableShortfallCutoff, true, DIAGNOSTIC, \
+          "Target the estimated mutator shortfall when early-recycling "    \
+          "FWT cset regions; disable to early-recycle all eligible.")        \
                                                                             \
   product(uintx, ShenandoahCSetReuseMaxDensityPercent, 10, DIAGNOSTIC,      \
           "Reuse an evacuated cset region (table or mark-word forwarding) " \

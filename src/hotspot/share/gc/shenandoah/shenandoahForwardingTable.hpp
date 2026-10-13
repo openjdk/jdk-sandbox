@@ -207,64 +207,58 @@ class alignas(CACHE_LINE_SIZE_IN_BYTES) ShenandoahEarlyRecycleInfo {
   ShenandoahHeapRegion* const _region;
   ShenandoahMarkingContext* _ctx;
 
-
   // Two instance fields above consume 16 bytes
-  // The _no_fwt_info union member consumes 8 + 3*4 = 20 bytes
+  // The no_fwt_info union member consumes 8 + 4*4 = 24 bytes
   // The _fwt_info union member consumes 8 + 5*4 + 2 = 30 bytes
   // The _status field below consumes 1 byte
 
-  union AlternateRecycleInfo {
-    struct no_fwt_info {
-      // No-fwt allocatable regions are sorted by mark-word density. We prefer to allocate in regions that have low mark-word
-      // density, as allocations are easier with fewer conflicts.  As allocations are made, mark words may be "consumed" (or
-      // skipped over) by the allocations, changing the density of available memory above top.
-      // Occasionally, we resift the allocatable no-fwt regions to reprioritize allocations from the no-fwt allocatable
-      // regions.
+  struct no_fwt_info {
+    // No-fwt allocatable regions are sorted by mark-word density. We prefer to allocate in regions that have low mark-word
+    // density as allocations are easier with fewer conflicts.  As allocations are made, mark words may be "consumed" (or
+    // skipped over) by the allocations, changing the density of available memory above top.
+    // Occasionally, we resift the allocatable no-fwt regions to reprioritize allocations from the no-fwt allocatable
+    // regions.
 
-      // What is the next marked word above current _region->top()?
-      // Invariant: top() is not marked.
-      HeapWord* _next_marked_cursor;
+    // What is the next marked word above current _region->top()?
+    HeapWord* _next_marked_cursor;
 
-      // _density_at_most_recent_sift initially holds the density computed at final mark. Its value is updated
-      // each time we re-sort the no-fwt regions into allocation priority order.  _density is computed as 
-      // (evacuated_objects - _consumed_mark_words) / (_region->end() - _region->top())
-      float _density_at_most_recent_sift;
-      // _evacuated_objects is initialized at mark, based on how many total objects were marked. By the time we early recycle
-      // this region, all of these objects will have been evacuaetd.
-      uint32_t _evacuated_objects;
-      // This is initialized to zero at final mark, is updated following each allocation to represent the number of markword
-      // spanned by the waste associated with the allocation.
-      uint32_t _consumed_mark_words;
-
-    } _no_fwt;
-    struct fwt_info {
-      void* _table;
-      // uint32_t _num_entries in forwarding table has max value 2^32 == 4M.  Since each entry consumes at least 8 bytes,
-      // this is sufficient to consume an entire region of size 32M. This matches the Shenandoah definition of MAX_REGION_SIZE.
-      // Note that G1 GC has a larger maximum region size, 512 MB. Even that can be supported with a uint32_t forward table size.
-      // In that configuration, each entry in the forward table consumes 16 bytes, so the maximum forward table would by 64M,
-      // representing 12.5% of the region size. Generally, we would not want to try to forward more than approximately 10% of
-      // a heap region's content, especially for such large heap regions.
-      uint32_t _num_entries;
-      uint32_t _max_required_probes;
-      uint32_t _num_expected_forwardings;
-      uint32_t _num_actual_forwardings;  // kelvin says we should not need to keep this info around. Maybe the field and
-                                         // all definitions thereof should be placed under #ifdef ASSERT
-
-      uint32_t _num_live_words;          // Number of mark words spanned by the fwt.  We also do not need to keep this around
-      bool _fullgc_fixup;                // Set if forward table is being used during full GC marking - required special handling
-      char pad;                          // Make size even number of bytes
-    } _fwt;
-    // Default constructor for union assumes early recycle forward table
-    AlternateRecycleInfo() {
-      _fwt._table = nullptr;
-      _fwt._num_entries = 0;
-      _fwt._max_required_probes = 0;
-      _fwt._num_expected_forwardings = 0;
-      _fwt._num_actual_forwardings = 0;
-      _fwt._num_live_words = 0;
-      _fwt._fullgc_fixup = false;
-    }
+    // _density_at_most_recent_sift initially holds the density computed at final mark. Its value is updated
+    // each time we re-sort the no-fwt regions into allocation priority order.  _density is computed as
+    // (evacuated_objects - _consumed_mark_words) / (_region->end() - _region->top())
+    float _density_at_most_recent_sift;
+    // _evacuated_objects is initialized at mark, based on how many total objects were marked. By the time we early recycle
+    // this region, all of these objects will have been evacuaetd.
+    uint32_t _evacuated_objects;
+    // This is initialized to zero at final mark, is updated following each allocation to represent the number of mark word
+    // spanned by the waste associated with the allocation.
+    uint32_t _consumed_mark_words;
+  };
+  struct fwt_info {
+    void* _table;
+    // uint32_t _num_entries in forwarding table has max value 2^32 == 4M.  Since each entry consumes at least 8 bytes,
+    // this is sufficient to consume an entire region of size 32M. This matches the Shenandoah definition of MAX_REGION_SIZE.
+    // Note that G1 GC has a larger maximum region size, 512 MB. Even that can be supported with a uint32_t forward table size.
+    // In that configuration, each entry in the forward table consumes 16 bytes, so the maximum forward table would by 64M,
+    // representing 12.5% of the region size. Generally, we would not want to try to forward more than approximately 10% of
+    // a heap region's content, especially for such large heap regions.
+    uint32_t _num_entries;
+    uint32_t _max_required_probes;
+    uint32_t _num_expected_forwardings;
+    bool _fullgc_fixup;
+  };
+#ifdef POSSIBLE_FUTURE
+  // fwt_build is instantiated  locally during construction of fwt.  It is not stored in the heap region.
+  struct fwt_build {
+    fwt_info _desc;            // values to be copied into ShenandoahEarlyRecycleInfo after construction
+    uint32_t _num_expected;    // expected forewarded entries
+    uint32_t _num_actual;      // actual number of forwarded entries
+    uint32_t _num_live;        // num_live is mark-word conflicts in table
+    bool _complete;            // true iff we have successfully constructed the forward table
+  };
+#endif
+  union {
+    no_fwt_info _no_fwt;
+    fwt_info _fwt;
   } _u;
   Atomic<ShenandoahEarlyRecycleStatus> _status;
 
@@ -283,22 +277,22 @@ class alignas(CACHE_LINE_SIZE_IN_BYTES) ShenandoahEarlyRecycleInfo {
   static uint64_t hash(HeapWord* original, void* table);
 
   template <bool b = use_forward_table, typename = std::enable_if_t<b == true>>
-  inline void probe_of(HeapWord* original, uint32_t& index, uint32_t& stride) const;
+  inline void probe_of(void* table, uint32_t num_entries, HeapWord* original, uint32_t& index, uint32_t& stride) const;
 
   template <class Entry, bool b = use_forward_table, typename = std::enable_if_t<b == true>>
-  inline uint32_t reserve_forwarding(BitMap& used, uint32_t index, uint32_t stride, Entry& replaced,
-                                   uint32_t& replaced_index, uint32_t& replaced_stride, uint32_t& replaced_probes);
+  inline uint32_t reserve_forwarding(BitMap& used, uint32_t index, uint32_t stride, uint32_t& num_actuals, Entry& replaced,
+                                     uint32_t& replaced_index, uint32_t& replaced_stride, uint32_t& replaced_probes);
 
   template <class Entry, bool b = use_forward_table, typename = std::enable_if_t<b == true>>
   inline uint32_t reserve_new_forwarding(BitMap& used, uint32_t index, uint32_t stride, uint32_t probes,
-                                       Entry& replaced, uint32_t& replaced_index, uint32_t& replaced_stride,
-                                       uint32_t& replaced_probes);
+                                         Entry& replaced, uint32_t& replaced_index, uint32_t& replaced_stride,
+                                         uint32_t& replaced_probes);
 
   template <class Entry, bool b = use_forward_table, typename = std::enable_if_t<b == true>>
-  inline void insert_forwarding(uint32_t index, const Entry& entry);
+  inline void insert_forwarding(Entry* table, uint32_t index, const Entry& entry);
 
   template <class Entry, bool b = use_forward_table, typename = std::enable_if_t<b == true>>
-  void enter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee,
+  void enter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee, uint32_t& num_actual,
                         Entry& replaced, uint32_t& replaced_index, uint32_t& replaced_stride, uint32_t& replaced_probes);
 
   template <class Entry, bool b = use_forward_table, typename = std::enable_if_t<b == true>>
@@ -309,9 +303,10 @@ class alignas(CACHE_LINE_SIZE_IN_BYTES) ShenandoahEarlyRecycleInfo {
   template <class Entry, bool b = use_forward_table, typename = std::enable_if_t<b == true>>
   void fill_forwardings(BitMap& used);
 
+#ifdef KELVIN_NICE_TO_HAVE
   template <class Entry, bool b = use_forward_table, typename = std::enable_if_t<b == true>>
-  void log_fwt_stats() const;
-
+  void log_fwt_stats(const fwt_build& build) const;
+#endif
   template <class Entry, bool b = use_forward_table, typename = std::enable_if_t<b == false>>
   void log_no_tbl_stats() const;
 
@@ -327,16 +322,18 @@ public:
   ShenandoahEarlyRecycleInfo(ShenandoahHeapRegion* region) :
     _region(region),
     _ctx(ShenandoahHeap::heap()->marking_context()) {
-    // Assume until otherwise
-    if (!use_forward_table) {
-      // The default constructo initializes _u under assumption that use_forward_table is true.
+    if (use_forward_table) {
+      _u._fwt._table = nullptr;
+      _u._fwt._num_entries = 0;
+      _u._fwt._max_required_probes = 0;
+      _u._fwt._fullgc_fixup = false;
+      _status.store_relaxed(ShenandoahEarlyRecycleStatus::Planned_FWT);
+    } else {
       _u._no_fwt._next_marked_cursor = nullptr;
       _u._no_fwt._density_at_most_recent_sift = 0.0;
       _u._no_fwt._evacuated_objects = 0;
       _u._no_fwt._consumed_mark_words = 0;
       _status.store_relaxed(ShenandoahEarlyRecycleStatus::Planned_NO_FWT);
-    } else {
-      _status.store_relaxed(ShenandoahEarlyRecycleStatus::Planned_FWT);
     }
   }
 
@@ -454,7 +451,9 @@ public:
   }
 
   ShenandoahHeapRegion* region() const { return _region; }
-  
+
+  size_t estimate_reusable_words(size_t num_forwardings, size_t live_words) const;
+
 #ifdef USE_SENTINELS
   template <bool b = use_forward_table, typename = std::enable_if_t<b == true>>
   void install_sentinels();
@@ -473,7 +472,7 @@ public:
   HeapWord* forwardee(HeapWord* orginal) const;
 
   template <class Entry, bool b = use_forward_table, typename = std::enable_if_t<b == true>>
-  inline uint32_t probes(HeapWord* original, uint32_t& stride) const;
+  inline uint32_t probes(Entry* table, uint32_t num_entries, HeapWord* original, uint32_t& stride) const;
 };
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHFORWARDINGTABLE_HPP

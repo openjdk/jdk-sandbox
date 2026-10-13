@@ -175,9 +175,8 @@ void ShenandoahGenerationalEvacuationTask::evacuate_and_promote_regions(uint wor
     // Regions have already been sorted in increasing live data, which is a light-weight approximation of increasing
     // forward table size (aka increasing mark-word-density).
 #ifdef KELVIN_DEBUG
-  log_info(gc)("ShenGenEvacTask::evac_and_promote_regions(%u) is selecting fwt regions", worker_id);
+    log_info(gc)("ShenGenEvacTask::evac_and_promote_regions(%u) is selecting fwt regions", worker_id);
 #endif
-
     // Set aside enough regions for early recycle with FWT to satisfy the anticipated memory shortfall.
     size_t short_fall = _heap->young_generation()->heuristics()->mutator_memory_shortfall();
     size_t back_fill = 0;
@@ -218,9 +217,10 @@ void ShenandoahGenerationalEvacuationTask::evacuate_and_promote_regions(uint wor
     bool result = _early_recycle_preprocessed_regions.compare_set(0, num_regions, memory_order_relaxed);
     assert(result, "_early_recycle_preprocessed_regions should equal 0 during preprocessing");
   }
-  // else, there's no need to early recycle regions because we're in STW mode. TODO: Even STW GC may benefit from early
-  // recycling in order to "complete" the evacuation reserves.  But there would be no need to optimize LRB behavior in
-  // STW mode. Let's not bother with this because of planned degenectomy.
+  // else, there's no need to early recycle regions because we're in STW mode or because this is not worker 0.
+
+  // TODO: Even STW GC may benefit from early recycling in order to "complete" the evacuation reserves.
+  // But there would be no need to optimize LRB behavior in STW mode. Let's not bother with this because of planned degenectomy.
 
   ShenandoahConcurrentEvacuator cl(_heap);
   // Concurrent GC workers evacuate regions in order of increasing live data. They start with the regions that have
@@ -236,14 +236,14 @@ void ShenandoahGenerationalEvacuationTask::evacuate_and_promote_regions(uint wor
     log_info(gc)("ShenGenEvacTask::evac_and_promote_regions(%u) is about to claim_next()", worker_id);
 #endif
     r = _cset->claim_next();
-    if (lt.is_enabled()) {
-      LogStream ls(lt);
-      log_region(r, &ls);
-    }
-    size_t num_forwardings = 0;
     if (r == nullptr) {
       cset_is_finished = true;
     } else {
+      if (lt.is_enabled()) {
+        LogStream ls(lt);
+        log_region(r, &ls);
+      }
+      size_t num_forwardings = 0;
       if (_cset->is_reusable(r)) {
         // Already evacuated and recycled. Degenerated GC resumes here.
         continue;

@@ -270,7 +270,7 @@ bool ShenandoahAdaptiveHeuristics::trigger_min_free_threshold(size_t available, 
     log_trigger("Occupancy. " PROPERFMT " free, below " PROPERFMT " threshold",
                 PROPERFMTARGS(available), PROPERFMTARGS(min_threshold));
     accept_trigger_with_type(OTHER);
-    set_mutator_memory_shortfall(0);
+    set_mutator_memory_shortfall(min_threshold - available);
     return true;
   }
   return false;
@@ -285,7 +285,7 @@ bool ShenandoahAdaptiveHeuristics::trigger_learning(size_t available, size_t cap
                   _gc_times_learned + 1, ShenandoahLearningSteps,
                   PROPERFMTARGS(available), PROPERFMTARGS(init_threshold));
       accept_trigger_with_type(OTHER);
-      set_mutator_memory_shortfall(0);
+      set_mutator_memory_shortfall(init_threshold - available);
       return true;
     }
   }

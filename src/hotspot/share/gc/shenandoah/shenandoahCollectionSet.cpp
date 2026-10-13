@@ -50,7 +50,8 @@ ShenandoahCollectionSet::ShenandoahCollectionSet(ShenandoahHeap* heap, ReservedS
   _old_garbage(0),
   _young_available_bytes_collected(0),
   _old_available_bytes_collected(0),
-  _current_index(0) {
+  _current_index(0),
+  _planned_for_reuse(_map_size, mtGC) {
 
   // The collection set map is reserved to cover the entire heap *and* zero addresses.
   // This is needed to accept in-cset checks for both heap oops and nulls, freeing
@@ -168,6 +169,7 @@ void ShenandoahCollectionSet::clear() {
   assert(ShenandoahSafepoint::is_at_shenandoah_safepoint(), "Must be at a safepoint");
 
   Copy::zero_to_bytes(_cset_map._cset_map, _map_size);
+  _planned_for_reuse.clear();
 
 #ifdef ASSERT
   for (size_t index = 0; index < _heap->num_regions(); index ++) {

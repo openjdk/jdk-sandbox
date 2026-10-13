@@ -34,6 +34,7 @@
 #include "memory/reservedSpace.hpp"
 #include "memory/virtualspace.hpp"
 #include "runtime/atomic.hpp"
+#include "utilities/bitMap.hpp"
 
 class ShenandoahCollectionSet : public CHeapObj<mtGC> {
   friend class ShenandoahHeap;
@@ -70,6 +71,8 @@ private:
   Atomic<size_t>        _current_index;
   shenandoah_padding(1);
 
+  CHeapBitMap           _planned_for_reuse;
+
 public:
   ShenandoahCollectionSet(ShenandoahHeap* heap, ReservedSpace space, char* heap_base);
 
@@ -103,12 +106,19 @@ public:
   inline CSetState cset_state(ShenandoahHeapRegion* r) const;
   inline CSetState cset_state(oop obj) const;
 
+  // Type filter
+  inline bool is_reuse_eligible(ShenandoahHeapRegion* r) const;
+  // Forwarding state
+  inline bool is_reusable(ShenandoahHeapRegion* r) const;
+
+  inline bool is_planned_for_reuse(ShenandoahHeapRegion* r) const;
+  inline void set_planned_for_reuse(ShenandoahHeapRegion* r);
+
   inline bool use_forward_table(oop obj) const;
   inline bool use_forward_table(ShenandoahHeapRegion* r) const;
 
   // A CSet region where new allocations may land.
   inline bool is_midcycle(oop obj) const;
-  inline bool is_reusable(ShenandoahHeapRegion* r) const;
 
   // Remove a single region from the collection set.
   void remove_region(ShenandoahHeapRegion* r);

@@ -365,14 +365,10 @@ void ShenandoahHeapRegion::teardown_reuse_state() {
 // does not need to delegate anything to this service.
 
 bool ShenandoahHeapRegion::prepare_reuse_no_table() {
-#ifdef KELVIN_DEPRECATE
-  // kelvin wants to get rid of this test. instead, we are prioritizing for low density, but if there are not enough low density
-  // regions, we may need to use some that are higher density
   uintx const max_density = ShenandoahCSetReuseMaxDensityPercent;
   if (max_density != 100 && (num_forwardings * 100 > region_size_words() * max_density)) {
     return false;
   }
-#endif
   set_reserved_body_words(get_expected_forwardings());
   // Publish the reserve before finish_region_evacuation drops top to bottom,
   //  so a concurrent allocator can't see a stale zero reserve.
@@ -382,10 +378,10 @@ bool ShenandoahHeapRegion::prepare_reuse_no_table() {
 #endif
 
 bool ShenandoahHeapRegion::prepare_reuse_forwarding() {
-  uintx const max_density = ShenandoahCSetReuseMaxDensityPercent;
 #ifdef KELVIN_DEPRECATE
+  uintx const max_density = ShenandoahCSetReuseMaxDensityPercent;
   // kelvin wants to get rid of this test. instead, we are prioritizing for low density, but if there are not enough low density
-  // regions, we may need to use some that are higher density
+  // regions, we may need to use some that are higher density. It does not apply to fwt recycling.
   if (max_density != 100 && num_forwardings * 100 > region_size_words() * max_density) {
     return false;
   }

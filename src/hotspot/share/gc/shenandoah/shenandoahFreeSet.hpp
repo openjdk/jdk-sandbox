@@ -461,6 +461,54 @@ private:
 
   const ssize_t INITIAL_ALLOC_BIAS_WEIGHT = 256;
 
+  // All early recycled regions are placed into this array
+  ShenandoahHeapRegion** _early_recycled_regions;
+
+  // This array associates a size_t value with each early recycled region.
+  //  For tlab regions, this represents the maximum size of the allocatable tlab.
+  //  For shared-alloc regions, this represents the allocatable memory (between top and end_of_alloc)
+  //  For retired regions, this is a don't care.
+  size_t* _early_recycled_regions_data;
+
+  // This is an alias for _early_recycled_region_data.  The first N entries of the array represents regions
+  // that are ideal candidates for tlab allocations.
+  ShenandoahHeapRegion** _early_recycled_tlab_regions;
+  size_t* _early_recycled_tlab_regions_data;
+  size_t _early_recycled_tlab_regions_count;
+  // bytes of used memory within early-recycled tlab regions
+  size_t _early_recycled_tlab_used;
+
+  // We prioritize allocation from the regions that have largest allocatable memory since these regions presumably have
+  // the fewest conflicts with forwarded objects (and the smallest forwarding tables). If all goes well, we will finish
+  // updating memory before we have to allocate from the regions that are "crowded" with forwarded objects. We do a
+  // sequential search from low to high index to find the allocation region. If allocation from the region results in
+  // less than PLAB::min_size() remaining available, we retire the region.
+  ShenandoahHeapRegion** _early_recycled_shared_alloc_regions;
+  size_t* _early_recycled_shared_alloc_regions_data;
+  size_t _early_recycled_shared_alloc_regions_count;
+  // bytes of used memory within early-recycled shared-alloc regions
+  size_t _early_recycled_shared_alloc_used;
+
+  // We don't bother to remove retired regions. We'll re-initialize recycled regions during next GC cycle.
+  // We also do not maintain data for retired regions.
+  ShenandoahHeapRegion** _early_recycled_retired_regions;
+  size_t _early_recycled_retired_regions_count;
+  // bytes of used memory within early-recycled retired regions
+  size_t _early_recycled_retired_used;
+
+  // The last N slots of the _early_recycled_regions array hold regions that are available for early recycling without
+  // forward table.
+  ShenandoahHeapRegion** _early_recycled_no_table_regions;
+  size_t* _early_recycled_no_table_regions_data;
+  size_t _early_recycled_no_table_regions_count;
+  // bytes of used memory within early-recycled no-fwt regions
+  size_t _early_recycled_no_table_used;
+
+  // We do not maintain regions_data for _early_recycled_no_table_retired_regions.
+  ShenandoahHeapRegion** _early_recycled_no_table_retired_regions;
+  size_t _early_recycled_no_table_retired_regions_count;
+  size_t _early_recycled_no_table_retired_used;
+
   // bytes used by young
   size_t _total_young_used;
   template<bool UsedByMutatorChanged, bool UsedByCollectorChanged>
@@ -510,7 +558,7 @@ public:
   }
 
   ShenandoahHeapRegion* get_no_table_retired(size_t index) {
-    return _early_recycled_retired_regions[index];
+    return _early_recycled_no_table_retired_regions[index];
   }
 
   // Get the tlab region at requested index position.  Index 0 represents entry with largest allocatable tlab.
@@ -533,7 +581,7 @@ public:
     _early_recycled_tlab_regions[slot] = r;
   }
   inline void set_shared_alloc_region_slot(size_t slot, ShenandoahHeapRegion* r) {
-    _early_recycled_shared_alloc_regions[-(ssize_t)slot] = r;
+    _early_recycled_shared_alloc_regions[slot] = r;
   }
 
   // Return retired region at index position between 0 and num_retired_fwt_regions() - 1.
@@ -1059,54 +1107,6 @@ public:
   size_t endow_mutator_from_old_collector(size_t max_bytes);
 
 private:
-  // All early recycled regions are placed into this array
-  ShenandoahHeapRegion** _early_recycled_regions;
-
-  // This array associates a size_t value with each early recycled region.
-  //  For tlab regions, this represents the maximum size of the allocatable tlab.
-  //  For shared-alloc regions, this represents the allocatable memory (between top and end_of_alloc)
-  //  For retired regions, this is a don't care.
-  size_t* _early_recycled_regions_data;
-
-  // This is an alias for _early_recycled_region_data.  The first N entries of the array represents regions
-  // that are ideal candidates for tlab allocations.
-  ShenandoahHeapRegion** _early_recycled_tlab_regions;
-  size_t* _early_recycled_tlab_regions_data;
-  size_t _early_recycled_tlab_regions_count;
-  // bytes of used memory within early-recycled tlab regions
-  size_t _early_recycled_tlab_used;
-
-  // This points to the last element of _early_recycled_region_data. We prioritize allocation from the regions that have
-  // largest allocatable memory since these regions presumably have the fewest conflicts with forwarded objects (and the
-  // smallest forwarding tables). If all goes well, we will finish updating memory before we have to allocate from the
-  // regions that are "crowded" with forwarded objects. This list is sorted according to "original" allocatable memory
-  // at the start of update refs. We do a sequential search from low to high index to find the allocation region. If
-  // allocation from the region results in less than PLAB::min_size() remaining available, we retire the region.
-  ShenandoahHeapRegion** _early_recycled_shared_alloc_regions;
-  size_t* _early_recycled_shared_alloc_regions_data;
-  size_t _early_recycled_shared_alloc_regions_count;
-  // bytes of used memory within early-recycled shared-alloc regions
-  size_t _early_recycled_shared_alloc_used;
-
-  // This points somewhere in the middle of the _early_recycled_region_data array, to an area of the array that does not
-  // conflit with either the tlab or shared-allocation regions.
-  ShenandoahHeapRegion** _early_recycled_retired_regions;
-  size_t _early_recycled_retired_regions_count;
-  // bytes of used memory within early-recycled retired regions
-  size_t _early_recycled_retired_used;
-
-  // The last N slots of the _early_recycled_regions array hold regions that are available for early recycling without
-  // forward table.
-  ShenandoahHeapRegion** _early_recycled_no_table_regions;
-  size_t* _early_recycled_no_table_regions_data;
-  size_t _early_recycled_no_table_regions_count;
-  // bytes of used memory within early-recycled no-fwt regions
-  size_t _early_recycled_no_table_used;
-
-  ShenandoahHeapRegion** _early_recycled_no_table_retired_regions;
-  size_t* _early_recycled_no_table_retired_regions_data;
-  size_t _early_recycled_no_table_retired_regions_count;
-  size_t _early_recycled_no_table_retired_used;
 
 #ifdef KELVIN_DEPRECATE
   // Prepare the _early_recycled_regions array to hold up to max_no_table_regions.
@@ -1193,7 +1193,7 @@ private:
 
   void remove_shared_alloc_region(size_t index);
 
-  // We don't bother to remove retired regions. We'll re-initialize recycled regions during next GC cycle.
+  // We need no API to remove retired regions. We'll re-initialize recycled regions during next GC cycle.
 
   // Make room for expansion of tlab regions
   void shift_retired_regions_to_higher_address();
@@ -1219,8 +1219,8 @@ private:
   // Place an early-recycled region into the right priority heap after an allocation shrank it.
   void reclassify_shared_alloc_region(ShenandoahHeapRegion* r, size_t idx);
   void reclassify_tlab_region(ShenandoahHeapRegion* r, size_t idx);
-  HeapWord* try_allocate_TLAB_in_early_recycled(ShenandoahHeapRegion* r, const ShenandoahAllocRequest& req, size_t& size);
-  HeapWord* try_allocate_shared_in_early_recycled(ShenandoahHeapRegion* r, size_t size, bool is_tlab_region = false);
+  NOINLINE HeapWord* try_allocate_TLAB_in_early_recycled(ShenandoahHeapRegion* r, const ShenandoahAllocRequest& req, size_t& size);
+  NOINLINE HeapWord* try_allocate_shared_in_early_recycled(ShenandoahHeapRegion* r, size_t size, bool is_tlab_region = false);
   // If only affiliation changes are promote-in-place and generation sizes have not changed,
   //    we have AffiliatedChangesAreGlobalNeutral
   // If only affiliation changes are non-empty regions moved from Mutator to Collector and young size has not changed,
