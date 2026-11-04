@@ -149,6 +149,10 @@ void ShenandoahInPlacePromoter::maybe_promote_region(ShenandoahHeapRegion* r) co
     // it when we made the plan for this region, that plan is authoritative.
     assert(r->is_young() && r->is_active(), "Region scheduled for promotion must still be young and active");
     promote(r);
+#define KELVIN_TRACE
+#ifdef KELVIN_TRACE
+    log_info(gc)("Promoting in place regular region %zu", r->index());
+#endif
     return;
   }
 
@@ -167,8 +171,17 @@ void ShenandoahInPlacePromoter::maybe_promote_region(ShenandoahHeapRegion* r) co
     oop obj = cast_to_oop(r->bottom());
     if (!obj->is_typeArray()) {
       promote_humongous(r);
+#ifdef KELVIN_TRACE
+      log_info(gc)("Promoting in place humongous region %zu", r->index());
+#endif
     }
   }
+
+#ifdef KELVIN_TRACE
+  log_info(gc)("maybe_promote_region() might have chosen to not to promote region %zu", r->index());
+#endif
+
+
 }
 
 // When we promote a region in place, we can continue to use the established marking context to guide subsequent remembered

@@ -33,6 +33,12 @@
 #include "utilities/count_trailing_zeros.hpp"
 
 inline size_t ShenandoahMarkBitMap::address_to_index(const HeapWord* addr) const {
+#undef KELVIN_MARK_DEBUG
+#ifdef KELVIN_MARK_DEBUG
+  log_info(gc)("addr_to_index(" PTR_FORMAT "), pointer_delta: %zu, _covered.start(): %zu, _shift: %zu",
+               p2i(addr), pointer_delta(addr, _covered.start()), p2i(_covered.start()), (size_t) _shift);
+  log_info(gc)(" result: %zu", (pointer_delta(addr, _covered.start()) << 1) >> _shift);
+#endif
   return (pointer_delta(addr, _covered.start()) << 1) >> _shift;
 }
 
@@ -101,11 +107,32 @@ inline bool ShenandoahMarkBitMap::is_marked_weak(HeapWord* addr) const {
   return at(address_to_index(addr) + 1);
 }
 
+#ifdef KELVIN_DEBUG_CREATIVE
+inline bool ShenandoahMarkBitMap::show_is_marked(HeapWord* addr) const {
+  check_mark(addr);
+  idx_t index = address_to_index(addr);
+  verify_index(index);
+  bm_word_t mask = (bm_word_t)3 << bit_in_word(index);
+  log_info(gc)("ShenandoahMarkBitMap::is_marked(" PTR_FORMAT ") is looking at index: %zd", p2i(addr), index);
+  log_info(gc)(" bit_in_word(index): %zu, mask: %zx, *word_addr(index): %zx", bit_in_word(index), mask, *word_addr(index));
+  log_info(gc)(" returning %s", ((*word_addr(index) & mask) != 0)? "true": "false");
+  return (*word_addr(index) & mask) != 0;
+}
+#endif
+
 inline bool ShenandoahMarkBitMap::is_marked(HeapWord* addr) const {
   check_mark(addr);
   idx_t index = address_to_index(addr);
   verify_index(index);
   bm_word_t mask = (bm_word_t)3 << bit_in_word(index);
+#undef KELVIN_DEBUG
+#ifdef KELVIN_DEBUG
+  log_info(gc)("ShenandoahMarkBitMap::is_marked(" PTR_FORMAT ") is looking at index: %zd", p2i(addr), index);
+  log_info(gc)(" bit_in_word(index): %zu, mask: %zx, *word_addr(index): %zx", bit_in_word(index), mask, *word_addr(index));
+  log_info(gc)(" returning %s", ((*word_addr(index) & mask) != 0)? "true": "false");
+#endif
+
+
   return (*word_addr(index) & mask) != 0;
 }
 
@@ -133,39 +160,53 @@ inline ShenandoahMarkBitMap::idx_t ShenandoahMarkBitMap::get_next_pair_of_zeros_
   // an interesting bit will be present.
 #define KELVIN_TRACE
 #ifdef KELVIN_TRACE
-  log_info(gc)("get_next_paired_zeros_impl(l_index: %zd, r_index: %zd)", l_index, r_index);
+  static size_t invoke_no = 0;
+  size_t epoch = invoke_no++;
+  log_info(gc)("%zd: get_next_paired_zeros_impl(l_index: %zd, r_index: %zd)", epoch, l_index, r_index);
 #endif
   if (l_index < r_index) {
     // Get the word containing l_index, and shift out low bits.
     idx_t index = to_words_align_down(l_index);
     bm_word_t cword = (map(index) ^ flip) >> bit_in_word(l_index);
+    
+
+
 #ifdef KELVIN_TRACE
-    log_info(gc)(" cword: %zxb, was shifted by %zu", cword, (size_t) bit_in_word(l_index));
-    log_info(gc)("  computed from map(index): %zx ^ flip: %zx >> bit_in_word: %zu", map(index), flip, bit_in_word(l_index));
+    log_info(gc)("%zu:  index: %zd from l_index, flip: %zx, map(index): %zx, before shift: %zx",
+                 epoch, index, flip, map(index), map(index) & flip);
+    log_info(gc)("%zu:  cword: %zx, was shifted by %zu", epoch, cword, (size_t) bit_in_word(l_index));
+    log_info(gc)("%zu:   computed from map(index): %zx ^ flip: %zx >> bit_in_word: %zu", epoch, map(index), flip,
+                 bit_in_word(l_index));
 #endif
     if ((cword & 0x03) == 0) {
       // The first bits (representing weak mark or strong mark) are similarly often interesting. When it matters
-      // (density or features of the calling algorithm make it likely the first bits are set), going straight to
+      // (density or features of the calling algorithm make it likely the first bits are clear), going straight to
       // the next clause compares poorly with doing this check first; count_trailing_zeros can be relatively expensive,
-      // plus there is the additional range check.  But when the first bits are not set, the cost of having tested for
+      // plus there is the additional range check.  But when the first bits are not clear, the cost of having tested for
       // them is relatively small compared to the rest of the search.
 #ifdef KELVIN_TRACE
-      log_info(gc)(" returning %zd at initial match", l_index);
+      log_info(gc)("%zu:  returning %zd at initial match", epoch, l_index);
 #endif
       return l_index;
     } else {
-      // Or with shifted or produces a zero in the even bit positions iff both strong and weak bit are off.
-      // Or with Cs assures that all odd bits are one, so that those bit positions produce 0 after xor.
-      // Xor with Fs produces a result that is non-zero iff one of the even bits was equal to zero.
-      bm_word_t zeros_found = ((cword | (cword >> 1)) | 0xccccccccccccccccL) ^ 0xffffffffffffffffL;
+      bm_word_t weak_or_strong_in_even_bits = cword | (cword >> 1);
+      bm_word_t mask_out_even_bits = weak_or_strong_in_even_bits & 0x5555555555555555;
+      bm_word_t shift_mask_out_even_bits = mask_out_even_bits << 1;
+      bm_word_t double_one_for_marked_and_double_zero_for_unmarked = mask_out_even_bits | shift_mask_out_even_bits;
+      bm_word_t double_zero_for_marked_and_double_one_for_unmarked =
+        double_one_for_marked_and_double_zero_for_unmarked ^ 0xffffffffffffffff;
 #ifdef KELVIN_TRACE
-      log_info(gc)(" zeros_found: %zx", zeros_found);
+      log_info(gc)("weak_or_strong: %zx, mask_out_even: %zx, shift_mask_out_even: %zx, "
+                   "double_one_for_marked: %zx, double_zero_for_marked: %zx",
+                   weak_or_strong_in_even_bits, mask_out_even_bits, shift_mask_out_even_bits,
+                   double_one_for_marked_and_double_zero_for_unmarked, double_zero_for_marked_and_double_one_for_unmarked);
 #endif
-      if (zeros_found) {
-        idx_t result = l_index + count_trailing_zeros(zeros_found);
+      if (double_zero_for_marked_and_double_one_for_unmarked) {
+        idx_t result = l_index + count_trailing_zeros(double_zero_for_marked_and_double_one_for_unmarked);
 #ifdef KELVIN_TRACE
-        log_info(gc)(" found result: %zd, aligned_right: %d, r_index: %zd", result, aligned_right, r_index);
-        log_info(gc)("   count_trailing_zeroes: %u", count_trailing_zeros(zeros_found));
+        log_info(gc)("%zu:  found result: %zd, aligned_right: %d, r_index: %zd", epoch, result, aligned_right, r_index);
+        log_info(gc)("%zu:    count_trailing_zeroes: %u",
+                     epoch, count_trailing_zeros(double_zero_for_marked_and_double_one_for_unmarked));
 #endif
         if (aligned_right || (result < r_index)) return result;
         // Result is beyond range bound; return r_index.
@@ -177,16 +218,24 @@ inline ShenandoahMarkBitMap::idx_t ShenandoahMarkBitMap::get_next_pair_of_zeros_
                       : to_words_align_up(r_index);
         while (++index < limit) {
           cword = map(index) ^ flip;
-          // See above for description of bit fiddling
-          zeros_found = ((cword | (cword >> 1)) | 0xccccccccccccccccL) ^ 0xffffffffffffffffL;
+          bm_word_t weak_or_strong_in_even_bits = cword | (cword >> 1);
+          bm_word_t mask_out_even_bits = weak_or_strong_in_even_bits & 0x5555555555555555;
+          bm_word_t shift_mask_out_even_bits = mask_out_even_bits << 1;
+          bm_word_t double_one_for_marked_and_double_zero_for_unmarked = mask_out_even_bits | shift_mask_out_even_bits;
+          bm_word_t double_zero_for_marked_and_double_one_for_unmarked =
+            double_one_for_marked_and_double_zero_for_unmarked ^ 0xffffffffffffffff;
 #ifdef KELVIN_TRACE
-          log_info(gc)(" at index %zd, cword: %zx, zeros_found: %zx", index, cword, zeros_found);
+          log_info(gc)("weak_or_strong: %zx, mask_out_even: %zx, shift_mask_out_even: %zx, "
+                       "double_one_for_marked: %zx, double_zero_for_marked: %zx",
+                       weak_or_strong_in_even_bits, mask_out_even_bits, shift_mask_out_even_bits,
+                       double_one_for_marked_and_double_zero_for_unmarked, double_zero_for_marked_and_double_one_for_unmarked);
 #endif
-          if (zeros_found) {
-            idx_t result = bit_index(index) + count_trailing_zeros(cword);
+          if (double_zero_for_marked_and_double_one_for_unmarked) {
+            idx_t result = bit_index(index) + count_trailing_zeros(double_zero_for_marked_and_double_one_for_unmarked);
 #ifdef KELVIN_TRACE
-            log_info(gc)(" found result: %zd, aligned_right: %d, r_index: %zd", result, aligned_right, r_index);
-            log_info(gc)("  computed from count_trailing_zeros: %u", count_trailing_zeros(cword));
+            log_info(gc)("%zu:  found result: %zd, aligned_right: %d, r_index: %zd", epoch, result, aligned_right, r_index);
+            log_info(gc)("%zu:   computed from count_trailing_ones: %u", epoch,
+                         count_trailing_zeros(double_zero_for_marked_and_double_one_for_unmarked));
 #endif
             if (aligned_right || (result < r_index)) return result;
             // Result is beyond range bound; return r_index.
@@ -199,7 +248,7 @@ inline ShenandoahMarkBitMap::idx_t ShenandoahMarkBitMap::get_next_pair_of_zeros_
     }
   }
 #ifdef KELVIN_TRACE
-  log_info(gc)(" get_next_paired_zeros_impl is returning r_index: %zd", r_index);
+  log_info(gc)("%zu:  get_next_paired_zeros_impl is returning r_index: %zd", epoch, r_index);
 #endif
   return r_index;
 }

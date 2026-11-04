@@ -566,20 +566,26 @@ public:
   // of heapsort algorithm.
   //
   // Any call to insert or remove a shared-alloc region may renumber the shared-alloc regions.
-  ShenandoahHeapRegion* get_tlab_region(size_t index);
-
-
+  ShenandoahHeapRegion* get_tlab_region(size_t index) {
+    // Do not assert that index < _early_recycled_tlab_regions_count because we reach beyond count during update-refs
+    // initialization.
+    return _early_recycled_tlab_regions[index];
+  }
 
   // Get the shared allocation region at requested index position.  Index 0 represents entry with largest allocatable memory.
   // In general, lower index numbers have larger allocatable tlab memory than higher index numbers.  See discussion
   // of heapsort algorithm.
   //
   // Any call to insert or remove a shared-alloc retion may renumber the shared-alloc regions.
-  ShenandoahHeapRegion* get_shared_alloc_region(size_t index);
+  ShenandoahHeapRegion* get_shared_alloc_region(size_t index) {
+    assert(index < _early_recycled_shared_alloc_regions_count, "Precondition");
+    return _early_recycled_shared_alloc_regions[-index];
+  }
 
   inline void set_tlab_region_slot(size_t slot, ShenandoahHeapRegion* r) {
     _early_recycled_tlab_regions[slot] = r;
   }
+
   inline void set_shared_alloc_region_slot(size_t slot, ShenandoahHeapRegion* r) {
     _early_recycled_shared_alloc_regions[slot] = r;
   }
@@ -661,12 +667,16 @@ private:
   Atomic<size_t> _fwt_bytes_consumed_by_young_gc;   // This many fwt bytes are claimed by GC workers for young evac
   Atomic<size_t> _fwt_bytes_consumed_by_old_gc;     // This many fwt bytes are claimed by GC workers for old/mixed evac
 
+  // Regions/bytes retired by GC workers. A region is retired if available memory is less than PLAB::min_size()
+  Atomic<size_t> _fwt_regions_retired;              // GC workers have retired region because
+  Atomic<size_t>  _fwt_bytes_retired;               // Bytes which had been published, either allocated or retired before allocated
+  
   // Bytes are transferred from reserves to mutator as soon as the bytes have been published rather than waiting for them
   // to be claimed.
   Atomic<size_t> _young_fwt_bytes_to_mutator;       // This many bytes were transferred from Collector to Mutator
   Atomic<size_t> _old_fwt_bytes_to_mutator;         // This many bytes were transferred from OldCollector to Mutator
 
-  // High-order 32 unsigned bits represent started handshakes, low-order represents finished hanshakes.  If these values
+  // High-order 32 unsigned bits represent started handshakes, low-order represents finished handshakes.  If these values
   // are not equal, a handshake is in process.
   Atomic<uint64_t> _fwt_handshakes_started_and_finished;
 
@@ -745,11 +755,17 @@ public:
   size_t fwt_regions_prepared() {
     return _fwt_regions_prepared.load_relaxed();
   }
+  void set_fwt_regions_prepared(size_t regions) {
+    _fwt_regions_prepared.store_relaxed(regions);
+  }
   bool compare_set_fwt_regions_prepared(size_t original, size_t modified) {
     return _fwt_regions_prepared.compare_set(original, modified, memory_order_relaxed);
   }
   size_t fwt_bytes_prepared() {
     return _fwt_bytes_prepared.load_relaxed();
+  }
+  void set_fwt_bytes_prepared(size_t bytes) {
+    return _fwt_bytes_prepared.store_relaxed(bytes);
   }
   bool compare_set_fwt_bytes_prepared(size_t original, size_t modified) {
     return _fwt_bytes_prepared.compare_set(original, modified, memory_order_relaxed);
@@ -766,14 +782,26 @@ public:
   size_t fwt_bytes_published() {
     return _fwt_bytes_published.load_relaxed();
   }
+  void set_fwt_bytes_published(size_t bytes) {
+    _fwt_bytes_published.store_relaxed(bytes);
+  }
   size_t add_to_fwt_bytes_published(size_t new_bytes) {
     return _fwt_bytes_published.add_then_fetch(new_bytes);
   }
   size_t fwt_regions_consumed_by_gc() {
     return _fwt_regions_consumed_by_gc.load_relaxed();
   }
+  void set_fwt_regions_consumed_by_gc(size_t regions) {
+    _fwt_regions_consumed_by_gc.store_relaxed(regions);
+  }
   size_t compare_set_fwt_regions_consumed_by_gc(size_t original, size_t modified) {
     return _fwt_regions_consumed_by_gc.compare_set(original, modified, memory_order_relaxed);
+  }
+  void set_fwt_bytes_consumed_by_young_gc(size_t bytes) {
+    return _fwt_bytes_consumed_by_young_gc.store_relaxed(bytes);
+  }
+  void set_fwt_bytes_consumed_by_old_gc(size_t bytes) {
+    return _fwt_bytes_consumed_by_old_gc.store_relaxed(bytes);
   }
   size_t young_fwt_bytes_to_mutator() {
     return _young_fwt_bytes_to_mutator.load_relaxed();
@@ -787,10 +815,30 @@ public:
   void set_old_fwt_bytes_to_mutator(size_t modified) {
     _old_fwt_bytes_to_mutator.store_relaxed(modified);
   }
+  size_t compare_set_fwt_regions_retired(size_t original, size_t modified) {
+    return _fwt_regions_retired.compare_set(original, modified, memory_order_relaxed);
+  }
+  void set_fwt_regions_retired(size_t regions) {
+    return _fwt_regions_retired.store_relaxed(regions);
+  }
+  size_t fwt_regions_retired() {
+    return _fwt_regions_retired.load_relaxed();
+  }
+  void set_fwt_bytes_retired(size_t bytes) {
+    _fwt_bytes_retired.store_relaxed(bytes);
+  }
+  size_t compare_set_fwt_bytes_retired(size_t original, size_t modified) {
+    return _fwt_bytes_retired.compare_set(original, modified);
+  }
+
+  // Publish any regions that have been prepared but not yet published, returning true iff at least one region was newly published.
+  bool publish_prepared_regions(uint worker_id, uint workers,
+                                bool concurrent, bool cset_is_finished, ShenandoahCollectionSet* cset);
 
   // Call this if I have claimed the region at original_value.  Will adjust upward.
   void adjust_first_unclaimed_young(size_t original_value, size_t upper_bound) {
-    assert(get_tlab_region(original_value)->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Claimed_FWT, "Precondition");
+    assert(get_tlab_region(original_value)->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Claimed_FWT,
+           "Precondition");
     for (size_t candidate_index = original_value + 1; candidate_index < upper_bound; candidate_index++) {
       ShenandoahHeapRegion* r = get_tlab_region(candidate_index);
       if ((r->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Published_FWT) && !r->is_old()) {
@@ -1083,6 +1131,7 @@ public:
   }
   // Given that handshake data recently held started and finished, update to started+1 and finished if it hasn't changed
   bool fwt_start_handshake(uint32_t started, uint32_t finished) {
+    assert(started == finished, "Do not request lock unless started: %u equals finished: %u", started, finished);
     uint64_t original = (((uint64_t) started) << 32) | finished;
     uint64_t modified = (((uint64_t) (started + 1)) << 32) | finished;
     return _fwt_handshakes_started_and_finished.compare_set(original, modified, memory_order_relaxed);
@@ -1091,7 +1140,15 @@ public:
   bool fwt_finish_handshake(uint32_t started, uint32_t finished) {
     uint64_t original = (((uint64_t) started) << 32) | finished;
     uint64_t modified = (((uint64_t) started) << 32) | (finished + 1);
-    return _fwt_handshakes_started_and_finished.compare_set(original, modified, memory_order_relaxed);
+    bool result =  _fwt_handshakes_started_and_finished.compare_set(original, modified, memory_order_relaxed);
+#define KELVIN_DEBUG
+#ifdef KELVIN_DEBUG
+    if (!result) {
+      log_info(gc)("fwt_finish_handshake() failed, expecting %zx, modified: %zx, but current value: %zx",
+                   original, modified, _fwt_handshakes_started_and_finished.load_relaxed());
+    }
+#endif
+    return result;
   }
 
   // Transfer regions from the collector to mutator, up to max_bytes.  This normally happens when we've been able to replace
@@ -1135,10 +1192,20 @@ private:
   }
 
   void increase_early_recycled_shared_alloc_regions_used(size_t delta_bytes) {
+#define KELVIN_DEBUG_USED
+#ifdef KELVIN_DEBUG_USED
+    log_info(gc)("Someone called increase_early_recycled_shared_alloc_regions_used(%zu), yielding %zu",
+                 delta_bytes,  _early_recycled_shared_alloc_used + delta_bytes);
+#endif
     _early_recycled_shared_alloc_used += delta_bytes;
   }
 
   void increase_early_recycled_no_fwt_regions_used(size_t delta_bytes) {
+#define KELVIN_DEBUG_USED
+#ifdef KELVIN_DEBUG_USED
+    log_info(gc)("Someone called increase_early_recycled_no_fwt_regions_used(%zu), yielding %zu",
+                 delta_bytes,  _early_recycled_no_table_used + delta_bytes);
+#endif
     _early_recycled_no_table_used += delta_bytes;
   }
 
@@ -1170,6 +1237,13 @@ private:
   //       shared-alloc regions prioritize for largest available memory
   template <bool parity, bool is_backward>
   void heapify_downward(ShenandoahHeapRegion** base_region, size_t* base_data, size_t index, size_t count);
+
+  // Overwrite tlab region data in preparation for heapify_upward or downward or for removeal from tlab regions.
+  // Return the original value of this region data.
+  size_t overwrite_tlab_region_data(size_t idx, size_t max_tlab_size);
+
+  // Overwrite tlab region data in preparation for heapify_downward or for removal from shared-alloc regions
+  void overwrite_shared_alloc_region_data(size_t idx, size_t available);
 
   // The heap is represented by an array. For a node at position index within the heap, the left child of the node
   // is at 2 * index + 1 and the right child is at 2 * index + 2.
@@ -1218,9 +1292,11 @@ private:
 
   // Place an early-recycled region into the right priority heap after an allocation shrank it.
   void reclassify_shared_alloc_region(ShenandoahHeapRegion* r, size_t idx);
-  void reclassify_tlab_region(ShenandoahHeapRegion* r, size_t idx);
+  void reclassify_tlab_region(ShenandoahHeapRegion* r, size_t idx, size_t original_tlab_size, size_t new_tlab_size);
   NOINLINE HeapWord* try_allocate_TLAB_in_early_recycled(ShenandoahHeapRegion* r, const ShenandoahAllocRequest& req, size_t& size);
-  NOINLINE HeapWord* try_allocate_shared_in_early_recycled(ShenandoahHeapRegion* r, size_t size, bool is_tlab_region = false);
+  NOINLINE HeapWord* try_allocate_shared_in_early_recycled(ShenandoahHeapRegion* r, size_t size,
+                                                           bool& should_retire, bool is_tlab_region = false);
+
   // If only affiliation changes are promote-in-place and generation sizes have not changed,
   //    we have AffiliatedChangesAreGlobalNeutral
   // If only affiliation changes are non-empty regions moved from Mutator to Collector and young size has not changed,
@@ -1319,10 +1395,14 @@ private:
   // log status, assuming lock has already been acquired by the caller.
   void log_status();
 
+#ifdef KELVIN_DEPRECATE
   // Admit a reusable CSet region's freed body into the Mutator free set; returns false if too small.
   bool recycle_cset_region_before_update(ShenandoahHeapRegion* r,
 //                                         idx_t& mutator_low_idx, idx_t& mutator_high_idx,
                                          size_t& recycled_bytes, size_t& recycled_regions, size_t& young_recycled_regions);
+#endif
+  // Recycle one region at the start of update refs, returning true if the region is successfully recycled.
+  bool recycle_before_update_refs(ShenandoahHeapRegion* r);
 
 public:
   ShenandoahFreeSet(ShenandoahHeap* heap, size_t max_regions);
@@ -1644,6 +1724,22 @@ public:
 
   size_t early_recycled_retired_capacity() const {
     return _early_recycled_retired_regions_count * ShenandoahHeapRegion::region_size_bytes();
+  }
+
+  size_t early_recycled_no_table_capacity() const {
+    return _early_recycled_no_table_regions_count * ShenandoahHeapRegion::region_size_bytes();
+  }
+
+  size_t early_recycled_no_table_used() const {
+    return _early_recycled_no_table_used;
+  }
+
+  size_t early_recycled_no_table_retired_capacity() const {
+    return _early_recycled_no_table_retired_regions_count * ShenandoahHeapRegion::region_size_bytes();
+  }
+
+  size_t early_recycled_no_table_retired_used() const {
+    return _early_recycled_no_table_retired_used;
   }
 
   bool allocating_from_early_recycled_regions() const {

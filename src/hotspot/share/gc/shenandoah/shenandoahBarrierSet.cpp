@@ -50,6 +50,17 @@ class ShenandoahBarrierSetC2;
 
 ShenandoahCSetMap ShenandoahBarrierSet::_cset_map;
 
+const char* cset_name(CSetState cset_state) {
+  switch (cset_state) {
+    case CSetState::NOT_IN_CSET:                  return "NOT_IN_CSET";
+    case CSetState::IN_CSET:                      return "IN_CSET";
+    case CSetState::REUSABLE_MARKWORD:            return "REUSABLE_MARKWORD";
+    case CSetState::REUSABLE_FWDTABLE_COMPACT:    return "REUSABLE_FWDTABLE_COMPACT";
+    case CSetState::REUSABLE_FWDTABLE_WIDE:       return "REUSABLE_FWDTABLE_WIDE";
+    default:                                      return "INVALID_CSET_STATE";
+  }
+}
+
 ShenandoahBarrierSet::ShenandoahBarrierSet(ShenandoahHeap* heap, MemRegion heap_region) :
   BarrierSet(make_barrier_set_assembler<ShenandoahBarrierSetAssembler>(),
              make_barrier_set_c1<ShenandoahBarrierSetC1>(),

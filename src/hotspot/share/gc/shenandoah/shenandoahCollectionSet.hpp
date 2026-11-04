@@ -27,6 +27,7 @@
 #define SHARE_GC_SHENANDOAH_SHENANDOAHCOLLECTIONSET_HPP
 
 #include "gc/shenandoah/shenandoahCSetMap.hpp"
+#include "gc/shenandoah/shenandoahFreeSet.hpp"
 #include "gc/shenandoah/shenandoahHeap.hpp"
 #include "gc/shenandoah/shenandoahHeapRegion.hpp"
 #include "gc/shenandoah/shenandoahPadding.hpp"
@@ -45,6 +46,7 @@ private:
   ShenandoahCSetMap     _cset_map;
 
   ShenandoahHeap* const _heap;
+  ShenandoahFreeSet*    _free_set;
 
   bool                  _has_old_regions;
   size_t                _garbage;
@@ -71,10 +73,16 @@ private:
   Atomic<size_t>        _current_index;
   shenandoah_padding(1);
 
+#ifdef KELVIN_DEPRECATE
   CHeapBitMap           _planned_for_reuse;
+#endif
 
 public:
   ShenandoahCollectionSet(ShenandoahHeap* heap, ReservedSpace space, char* heap_base);
+
+  void post_initialize(ShenandoahFreeSet* free_set) {
+    _free_set = free_set;
+  }
 
   // Add region to collection set
   void add_region(ShenandoahHeapRegion* r);
@@ -85,6 +93,14 @@ public:
 
   // MT version
   ShenandoahHeapRegion* claim_next();
+
+  ShenandoahHeapRegion* cset_region(int32_t cset_index) {
+    assert (cset_index >= 0, "Precondition");
+    return _free_set->get_tlab_region(cset_index);
+  }
+
+  // Returns the index of the next cset_region() to be processed. Returns the cset count if no more regions.
+  uint32_t claim_next_index();
 
   // Single-thread version
   ShenandoahHeapRegion* next();
@@ -97,6 +113,11 @@ public:
   }
 
   ShenandoahCSetMap cset_map() const { return _cset_map; }
+
+  inline void update_map(uint32_t index, CSetState new_state) {
+    AtomicAccess::store(&_cset_map._cset_map[index], new_state);
+  }
+
 
   inline bool is_in(ShenandoahHeapRegion* r) const;
   inline bool is_in(size_t region_idx)       const;
@@ -111,8 +132,10 @@ public:
   // Forwarding state
   inline bool is_reusable(ShenandoahHeapRegion* r) const;
 
+#ifdef KELVIN_DEPRECATE
   inline bool is_planned_for_reuse(ShenandoahHeapRegion* r) const;
   inline void set_planned_for_reuse(ShenandoahHeapRegion* r);
+#endif
 
   inline bool use_forward_table(oop obj) const;
   inline bool use_forward_table(ShenandoahHeapRegion* r) const;

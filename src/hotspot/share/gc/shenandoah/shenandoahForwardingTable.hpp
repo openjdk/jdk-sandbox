@@ -337,6 +337,23 @@ public:
     }
   }
 
+  static const char* status_name(ShenandoahEarlyRecycleStatus value) {
+    switch (value) {
+      case ShenandoahEarlyRecycleStatus::Planned_NO_FWT:   return "Planned_NO_FWT";
+      case ShenandoahEarlyRecycleStatus::Prepared_NO_FWT:  return "Prepared_NO_FWT";
+      case ShenandoahEarlyRecycleStatus::Claimed_NO_FWT:   return "Claimed_NO_FWT";
+      case ShenandoahEarlyRecycleStatus::Retired_NO_FWT:   return "Retired_NO_FWT";
+      case ShenandoahEarlyRecycleStatus::Planned_FWT:      return "Planned_FWT";
+      case ShenandoahEarlyRecycleStatus::Prepared_FWT:     return "Prepared_FWT";
+      case ShenandoahEarlyRecycleStatus::Publishing_FWT:   return "Publishing_FWT";
+      case ShenandoahEarlyRecycleStatus::Published_FWT:    return "Published_FWT";
+      case ShenandoahEarlyRecycleStatus::Claimed_FWT:      return "Claimed_FWT";
+      case ShenandoahEarlyRecycleStatus::Retired_FWT:      return "Retired_FWT";
+      case ShenandoahEarlyRecycleStatus::Abandoned:        return "Abandoned";
+      default:               return "BadStatus";
+    }
+  }
+
   template <bool b = use_forward_table, typename = std::enable_if_t<b == false>>
   void set_mark_words(uint32_t num_forwarded) {
     _u._no_fwt._evacuated_objects = num_forwarded;

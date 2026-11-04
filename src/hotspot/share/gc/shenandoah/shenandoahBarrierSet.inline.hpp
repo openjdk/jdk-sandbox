@@ -43,7 +43,24 @@
 #include "memory/iterator.inline.hpp"
 #include "oops/oop.inline.hpp"
 
+
+
+#undef KELVIN_DEBUG_BARRIER
+#ifdef KELVIN_DEBUG_BARRIER
+const char* cset_name(CSetState cset_state);
+#endif
+
+
 inline oop ShenandoahBarrierSet::resolve_forwarded_not_null(oop p, ShenandoahHeap* heap, CSetState cset_state) {
+#ifdef KELVIN_DEBUG_BARRIER
+  extern bool _kelvin_starts_init_update_refs;
+  if (_kelvin_starts_init_update_refs) {
+    log_info(gc)("resolve_forwarded_not_null(" PTR_FORMAT "), region: %zu, cset_state: %s",
+                 p2i(p), heap->heap_region_containing(p)->index(), cset_name(cset_state));
+  }
+
+#endif
+  
   switch (cset_state) {
     case CSetState::NOT_IN_CSET: return p;
     case CSetState::IN_CSET:

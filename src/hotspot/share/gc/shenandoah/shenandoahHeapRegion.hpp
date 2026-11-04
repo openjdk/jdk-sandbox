@@ -359,11 +359,11 @@ public:
     return _u._fwd_table.num_entries();
   }
 
-  uint32_t calculate_entries_in_forward_table() {
+  uint32_t calculate_entries_in_forward_table(uint32_t num_forwardings) {
     if (ShenandoahEarlyRecycleInfo<true>::use_compact()) {
-      return _u._fwd_table.compute_entries<CompactFwdTableEntry>(get_expected_forwardings());
+      return _u._fwd_table.compute_entries<CompactFwdTableEntry>(num_forwardings);
     } else {
-      return _u._fwd_table.compute_entries<FwdTableEntry>(get_expected_forwardings());
+      return _u._fwd_table.compute_entries<FwdTableEntry>(num_forwardings);
     }
   }
 
@@ -602,7 +602,26 @@ public:
     size_t body_room = (alloc_end() > top()) ? byte_size(top(), alloc_end()) : 0;
     return byte_size(alloc_end(), end()) + MIN2(_reserved_body_words * HeapWordSize, body_room);
   }
-  size_t used_with_reserve() const { return used() + reserved_bytes(); }
+  size_t used_with_reserve() const {
+    // KELVIN TODO:
+    //  1. used_with_reserve() is only appropriate for no-table recycling because it reserves memory for every markword,
+    //     and fwt-recycling is able to overwrite most words.  Confirm that this is used consistently.
+    //  2. this is double counting words reserved because it does not subtract mark words from _reserved_body_words
+    //     when top() has moved above those words.
+    //  3. kelvin preference is to deprecate used_with_reserve in favor of density calculations, which adjust as top
+    //     grows.
+    //
+    // TODO: confirm the above.  search for set_reserved_body_words(). Maybe this is called differently for forward-table
+    //       regions...
+
+
+#undef KELVIN_DEBUG_RESERVE
+#ifdef KELVIN_DEBUG_RESERVE
+    log_info(gc)("used_with_reserve(region %zu) is top-bottom: %zu plus _reserved_body: %zu (in bytes)",
+                 index(), (top() - bottom()) * HeapWordSize, _reserved_body_words * HeapWordSize);
+#endif
+    return used() + reserved_bytes();
+  }
   void set_reserved_body_words(size_t w) { _reserved_body_words = w; }
 
   // Does this region contain this address?

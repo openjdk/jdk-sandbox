@@ -105,8 +105,16 @@ ShenandoahGC::ShenandoahDegenPoint ShenandoahConcurrentGC::degen_point() const {
   return _degen_point;
 }
 
+#define KELVIN_DEBUG
+#ifdef KELVIN_DEBUG
+bool _kelvin_starts_init_update_refs = false;
+#endif
+
 void ShenandoahConcurrentGC::entry_concurrent_update_refs_prepare(ShenandoahHeap* const heap) {
   TraceCollectorStats tcs(heap->monitoring_support()->concurrent_collection_counters());
+#ifdef KELVIN_DEBUG
+  _kelvin_starts_init_update_refs = true;
+#endif
   SHENANDOAH_EVENT_MESSAGE(msg, _generation->type(), "Concurrent init update refs", "");
   ShenandoahConcurrentSubphase gc_phase(msg, ShenandoahPhaseTimings::conc_update_refs_prepare);
   EventMark em("%s", msg);

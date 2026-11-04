@@ -95,7 +95,7 @@ inline void ShenandoahEarlyRecycleInfo<use_forward_table>::probe_of(void* table,
   // faster than a 32-bit divide on typical "modern hardware", and multiply instructions are more effectively pipelined.
   // Since both factors are 32-bit, the 64-bit product will not overflow.
   index  = static_cast<uint32_t>(((truncated_h * num_entries) >> 32) & 0xffffffff);
-  assert(num_entries > 16, "invariant");
+  assert(num_entries > 16, "invariant: num_entries is %u", num_entries);
   uint32_t basis = num_entries / 16;
   uint32_t high_bits = static_cast<uint32_t>((h >> 32) & 0xffffffff);
   uint32_t one_to_eight = (((high_bits >> 29) & 0x7) & 0x7) + 1;

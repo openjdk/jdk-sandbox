@@ -195,10 +195,17 @@ inline bool ShenandoahHeapRegion::is_affiliated() const {
 }
 
 inline void ShenandoahHeapRegion::save_top_before_promote() {
+#define KELVIN_BEFORE_PROMOTE
+#ifdef KELVIN_BEFORE_PROMOTE
+  log_info(gc)("save_top_before_promote on region %zu to " PTR_FORMAT, index(), p2i(_top));
+#endif
   _top_before_promoted = _top;
 }
 
 inline void ShenandoahHeapRegion::restore_top_before_promote() {
+#ifdef KELVIN_BEFORE_PROMOTE
+  log_info(gc)("restore_top_before_promote on region %zu to " PTR_FORMAT, index(), p2i(_top_before_promoted));
+#endif
   _top = _top_before_promoted;
   _top_before_promoted = nullptr;
 }

@@ -50,8 +50,7 @@ ShenandoahCollectionSet::ShenandoahCollectionSet(ShenandoahHeap* heap, ReservedS
   _old_garbage(0),
   _young_available_bytes_collected(0),
   _old_available_bytes_collected(0),
-  _current_index(0),
-  _planned_for_reuse(_map_size, mtGC) {
+  _current_index(0) {
 
   // The collection set map is reserved to cover the entire heap *and* zero addresses.
   // This is needed to accept in-cset checks for both heap oops and nulls, freeing
@@ -64,7 +63,6 @@ ShenandoahCollectionSet::ShenandoahCollectionSet(ShenandoahHeap* heap, ReservedS
   // Note: we could instead commit the entire map, and piggyback on OS virtual memory
   // subsystem for mapping not-yet-written-to pages to a single physical backing page,
   // but this is not guaranteed, and would confuse NMT and other memory accounting tools.
-
   MemTracker::record_virtual_memory_tag(_map_space, mtGC);
 
   size_t page_size = os::vm_page_size();
@@ -94,6 +92,11 @@ void ShenandoahCollectionSet::add_region(ShenandoahHeapRegion* r) {
   assert(!r->is_humongous(), "Only add regular regions to the collection set");
 
   _cset_map._cset_map[r->index()] = CSetState::IN_CSET;
+#undef KELVIN_DEBUG
+#ifdef KELVIN_DEBUG
+  log_info(gc)("Adding region %zu into cset with cset state: IN_CSET", r->index());
+#endif
+
   size_t live    = r->get_live_data_bytes();
   size_t garbage = r->garbage();
   size_t free    = r->free();
@@ -118,7 +121,21 @@ void ShenandoahCollectionSet::add_region(ShenandoahHeapRegion* r) {
   r->make_cset();
 }
 
+#define KELVIN_DEBUG
+#ifdef KELVIN_DEBUG
+const char* cset_name(CSetState cset_state);
+
+void dump_cset_map(const char* msg, CSetState* map) {
+  ShenandoahHeap* heap = ShenandoahHeap::heap();
+  log_info(gc)("Dumping cset map: %s", msg);
+  for (size_t i = 0; i < heap->num_regions(); i++) {
+    log_info(gc)("cset_map[%zu]: %s", i, cset_name(map[i]));
+  }
+}
+#endif
+
 void ShenandoahCollectionSet::switch_to_reuse_forwarding() {
+#ifdef KELVIN_DEPRECATE
   CSetState state;
   if (ShenandoahCSetAllocationForwardingTable) {
     state = ShenandoahEarlyRecycleInfo<true>::use_compact() ?
@@ -138,6 +155,55 @@ void ShenandoahCollectionSet::switch_to_reuse_forwarding() {
       AtomicAccess::store(&_cset_map._cset_map[idx], state);
     }
   }
+#endif
+
+#ifdef KELVIN_DEBUG
+  dump_cset_map("Before switch_to_reuse_forwarding", &_cset_map._cset_map[0]);
+#endif
+  CSetState fwt_state = ShenandoahEarlyRecycleInfo<true>::use_compact() ?
+    CSetState::REUSABLE_FWDTABLE_COMPACT : CSetState::REUSABLE_FWDTABLE_WIDE;
+  for (uint32_t idx = 0; idx < count(); idx++) {
+    ShenandoahHeapRegion* r = cset_region(idx);
+    ShenandoahEarlyRecycleStatus status = r->get_early_recycle_status();
+    switch (status) {
+      case ShenandoahEarlyRecycleStatus::Published_FWT:
+      case ShenandoahEarlyRecycleStatus::Retired_FWT:
+#ifdef KELVIN_DEBUG
+        log_info(gc)("Overwriting cset state to REUSABE_FWDTABLE_XXX for region %zu because is published or retired FWT",
+                     r->index());
+#endif
+        AtomicAccess::store(&_cset_map._cset_map[r->index()], fwt_state);
+        break;
+
+      case ShenandoahEarlyRecycleStatus::Prepared_NO_FWT:
+      case ShenandoahEarlyRecycleStatus::Retired_NO_FWT:
+#ifdef KELVIN_DEBUG
+        log_info(gc)("Overwriting cset state to REUSABE_MARKWORD for region %zu because is published or retired no_fwt",
+                     r->index());
+#endif
+        AtomicAccess::store(&_cset_map._cset_map[r->index()], CSetState::REUSABLE_MARKWORD);
+        break;
+
+      case ShenandoahEarlyRecycleStatus::Abandoned:
+#ifdef KELVIN_DEBUG
+        log_info(gc)("Leaving cset state untouched for Abandoned region %zu", r->index());
+#endif
+        // Do nothing with regions that we could not recycle
+        break;
+
+      case ShenandoahEarlyRecycleStatus::Planned_NO_FWT:
+      case ShenandoahEarlyRecycleStatus::Claimed_NO_FWT:
+      case ShenandoahEarlyRecycleStatus::Planned_FWT:
+      case ShenandoahEarlyRecycleStatus::Prepared_FWT:
+      case ShenandoahEarlyRecycleStatus::Publishing_FWT:
+      case ShenandoahEarlyRecycleStatus::Claimed_FWT:
+        assert(false, "Unexpected early recycle status %s for region %zu",
+               ShenandoahEarlyRecycleInfo<true>::status_name(status), r->index());
+    }
+  }
+#ifdef KELVIN_DEBUG
+  dump_cset_map("After switch_to_reuse_forwarding", &_cset_map._cset_map[0]);
+#endif
 }
 
 void ShenandoahCollectionSet::optimize_reused_forwarding(size_t start_index, size_t stride) {
@@ -156,8 +222,14 @@ void ShenandoahCollectionSet::optimize_reused_forwarding(size_t start_index, siz
   }
 }
 
+
+
 void ShenandoahCollectionSet::remove_region(ShenandoahHeapRegion* r) {
   shenandoah_assert_heaplocked();
+#undef KELVIN_DEBUG
+#ifdef KELVIN_DEBUG
+  log_info(gc)("Removing region %zu from cset, setting state to NOT_IN_CSET", r->index());
+#endif
   assert(is_reusable(r), "only recycled regions may be removed individually");
   // Clear atomically so barriers immediately stop forwarding through the table.
   AtomicAccess::store(&_cset_map._cset_map[r->index()], CSetState::NOT_IN_CSET);
@@ -168,9 +240,15 @@ void ShenandoahCollectionSet::remove_region(ShenandoahHeapRegion* r) {
 void ShenandoahCollectionSet::clear() {
   assert(ShenandoahSafepoint::is_at_shenandoah_safepoint(), "Must be at a safepoint");
 
-  Copy::zero_to_bytes(_cset_map._cset_map, _map_size);
-  _planned_for_reuse.clear();
+#ifdef KELVIN_DEBUG
+  log_info(gc)("Clearing the ShenandoahCollectionSet: all regions status set to NOT_IN_CSET");
+#endif
 
+
+  Copy::zero_to_bytes(_cset_map._cset_map, _map_size);
+#ifdef KELVIN_DEPRECATE
+  _planned_for_reuse.clear();
+#endif
 #ifdef ASSERT
   for (size_t index = 0; index < _heap->num_regions(); index ++) {
     assert (!_heap->get_region(index)->is_cset(), "should have been cleared before");
@@ -195,6 +273,33 @@ void ShenandoahCollectionSet::clear() {
   _has_old_regions = false;
 }
 
+uint32_t ShenandoahCollectionSet::claim_next_index() {
+  // This code is optimized to provide regions in order of increasing anticipated forward table size, as derived from
+  // number of objects marked within eachregion. This correlates with, but is not identical to, live data.  In the case
+  // that a small number of very large objects consumes a particular region, then a region with small number of forwarded
+  // objects may have more live data than a region with larger number of forwarded objects.
+
+  // The collection set, ordered from small live data to large live data, is stored in the early-recycle tlab segment of
+  // the free-set early_recycled_regions array.
+  ShenandoahFreeSet* free_set = _heap->free_set();
+  size_t cset_size = count();
+
+  // _current_index, initialized to 0, identifies next region to be claimed.
+  size_t old = _current_index.load_relaxed();
+  while (old < cset_size) {
+    assert(is_in(cset_region(old)), "Precondition");
+    size_t cur = _current_index.compare_exchange(old, old + 1, memory_order_relaxed);
+    if (cur == old) {
+      // Successfully moved the claim index, this is our region.
+      return old;
+    } else {
+      // Somebody else moved the claim index, restart from there.
+      old = cur;
+    }
+  }
+  return cset_size;                    // All cset regions have been claimed
+}
+
 ShenandoahHeapRegion* ShenandoahCollectionSet::claim_next() {
   // This code is optimized to provide regions in order of increasing anticipated forward table size, as derived from
   // number of objects marked within eachregion. This correlates with, but is not identical to, live data.  In the case
@@ -209,11 +314,12 @@ ShenandoahHeapRegion* ShenandoahCollectionSet::claim_next() {
   // _current_index, initialized to 0, identifies next region to be claimed.
   size_t old = _current_index.load_relaxed();
   while (old < cset_size) {
-    assert(is_in(free_set->get_tlab_region(old)), "Precondition");
+    ShenandoahHeapRegion* result = cset_region(old);
+    assert(is_in(result), "Precondition");
     size_t cur = _current_index.compare_exchange(old, old + 1, memory_order_relaxed);
     if (cur == old) {
       // Successfully moved the claim index, this is our region.
-      return free_set->get_tlab_region(old);
+      return result;
     } else {
       // Somebody else moved the claim index, restart from there.
       old = cur;
@@ -227,7 +333,6 @@ ShenandoahHeapRegion* ShenandoahCollectionSet::claim_next() {
 // sorted the regions according to liveness.  We now sort them so that
 // we first evacuate the regions with smallest live data, helping us
 // early recycle more quickly.
-
 
   // This code is optimized for the case when collection set contains only
   // a few regions. In this case, it is more constructive to check for is_in

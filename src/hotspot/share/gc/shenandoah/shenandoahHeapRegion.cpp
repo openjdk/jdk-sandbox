@@ -292,7 +292,7 @@ void ShenandoahHeapRegion::make_cset() {
   }
 }
 
-// Use when a region with fwt is recycled back into the Mutator free set.
+// Called when a collection set region is made available for mutator allocations at the start of update refs.
 void ShenandoahHeapRegion::recycle_early(bool reuse_body) {
   // We need the lock because we are going to change top(), TAMS, update water mark, etc.
   // These variables only change under lock.
@@ -361,8 +361,7 @@ void ShenandoahHeapRegion::teardown_reuse_state() {
 }
 
 #ifdef KELVIN_DEPRECATE
-// it appears that ShenandoahHeap::finish_no_table_region_evacuation()
-// does not need to delegate anything to this service.
+// KELVIN COPIED SET_RESERVED_BODY_WORDS INTO SHENANDOAHHEAP::FINISH_NO_TABLE_REGION_EVACUATION()
 
 bool ShenandoahHeapRegion::prepare_reuse_no_table() {
   uintx const max_density = ShenandoahCSetReuseMaxDensityPercent;

@@ -64,6 +64,16 @@ public:
   // Marks the object in the marking bitmap, ignoring TAMS.
   inline bool mark_strong_ignore_tams(oop obj, bool& was_upgraded);
 
+#define KELVIN_DEBUG_CREATIVITY
+#ifdef KELVIN_DEBUG_CREATIVITY
+  inline size_t show_me_is_marked_ignore_tams(HeapWord* raw_obj) {
+    log_info(gc)("is_marked believes address: " PTR_FORMAT " is first unmarked, but get_next_unmarked found a different value",
+                 p2i(raw_obj));
+    _mark_bit_map.show_is_marked(raw_obj);
+    return 0;
+  }
+#endif
+
   // Simple versions of marking accessors, to be used outside of marking (e.g. no possible concurrent updates)
   inline bool is_marked(oop obj) const;
   inline bool is_marked(HeapWord* raw_obj) const;

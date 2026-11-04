@@ -109,7 +109,8 @@ HeapWord* ShenandoahMarkBitMap::get_next_unmarked_addr_ignore_tams(const HeapWor
   size_t const next_offset = get_next_double_0_offset(addr_offset, limit_offset);
 #define KELVIN_DEBUG
 #ifdef KELVIN_DEBUG
-  log_info(gc)("get_next_unmarked_addr_ignore_tams(), addr_offset: %zu, next_offset: %zu", addr_offset, next_offset);
+  log_info(gc)("get_next_unmarked_addr_ignore_tams(" PTR_FORMAT "), addr_offset: %zu, next_offset: %zu",
+               p2i(addr), addr_offset, next_offset);
 #endif
   return index_to_address(next_offset);
 }

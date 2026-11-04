@@ -77,6 +77,7 @@ class outputStream;
   SHENANDOAH_WORKER_PHASE_DEF(f, finish_mark,                                     "  Finish Mark",                   \
                                                                                   "    FM: ")                        \
   SHENANDOAH_SIMPLE_PHASE_DEF(f, final_mark_propagate_gc_state,                   "  Propagate GC State")            \
+  SHENANDOAH_SIMPLE_PHASE_DEF(f, publish_early_recycle_rendezvous,                "  Rendezvous")                    \
   SHENANDOAH_WORKER_PHASE_DEF(f, purge,                                           "  System Purge",                  \
                                                                                   "      CU: ")                      \
   SHENANDOAH_WORKER_PHASE_DEF(f, purge_weak_par,                                  "    Weak Roots",                  \

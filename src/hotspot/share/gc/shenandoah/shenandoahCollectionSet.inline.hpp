@@ -78,9 +78,14 @@ bool ShenandoahCollectionSet::is_reusable(ShenandoahHeapRegion* r) const {
 }
 
 bool ShenandoahCollectionSet::is_reuse_eligible(ShenandoahHeapRegion* r) const {
+  // KELVIN TODO: why do we prohibit r->is_old()? Seems unnecessary, though mixed-evac old regions may tend to
+  // have higher mark-word density than typical young regions.
   return !r->is_old() && !r->is_pinned() && !r->was_promoted_in_place() && !r->has_self_forwards();
 }
 
+#ifdef KELVIN_DEPRECATE
+// This is redundant with refactoring.  This assumes all regions are recycled in same mode: FWT or no-table
+// New code is more general.
 bool ShenandoahCollectionSet::is_planned_for_reuse(ShenandoahHeapRegion* r) const {
   return _planned_for_reuse.at(r->index());
 }
@@ -88,6 +93,7 @@ bool ShenandoahCollectionSet::is_planned_for_reuse(ShenandoahHeapRegion* r) cons
 void ShenandoahCollectionSet::set_planned_for_reuse(ShenandoahHeapRegion* r) {
   _planned_for_reuse.set_bit(r->index());
 }
+#endif
 
 size_t ShenandoahCollectionSet::get_live_bytes_in_old_regions() const {
   return _old_bytes_to_evacuate;

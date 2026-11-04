@@ -260,10 +260,13 @@ void ShenandoahGenerationalHeap::evacuate_collection_set(ShenandoahGeneration* g
   workers()->run_task(&task);
   // Single post-evacuation rendezvous; see ShenandoahHeap::evacuate_collection_set.
   ShenandoahFreeSet* free_set = this->free_set();
-  if (concurrent && ShenandoahCSetReuse && (free_set->fwt_bytes_prepared() > free_set->fwt_bytes_published())) {
-    rendezvous_threads("Switch to Forward Table");
-    collection_set()->switch_to_reuse_forwarding();
+  if (concurrent && ShenandoahCSetReuse && (free_set->fwt_regions_prepared() > free_set->fwt_regions_published())) {
+#ifdef KELVIN_DEBUG
+    log_info(gc)("Evacuation is done. Running one last handshake because regions prepared was less than regions-published");
+#endif
+    free_set->publish_prepared_regions(0, 1 /* only 1 worker now */, true /* all cset regions prepared */, true, collection_set());
   }
+  collection_set()->switch_to_reuse_forwarding();
 }
 
 void ShenandoahGenerationalHeap::promote_regions_in_place(ShenandoahGeneration* generation, bool concurrent) {

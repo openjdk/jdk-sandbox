@@ -39,6 +39,7 @@ ShenandoahEarlyRecycleSubsetCoordinator _early_recycle_locks[NUM_EARLY_RECYCLE_S
 
 HeapWord* CompactFwdTableEntry::_heap_base = nullptr;
 
+// KELVIN TODO: Do we need this?  Explain the rationale.
 template <bool use_forward_table>
 uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::compute_common_max_probes() {
   uint32_t const overrun = ShenandoahForwardingTableProbeOverrun;
@@ -356,6 +357,10 @@ void ShenandoahEarlyRecycleInfo<use_forward_table>::set_marked_entries_used(BitM
   }
 }
 
+// KELVIN TODO:Not sure that we need to do this.  Looks like extra work. I think the problem is if we don't clear the unused slots,
+// then we may not be able to detect the end of a search for a newly allocated object that is not in the table.  It will see
+// non-zero data in the forwarding table and think this is "meaningful data".  So maybe we really do need to do this.  Can
+// we at least add a comment to clarify why this needs to be done.
 template <bool use_forward_table>
 template <class Entry, bool b, typename>
 void ShenandoahEarlyRecycleInfo<use_forward_table>::clear_unused_slots(const BitMap& used) {
@@ -579,7 +584,13 @@ bool ShenandoahEarlyRecycleInfo<use_forward_table>::build(uint32_t num_entries) 
       reset();
       return false;
     }
+    // Before we publish, it is important to clear unused slots and adjust top.
+    clear_unused_slots<Entry>(used);
+    _region->set_alt_top(_region->top());
+    _region->set_top(_region->bottom());
+    OrderAccess::fence();
     bool result = _status.compare_set(ShenandoahEarlyRecycleStatus::Planned_FWT, ShenandoahEarlyRecycleStatus::Prepared_FWT);
+    assert(result, "state machine");
 #ifdef DMITRY_BUILD
     ResourceBitMap used(build._desc._num_entries);
     set_marked_entries_used<Entry>(build, used);
@@ -592,7 +603,6 @@ bool ShenandoahEarlyRecycleInfo<use_forward_table>::build(uint32_t num_entries) 
     }
     _u._fwt = build._desc;
 #endif
-    clear_unused_slots<Entry>(used);
     verify_forwardings<Entry>();
   }
   // Run at MaxPercent=100 with -Xlog:gc=debug to see the full distribution.

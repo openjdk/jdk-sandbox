@@ -189,6 +189,11 @@ public:
   ALWAYSINLINE
   bool mark_weak(HeapWord* heap_addr);
 
+#define KELVIN_DEBUG_CREATIVE
+#ifdef KELVIN_DEBUG_CREATIVE
+  inline bool show_is_marked(HeapWord* addr) const;
+#endif
+
   inline bool is_marked(HeapWord* addr) const;
   inline bool is_marked_strong(HeapWord* w)  const;
   inline bool is_marked_weak(HeapWord* addr) const;
