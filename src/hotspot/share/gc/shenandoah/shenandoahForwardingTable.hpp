@@ -250,6 +250,9 @@ class alignas(CACHE_LINE_SIZE_IN_BYTES) ShenandoahEarlyRecycleInfo {
   // fwt_build is instantiated  locally during construction of fwt.  It is not stored in the heap region.
   struct fwt_build {
     fwt_info _desc;            // values to be copied into ShenandoahEarlyRecycleInfo after construction
+    ShenandoahHeapRegion* _carrier;  // The carrier region holds the forward table for this region, I think
+    HeapWord* _lo;
+    HeapWord* _hi;
     uint32_t _num_expected;    // expected forewarded entries
     uint32_t _num_actual;      // actual number of forwarded entries
     uint32_t _num_live;        // num_live is mark-word conflicts in table

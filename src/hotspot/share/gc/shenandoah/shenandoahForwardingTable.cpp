@@ -193,6 +193,12 @@ uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::compute_entries(uint32_t
   HeapWord* const top =  _region->top();
   HeapWord* const end = _region->end();
   // Usable slots to size for at the target load factor: ceil(num_forwardings * 100 / LF).
+#ifdef DMITRY_BUILD
+  HeapWord* const lo  = build._lo;
+  HeapWord* const hi  = build._hi;
+  HeapWord* const top = MIN2(build._carrier->top(), hi);
+  // Usable slots to size for at the target load factor: ceil(num_entries * 100 / LF).
+#endif
   // Default LF = 60 -> 1.667x entries per forwarding, chosen to keep the average
   // double-hashing chain near 1.5 for a successful lookup (75 gives ~1.85, 85
   // ~2.2). A lower load factor yields a sparser table
@@ -202,13 +208,18 @@ uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::compute_entries(uint32_t
   // num_required_entries is the number of usable entries in order to honor requested load factor
   uint32_t const num_required_entries = (num_forwardings * 100 + lf - 1) / lf;
   // Optimistic last possible table start (assuming no unusable entries). We don't need to search beyond that.
-  HeapWord* const last_table_start = align_down(end - num_required_entries * entry_words, entry_obj_align);
-  if (last_table_start < bottom) {
+  HeapWord* const last_table_start = align_down(hi - num_required_entries * entry_words, entry_obj_align);
+  if (last_table_start < lo) {
     log_info(gc)("Forwarding table build failed for region %zu: "
                  "required=%u entries of %u words exceed region_words=%u (num_forwardings=%u)",
                  _region->index(), num_required_entries, entry_words,
                  (uint32_t) pointer_delta(end, bottom), num_forwardings);
     return 0;
+#ifdef DMITRY_BUILD
+                 (uint32_t) pointer_delta(hi, lo), num_entries);
+    // Note that DMITRY_BUILD assumes function type is bool.
+    return false;
+#endif
   }
 
   // Count number of live words in the tail [last_table_start, top).
@@ -238,10 +249,62 @@ uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::compute_entries(uint32_t
     }
   }
 #ifdef KELVIN_NICE_TO_HAVE
-  // live_words is only needed during build so it has beenremoved from _u._fwt. If we remove it, we don't have
+  // live_words is only needed during build so it has been removed from _u._fwt. If we remove it, we don't have
   // an easy way to enforce certain assertions.
   _u._fwt._num_live_words = unusable_entries;
-#endif
+#ifdef MORE_DMITRY_BUILD
+    // Now try to find a lower bound that satisfies the target load factor.  Start at the last possible address.
+    HeapWord* table_start = last_table_start;
+    assert(table_start >= lo, "table start must be in region");
+    uint32_t num_table_entries = (hi - table_start) / entry_words;
+
+    while (table_start > lo && num_table_entries - unusable_entries < num_required_entries) {
+      uint32_t growth = num_required_entries + unusable_entries - num_table_entries;
+      HeapWord* new_table_start = align_down(table_start - growth * entry_words, entry_obj_align);
+      if (new_table_start < lo) {
+        table_start = lo;     // Force loop to abort with failure condition.
+        break;
+      } else {
+        unusable_entries += ctx->count_mark_bit_conflicts<entry_words>(new_table_start, table_start);
+        table_start = new_table_start;
+        num_table_entries = (hi - table_start) / entry_words;
+      }
+    }
+
+    if (num_table_entries - unusable_entries < num_required_entries) {
+      log_info(gc)("Forwarding table build failed for region %zu: "
+                   "table_entries=%u unusable=%u required=%u num_forwardings=%u region_words=%u",
+                   _region->index(), num_table_entries, unusable_entries, num_required_entries, num_entries,
+                   (uint32_t) pointer_delta(hi, lo));
+      return false;
+    }
+    table_start = align_down(table_start, entry_words * HeapWordSize);
+
+    // Prime table size >= 2 (a modulus of 1 would break the double-hashing stride) for
+    // a later switch to double hashing.
+    uint32_t const region_entries = (hi - lo) / entry_words;
+    uint32_t const max_prime_32bit = 4294967291;
+    uint32_t prime_entries;
+    if (num_table_entries < max_prime_32bit) {
+      prime_entries = next_prime(MAX2(num_table_entries, (uint32_t)2), region_entries);
+    } else {
+      prime_entries = 0;  /* overflow table cannot be constructed */
+    }
+
+    if (prime_entries == 0) {
+      log_info(gc)("Forwarding table build failed for region %zu: "
+                   "no prime table size fits (table_entries=%u region_entries=%u num_forwardings=%u)",
+                   _region->index(), num_table_entries, region_entries, num_entries);
+      return false;
+    }
+    table_start = hi - prime_entries * entry_words;
+#ifdef ASSERT
+    HeapWord* table_address = table_start;
+    assert((table_address >= lo) && (table_address < hi) &&
+           is_aligned(table_address, entry_words * HeapWordSize),
+           "_table must be within range and aligned to entry");
+#endif   // MORE_DMITRY_BUILD
+#endif   // KELVIN_NICE_TO_HAVE
 
   if (num_table_entries - unusable_entries < num_required_entries) {
     log_info(gc)("Forwarding table build failed for region %zu: "
@@ -249,6 +312,13 @@ uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::compute_entries(uint32_t
                  _region->index(), num_table_entries, unusable_entries, num_required_entries, num_forwardings,
                  (uint32_t) pointer_delta(end, bottom));
     return 0;
+#ifdef DMITRY_BUILD
+    assert((void*)(reinterpret_cast<Entry*>(desc._table) + desc._num_entries) == (void*)hi,
+           "table must be anchored at storage range end");
+    log_develop_debug(gc)("Initialized forwarding table: table: " PTR_FORMAT ", num_entries: %u, requested entries: %u",
+                        p2i(desc._table), desc._num_entries, num_entries);
+    return true;
+#endif
   }
   table_start = align_down(table_start, entry_words * HeapWordSize);
 
@@ -323,8 +393,8 @@ void ShenandoahEarlyRecycleInfo<use_forward_table>::set_marked_entries_used(BitM
          "table must be anchored at region end");
 
   ShenandoahMarkingContext* const ctx = ShenandoahHeap::heap()->marking_context();
-  HeapWord* const top = _region->top();
-  assert(ctx->top_at_mark_start(_region) == top, "TAMS must be at top during table build");
+  HeapWord* const top = MIN2(build._carrier->top(), build._hi);
+  assert(ctx->top_at_mark_start(build._carrier) == build._carrier->top(), "TAMS must be at top during table build");
 
   HeapWord* const table_start = reinterpret_cast<HeapWord*>(_u._fwt._table);
   constexpr size_t entry_words = sizeof(Entry) / sizeof(HeapWord*);
@@ -472,7 +542,7 @@ void ShenandoahEarlyRecycleInfo<use_forward_table>::fill_forwardings(BitMap& use
         assert(ShenandoahHeap::heap()->is_in(cast_to_oop(forwardee)),
                "FWT fill: forwardee " PTR_FORMAT " for original " PTR_FORMAT " region=%zu is outside heap",
                p2i(forwardee), p2i(original), _region_idx);
-      } else if (_fwt_start != nullptr && original < _fwt_start) {
+      } else if (_fwt_start != nullptr && (original < _fwt_start || original >= _build._hi)) {
         log_warning(gc)("FWT fill: body object " PTR_FORMAT " region=%zu is self-forwarded (not evacuated)",
                         p2i(original), _region_idx);
       }
@@ -565,7 +635,11 @@ bool ShenandoahEarlyRecycleInfo<use_forward_table>::build() {
 #ifdef DMITRY_BUILD
 bool ShenandoahEarlyRecycleInfo<use_forward_table>::build(uint32_t num_entries) {
   fwt_build build = {};
+  ShenandoahHeapRegion* const carrier = _region;
   build._num_expected = num_entries;
+  build._carrier = carrier;
+  build._lo = carrier->bottom();
+  build._hi = carrier->end();
   bool const initialized = initialize<Entry>(build);
 #endif
   if (initialized) {

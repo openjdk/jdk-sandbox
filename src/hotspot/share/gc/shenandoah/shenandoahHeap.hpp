@@ -223,7 +223,7 @@ public:
   void prepare_for_verify() override;
   void verify(VerifyOption vo) override;
 
-// WhiteBox testing support.
+  // WhiteBox testing support.
   bool supports_concurrent_gc_breakpoints() const override {
     return true;
   }

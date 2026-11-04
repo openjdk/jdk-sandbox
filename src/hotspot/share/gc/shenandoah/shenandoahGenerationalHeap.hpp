@@ -30,6 +30,7 @@
 #include "utilities/checkedCast.hpp"
 
 class PLAB;
+class ShenandoahCollectorPolicy;
 class ShenandoahRegulatorThread;
 class ShenandoahGenerationalControlThread;
 class ShenandoahAgeCensus;
