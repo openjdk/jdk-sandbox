@@ -676,4 +676,85 @@ inline ShenandoahMarkingContext* ShenandoahHeap::marking_context() const {
   return _marking_context;
 }
 
+inline bool ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure advance_bump_to_unmarked() {
+  // KELVIN TODO: USE _CONTEXT->GET_NEXT_UNMARKED();
+  for (size_t pad = 0; true; pad++) {
+    if ((pad == 0) || (pad >= _min_fill_size)) {
+      if (_bump_alloc_offset + pad >= _end_of_allocatable_offset) {
+        // out of memory in this region.  Retire it.
+        retire_early_recycled_region();
+        return false;
+      }
+      if (!_context->is_marked_ignore_tams(_alloc_region_bottom + _bump_alloc_offset + pad)) {
+        // This is a good start location.  We don't fill for single-gen Shenandoah, but we would need to
+        // fill if we were preparing this region for OldCollector allocations.
+        _bump_alloc_offset += pad;
+        if (_bump_alloc_offset >= _conflict_offset) {
+          _conflict_offset =
+            _context->get_next_marked_addr_ignore_tams(_alloc_region_bottom + pad,
+                                                       _alloc_region_bottom + _end_of_allocatable_offset) - _alloc_region_bottom;
+        }
+        return true;
+      }
+    }
+    // Continue, trying a larger value of pad
+  }
+}
+
+inline bool ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure::initialize_early_recycle_region(ShenandoahHeapRegion* r) {
+  if (r == nullptr) {
+    return false;
+  } else {
+    _alloc_region_bottom = r->bottom();
+    _bump_alloc_offset = r->top() - _alloc_region_bottom;
+    _end_of_allocatable_offset = r->alloc_end() - _alloc_region_bottom;
+    _conflict_offset = _bump_alloc_offset;
+    return advance_bump_to_unmarked();
+  }
+}
+
+inline void ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure::establish_new_early_recycle_region() {
+  ShenandoahFreeSet* free_set = _heap->free_set();
+  ShenandoahHeapRegion* r = free_set->gc_worker_claim_early_recycle_young_region();
+  initialize_early_recycle_region(r);
+}
+
+inline void ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure::retire_early_recycled_region() {
+  ShenandoahFreeSet* free_set = _heap->free_set();
+  ShenandoahHeapRegion* r = _heap->heap_region_containing(_alloc_region_bottom);
+  // Any memory not allocated here is made available to some future consumer of this retired region.
+  r->set_top(_alloc_region_bottom + _bump_alloc_offset);
+  free_set->gc_worker_retire_early_recycle_region(r);
+  _alloc_region_bottom = nullptr; // until someone replaces this early recycled region with a new one
+}
+
+inline size_t ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure::num_forwardings() const {
+  return _num_forwardings;
+}
+
+inline void ShenandoahConcurrentEvacuateRegionObjectClosure::do_object(oop p) final {
+  shenandoah_assert_marked(nullptr, p);
+  _num_forwardings++;
+  if (!p->is_forwarded()) {
+    oop fwd = _heap->evacuate_object(p, _thread);
+    //log_info(gc)("evacuated object: " PTR_FORMAT ", to: " PTR_FORMAT, p2i(p), p2i(fwd));
+  }
+
+  if (ShenandoahCSetAllocationForwardingTable) {
+    // Mark objects beyond TAMS here, so that we can find their headers quickly when we're building the forwarding table.
+    bool upgraded = false;
+    if (cast_from_oop<HeapWord*>(p) >= _tams) {
+      _context->mark_strong_ignore_tams(p, upgraded);
+      assert(!upgraded, "should be first mark");
+    }
+    assert(_context->is_marked(p), "must be marked");
+  }
+}
+
+inline size_t ShenandoahConcurrentEvacuateRegionObjectClosure::num_forwardings() const {
+  return _num_forwardings;
+}
+
+
+
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHHEAP_INLINE_HPP

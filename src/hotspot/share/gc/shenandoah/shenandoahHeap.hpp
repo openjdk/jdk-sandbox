@@ -41,6 +41,7 @@
 #include "gc/shenandoah/shenandoahMmuTracker.hpp"
 #include "gc/shenandoah/shenandoahPadding.hpp"
 #include "gc/shenandoah/shenandoahSharedVariables.hpp"
+#include "gc/shenandoah/shenandoahThreadLocalData.hpp"
 #include "gc/shenandoah/shenandoahUnload.hpp"
 #include "memory/metaspace.hpp"
 #include "services/memoryManager.hpp"
@@ -937,5 +938,113 @@ private:
   size_t _injected_pin_indices[MAX_INJECTED_PINS];
   uint   _injected_pin_count;
 };
+
+// Kelvin TODO:
+//  If we cannot replenish our early recycle allocation region when necessary, maybe we should suspend the evacuation
+//  effort:
+//   1. Resume when early-recycle memory is made available by some other GC worker thread, and/or
+//   2. Allow some other GC worker thread who presumably has available early-recycle memory to finish the evacuation
+//
+//  The current approach is to push forward, using free-set evacuations whenever early recycle memory is not available
+//  to me.  The suspicion is that this:
+//   1. Increases the likelihood of OOM during evac because I may have transferred free-set reserves to mutator, but
+//      but the GC workers are too greedy and their early recycle memory is not distributed fairly across all workers
+//      (because they take entire regions at a time).
+//   2. This may reduce our effectiveness in consuming as much memory as possible during evacuation by gc workers.
+//      At the end of evacuation, we'll give all the unexpended memory to mutators. We may have been unable to
+//      effectively expend much of the memory because we redirected too many evacuations to the free set.
+//
+// An alternative mitigation would be to not give entire regions at a time to the evacuating GC workers.  The downside
+// of this is that we cannot as easily reclaim the unexpended memory in retired PLAB/GCLABs when a GC worker finishes
+// with large amounts of memory in its evacuating LABs.
+
+
+// Use this evacuator when we are evacuating into early recycled memory with forward table.
+class alignas(SHENANDOAH_CACHE_LINE_SIZE) ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure : public ObjectClosure {
+private:
+  ShenandoahHeap* const _heap;
+  ShenandoahHeapRegion* const _region;
+  Thread* const _thread;
+  ShenandoahMarkingContext* const _context;
+  HeapWord* _tams;
+  HeapWord* _alloc_region_bottom;
+
+  // Pack the following fields so that we can fit in a cache line.
+
+  // Largest region is 32MB == 33_554_432 bytes == 4_194_304 aligned locations.
+  //  uint32_t can count to 4_294_967_296
+  
+  uint32_t _bump_alloc_offset;
+  uint32_t _conflict_offset;
+  uint32_t _end_of_allocatable_offset;
+  uint32_t _num_forwardings;
+
+private:
+  inline bool advance_bump_to_unmarked();
+  inline bool initialize_early_recycle_region(ShenandoahHeapRegion* r);
+  inline void establish_new_early_recycle_region();
+  inline void retire_early_recycled_region();
+
+public:
+  // Declared static because we only need one value of this variable. Cannot be declared and initailized as const static
+  // because ShenandoahHeap::min_fill_size() is not "constexpr".  Initialize in the constructor.
+  static size_t _min_fill_size;
+
+  ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure(ShenandoahHeap* heap, ShenandoahHeapRegion* r,
+                                                              ShenandoahHeapRegion* alloc_region);
+  ~ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure();
+
+  void do_object(oop p) final;
+  inline size_t num_forwardings() const;
+};
+
+class ShenandoahConcurrentEvacuateRegionObjectClosure : public ObjectClosure {
+private:
+  ShenandoahHeap* const _heap;
+  ShenandoahHeapRegion* const _region;
+  Thread* const _thread;
+  ShenandoahMarkingContext* const _context;
+  HeapWord* _tams;
+  size_t _num_forwardings;
+public:
+  ShenandoahConcurrentEvacuateRegionObjectClosure(ShenandoahHeap* heap, ShenandoahHeapRegion* r);
+  ~ShenandoahConcurrentEvacuateRegionObjectClosure();
+
+  inline void do_object(oop p) final;
+
+  size_t num_forwardings() const {
+    return _num_forwardings;
+  }
+};
+
+class ShenandoahRetireGCLABClosure : public ThreadClosure {
+private:
+  bool const _resize;
+public:
+  explicit ShenandoahRetireGCLABClosure(bool resize) : _resize(resize) {}
+  void do_thread(Thread* thread) override;
+};
+
+class ShenandoahEvacuationTask : public WorkerTask {
+private:
+  ShenandoahHeap* const _sh;
+  ShenandoahCollectionSet* const _cs;
+  ShenandoahMarkingContext* const _ctx;
+  bool _concurrent;
+  size_t _num_workers;
+  ShenandoahHeuristics* _heuristics;
+  // Don't bother to pad this. It is not hot. It is updated only _num_workers times only during initialization of the
+  // evacuation effort.
+  Atomic<size_t> _early_recycle_preprocessed_regions;
+public:
+  ShenandoahEvacuationTask(ShenandoahHeap* sh, ShenandoahCollectionSet* cs, bool concurrent, size_t num_workers);
+  void work(uint worker_id) final;
+
+protected:
+  void yield_or_sleep(int &yields);
+  void evacuate_region(ShenandoahHeapRegion* r, ShenandoahConcurrentEvacuateRegionObjectClosure& cl);
+  void do_work(size_t worker_id);
+}; // This closes definition of ShenandoahEvacuationTask
+
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHHEAP_HPP
