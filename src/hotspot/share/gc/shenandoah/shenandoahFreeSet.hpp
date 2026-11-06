@@ -1144,7 +1144,8 @@ public:
 #define KELVIN_DEBUG
 #ifdef KELVIN_DEBUG
     if (!result) {
-      log_info(gc)("fwt_finish_handshake() failed, expecting %zx, modified: %zx, but current value: %zx",
+      log_info(gc)("fwt_finish_handshake() failed, expecting " UINT64_FORMAT_X
+                   ", modified: " UINT64_FORMAT_X " but current value: " UINT64_FORMAT_X,
                    original, modified, _fwt_handshakes_started_and_finished.load_relaxed());
     }
 #endif

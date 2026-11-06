@@ -208,18 +208,24 @@ uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::compute_entries(uint32_t
   // num_required_entries is the number of usable entries in order to honor requested load factor
   uint32_t const num_required_entries = (num_forwardings * 100 + lf - 1) / lf;
   // Optimistic last possible table start (assuming no unusable entries). We don't need to search beyond that.
+#ifdef DMITRY_BUILD
   HeapWord* const last_table_start = align_down(hi - num_required_entries * entry_words, entry_obj_align);
   if (last_table_start < lo) {
     log_info(gc)("Forwarding table build failed for region %zu: "
                  "required=%u entries of %u words exceed region_words=%u (num_forwardings=%u)",
                  _region->index(), num_required_entries, entry_words,
-                 (uint32_t) pointer_delta(end, bottom), num_forwardings);
-    return 0;
-#ifdef DMITRY_BUILD
                  (uint32_t) pointer_delta(hi, lo), num_entries);
     // Note that DMITRY_BUILD assumes function type is bool.
     return false;
+  }
 #endif
+  HeapWord* const last_table_start = align_down(end - num_required_entries * entry_words, entry_obj_align);
+  if (last_table_start < bottom) {
+    log_info(gc)("Forwarding table build failed for region %zu: "
+                 "required=%u entries of %u words exceed region_words=%u (num_forwardings=%u)",
+                 _region->index(), num_required_entries, entry_words,
+                 (uint32_t) pointer_delta(end, bottom), num_forwardings);
+    return 0;
   }
 
   // Count number of live words in the tail [last_table_start, top).
@@ -252,6 +258,7 @@ uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::compute_entries(uint32_t
   // live_words is only needed during build so it has been removed from _u._fwt. If we remove it, we don't have
   // an easy way to enforce certain assertions.
   _u._fwt._num_live_words = unusable_entries;
+#endif
 #ifdef MORE_DMITRY_BUILD
     // Now try to find a lower bound that satisfies the target load factor.  Start at the last possible address.
     HeapWord* table_start = last_table_start;
@@ -298,13 +305,13 @@ uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::compute_entries(uint32_t
       return false;
     }
     table_start = hi - prime_entries * entry_words;
-#ifdef ASSERT
+#endif   // MORE_DMITRY_BUILD
+#ifdef DMITRY_ASSERT
     HeapWord* table_address = table_start;
     assert((table_address >= lo) && (table_address < hi) &&
            is_aligned(table_address, entry_words * HeapWordSize),
            "_table must be within range and aligned to entry");
-#endif   // MORE_DMITRY_BUILD
-#endif   // KELVIN_NICE_TO_HAVE
+#endif   // DMITRY_ASSERT
 
   if (num_table_entries - unusable_entries < num_required_entries) {
     log_info(gc)("Forwarding table build failed for region %zu: "
@@ -393,8 +400,13 @@ void ShenandoahEarlyRecycleInfo<use_forward_table>::set_marked_entries_used(BitM
          "table must be anchored at region end");
 
   ShenandoahMarkingContext* const ctx = ShenandoahHeap::heap()->marking_context();
+#ifdef DMITRY
   HeapWord* const top = MIN2(build._carrier->top(), build._hi);
   assert(ctx->top_at_mark_start(build._carrier) == build._carrier->top(), "TAMS must be at top during table build");
+#else
+  HeapWord* const top = _region->top();
+  assert(ctx->top_at_mark_start(_region) == top, "TAMS must be at top during table build");
+#endif
 
   HeapWord* const table_start = reinterpret_cast<HeapWord*>(_u._fwt._table);
   constexpr size_t entry_words = sizeof(Entry) / sizeof(HeapWord*);
@@ -542,11 +554,20 @@ void ShenandoahEarlyRecycleInfo<use_forward_table>::fill_forwardings(BitMap& use
         assert(ShenandoahHeap::heap()->is_in(cast_to_oop(forwardee)),
                "FWT fill: forwardee " PTR_FORMAT " for original " PTR_FORMAT " region=%zu is outside heap",
                p2i(forwardee), p2i(original), _region_idx);
-      } else if (_fwt_start != nullptr && (original < _fwt_start || original >= _build._hi)) {
+      }
+#ifdef DMITRY
+      // kelvin doesn't understand this code.  why only a warning? shouldn't we assert out here if _fwt_start == nullptr?
+      // same questions below in my version of the code.
+      else if (_fwt_start != nullptr && (original < _fwt_start || original >= _build._hi)) {
         log_warning(gc)("FWT fill: body object " PTR_FORMAT " region=%zu is self-forwarded (not evacuated)",
                         p2i(original), _region_idx);
       }
 #endif
+      else if (_fwt_start != nullptr && original < _fwt_start) {
+        log_warning(gc)("FWT fill: body object " PTR_FORMAT " region=%zu is self-forwarded (not evacuated)",
+                        p2i(original), _region_idx);
+      }
+#endif  // PRODUCT
       Entry replaced = Entry();       // no-arg constructor builds Entry that !is_entry()
       uint32_t index;
       uint32_t stride;

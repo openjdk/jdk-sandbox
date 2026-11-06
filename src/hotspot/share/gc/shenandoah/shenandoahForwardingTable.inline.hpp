@@ -317,7 +317,7 @@ uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::reserve_forwarding(BitMa
     _u._fwt._max_required_probes = depth;
   }
   num_actual++;
-  assert(num_actual <= _u._fwt._num_entries, "must not exceed number of entries");
+  assert(num_actual <= _u._fwt._num_expected_forwardings, "must not exceed expected number of forwardings");
   return index;
 }
 

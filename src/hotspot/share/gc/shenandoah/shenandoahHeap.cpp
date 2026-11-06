@@ -1140,13 +1140,6 @@ MetaWord* ShenandoahHeap::satisfy_failed_metadata_allocation(ClassLoaderData* lo
   return nullptr;
 }
 
-static uint32_t random_uint_256() {
-  static std::mt19937 gen;
-  static std::uniform_int_distribution<uint32_t> distrib(0, 511);
-  return distrib(gen);
-}
-
-
 class ShenandoahGCStatePropagatorHandshakeClosure : public HandshakeClosure {
 public:
   explicit ShenandoahGCStatePropagatorHandshakeClosure(char gc_state) :
@@ -3238,21 +3231,21 @@ ShenandoahHeapLocker::ShenandoahHeapLocker(ShenandoahHeapLock* lock, bool allow_
 ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure::ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure(
   ShenandoahHeap* heap, ShenandoahHeapRegion* r, ShenandoahHeapRegion* alloc_region) :
     _heap(heap), _region(r), _thread(Thread::current()), _context(heap->marking_context()),
-    _tams(_context->top_at_mark_start(_region)), _num_forwardings(0) {
+    _tams(_context->top_at_mark_start(_region)), _num_forwardings(0), _heap_evacuated_objects(0) {
   initialize_early_recycle_region(alloc_region);
   if (_min_fill_size == 0) {
     _min_fill_size = ShenandoahHeap::min_fill_size();
   }
 }
 
-~ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure::ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure() {
+ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure::~ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure() {
   _context->capture_top_at_mark_start(_region);
   if (_alloc_region_bottom != nullptr) {
     retire_early_recycled_region();
   }
 }
 
-void ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure::do_object(oop p) final {
+void ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure::do_object(oop p) {
   shenandoah_assert_marked(nullptr, p);
   _num_forwardings++;
   if (!p->is_forwarded()) {
@@ -3260,13 +3253,12 @@ void ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure::do_object(oop 
     assert(_conflict_offset > _bump_alloc_offset, "invariant");
     assert(_region->affiliation() == ShenandoahAffiliation::YOUNG_GENERATION, "This code for single-gen Shenandoah only");
     const ShenandoahAffiliation target_gen = ShenandoahAffiliation::YOUNG_GENERATION;
-    oop fwd;
+    oop fwd = nullptr;
     bool free_set_evac_attempted = false;
-    HeapWord* copy;
+    HeapWord* copy = nullptr;
     if (_alloc_region_bottom != nullptr) {
       // Speculate that early recycle allocation is successful, then confirm below
       copy = _alloc_region_bottom + _bump_alloc_offset;
-      oop fwd = nullptr;
       // Normally, allocation is satisfied immediately and there's no need to iterate.
       while (_bump_alloc_offset + size > _end_of_allocatable_offset) {
         size_t available_words = _end_of_allocatable_offset - _bump_alloc_offset;
@@ -3279,18 +3271,17 @@ void ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure::do_object(oop 
         } else {
           // Retire the region and try to allocate within a replacement region.
           retire_early_recycled_region();
-          establish_new_early_recycle_region();
-          if (_alloc_region_bottom == nullptr) {
+          if (try_establish_new_early_recycle_region()) {
+            // We've replaced the early recycle region.  At top of loop, we will confirm that new region has sufficient
+            // memory to satisfy our allocation request.
+            copy = _alloc_region_bottom + _bump_alloc_offset;
+          } else {
             // We were unable to claim an early recycled region. Fall back to free-set evacuator for now.
             assert(_alloc_region_bottom == nullptr, "Early recycle was just retired");
             fwd = _heap->evacuate_object(p, _thread);
             //log_info(gc)("evacuated object: " PTR_FORMAT ", to: " PTR_FORMAT, p2i(p), p2i(fwd));
             free_set_evac_attempted = true;
             break;
-          } else {
-            // We've replaced the early recycle region.  At top of loop, we will confirm that new region has sufficient
-            // memory to satisfy our allocation request.
-            copy = _alloc_region_bottom + _bump_alloc_offset;
           }
         }
       }
@@ -3302,24 +3293,20 @@ void ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure::do_object(oop 
         copy = nullptr;
       }
     } else {
-      // We're here because we previously depleted our early recycle region and were unable to reclaim a new one.
+      // We're here because we previously depleted our early recycle region and were unable to reclaim a new one. Under
+      // normal operating conditions, we expect it to be rare that we're on this control path, because normally we are
+      // able to recycle regions much faster than the need to allocate from their memory.
       fwd = _heap->evacuate_object(p, _thread);
       free_set_evac_attempted = true;
-      if (random_uint_256() == 42) {
-        // With probability 1/256, let's see if we can now claim a new early recycle region. Our hope is that other
-        // workers have been able to recycle and prepare and publish more early recycle regions while we've been evacuating
-        // into free-set memory.
-        establish_new_early_recycle_region();
-        // We've already evacuated this object using free-set allocated memory. We don't care right now whether we successfully
-        // established new early recycle region. If so, the next object processed will come out of early recycled memory.
-        // If not, we'll continue allocating from free set.
+      if (_heap_evacuated_objects++ > MaxHeapEvacuatedBeforeRetryEarlyRecycle) {
+        try_establish_new_early_recycle_region();
+        // if successful, next do_object() call  will find the region is present and use it.
       }
     }
 
     if (fwd == nullptr && free_set_evac_attempted) {
       // Object has not been evacuated because neither the freeset nor the early-recycled memory was adequate for the need.
     } else if (fwd == nullptr) {
-      HeapWord* copy;
       // The forwarding was not done by the free-set evacuator because we intend to supply the memory from early allocatable.
 #ifdef ASSERT
       // Code for randomizing OOMDuringEvacALot is copied from try_evacuate_object().  Instead of returning result,
@@ -3390,7 +3377,8 @@ void ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure::do_object(oop 
           _bump_alloc_offset += size;
           if (!advance_bump_to_unmarked()) {
             // We had a successful allocation, but there is nothing left in this early recycled region. Try to claim another.
-            establish_new_early_recycle_region();
+            try_establish_new_early_recycle_region();
+            // Next invocation of do_object() will find the newly claimed region and use it if try succeeds.
           }
         } else {
           // We failed to install our forwarding pointer because some other thread won the race. We have not yet adjusted
@@ -3425,11 +3413,11 @@ ShenandoahConcurrentEvacuateRegionObjectClosure::ShenandoahConcurrentEvacuateReg
     _tams(_context->top_at_mark_start(_region)), _num_forwardings(0) {
 }
 
-~ShenandoahConcurrentEvacuateRegionObjectClosure::ShenandoahConcurrentEvacuateRegionObjectClosure() {
+ShenandoahConcurrentEvacuateRegionObjectClosure::~ShenandoahConcurrentEvacuateRegionObjectClosure() {
   _context->capture_top_at_mark_start(_region);
 }
 
-void ShenandoahRetireGCLABlosure::do_thread(Thread* thread) override {
+void ShenandoahRetireGCLABClosure::do_thread(Thread* thread) {
   PLAB* gclab = ShenandoahThreadLocalData::gclab(thread);
   assert(gclab != nullptr, "GCLAB should be initialized for %s", thread->name());
   gclab->retire();
@@ -3471,7 +3459,7 @@ ShenandoahEvacuationTask::ShenandoahEvacuationTask(
   assert(!ShenandoahHeap::heap()->mode()->is_generational(), "Handle generational evacuation elsewhere");
 }
 
-void ShenandoahEvacuationTask::work(uint worker_id) final {
+void ShenandoahEvacuationTask::work(uint worker_id) {
   if (_concurrent) {
     ShenandoahWorkerTimingsTracker timer(ShenandoahPhaseTimings::conc_evac, ShenandoahPhaseTimings::Work, worker_id, true);
     ShenandoahConcurrentWorkerSession worker_session(worker_id);

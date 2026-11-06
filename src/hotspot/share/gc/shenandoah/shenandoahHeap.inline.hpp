@@ -676,7 +676,7 @@ inline ShenandoahMarkingContext* ShenandoahHeap::marking_context() const {
   return _marking_context;
 }
 
-inline bool ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure advance_bump_to_unmarked() {
+inline bool ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure::advance_bump_to_unmarked() {
   // KELVIN TODO: USE _CONTEXT->GET_NEXT_UNMARKED();
   for (size_t pad = 0; true; pad++) {
     if ((pad == 0) || (pad >= _min_fill_size)) {
@@ -713,10 +713,16 @@ inline bool ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure::initial
   }
 }
 
-inline void ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure::establish_new_early_recycle_region() {
+inline bool ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure::try_establish_new_early_recycle_region() {
   ShenandoahFreeSet* free_set = _heap->free_set();
   ShenandoahHeapRegion* r = free_set->gc_worker_claim_early_recycle_young_region();
-  initialize_early_recycle_region(r);
+  if (r != nullptr) {
+    initialize_early_recycle_region(r);
+    return true;
+  } else {
+    _heap_evacuated_objects = 0;
+    return false;
+  }
 }
 
 inline void ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure::retire_early_recycled_region() {
@@ -732,7 +738,7 @@ inline size_t ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure::num_f
   return _num_forwardings;
 }
 
-inline void ShenandoahConcurrentEvacuateRegionObjectClosure::do_object(oop p) final {
+inline void ShenandoahConcurrentEvacuateRegionObjectClosure::do_object(oop p) {
   shenandoah_assert_marked(nullptr, p);
   _num_forwardings++;
   if (!p->is_forwarded()) {
@@ -750,11 +756,5 @@ inline void ShenandoahConcurrentEvacuateRegionObjectClosure::do_object(oop p) fi
     assert(_context->is_marked(p), "must be marked");
   }
 }
-
-inline size_t ShenandoahConcurrentEvacuateRegionObjectClosure::num_forwardings() const {
-  return _num_forwardings;
-}
-
-
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHHEAP_INLINE_HPP

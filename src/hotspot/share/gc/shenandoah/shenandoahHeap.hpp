@@ -29,6 +29,7 @@
 
 #include "gc/shared/collectedHeap.hpp"
 #include "gc/shared/markBitMap.hpp"
+#include "gc/shared/workerThread.hpp"
 #include "gc/shenandoah/mode/shenandoahMode.hpp"
 #include "gc/shenandoah/shenandoahAllocRate.hpp"
 #include "gc/shenandoah/shenandoahAllocRequest.hpp"
@@ -41,8 +42,8 @@
 #include "gc/shenandoah/shenandoahMmuTracker.hpp"
 #include "gc/shenandoah/shenandoahPadding.hpp"
 #include "gc/shenandoah/shenandoahSharedVariables.hpp"
-#include "gc/shenandoah/shenandoahThreadLocalData.hpp"
 #include "gc/shenandoah/shenandoahUnload.hpp"
+#include "memory/iterator.hpp"
 #include "memory/metaspace.hpp"
 #include "services/memoryManager.hpp"
 #include "utilities/globalDefinitions.hpp"
@@ -962,6 +963,11 @@ private:
 // Use this evacuator when we are evacuating into early recycled memory with forward table.
 class alignas(SHENANDOAH_CACHE_LINE_SIZE) ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure : public ObjectClosure {
 private:
+  // If we are unable to claim an early recycle region to hold the results of evacuation, we'll do heap evacuation,
+  // using the free-set reserves. We do MaxHeapEvacuatedBeforeRetryEarlyRecycle heap evacuations before retrying our
+  // attempt to claim an early evacuation region.
+  static const size_t MaxHeapEvacuatedBeforeRetryEarlyRecycle = 32;
+
   ShenandoahHeap* const _heap;
   ShenandoahHeapRegion* const _region;
   Thread* const _thread;
@@ -978,11 +984,16 @@ private:
   uint32_t _conflict_offset;
   uint32_t _end_of_allocatable_offset;
   uint32_t _num_forwardings;
+  uint32_t _heap_evacuated_objects;
 
 private:
   inline bool advance_bump_to_unmarked();
   inline bool initialize_early_recycle_region(ShenandoahHeapRegion* r);
-  inline void establish_new_early_recycle_region();
+
+  // Establish a new early recycle young region, returning true iff successful. Establishing a new early recycle region consists
+  // of overwriting the _alloc_regions_bottom, _bump_alloc_offset, _end_of_allocatable_offset, and _conflict_offset fields
+  // of this thread-local closure instance.
+  inline bool try_establish_new_early_recycle_region();
   inline void retire_early_recycled_region();
 
 public:

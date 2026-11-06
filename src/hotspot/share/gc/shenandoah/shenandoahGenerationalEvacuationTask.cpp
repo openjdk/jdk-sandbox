@@ -190,6 +190,13 @@ void ShenandoahGenerationalEvacuationTask::evacuate_and_promote_regions(uint wor
         // As the non-fwt regions are evacuated, we will update their expected forwardings. The order of regions within
         // the early recycle regions array is approximately the order of increasing mark-word density.
         size_t num_forwardings = _ctx->count_mark_bit_conflicts<1>(r->bottom(), r->end());
+        // Objects allocated during concurrent mark are not yet recognized as "marked", so count them separately.
+        HeapWord* top = r->top();
+        for (HeapWord* p = _ctx->top_at_mark_start(r); p < top; ) {
+          oop obj = cast_to_oop(p);
+          num_forwardings++;
+          p += ShenandoahForwarding::size(obj);
+        }
         size_t num_entries = r->calculate_entries_in_forward_table(num_forwardings);
         if (num_entries > 0) {
           size_t early_available_words = region_size_words - entry_size_words * num_entries;
@@ -200,6 +207,7 @@ void ShenandoahGenerationalEvacuationTask::evacuate_and_promote_regions(uint wor
 #endif
           r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Planned_FWT);
           // KELVIN TODO: we don't really need forwardings except for assertion enforcement.  (build-only)
+          // We should remove from ShenandoahHeapRegion EarlyRecycleInfo.
           r->set_expected_forwardings(num_forwardings);
           r->set_fwt_entries(num_entries);
           fwt_regions++;
