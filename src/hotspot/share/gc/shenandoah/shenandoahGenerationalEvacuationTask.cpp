@@ -202,8 +202,8 @@ void ShenandoahGenerationalEvacuationTask::evacuate_and_promote_regions(uint wor
           size_t early_available_words = region_size_words - entry_size_words * num_entries;
           back_fill += early_available_words;
 #ifdef KELVIN_DEBUG
-          log_info(gc)("Recycled FWT region %zu has %zu entries with entry_size %zu, early_available_words: %zu, back_fill: %zu",
-                       r->index(), num_entries, entry_size_words, early_available_words, back_fill);
+          log_info(gc)("Recycled FWT region %zu: live: %zu, %zu entries (of size %zu), available: %zu, back_fill: %zu",
+                       r->index(), r->get_live_data_words(), num_entries, entry_size_words, early_available_words, back_fill);
 #endif
           r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Planned_FWT);
           // KELVIN TODO: we don't really need forwardings except for assertion enforcement.  (build-only)
@@ -291,14 +291,14 @@ void ShenandoahGenerationalEvacuationTask::evacuate_and_promote_regions(uint wor
           num_forwardings = await_queue_forwardings[queued_regions];
           r = _cset->cset_region(cset_index);
 #ifdef KELVIN_DEBUG
-          log_info(gc)("Preprocessing is finished and cset is finished, worker %u is processing region %zu with %zu forwards",
-                       worker_id, r->index(), num_forwardings);
+          log_info(gc)("Preprocessing is finished and cset is finished, worker %u is processing region %zu (cset index: %u) with %zu forwards",
+                       worker_id, r->index(), cset_index, num_forwardings);
 #endif
         }
 #ifdef KELVIN_DEBUG
         else {
-          log_info(gc)("Preprocessing is finished, cset not finished, worker %u is processing region %zu with %zu forwards",
-                       worker_id, r->index(), num_forwardings);
+          log_info(gc)("Preprocessing is finished, cset not finished, worker %u is processing region %zu (cset index: %u) with %zu forwards",
+                       worker_id, r->index(), cset_index, num_forwardings);
         }
 #endif
         // Loop here so we can process this region, plus any regions that have been queued up while we waited
@@ -383,8 +383,10 @@ void ShenandoahGenerationalEvacuationTask::evacuate_and_promote_regions(uint wor
           }
         } while (!free_set->compare_set_first_unpublished_fwt(original_first_unpublished, (size_t) first_newly_unpublished));
 #ifdef KELVIN_DEBUG
-        log_info(gc)("worker %u adjusted first_unpublished: %zu, newly: %u",
-                     worker_id, original_first_unpublished, first_newly_unpublished);
+        if (original_first_unpublished >= first_newly_unpublished) {
+          log_info(gc)("worker %u adjusted first_unpublished: %zu, newly: %u",
+                       worker_id, original_first_unpublished, first_newly_unpublished);
+        }
 #endif
 
         size_t original_bound_on_unpublished;
@@ -396,8 +398,10 @@ void ShenandoahGenerationalEvacuationTask::evacuate_and_promote_regions(uint wor
         } while (!free_set->compare_set_upper_bound_on_unpublished_fwt(original_bound_on_unpublished,
                                                                        (size_t) (last_newly_unpublished + 1)));
 #ifdef KELVIN_DEBUG
-        log_info(gc)("worker %u adjusted upper_bound_on_unpublished: %zu, newly: %u",
-                     worker_id, original_bound_on_unpublished, last_newly_unpublished + 1);
+        if (original_bound_on_unpublished < last_newly_unpublished + 1) {
+          log_info(gc)("worker %u adjusted upper_bound_on_unpublished: %zu, newly: %u",
+                       worker_id, original_bound_on_unpublished, last_newly_unpublished + 1);
+        }
 #endif
       }
 

@@ -176,12 +176,6 @@ void ShenandoahInPlacePromoter::maybe_promote_region(ShenandoahHeapRegion* r) co
 #endif
     }
   }
-
-#ifdef KELVIN_TRACE
-  log_info(gc)("maybe_promote_region() might have chosen to not to promote region %zu", r->index());
-#endif
-
-
 }
 
 // When we promote a region in place, we can continue to use the established marking context to guide subsequent remembered

@@ -4598,12 +4598,18 @@ bool ShenandoahFreeSet::publish_prepared_regions(uint worker_id, uint workers, b
   //   ((there are no more regions to prepare) or
   //    (original_published - consumed_regions < workers)))
   // unless we decide otherwise below
+#define KELVIN_DEBUG
+#ifdef KELVIN_DEBUG
+  bool failed_lock = false;
+  bool lost_race = false;
+  bool unworthy = false;
+#endif
+
   if (((original_published == 0) && (now_prepared > 0)) ||
       ((now_prepared > original_published) && (cset_is_finished || (original_published - consumed_regions < workers)))) {
     uint32_t started, finished;
     fwt_handshakes(started, finished);
     if ((started == finished) && fwt_start_handshake(started, finished)) {
-#define KELVIN_DEBUG
 #ifdef KELVIN_DEBUG
       log_info(gc)("%s worker %u has publish lock because original_published: %zu, now_prepared: %zu, consumed: %zu",
                    cset_is_finished? "Finished": "Unfinished", 
@@ -4638,8 +4644,8 @@ bool ShenandoahFreeSet::publish_prepared_regions(uint worker_id, uint workers, b
             regions_to_publish++;
             bytes_to_publish += (r->alloc_end() - r->top()) * HeapWordSize;
 #ifdef KELVIN_DEBUG
-            log_info(gc)("worker %u sets region status to Publishing, bytes_to_publish: %zu",
-                         worker_id, (r->alloc_end() - r->top()) * HeapWordSize);
+            log_info(gc)("worker %u sets region %zu status to Publishing, bytes_to_publish: %zu",
+                         worker_id, r->index(), (r->alloc_end() - r->top()) * HeapWordSize);
 #endif
           }
 #ifdef KELVIN_DEBUG
@@ -4659,28 +4665,20 @@ bool ShenandoahFreeSet::publish_prepared_regions(uint worker_id, uint workers, b
         }
       }
 
-      if (concurrent) {
 #ifdef KELVIN_DEBUG
-        log_info(gc)("Worker %u moving to rendezvous() with intent to publish %zu regions, %zu bytes",
-                     worker_id, regions_to_publish, bytes_to_publish);
+      log_info(gc)("Worker %u moving to rendezvous() with intent to publish %zu regions, %zu bytes",
+                   worker_id, regions_to_publish, bytes_to_publish);
 #endif
-        assert(!Thread::current()->is_suspendible_thread(), "must not hold STS join across rendezvous");
+      assert(!Thread::current()->is_suspendible_thread(), "must not hold STS join across rendezvous");
 #ifdef KELVIN_DEBUG
-        log_info(gc)("Worker %u satisfied is_suspendible_thread() test", worker_id);
+      log_info(gc)("Worker %u satisfied is_suspendible_thread() test", worker_id);
 #endif
-        // cannot track time because GC worker is not a ConcurrentGC_thread.
-        // ShenandoahTimingsTracker t(ShenandoahPhaseTimings::publish_early_recycle_rendezvous);
-        _heap->rendezvous_threads("Switch to selected forward tables");
+      // cannot track time because GC worker is not a ConcurrentGC_thread.
+      _heap->rendezvous_threads("Switch to selected forward tables");
 #ifdef KELVIN_DEBUG
-        log_info(gc)("worker %u back from rendezous_threads, first_unpublished: %zu, upper_bound: %zu",
-                     worker_id, first_unpublished, upper_bound_on_unpublished);
+      log_info(gc)("worker %u back from rendezous_threads, first_unpublished: %zu, upper_bound: %zu",
+                   worker_id, first_unpublished, upper_bound_on_unpublished);
 #endif
-      } else {
-#ifdef KELVIN_DEBUG
-        log_info(gc)("worker %u skips rendezous because we are in degen safepoint, first_unpublished: %zu, upper_bound: %zu",
-                     worker_id, first_unpublished, upper_bound_on_unpublished);
-#endif
-      }
       for (size_t index = first_unpublished; index < upper_bound_on_unpublished; index++) {
         ShenandoahHeapRegion* r = cset->cset_region(index);
         ShenandoahEarlyRecycleStatus status = r->get_early_recycle_status();
@@ -4688,8 +4686,8 @@ bool ShenandoahFreeSet::publish_prepared_regions(uint worker_id, uint workers, b
           bool success = r->compare_set_early_recycle_status(ShenandoahEarlyRecycleStatus::Publishing_FWT,
                                                              ShenandoahEarlyRecycleStatus::Published_FWT);
 #ifdef KELVIN_DEBUG
-          log_info(gc)("worker %u %s to change region %zu status to Published_FWT",
-                       worker_id, success? "succeeded": "failed", r->index());
+          log_info(gc)("worker %u %s to change region %zu (at cset index %zu) status from Publishing_FWT to Published_FWT",
+                       worker_id, success? "succeeded": "failed", r->index(), index);
 #endif
           assert(success, "Lock violation");
         }
@@ -4731,10 +4729,31 @@ bool ShenandoahFreeSet::publish_prepared_regions(uint worker_id, uint workers, b
       }
       if (regions_to_publish > 0) {
         return true;
-      } // else, we did not publish anything; some other thread must have published what we planned to publish.
-      // fall through without publishing
-    } // else, we did not get the publication lock
-  } // else, not worthwhile to publish.  we'll wait until the need is greater or more unpublished have accumulated
+      } else {
+        // else, we did not publish anything; some other thread must have published what we planned to publish.
+        // fall through without publishing
+#ifdef KELVIN_DEBUG
+        lost_race = true;
+#endif
+      }
+    } else {
+      // else, we did not get the publication lock
+#ifdef KELVIN_DEBUG
+      failed_lock = true;
+#endif
+    }
+  } else {
+    // else, not worthwhile to publish.  we'll wait until the need is greater or more unpublished have accumulated
+#ifdef KELVIN_DEBUG
+    unworthy = true;
+#endif
+  }
+#ifdef KELVIN_DEBUG
+  log_info(gc)("%s worker %u did not publish because %s, %s, %s", cset_is_finished? "Finished": "Unfinished", worker_id,
+               unworthy? "unworthy": "worthy", failed_lock? "failed lock": "obtained lock", lost_race? "lost race": "won race");
+  log_info(gc)("  original_published: %zu, now_prepared: %zu, consumed: %zu",
+               original_published, now_prepared, consumed_regions);
+#endif
   // If we fall through to here, we "chose" not to publish, so no need to publish again.
   return false;
 }
