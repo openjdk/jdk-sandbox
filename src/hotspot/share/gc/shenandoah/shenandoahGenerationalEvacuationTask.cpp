@@ -124,10 +124,11 @@ void ShenandoahGenerationalEvacuationTask::work(uint worker_id) {
 void ShenandoahGenerationalEvacuationTask::do_work(uint worker_id) {
   if (_only_promote_regions) {
     assert(_cset->is_empty(), "Should not have a collection set here");
-    promote_regions();
+    promote_regions(worker_id);
   } else {
     assert(!_cset->is_empty(), "Should have a collection set here");
-    evacuate_and_promote_regions(worker_id);
+    evacuate_regions(worker_id);
+    promote_regions(worker_id);
   }
 }
 
@@ -139,7 +140,10 @@ void log_region(const ShenandoahHeapRegion* r, LogStream* ls) {
                r->is_cset()? "cset": "not-cset");
 }
 
-void ShenandoahGenerationalEvacuationTask::promote_regions() {
+void ShenandoahGenerationalEvacuationTask::promote_regions(uint worker_id) {
+#ifdef KELVIN_DEBUG
+  log_info(gc)("worker %u is done with promote_regions()", worker_id);
+#endif
   LogTarget(Debug, gc) lt;
   ShenandoahInPlacePromoter promoter(_heap);
   ShenandoahHeapRegion* r;
@@ -148,16 +152,14 @@ void ShenandoahGenerationalEvacuationTask::promote_regions() {
       LogStream ls(lt);
       log_region(r, &ls);
     }
-
     promoter.maybe_promote_region(r);
-
     if (_heap->check_cancelled_gc_and_yield(_concurrent)) {
       break;
     }
   }
 }
 
-void ShenandoahGenerationalEvacuationTask::evacuate_and_promote_regions(uint worker_id) {
+void ShenandoahGenerationalEvacuationTask::evacuate_regions(uint worker_id) {
   ShenandoahHeapRegion* r;
   size_t fwt_regions = 0;
   size_t region_size_words = ShenandoahHeapRegion::region_size_words();
@@ -445,10 +447,6 @@ void ShenandoahGenerationalEvacuationTask::evacuate_and_promote_regions(uint wor
 
 #ifdef KELVIN_DEBUG
   log_info(gc)("worker %u is done evacuating, now we're going to promote_regions()", worker_id);
-#endif
-  promote_regions();
-#ifdef KELVIN_DEBUG
-  log_info(gc)("worker %u is done with promote_regions()", worker_id);
 #endif
 }
 

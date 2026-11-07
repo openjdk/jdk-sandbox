@@ -54,8 +54,8 @@ public:
   void work(uint worker_id) override;
 private:
   void do_work(uint worker_id);
-  void promote_regions();
-  void evacuate_and_promote_regions(uint worker_id);
+  void promote_regions(uint worker_id);
+  void evacuate_regions(uint worker_id);
   void maybe_promote_region(ShenandoahHeapRegion* region);
   void promote_in_place(ShenandoahHeapRegion* region);
   void promote_humongous(ShenandoahHeapRegion* region);
