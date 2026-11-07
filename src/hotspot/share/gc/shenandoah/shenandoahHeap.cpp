@@ -3739,14 +3739,25 @@ void ShenandoahEvacuationTask::do_work(size_t worker_id) {
 
                   // Everything stored above should become visible to other threads after handshake
                   OrderAccess::storeload();
-
-                  {
+                  if (_concurrent) {
+                    assert(!SafepointSynchronize::is_at_safepoint(), "Cannot rendezvous if we're at a safepoint");
                     assert(!Thread::current()->is_suspendible_thread(), "must not hold STS join across rendezvous");
-                    // cannot track time because GC worker is not a ConcurrentGC_thread.
-                    // ShenandoahTimingsTracker t(ShenandoahPhaseTimings::publish_early_recycle_rendezvous);
+#ifdef KELVIN_DEBUG
+                    log_info(gc)("Worker %zu satisfied is_suspendible_thread() test", worker_id);
+#endif
                     // Force mutators into handshake to assure that they no longer use mark-word forwarding on any of the
                     // now-prepared regions.
                     _sh->rendezvous_threads("Switch to Forward Table");
+#ifdef KELVIN_DEBUG
+                    log_info(gc)("worker %zu back from rendezous_threads, first_unpublished: %zu, upper_bound: %zu",
+                                 worker_id, first_unpublished_index, upper_bound_on_unpublished);
+#endif
+                  } else {
+#ifdef KELVIN_DEBUG
+                    log_info(gc)("worker %zu skips rendezous_threads because we're in degen, first_unpublished: %zu, upper_bound: %zu",
+                                 worker_id, first_unpublished_index, upper_bound_on_unpublished);
+#endif
+
                   }
 
                   size_t new_first_unpublished_index = 0xffffffffffffffff;

@@ -4665,20 +4665,29 @@ bool ShenandoahFreeSet::publish_prepared_regions(uint worker_id, uint workers, b
         }
       }
 
+      // Everything stored above should become visible to other threads after handshake
+      OrderAccess::storeload();
+      if (concurrent) {
 #ifdef KELVIN_DEBUG
-      log_info(gc)("Worker %u moving to rendezvous() with intent to publish %zu regions, %zu bytes",
-                   worker_id, regions_to_publish, bytes_to_publish);
+        log_info(gc)("Worker %u moving to rendezvous() with intent to publish %zu regions, %zu bytes",
+                     worker_id, regions_to_publish, bytes_to_publish);
 #endif
-      assert(!Thread::current()->is_suspendible_thread(), "must not hold STS join across rendezvous");
+        assert(!SafepointSynchronize::is_at_safepoint(), "Cannot rendezvous if we're at a safepoint");
+        assert(!Thread::current()->is_suspendible_thread(), "must not hold STS join across rendezvous");
 #ifdef KELVIN_DEBUG
-      log_info(gc)("Worker %u satisfied is_suspendible_thread() test", worker_id);
+        log_info(gc)("Worker %u satisfied is_suspendible_thread() test", worker_id);
 #endif
-      // cannot track time because GC worker is not a ConcurrentGC_thread.
-      _heap->rendezvous_threads("Switch to selected forward tables");
+        _heap->rendezvous_threads("Switch to selected forward tables");
 #ifdef KELVIN_DEBUG
-      log_info(gc)("worker %u back from rendezous_threads, first_unpublished: %zu, upper_bound: %zu",
-                   worker_id, first_unpublished, upper_bound_on_unpublished);
+        log_info(gc)("worker %u back from rendezous_threads, first_unpublished: %zu, upper_bound: %zu",
+                     worker_id, first_unpublished, upper_bound_on_unpublished);
 #endif
+      } else {
+#ifdef KELVIN_DEBUG
+        log_info(gc)("worker %u skips rendezous_threads because we're in degen, first_unpublished: %zu, upper_bound: %zu",
+                     worker_id, first_unpublished, upper_bound_on_unpublished);
+#endif
+      }
       for (size_t index = first_unpublished; index < upper_bound_on_unpublished; index++) {
         ShenandoahHeapRegion* r = cset->cset_region(index);
         ShenandoahEarlyRecycleStatus status = r->get_early_recycle_status();
