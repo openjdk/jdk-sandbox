@@ -264,7 +264,8 @@ void ShenandoahGenerationalHeap::evacuate_collection_set(ShenandoahGeneration* g
 #ifdef KELVIN_DEBUG
     log_info(gc)("Evacuation is done. Running one last handshake because regions prepared was less than regions-published");
 #endif
-    free_set->publish_prepared_regions(0, 1 /* only 1 worker now */, true /* all cset regions prepared */, true, collection_set());
+    free_set->publish_prepared_regions(0, 1 /* only 1 worker now */, true /* is_concurrent */,
+                                       true /*   all cset regions are prepared */, collection_set());
   }
   collection_set()->switch_to_reuse_forwarding();
 }
