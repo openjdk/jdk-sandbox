@@ -109,11 +109,16 @@ void ShenandoahGenerationalEvacuationTask::yield_or_sleep(uint32_t& yields) {
 void ShenandoahGenerationalEvacuationTask::work(uint worker_id) {
   if (_concurrent) {
     ShenandoahWorkerTimingsTracker timer(ShenandoahPhaseTimings::conc_evac, ShenandoahPhaseTimings::Work, worker_id, true);
+    SuspendibleThreadSetJoiner stsj;
+#define KELVIN_SUSPENDIBLE
+#ifdef KELVIN_SUSPENDIBLE
+    log_info(gc)("worker %u becomes suspendible in work()", worker_id);
+#endif
     ShenandoahConcurrentWorkerSession worker_session(worker_id);
-    // Join the suspendible thread set only for the promote-only path
-    // to avoid double-joining.
-    SuspendibleThreadSetJoiner stsj(_only_promote_regions);
     do_work(worker_id);
+#ifdef KELVIN_SUSPENDIBLE
+    log_info(gc)("worker %u detaches suspendible in work()", worker_id);
+#endif
   } else {
     ShenandoahWorkerTimingsTracker timer(ShenandoahPhaseTimings::degen_gc_evac, ShenandoahPhaseTimings::Work, worker_id, true);
     ShenandoahParallelWorkerSession worker_session(worker_id);
@@ -153,6 +158,9 @@ void ShenandoahGenerationalEvacuationTask::promote_regions(uint worker_id) {
       log_region(r, &ls);
     }
     promoter.maybe_promote_region(r);
+#ifdef KELVIN_SUSPENDIBLE
+    log_info(gc)("Suspendible worker %u yields in promote_regions()", worker_id);
+#endif
     if (_heap->check_cancelled_gc_and_yield(_concurrent)) {
       break;
     }
@@ -178,6 +186,24 @@ void ShenandoahGenerationalEvacuationTask::evacuate_regions(uint worker_id) {
     // The first worker is responsible for selecting which regions will be early recycled with forward table.
     // Regions have already been sorted in increasing live data, which is a light-weight approximation of increasing
     // forward table size (aka increasing mark-word-density).
+    free_set->set_first_unpublished_fwt(0);
+    free_set->set_upper_bound_on_unpublished_fwt(0);
+    free_set->set_first_unclaimed_young_fwt(0);
+    free_set->set_upper_bound_on_unclaimed_young_fwt(0);
+    free_set->set_first_unclaimed_old_fwt(0);
+    free_set->set_upper_bound_on_unclaimed_old_fwt(0);
+    free_set->set_fwt_regions_prepared(0);
+    free_set->set_fwt_bytes_prepared(0);
+    free_set->set_fwt_regions_published(0);
+    free_set->set_fwt_bytes_published(0);
+    free_set->set_fwt_regions_consumed_by_gc(0);
+    free_set->set_fwt_bytes_consumed_by_young_gc(0);
+    free_set->set_fwt_bytes_consumed_by_old_gc(0);
+    free_set->set_old_fwt_bytes_to_mutator(0);
+    free_set->set_young_fwt_bytes_to_mutator(0);
+    free_set->set_fwt_regions_retired(0);
+    free_set->set_fwt_bytes_retired(0);
+
 #ifdef KELVIN_DEBUG
     log_info(gc)("ShenGenEvacTask::evac_and_promote_regions(%u) is selecting fwt regions", worker_id);
 #endif
@@ -198,6 +224,15 @@ void ShenandoahGenerationalEvacuationTask::evacuate_regions(uint worker_id) {
           oop obj = cast_to_oop(p);
           num_forwardings++;
           p += ShenandoahForwarding::size(obj);
+        }
+#ifdef KELVIN_SUSPENDIBLE
+        log_info(gc)("worker %u checks for yield in preprocessing if _concurrent: %s",
+                     worker_id, _concurrent? "true": "false");
+#endif
+        if (_concurrent) {
+          if (SuspendibleThreadSet::should_yield()) {
+            SuspendibleThreadSet::yield();
+          }
         }
         size_t num_entries = r->calculate_entries_in_forward_table(num_forwardings);
         if (num_entries > 0) {
@@ -272,11 +307,13 @@ void ShenandoahGenerationalEvacuationTask::evacuate_regions(uint worker_id) {
 #ifdef KELVIN_DEBUG
       log_info(gc)("ShenGenEvacTask is evacuating region %zu", r->index());
 #endif
-      SuspendibleThreadSetJoiner stsj(_concurrent);
       cl.set_region(r);
       _heap->marked_object_iterate(r, &cl);
       cl.finish_region(r);
       num_forwardings = cl.num_forwardings();
+#ifdef KELVIN_SUSPENDIBLE
+      log_info(gc)("suspendible worker %u yields after evacuating one region in evacuate_regions()", worker_id);
+#endif
       if (_heap->check_cancelled_gc_and_yield(_concurrent)) {
         break;
       }
@@ -312,16 +349,16 @@ void ShenandoahGenerationalEvacuationTask::evacuate_regions(uint worker_id) {
             // this region without a forwarding table. Save the number of forwarded objects now, so that we can use mark-word
             // density to prioritize no-table recycling if necessary.
 #ifdef KELVIN_DEBUG
-            log_info(gc)("worker %u is finishing region %zu with no table, forwardings: %zu",
-                         worker_id, r->index(), num_forwardings);
+            log_info(gc)("worker %u is finishing region %zu (cset index %u) with no table, forwardings: %zu",
+                         worker_id, r->index(), cset_index, num_forwardings);
 #endif
             _heap->finish_no_table_region_evacuation(r, num_forwardings);
           } else {
             // Recycle with fwt, using num_entries that are stored in the region.
             // finish_fwt_region_evacuation() informs the free set that this region is ready to receive evacuations.
 #ifdef KELVIN_DEBUG
-            log_info(gc)("worker %u is finishing region %zu with forward table, forwardings: %zu",
-                         worker_id, r->index(), num_forwardings);
+            log_info(gc)("worker %u is finishing region %zu (cset index %u) with forward table, forwardings: %zu",
+                         worker_id, r->index(), cset_index, num_forwardings);
 #endif
             bool status = _heap->finish_fwt_region_evacuation(r);
             if (status) {
@@ -335,6 +372,9 @@ void ShenandoahGenerationalEvacuationTask::evacuate_regions(uint worker_id) {
               }
             }
           }
+#ifdef KELVIN_SUSPENDIBLE
+          log_info(gc)("worker %u yields after finishing one region in evacuate_regions()", worker_id);
+#endif
           if (_heap->check_cancelled_gc_and_yield(_concurrent)) {
             break;
           }
@@ -343,8 +383,8 @@ void ShenandoahGenerationalEvacuationTask::evacuate_regions(uint worker_id) {
             r = _cset->cset_region(cset_index);
             num_forwardings = await_queue_forwardings[queued_regions];
 #ifdef KELVIN_DEBUG
-            log_info(gc)("worker %u is preparing to process queued region %zu with forwardings: %zu",
-                         worker_id, r->index(), num_forwardings);
+            log_info(gc)("worker %u is preparing to process last queued region %zu (of %zu queued regions) (cset index: %u) with forwardings: %zu",
+                         worker_id, r->index(), queued_regions + 1, cset_index, num_forwardings);
 #endif
           } else {
             break;
@@ -362,7 +402,8 @@ void ShenandoahGenerationalEvacuationTask::evacuate_regions(uint worker_id) {
           now_prepared = original_prepared + fwt_regions_recycled;
         } while (!free_set->compare_set_fwt_regions_prepared(original_prepared, now_prepared));
 #ifdef KELVIN_DEBUG
-        log_info(gc)("worker %u incremented globally prepared to %zu", worker_id, original_prepared + fwt_regions_recycled);
+        log_info(gc)("worker %u incremented globally prepared by %zu to %zu", worker_id,
+                     fwt_regions_recycled, original_prepared + fwt_regions_recycled);
 #endif
         // Note: it is possible that a "publisher" sees regions prepared without the accompanying bytes prepared.
         // We expect this to be very rare.  If it happens, it might cause a delay in transfer of reserves
@@ -374,8 +415,12 @@ void ShenandoahGenerationalEvacuationTask::evacuate_regions(uint worker_id) {
           now_prepared_bytes = original_prepared_bytes + fwt_bytes_recycled;;
         } while (!free_set->compare_set_fwt_bytes_prepared(original_prepared_bytes, now_prepared_bytes));
 #ifdef KELVIN_DEBUG
-        log_info(gc)("worker %u incremented globally prepared bytes to %zu",
-                     worker_id, original_prepared_bytes + fwt_bytes_recycled);
+        log_info(gc)("worker %u incremented globally prepared bytes by %zu to %zu",
+                     worker_id, fwt_bytes_recycled, original_prepared_bytes + fwt_bytes_recycled);
+        log_info(gc)("worker %u prepared regions from first_unpublished: %u to last_unpublished %u",
+                     worker_id, first_newly_unpublished, last_newly_unpublished);
+        log_info(gc)(" current range of unpublished is %zu to upper bound %zu",
+                     free_set->first_unpublished_fwt(), free_set->upper_bound_on_unpublished_fwt());
 #endif
         size_t original_first_unpublished;
         do {
@@ -436,6 +481,15 @@ void ShenandoahGenerationalEvacuationTask::evacuate_regions(uint worker_id) {
           uint32_t yields = 0;
           while (_early_recycle_preprocessed_regions.load_relaxed() != num_regions) {
             yield_or_sleep(yields);
+#ifdef KELVIN_SUSPENDIBLE
+            log_info(gc)("worker %u checks for yield in full queues if _concurrent: %s",
+                         worker_id, _concurrent? "true": "false");
+#endif
+            if (_concurrent) {
+              if (SuspendibleThreadSet::should_yield()) {
+                SuspendibleThreadSet::yield();
+              }
+            }
           }
         }
       }

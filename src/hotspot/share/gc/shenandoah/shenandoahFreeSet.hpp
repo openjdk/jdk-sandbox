@@ -719,15 +719,26 @@ public:
   size_t upper_bound_on_unpublished_fwt() {
     return _upper_bound_on_unpublished_fwt.load_relaxed();
   }
+  void set_first_unpublished_fwt(size_t value) {
+    _first_unpublished_fwt.store_relaxed(value);
+  }
+  void set_upper_bound_on_unpublished_fwt(size_t value) {
+    _upper_bound_on_unpublished_fwt.store_relaxed(value);
+  }
   bool compare_set_first_unpublished_fwt(size_t original, size_t modified) {
     return _first_unpublished_fwt.compare_set(original, modified, memory_order_relaxed);
   }
   bool compare_set_upper_bound_on_unpublished_fwt(size_t original, size_t modified) {
     return _upper_bound_on_unpublished_fwt.compare_set(original, modified, memory_order_relaxed);
   }
-
+  void set_first_unclaimed_young_fwt(size_t value) {
+    _first_unclaimed_young_fwt.store_relaxed(value);
+  }
   size_t first_unclaimed_young_fwt() {
     return _first_unclaimed_young_fwt.load_relaxed();
+  }
+  void set_upper_bound_on_unclaimed_young_fwt(size_t value) {
+    _upper_bound_on_unclaimed_young_fwt.store_relaxed(value);
   }
   size_t upper_bound_on_unclaimed_young_fwt() {
     return _upper_bound_on_unclaimed_young_fwt.load_relaxed();
@@ -738,9 +749,14 @@ public:
   bool compare_set_upper_bound_on_unclaimed_young_fwt(size_t original, size_t modified) {
     return _upper_bound_on_unclaimed_young_fwt.compare_set(original, modified, memory_order_relaxed);
   }
-
+  void set_first_unclaimed_old_fwt(size_t value) {
+    _first_unclaimed_old_fwt.store_relaxed(value);
+  }
   size_t first_unclaimed_old_fwt() {
     return _first_unclaimed_old_fwt.load_relaxed();
+  }
+  void set_upper_bound_on_unclaimed_old_fwt(size_t value) {
+    _upper_bound_on_unclaimed_old_fwt.store_relaxed(value);
   }
   size_t upper_bound_on_unclaimed_old_fwt() {
     return _upper_bound_on_unclaimed_old_fwt.load_relaxed();
@@ -751,7 +767,6 @@ public:
   bool compare_set_upper_bound_on_unclaimed_old_fwt(size_t original, size_t modified) {
     return _upper_bound_on_unclaimed_old_fwt.compare_set(original, modified, memory_order_relaxed);
   }
-
   size_t fwt_regions_prepared() {
     return _fwt_regions_prepared.load_relaxed();
   }
@@ -803,17 +818,17 @@ public:
   void set_fwt_bytes_consumed_by_old_gc(size_t bytes) {
     return _fwt_bytes_consumed_by_old_gc.store_relaxed(bytes);
   }
+  void set_young_fwt_bytes_to_mutator(size_t bytes) {
+    _young_fwt_bytes_to_mutator.store_relaxed(bytes);
+  }
   size_t young_fwt_bytes_to_mutator() {
     return _young_fwt_bytes_to_mutator.load_relaxed();
   }
+  void set_old_fwt_bytes_to_mutator(size_t bytes) {
+    _old_fwt_bytes_to_mutator.store_relaxed(bytes);
+  }
   size_t old_fwt_bytes_to_mutator() {
     return _old_fwt_bytes_to_mutator.load_relaxed();
-  }
-  void set_young_fwt_bytes_to_mutator(size_t modified) {
-    _young_fwt_bytes_to_mutator.store_relaxed(modified);
-  }
-  void set_old_fwt_bytes_to_mutator(size_t modified) {
-    _old_fwt_bytes_to_mutator.store_relaxed(modified);
   }
   size_t compare_set_fwt_regions_retired(size_t original, size_t modified) {
     return _fwt_regions_retired.compare_set(original, modified, memory_order_relaxed);

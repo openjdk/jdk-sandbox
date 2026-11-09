@@ -4611,6 +4611,7 @@ bool ShenandoahFreeSet::publish_prepared_regions(uint worker_id, uint workers, b
     fwt_handshakes(started, finished);
     if ((started == finished) && fwt_start_handshake(started, finished)) {
 #ifdef KELVIN_DEBUG
+      log_info(gc)("worker %u acquired lock with started: %u, finished: %u", worker_id, started + 1, finished);
       log_info(gc)("%s worker %u has publish lock because original_published: %zu, now_prepared: %zu, consumed: %zu",
                    cset_is_finished? "Finished": "Unfinished", 
                    worker_id, original_published, now_prepared, consumed_regions);
@@ -4644,7 +4645,7 @@ bool ShenandoahFreeSet::publish_prepared_regions(uint worker_id, uint workers, b
             regions_to_publish++;
             bytes_to_publish += (r->alloc_end() - r->top()) * HeapWordSize;
 #ifdef KELVIN_DEBUG
-            log_info(gc)("worker %u sets region %zu status to Publishing, bytes_to_publish: %zu",
+            log_info(gc)("worker %u sets region %zu status to Publishing_FWT, bytes_to_publish: %zu",
                          worker_id, r->index(), (r->alloc_end() - r->top()) * HeapWordSize);
 #endif
           }
@@ -4657,11 +4658,18 @@ bool ShenandoahFreeSet::publish_prepared_regions(uint worker_id, uint workers, b
           index++;
         }
         size_t new_upper_bound_on_unpublished = upper_bound_on_unpublished_fwt();
+#ifdef KELVIN_DEBUG
+        log_info(gc)("worker %u re-queries upper_bound_on_unpublished after examining all previously unpublished: %zu",
+                     worker_id, new_upper_bound_on_unpublished);
+#endif
         if (new_upper_bound_on_unpublished == upper_bound_on_unpublished) {
           break;
         } else {
           // Otherwise, more regions have been prepared.  Let's try to publish them as well.
           upper_bound_on_unpublished = new_upper_bound_on_unpublished;
+#ifdef KELVIN_DEBUG
+          log_info(gc)("worker %u extends its search for publishable to %zu", worker_id, upper_bound_on_unpublished);
+#endif
         }
       }
 
@@ -4672,6 +4680,11 @@ bool ShenandoahFreeSet::publish_prepared_regions(uint worker_id, uint workers, b
         log_info(gc)("Worker %u moving to rendezvous() with intent to publish %zu regions, %zu bytes",
                      worker_id, regions_to_publish, bytes_to_publish);
 #endif
+#define KELVIN_SUSPENDIBLE
+#ifdef KELVIN_SUSPENDIBLE
+        log_info(gc)("worker %u leaves Suspendible to rendezvous", worker_id);
+#endif
+        SuspendibleThreadSetLeaver stsl;
         assert(!SafepointSynchronize::is_at_safepoint(), "Cannot rendezvous if we're at a safepoint");
         assert(!Thread::current()->is_suspendible_thread(), "must not hold STS join across rendezvous");
 #ifdef KELVIN_DEBUG
@@ -4682,12 +4695,17 @@ bool ShenandoahFreeSet::publish_prepared_regions(uint worker_id, uint workers, b
         log_info(gc)("worker %u back from rendezous_threads, first_unpublished: %zu, upper_bound: %zu",
                      worker_id, first_unpublished, upper_bound_on_unpublished);
 #endif
+#ifdef KELVIN_SUSPENDIBLE
+        log_info(gc)("worker %u reattaches Suspendible after rendezvoud", worker_id);
+#endif
       } else {
 #ifdef KELVIN_DEBUG
         log_info(gc)("worker %u skips rendezous_threads because we're in degen, first_unpublished: %zu, upper_bound: %zu",
                      worker_id, first_unpublished, upper_bound_on_unpublished);
 #endif
       }
+      size_t new_first_unpublished = upper_bound_on_unpublished;
+      size_t new_last_unpublished = first_unpublished;
       for (size_t index = first_unpublished; index < upper_bound_on_unpublished; index++) {
         ShenandoahHeapRegion* r = cset->cset_region(index);
         ShenandoahEarlyRecycleStatus status = r->get_early_recycle_status();
@@ -4699,11 +4717,29 @@ bool ShenandoahFreeSet::publish_prepared_regions(uint worker_id, uint workers, b
                        worker_id, success? "succeeded": "failed", r->index(), index);
 #endif
           assert(success, "Lock violation");
+        } else if ((status == ShenandoahEarlyRecycleStatus::Planned_FWT)
+                   || (status == ShenandoahEarlyRecycleStatus::Prepared_FWT)) {
+          if (new_first_unpublished == upper_bound_on_unpublished) {
+            new_first_unpublished = index;
+          }
+          new_last_unpublished = index;
         }
       }
 #ifdef KELVIN_DEBUG
       log_info(gc)("worker %u published %zu regions, representing %zu bytes", worker_id, regions_to_publish, bytes_to_publish);
+      log_info(gc)("worker %u refined unpublished range is from %zu to %zu",
+                   worker_id, new_first_unpublished, new_last_unpublished);
 #endif
+
+      // If this fails, the range has already expanded downward. Only this worker thread can shrink the range, because
+      // this thread holds the publish lock.
+      compare_set_first_unpublished_fwt(first_unpublished, new_first_unpublished);
+
+      if (new_last_unpublished >= new_first_unpublished) {
+        // If this fails, the range has already expanded upward. Only this worker thread can shrink the range, because
+        // this thread holds the publish lock.
+        compare_set_upper_bound_on_unpublished_fwt(upper_bound_on_unpublished, new_last_unpublished + 1);
+      }
 
       // Makes no sense to transfer to Mutator if we are in degenerated GC.
       if (concurrent) {
@@ -4730,8 +4766,9 @@ bool ShenandoahFreeSet::publish_prepared_regions(uint worker_id, uint workers, b
         // Release the publication lock
         bool result = fwt_finish_handshake(started+1, finished);
         assert(result, "Nobody else should modify starts and finishes while I hold the lock");
-        
 #ifdef KELVIN_DEBUG
+        log_info(gc)("worker %d %s finished handshake with started: %u, finished: %u",
+                     worker_id, result? "successfully": "unsuccessfully", started+1, finished+1);
         log_info(gc)("worker %u transferred %zu bytes from collector and %zu bytes from old_collector",
                      worker_id, transfer_from_collector, transfer_from_old_collector);
 #endif
@@ -4748,6 +4785,7 @@ bool ShenandoahFreeSet::publish_prepared_regions(uint worker_id, uint workers, b
     } else {
       // else, we did not get the publication lock
 #ifdef KELVIN_DEBUG
+      log_info(gc)("Worker %u failed to get the lock: started: %u should equal finished: %u", worker_id, started, finished);
       failed_lock = true;
 #endif
     }
