@@ -4762,17 +4762,18 @@ bool ShenandoahFreeSet::publish_prepared_regions(uint worker_id, uint workers, b
         newly_transferred = endow_mutator_from_old_collector(transferable);
         size_t transfer_from_old_collector = newly_transferred;
         set_old_fwt_bytes_to_mutator(old_transfers + newly_transferred);
-
-        // Release the publication lock
-        bool result = fwt_finish_handshake(started+1, finished);
-        assert(result, "Nobody else should modify starts and finishes while I hold the lock");
 #ifdef KELVIN_DEBUG
-        log_info(gc)("worker %d %s finished handshake with started: %u, finished: %u",
-                     worker_id, result? "successfully": "unsuccessfully", started+1, finished+1);
-        log_info(gc)("worker %u transferred %zu bytes from collector and %zu bytes from old_collector",
-                     worker_id, transfer_from_collector, transfer_from_old_collector);
+      log_info(gc)("worker %u transferred %zu bytes from collector and %zu bytes from old_collector",
+                   worker_id, transfer_from_collector, transfer_from_old_collector);
 #endif
       }
+      // Release the publication lock
+      bool result = fwt_finish_handshake(started+1, finished);
+      assert(result, "Nobody else should modify starts and finishes while I hold the lock");
+#ifdef KELVIN_DEBUG
+      log_info(gc)("worker %d %s finished handshake with started: %u, finished: %u",
+                   worker_id, result? "successfully": "unsuccessfully", started+1, finished+1);
+#endif
       if (regions_to_publish > 0) {
         return true;
       } else {
