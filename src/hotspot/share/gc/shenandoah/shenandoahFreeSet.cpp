@@ -3780,10 +3780,11 @@ void ShenandoahFreeSet::shift_retired_regions_to_lower_address() {
   _early_recycled_retired_regions[0] = _early_recycled_retired_regions[retired_regions];
 }
 
+ShenandoahMarkingContext* __my_private_ctx;
 
 static int compare_by_increasing_live(ShenandoahHeapRegion* a, ShenandoahHeapRegion* b) {
-  uint32_t a_live = a->get_live_data_words();
-  uint32_t b_live = b->get_live_data_words();
+  uint32_t a_live = a->get_live_data_words() + (a->top() - __my_private_ctx->top_at_mark_start(a));
+  uint32_t b_live = b->get_live_data_words() + (b->top() - __my_private_ctx->top_at_mark_start(b));
   if (a_live > b_live) {
     return 11;
   } else if (a_live < b_live) {
@@ -3795,6 +3796,7 @@ static int compare_by_increasing_live(ShenandoahHeapRegion* a, ShenandoahHeapReg
 
 // This sorts regions in order of increasing live data
 void ShenandoahFreeSet::sort_early_recycle_for_evac(size_t cset_region_count) {
+  __my_private_ctx = ShenandoahHeap::heap()->marking_context();
   QuickSort::sort<ShenandoahHeapRegion*>(_early_recycled_regions, cset_region_count, compare_by_increasing_live);
 }
 
