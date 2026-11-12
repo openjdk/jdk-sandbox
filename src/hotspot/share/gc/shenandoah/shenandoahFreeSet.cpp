@@ -4588,7 +4588,6 @@ HeapWord* ShenandoahFreeSet::try_allocate_shared_in_early_recycled(ShenandoahHea
 
 bool ShenandoahFreeSet::publish_prepared_regions(uint worker_id, uint workers, bool concurrent,
                                                  bool cset_is_finished, ShenandoahCollectionSet* cset) {
-  assert(Thread::current()->is_suspendible_thread(), "Current thread must be suspendible");
   static const CSetState fwt_state =
     ShenandoahEarlyRecycleInfo<true>::use_compact()? CSetState::REUSABLE_FWDTABLE_COMPACT: CSetState::REUSABLE_FWDTABLE_WIDE;
 
@@ -4689,7 +4688,7 @@ bool ShenandoahFreeSet::publish_prepared_regions(uint worker_id, uint workers, b
 #endif
         // When the control thread invokes publish_prepared_regions(), current thread is not suspendible
         // and we don't need to leave the Suspendible Set.
-        SuspendibleThreadSetLeaver stsl(Thread::current()->is_suspendible_thread();
+        SuspendibleThreadSetLeaver stsl(Thread::current()->is_suspendible_thread());
         assert(!SafepointSynchronize::is_at_safepoint(), "Cannot rendezvous if we're at a safepoint");
         assert(!Thread::current()->is_suspendible_thread(), "must not hold STS join across rendezvous");
 #ifdef KELVIN_DEBUG
