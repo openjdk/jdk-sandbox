@@ -264,8 +264,6 @@ void ShenandoahGenerationalHeap::evacuate_collection_set(ShenandoahGeneration* g
 #ifdef KELVIN_DEBUG
     log_info(gc)("Evacuation is done. Running one last handshake because regions prepared was less than regions-published");
 #endif
-    // We expect current thread to be suspendible upon entry to publish_prepared_regions()
-    SuspendibleThreadSetJoiner stsj;
     free_set->publish_prepared_regions(0, 1 /* only 1 worker now */, true /* is_concurrent */,
                                        true /*   all cset regions are prepared */, collection_set());
   }

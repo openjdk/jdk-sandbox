@@ -4687,7 +4687,9 @@ bool ShenandoahFreeSet::publish_prepared_regions(uint worker_id, uint workers, b
 #ifdef KELVIN_SUSPENDIBLE
         log_info(gc)("worker %u leaves Suspendible to rendezvous", worker_id);
 #endif
-        SuspendibleThreadSetLeaver stsl;
+        // When the control thread invokes publish_prepared_regions(), current thread is not suspendible
+        // and we don't need to leave the Suspendible Set.
+        SuspendibleThreadSetLeaver stsl(Thread::current()->is_suspendible_thread();
         assert(!SafepointSynchronize::is_at_safepoint(), "Cannot rendezvous if we're at a safepoint");
         assert(!Thread::current()->is_suspendible_thread(), "must not hold STS join across rendezvous");
 #ifdef KELVIN_DEBUG
