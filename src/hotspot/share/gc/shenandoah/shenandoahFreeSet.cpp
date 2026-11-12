@@ -4588,6 +4588,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_shared_in_early_recycled(ShenandoahHea
 
 bool ShenandoahFreeSet::publish_prepared_regions(uint worker_id, uint workers, bool concurrent,
                                                  bool cset_is_finished, ShenandoahCollectionSet* cset) {
+  assert(Thread::current()->is_suspendible_thread(), "Current thread must be suspendible");
   static const CSetState fwt_state =
     ShenandoahEarlyRecycleInfo<true>::use_compact()? CSetState::REUSABLE_FWDTABLE_COMPACT: CSetState::REUSABLE_FWDTABLE_WIDE;
 
