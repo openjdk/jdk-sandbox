@@ -2901,7 +2901,7 @@ void ShenandoahFreeSet::recycle_collection_set() {
       ShenandoahHeapRegion* overwrite_region = get_tlab_region(num_fwt_regions - (num_fwt_retired + num_shared_alloc + 1));
       insert_retired_region(r);
       // Decrement i so we can process the overwrite_region on next iteration
-      set_no_table_region_slot(i--, overwrite_region);
+      set_tlab_region_slot(i--, overwrite_region);
       num_fwt_retired++;
     } else {
       assert(status == ShenandoahEarlyRecycleStatus::Published_FWT, "Precondition");
@@ -2912,7 +2912,7 @@ void ShenandoahFreeSet::recycle_collection_set() {
         r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Retired_FWT);
         insert_retired_region(r);
         // Decrement i so we can process the overwrite_region on next iteration
-        set_no_table_region_slot(i--, overwrite_region);
+        set_tlab_region_slot(i--, overwrite_region);
         num_fwt_retired++;
       } else {
         size_t potential_tlab_size = early_recycled_tlab_available_size(r);
