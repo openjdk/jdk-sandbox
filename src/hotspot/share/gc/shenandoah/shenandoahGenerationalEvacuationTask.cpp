@@ -92,6 +92,27 @@ ShenandoahGenerationalEvacuationTask::ShenandoahGenerationalEvacuationTask(Shena
   _early_recycle_preprocessed_regions(0)
 {
   shenandoah_assert_generational();
+  if (concurrent) {
+    ShenandoahFreeSet* free_set = heap->free_set();
+    free_set->set_first_unpublished_fwt(0);
+    free_set->set_upper_bound_on_unpublished_fwt(0);
+    free_set->set_first_unclaimed_young_fwt(0);
+    free_set->set_upper_bound_on_unclaimed_young_fwt(0);
+    free_set->set_first_unclaimed_old_fwt(0);
+    free_set->set_upper_bound_on_unclaimed_old_fwt(0);
+    free_set->set_fwt_regions_prepared(0);
+    free_set->set_fwt_bytes_prepared(0);
+    free_set->set_fwt_regions_published(0);
+    free_set->set_fwt_bytes_published(0);
+    free_set->set_fwt_regions_consumed_by_gc(0);
+    free_set->set_fwt_bytes_consumed_by_young_gc(0);
+    free_set->set_fwt_bytes_consumed_by_old_gc(0);
+    free_set->set_old_fwt_bytes_to_mutator(0);
+    free_set->set_young_fwt_bytes_to_mutator(0);
+    free_set->set_fwt_regions_retired(0);
+    free_set->set_fwt_bytes_retired(0);
+  }
+  // Otherwise, we are coming back to finish evacuation in a degenerated cycle.  Use the variable values captured at degen time. 
 }
 
 void ShenandoahGenerationalEvacuationTask::yield_or_sleep(uint32_t& yields) {
@@ -181,27 +202,6 @@ void ShenandoahGenerationalEvacuationTask::evacuate_regions(uint worker_id) {
 #ifdef KELVIN_DEBUG
   log_info(gc)("ShenGenEvacTask::evac_and_promote_regions(%u)", worker_id);
 #endif
-  // Even a non-concurrent degen can benefit from early recycling of collection set regions.
-  if (worker_id == 0) {
-    // The first worker is responsible for initializing early-recycle state variables.
-    free_set->set_first_unpublished_fwt(0);
-    free_set->set_upper_bound_on_unpublished_fwt(0);
-    free_set->set_first_unclaimed_young_fwt(0);
-    free_set->set_upper_bound_on_unclaimed_young_fwt(0);
-    free_set->set_first_unclaimed_old_fwt(0);
-    free_set->set_upper_bound_on_unclaimed_old_fwt(0);
-    free_set->set_fwt_regions_prepared(0);
-    free_set->set_fwt_bytes_prepared(0);
-    free_set->set_fwt_regions_published(0);
-    free_set->set_fwt_bytes_published(0);
-    free_set->set_fwt_regions_consumed_by_gc(0);
-    free_set->set_fwt_bytes_consumed_by_young_gc(0);
-    free_set->set_fwt_bytes_consumed_by_old_gc(0);
-    free_set->set_old_fwt_bytes_to_mutator(0);
-    free_set->set_young_fwt_bytes_to_mutator(0);
-    free_set->set_fwt_regions_retired(0);
-    free_set->set_fwt_bytes_retired(0);
-  }
 #ifdef KELVIN_DEBUG
   log_info(gc)("ShenGenEvacTask::evac_and_promote_regions(%u) is selecting fwt regions", worker_id);
 #endif
@@ -210,80 +210,80 @@ void ShenandoahGenerationalEvacuationTask::evacuate_regions(uint worker_id) {
 
   // Set aside enough regions for early recycle with FWT to satisfy the anticipated memory shortfall.
   // Each worker is responsible for preparing 1/_num_workers of the total shortfall
-
-  size_t total_shortfall = _heap->young_generation()->heuristics()->mutator_memory_shortfall();
-  size_t my_shortfall = total_shortfall / _num_workers;
-  if (worker_id == 0) {
-    my_shortfall = total_shortfall - (_num_workers - 1) * my_shortfall;
-  }
-  size_t backfill = 0;
-  size_t my_preprocessed_regions = 0;
-  for (size_t i = worker_id; i < cset_region_count; i += worker_id) {
-    my_preprocessed_regions++;
-    r = _cset->cset_region(i);
-    size_t num_entries;
-    if (backfill < my_shortfall) {
-      // For now, calculate num_forwardings only for regions that we plan to early recycle with forwarding table.
-      // As the non-fwt regions are evacuated, we will update their expected forwardings. The order of regions within
-      // the early recycle regions array is approximately the order of increasing mark-word density.
-      size_t num_forwardings = _ctx->count_mark_bit_conflicts<1>(r->bottom(), r->end());
-      // Objects allocated during concurrent mark are not yet recognized as "marked", so count them separately.
-      HeapWord* top = r->top();
-      for (HeapWord* p = _ctx->top_at_mark_start(r); p < top; ) {
-        oop obj = cast_to_oop(p);
-        num_forwardings++;
-        p += ShenandoahForwarding::size(obj);
-      }
+  if (_concurrent) {
+    size_t total_shortfall = _heap->young_generation()->heuristics()->mutator_memory_shortfall();
+    size_t my_shortfall = total_shortfall / _num_workers;
+    if (worker_id == 0) {
+      my_shortfall = total_shortfall - (_num_workers - 1) * my_shortfall;
+    }
+    size_t backfill = 0;
+    size_t my_preprocessed_regions = 0;
+    for (size_t i = worker_id; i < cset_region_count; i += worker_id) {
+      my_preprocessed_regions++;
+      r = _cset->cset_region(i);
+      size_t num_entries;
+      if (backfill < my_shortfall) {
+        // For now, calculate num_forwardings only for regions that we plan to early recycle with forwarding table.
+        // As the non-fwt regions are evacuated, we will update their expected forwardings. The order of regions within
+        // the early recycle regions array is approximately the order of increasing mark-word density.
+        size_t num_forwardings = _ctx->count_mark_bit_conflicts<1>(r->bottom(), r->end());
+        // Objects allocated during concurrent mark are not yet recognized as "marked", so count them separately.
+        HeapWord* top = r->top();
+        for (HeapWord* p = _ctx->top_at_mark_start(r); p < top; ) {
+          oop obj = cast_to_oop(p);
+          num_forwardings++;
+          p += ShenandoahForwarding::size(obj);
+        }
 #ifdef KELVIN_SUSPENDIBLE
-      log_info(gc)("worker %u checks for yield in preprocessing if _concurrent: %s",
-                   worker_id, _concurrent? "true": "false");
+        log_info(gc)("worker %u checks for yield in preprocessing if _concurrent: %s but does not cancel during preprocessing",
+                     worker_id, _concurrent? "true": "false");
 #endif
-      if (_concurrent) {
-        if (SuspendibleThreadSet::should_yield()) {
-          SuspendibleThreadSet::yield();
+        if (_concurrent) {
+          if (SuspendibleThreadSet::should_yield()) {
+            SuspendibleThreadSet::yield();
+          }
+        }
+        size_t num_entries = r->calculate_entries_in_forward_table(num_forwardings);
+        if (num_entries > 0) {
+          size_t early_available_words = region_size_words - entry_size_words * num_entries;
+          backfill += early_available_words;
+#ifdef KELVIN_DEBUG
+          log_info(gc)("Recycled FWT region %zu: live: %zu, %zu entries (of size %zu), available: %zu, backfill: %zu",
+                       r->index(), r->get_live_data_words(), num_entries, entry_size_words, early_available_words, backfill);
+#endif
+          r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Planned_FWT);
+          // KELVIN TODO: we don't really need forwardings except for assertion enforcement.  (build-only)
+          // We should remove from ShenandoahHeapRegion EarlyRecycleInfo.
+          r->set_expected_forwardings(num_forwardings);
+          r->set_fwt_entries(num_entries);
+          fwt_regions++;
+#ifdef KELVIN_DEBUG
+          log_info(gc)("Region %zu is Planned_FWT with %zu forwardings, %zu entries", r->index(), num_forwardings, num_entries);
+#endif
+          continue;
         }
       }
-      size_t num_entries = r->calculate_entries_in_forward_table(num_forwardings);
-      if (num_entries > 0) {
-        size_t early_available_words = region_size_words - entry_size_words * num_entries;
-        backfill += early_available_words;
-#ifdef KELVIN_DEBUG
-        log_info(gc)("Recycled FWT region %zu: live: %zu, %zu entries (of size %zu), available: %zu, backfill: %zu",
-                     r->index(), r->get_live_data_words(), num_entries, entry_size_words, early_available_words, backfill);
-#endif
-        r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Planned_FWT);
-        // KELVIN TODO: we don't really need forwardings except for assertion enforcement.  (build-only)
-        // We should remove from ShenandoahHeapRegion EarlyRecycleInfo.
-        r->set_expected_forwardings(num_forwardings);
-        r->set_fwt_entries(num_entries);
-        fwt_regions++;
-#ifdef KELVIN_DEBUG
-        log_info(gc)("Region %zu is Planned_FWT with %zu forwardings, %zu entries", r->index(), num_forwardings, num_entries);
-#endif
-        continue;
-      }
+      // This region will not be early recycled with forward table.
+      r->set_fwt_entries(0);
     }
-    // This region will not be early recycled with forward table.
-    r->set_fwt_entries(0);
-  }
-
 #ifdef KELVIN_TRACE
-  log_info(gc)("Worker %u is done preprocessing my regions: %zu, fwt regions: %zu",
-               worker_id, my_preprocessed_regions, fwt_regions);
-  log_info(gc)("  my shortfall: %zu, backfill: %zu", my_shortfall, backfill);
+    log_info(gc)("Worker %u is done preprocessing my regions: %zu, fwt regions: %zu",
+                 worker_id, my_preprocessed_regions, fwt_regions);
+    log_info(gc)("  my shortfall: %zu, backfill: %zu", my_shortfall, backfill);
 #endif
 
-  // Once we identify that preprocessing is finished, other threads may consult the fields we've initialized above.
-  OrderAccess::storeload();
+    // Once we identify that preprocessing is finished, other threads may consult the fields we've initialized above.
+    OrderAccess::storeload();
 
-  // Signal to all other workers that my early-release preprocessing is done.
-  size_t other_preprocessed_regions;
-  do {
-    other_preprocessed_regions = _early_recycle_preprocessed_regions.load_relaxed();
-  } while (!_early_recycle_preprocessed_regions.compare_set(other_preprocessed_regions,
-                                                            other_preprocessed_regions + my_preprocessed_regions,
-                                                            memory_order_relaxed));
-
+    // Signal to all other workers that my early-release preprocessing is done.
+    size_t other_preprocessed_regions;
+    do {
+      other_preprocessed_regions = _early_recycle_preprocessed_regions.load_relaxed();
+    } while (!_early_recycle_preprocessed_regions.compare_set(other_preprocessed_regions,
+                                                              other_preprocessed_regions + my_preprocessed_regions,
+                                                              memory_order_relaxed));
+  }
+  // Else, this is degenerated evacuation.  Preprocessing was completed in concurrent mode.
   ShenandoahConcurrentEvacuator cl(_heap);
   // Concurrent GC workers evacuate regions in order of increasing live data. They start with the regions that have
   // the least amount of live data, so the first few regions evacuated may go very fast.
@@ -322,12 +322,6 @@ void ShenandoahGenerationalEvacuationTask::evacuate_regions(uint worker_id) {
       _heap->marked_object_iterate(r, &cl);
       cl.finish_region(r);
       num_forwardings = cl.num_forwardings();
-#ifdef KELVIN_SUSPENDIBLE
-      log_info(gc)("suspendible worker %u yields after evacuating one region in evacuate_regions()", worker_id);
-#endif
-      if (_heap->check_cancelled_gc_and_yield(_concurrent)) {
-        break;
-      }
     }
     bool preprocessing_finished = (_early_recycle_preprocessed_regions.load_relaxed() == num_regions);
     if (preprocessing_finished) {
@@ -382,12 +376,6 @@ void ShenandoahGenerationalEvacuationTask::evacuate_regions(uint worker_id) {
                 last_newly_unpublished = cset_index;
               }
             }
-          }
-#ifdef KELVIN_SUSPENDIBLE
-          log_info(gc)("worker %u yields after finishing one region in evacuate_regions()", worker_id);
-#endif
-          if (_heap->check_cancelled_gc_and_yield(_concurrent)) {
-            break;
           }
           if (queued_regions > 0) {
             cset_index = await_queue_cset_indices[--queued_regions];
@@ -461,6 +449,17 @@ void ShenandoahGenerationalEvacuationTask::evacuate_regions(uint worker_id) {
                        worker_id, original_bound_on_unpublished, last_newly_unpublished + 1);
         }
 #endif
+      }
+
+#ifdef KELVIN_SUSPENDIBLE
+      log_info(gc)("worker %u yields maybe after finishing one region in evacuate_regions(), queued regions: %zu",
+                   worker_id, queued_regions);
+#endif
+      // Cannot cancel evacuation if we have thread-local queued regions. We have to finish those first.
+      if ((queued_regions == 0) && _heap->check_cancelled_gc_and_yield(_concurrent)) {
+        // TODO: retire any claimed early-recycle-evacuation regions.
+        // If we break here, publishing will happen later, when dgen resumes.
+        break;
       }
 
       // Publish if approprriate
