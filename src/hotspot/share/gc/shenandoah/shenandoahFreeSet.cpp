@@ -2291,7 +2291,7 @@ size_t ShenandoahFreeSet::endow_mutator_from_either_collector(ShenandoahFreeSetP
   ShenandoahHeapLocker locker(_heap->lock());
   size_t max_regions = max_bytes / ShenandoahHeapRegion::region_size_bytes();
   if (max_regions > 0) {
-    size_t transferred_bytes;
+    size_t transferred_bytes = 0;
     transfer_empty_regions_from_collector_set_to_mutator_set(which_collector, max_regions, transferred_bytes);
     return transferred_bytes;
   } else {
