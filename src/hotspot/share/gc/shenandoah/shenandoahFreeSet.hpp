@@ -848,7 +848,7 @@ public:
 
   // Publish any regions that have been prepared but not yet published, returning true iff at least one region was newly published.
   bool publish_prepared_regions(uint worker_id, uint workers,
-                                bool concurrent, bool cset_is_finished, ShenandoahCollectionSet* cset);
+                                bool concurrent, bool cset_is_finished, ShenandoahCollectionSet* cset, bool is_generational);
 
   // Call this if I have claimed the region at original_value.  Will adjust upward.
   void adjust_first_unclaimed_young(size_t original_value, size_t upper_bound) {

@@ -265,7 +265,8 @@ void ShenandoahGenerationalHeap::evacuate_collection_set(ShenandoahGeneration* g
     log_info(gc)("Evacuation is done. Running one last handshake because regions prepared was less than regions-published");
 #endif
     free_set->publish_prepared_regions(0, 1 /* only 1 worker now */, true /* is_concurrent */,
-                                       true /*   all cset regions are prepared */, collection_set());
+                                       true /*   all cset regions are prepared */,
+                                       collection_set(), true /* is_generational */);
   }
   collection_set()->switch_to_reuse_forwarding();
 }

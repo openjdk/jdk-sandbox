@@ -4587,7 +4587,7 @@ HeapWord* ShenandoahFreeSet::try_allocate_shared_in_early_recycled(ShenandoahHea
 }
 
 bool ShenandoahFreeSet::publish_prepared_regions(uint worker_id, uint workers, bool concurrent,
-                                                 bool cset_is_finished, ShenandoahCollectionSet* cset) {
+                                                 bool cset_is_finished, ShenandoahCollectionSet* cset, bool is_generational) {
   static const CSetState fwt_state =
     ShenandoahEarlyRecycleInfo<true>::use_compact()? CSetState::REUSABLE_FWDTABLE_COMPACT: CSetState::REUSABLE_FWDTABLE_WIDE;
 
@@ -4753,23 +4753,34 @@ bool ShenandoahFreeSet::publish_prepared_regions(uint worker_id, uint workers, b
         size_t total_available_to_xfer = add_to_fwt_bytes_published(bytes_to_publish);
 
         // Still holding the handshake lock, transfer as much memory as possible from Reserves to Mutator.
-        size_t young_transfers = young_fwt_bytes_to_mutator();
-        size_t old_transfers = old_fwt_bytes_to_mutator();
-        size_t transferable = total_available_to_xfer - (young_transfers + old_transfers);
+        if (is_generational) {
+          size_t young_transfers = young_fwt_bytes_to_mutator();
+          size_t old_transfers = old_fwt_bytes_to_mutator();
+          size_t transferable = total_available_to_xfer - (young_transfers + old_transfers);
 #ifdef KELVIN_DEBUG
-        log_info(gc)("worker %u transferable is %zu bytes", worker_id, transferable);
+          log_info(gc)("worker %u transferable is %zu bytes", worker_id, transferable);
 #endif
-        size_t newly_transferred = endow_mutator_from_collector(transferable);
-        size_t transfer_from_collector = newly_transferred;
-        set_young_fwt_bytes_to_mutator(young_transfers + newly_transferred);
-        transferable -= newly_transferred;
-        newly_transferred = endow_mutator_from_old_collector(transferable);
-        size_t transfer_from_old_collector = newly_transferred;
-        set_old_fwt_bytes_to_mutator(old_transfers + newly_transferred);
+          size_t newly_transferred = endow_mutator_from_collector(transferable);
+          size_t transfer_from_collector = newly_transferred;
+          set_young_fwt_bytes_to_mutator(young_transfers + newly_transferred);
+          transferable -= newly_transferred;
+          newly_transferred = endow_mutator_from_old_collector(transferable);
+          size_t transfer_from_old_collector = newly_transferred;
+          set_old_fwt_bytes_to_mutator(old_transfers + newly_transferred);
 #ifdef KELVIN_DEBUG
-      log_info(gc)("worker %u transferred %zu bytes from collector and %zu bytes from old_collector",
-                   worker_id, transfer_from_collector, transfer_from_old_collector);
+          log_info(gc)("worker %u transferred %zu bytes from collector and %zu bytes from old_collector",
+                       worker_id, transfer_from_collector, transfer_from_old_collector);
 #endif
+        } else {
+          size_t young_transfers = young_fwt_bytes_to_mutator();
+          size_t transferable = total_available_to_xfer - young_transfers;
+          size_t newly_transferred = endow_mutator_from_collector(transferable);
+          size_t transfer_from_collector = newly_transferred;
+          set_young_fwt_bytes_to_mutator(young_transfers + newly_transferred);
+#ifdef KELVIN_DEBUG
+          log_info(gc)("worker %u transferred %zu bytes from collector", worker_id, transfer_from_collector);
+#endif
+        }
       }
       // Release the publication lock
       bool result = fwt_finish_handshake(started+1, finished);

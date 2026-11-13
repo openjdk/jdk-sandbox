@@ -32,49 +32,6 @@
 #include "gc/shenandoah/shenandoahUtils.hpp"
 #include "gc/shenandoah/shenandoahYoungGeneration.hpp"
 
-class ShenandoahConcurrentEvacuator : public ObjectClosure {
-private:
-  ShenandoahGenerationalHeap* const _heap;
-  Thread* const _thread;
-  ShenandoahMarkingContext* const _context;
-  HeapWord* _tams;
-  size_t _num_forwardings;
-
-public:
-  explicit ShenandoahConcurrentEvacuator(ShenandoahGenerationalHeap* heap) :
-          _heap(heap), _thread(Thread::current()),
-          _context(heap->marking_context()), _tams(nullptr), _num_forwardings(0) {}
-
-  void set_region(ShenandoahHeapRegion* r) {
-    _tams = _context->top_at_mark_start(r);
-    _num_forwardings = 0;
-  }
-
-  void finish_region(ShenandoahHeapRegion* r) {
-    // Advance TAMS to top so that get_last_marked_addr in build_forwarding_table
-    // can search the full [bottom, top) range of the evacuated region.
-    _context->capture_top_at_mark_start(r);
-  }
-
-  void do_object(oop p) override {
-    shenandoah_assert_marked(nullptr, p);
-    _num_forwardings++;
-    if (!p->is_forwarded()) {
-      _heap->evacuate_object(p, _thread);
-    }
-    // Mark objects beyond TAMS so that their headers are findable when
-    // building the forwarding table (mirrors ShenandoahConcurrentEvacuateRegionObjectClosure).
-    if (cast_from_oop<HeapWord*>(p) >= _tams) {
-      bool upgraded = false;
-      _context->mark_strong_ignore_tams(p, upgraded);
-      assert(!upgraded, "should be first mark");
-    }
-    assert(_context->is_marked(p), "must be marked");
-  }
-
-  size_t num_forwardings() const { return _num_forwardings; }
-};
-
 ShenandoahGenerationalEvacuationTask::ShenandoahGenerationalEvacuationTask(ShenandoahGenerationalHeap* heap,
                                                                            ShenandoahGeneration* generation,
                                                                            ShenandoahRegionIterator* iterator,
@@ -158,7 +115,7 @@ void ShenandoahGenerationalEvacuationTask::do_work(uint worker_id) {
   }
 }
 
-void log_region(const ShenandoahHeapRegion* r, LogStream* ls) {
+static void log_region(const ShenandoahHeapRegion* r, LogStream* ls) {
   ls->print_cr("GenerationalEvacuationTask, looking at %s region %zu, (age: %d) [%s, %s, %s]",
                r->is_old()? "old": r->is_young()? "young": "free", r->index(), r->age(),
                r->is_active()? "active": "inactive",
@@ -466,11 +423,11 @@ void ShenandoahGenerationalEvacuationTask::evacuate_regions(uint worker_id) {
       if (cset_is_finished || (fwt_regions_recycled > 0)) {
         // We intend to publish.  If we do publish, we might want to publish more than once. So we loop. While we are
         // publishing, other workers that prepare more regions for publication are prohibited from publishing.
-        bool published_anything;
+        bool published;
         do {
           // Repeatedly publish as long as there are relevant prepared regions that remain to be published.
-          published_anything = free_set->publish_prepared_regions(worker_id, _num_workers, _concurrent, cset_is_finished, _cset);
-        } while (published_anything);
+          published = free_set->publish_prepared_regions(worker_id, _num_workers, _concurrent, cset_is_finished, _cset, true);
+        } while (published);
       } // else, there were no fwt regions recycled and the cset is not finished, so no need to publish anything.
     } else {
       // Preprocessing is not finished. We don't know whether we should build a forwarding table for this

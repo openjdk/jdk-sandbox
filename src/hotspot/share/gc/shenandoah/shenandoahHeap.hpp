@@ -1012,15 +1012,16 @@ public:
 class ShenandoahConcurrentEvacuateRegionObjectClosure : public ObjectClosure {
 private:
   ShenandoahHeap* const _heap;
-  ShenandoahHeapRegion* const _region;
   Thread* const _thread;
   ShenandoahMarkingContext* const _context;
   HeapWord* _tams;
   size_t _num_forwardings;
 public:
-  ShenandoahConcurrentEvacuateRegionObjectClosure(ShenandoahHeap* heap, ShenandoahHeapRegion* r);
+  ShenandoahConcurrentEvacuateRegionObjectClosure(ShenandoahHeap* heap);
   ~ShenandoahConcurrentEvacuateRegionObjectClosure();
 
+  void set_region(ShenandoahHeapRegion* r);
+  void finish_region(ShenandoahHeapRegion* r);
   inline void do_object(oop p) final;
 
   size_t num_forwardings() const {
@@ -1050,12 +1051,13 @@ private:
 public:
   ShenandoahEvacuationTask(ShenandoahHeap* sh, ShenandoahCollectionSet* cs, bool concurrent, size_t num_workers);
   void work(uint worker_id) final;
+  template <bool GENERATIONAL>
+  void evacuate_regions(uint worker_id);
 
 protected:
-  void yield_or_sleep(int &yields);
+  void yield_or_sleep(uint32_t &yields);
   void evacuate_region(ShenandoahHeapRegion* r, ShenandoahConcurrentEvacuateRegionObjectClosure& cl);
-  void do_work(size_t worker_id);
+  void do_work(uint worker_id);
 }; // This closes definition of ShenandoahEvacuationTask
-
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHHEAP_HPP
