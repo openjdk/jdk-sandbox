@@ -1222,6 +1222,11 @@ void ShenandoahHeap::evacuate_collection_set(ShenandoahGeneration* generation,
   ShenandoahEvacuationTask task(this, _collection_set, concurrent, require_early_recycle_preprocessing, workers()->active_workers());
   prepare_to_evacuate(concurrent);
   workers()->run_task(&task);
+  if (cancelled_gc()) {
+    // We didn't finish the work.  Do not do final publish and do not
+    // switch to reuse forwarding until the degen cycle finishes evacuation.
+    return;
+  }
 #ifdef KELVIN_DEBUG
   log_info(gc)("Back from running ShenEvacTask, concurrent is %d", concurrent);
 #endif

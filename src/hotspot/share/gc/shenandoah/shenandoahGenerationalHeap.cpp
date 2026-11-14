@@ -260,6 +260,11 @@ void ShenandoahGenerationalHeap::evacuate_collection_set(ShenandoahGeneration* g
                                             workers()->active_workers());
   prepare_to_evacuate(concurrent);
   workers()->run_task(&task);
+  if (cancelled_gc()) {
+    // We didn't finish the work.  Do not do final publish and do not
+    // switch to reuse forwarding until the degen cycle finishes evacuation.
+    return;
+  }
   // Single post-evacuation rendezvous; see ShenandoahHeap::evacuate_collection_set.
   ShenandoahFreeSet* free_set = this->free_set();
   if (concurrent && ShenandoahCSetReuse && (free_set->fwt_regions_prepared() > free_set->fwt_regions_published())) {
