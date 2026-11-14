@@ -50,7 +50,7 @@ ShenandoahGenerationalEvacuationTask::ShenandoahGenerationalEvacuationTask(Shena
   _early_recycle_preprocessed_regions(0)
 {
   shenandoah_assert_generational();
-  if (concurrent) {
+  if (require_preprocessing) {
     ShenandoahFreeSet* free_set = heap->free_set();
     free_set->set_first_unpublished_fwt(0);
     free_set->set_upper_bound_on_unpublished_fwt(0);

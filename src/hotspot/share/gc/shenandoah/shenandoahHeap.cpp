@@ -3470,6 +3470,27 @@ ShenandoahEvacuationTask::ShenandoahEvacuationTask(
     _early_recycle_preprocessed_regions(0)
 {
   assert(!ShenandoahHeap::heap()->mode()->is_generational(), "Handle generational evacuation elsewhere");
+  if (require_preprocessing) {
+    ShenandoahFreeSet* free_set = heap->free_set();
+    free_set->set_first_unpublished_fwt(0);
+    free_set->set_upper_bound_on_unpublished_fwt(0);
+    free_set->set_first_unclaimed_young_fwt(0);
+    free_set->set_upper_bound_on_unclaimed_young_fwt(0);
+    free_set->set_first_unclaimed_old_fwt(0);
+    free_set->set_upper_bound_on_unclaimed_old_fwt(0);
+    free_set->set_fwt_regions_prepared(0);
+    free_set->set_fwt_bytes_prepared(0);
+    free_set->set_fwt_regions_published(0);
+    free_set->set_fwt_bytes_published(0);
+    free_set->set_fwt_regions_consumed_by_gc(0);
+    free_set->set_fwt_bytes_consumed_by_young_gc(0);
+    free_set->set_fwt_bytes_consumed_by_old_gc(0);
+    free_set->set_old_fwt_bytes_to_mutator(0);
+    free_set->set_young_fwt_bytes_to_mutator(0);
+    free_set->set_fwt_regions_retired(0);
+    free_set->set_fwt_bytes_retired(0);
+  }
+  // Otherwise, we are coming back to finish evacuation in a degenerated cycle.  Use the variable values captured at degen time. 
 }
 
 void ShenandoahEvacuationTask::work(uint worker_id) {
