@@ -1421,9 +1421,14 @@ oop ShenandoahHeap::try_evacuate_object(oop p, Thread* thread, ShenandoahHeapReg
   }
 }
 
-// Returns true iff the region is successfully recycled with a prepared forwarding table.
+// Returns true iff the region is successfully recycled for no-table early recycling.
 bool ShenandoahHeap::finish_no_table_region_evacuation(ShenandoahHeapRegion* r, uint32_t num_forwardings) {
   // The region was presumed to have a fwd table.  Now we know it does not.
+
+  if (r->is_pinned() || r->was_promoted_in_place() || r->has_self_forwards()) {
+    r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Abandoned);
+    return false;
+  }
 
   ShenandoahMarkingContext* ctx = marking_context();
   HeapWord* bottom = r->bottom();
@@ -1570,6 +1575,7 @@ bool ShenandoahHeap::finish_fwt_region_evacuation(ShenandoahHeapRegion* r) {
 #endif
   // There should be no live objects.
   if (r->is_pinned() || r->was_promoted_in_place() || r->has_self_forwards()) {
+    r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Abandoned);
     return false;
   } else {
     assert(ShenandoahCSetAllocationForwardingTable, "Should not be here");
@@ -1577,6 +1583,7 @@ bool ShenandoahHeap::finish_fwt_region_evacuation(ShenandoahHeapRegion* r) {
     if (can_reuse) {
       return true;
     } else {
+      r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Abandoned);
       return false;
     }
   }
