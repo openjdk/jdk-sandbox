@@ -501,7 +501,7 @@ private:
 
   // GC support
   // Evacuation
-  virtual void evacuate_collection_set(ShenandoahGeneration* generation, bool concurrent);
+  virtual void evacuate_collection_set(ShenandoahGeneration* generation, bool concurrent, bool require_early_recycle_preprocessing);
   // Concurrent root processing
   void prepare_concurrent_roots();
   void finish_concurrent_roots();
@@ -1043,13 +1043,15 @@ private:
   ShenandoahCollectionSet* const _cs;
   ShenandoahMarkingContext* const _ctx;
   bool _concurrent;
+  bool _require_preprocessing;
   size_t _num_workers;
   ShenandoahHeuristics* _heuristics;
   // Don't bother to pad this. It is not hot. It is updated only _num_workers times only during initialization of the
   // evacuation effort.
   Atomic<size_t> _early_recycle_preprocessed_regions;
 public:
-  ShenandoahEvacuationTask(ShenandoahHeap* sh, ShenandoahCollectionSet* cs, bool concurrent, size_t num_workers);
+  ShenandoahEvacuationTask(ShenandoahHeap* sh, ShenandoahCollectionSet* cs, bool concurrent,
+                           bool require_early_recycle_preprocessing, size_t num_workers);
   void work(uint worker_id) final;
   template <bool GENERATIONAL>
   void evacuate_regions(uint worker_id);

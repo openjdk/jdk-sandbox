@@ -252,10 +252,12 @@ void ShenandoahGenerationalHeap::plan_early_reuse() {
 }
 #endif
 
-void ShenandoahGenerationalHeap::evacuate_collection_set(ShenandoahGeneration* generation, bool concurrent) {
+void ShenandoahGenerationalHeap::evacuate_collection_set(ShenandoahGeneration* generation,
+                                                         bool concurrent, bool require_early_recycle_preprocessing) {
   ShenandoahRegionIterator regions;
   ShenandoahGenerationalEvacuationTask task(this, generation, &regions, concurrent,
-                                            false /* only promote regions */, workers()->active_workers());
+                                            false /* only promote regions */, require_early_recycle_preprocessing,
+                                            workers()->active_workers());
   prepare_to_evacuate(concurrent);
   workers()->run_task(&task);
   // Single post-evacuation rendezvous; see ShenandoahHeap::evacuate_collection_set.
@@ -274,7 +276,7 @@ void ShenandoahGenerationalHeap::evacuate_collection_set(ShenandoahGeneration* g
 void ShenandoahGenerationalHeap::promote_regions_in_place(ShenandoahGeneration* generation, bool concurrent) {
   ShenandoahRegionIterator regions;
   ShenandoahGenerationalEvacuationTask task(this, generation, &regions, concurrent,
-                                            true /* only promote regions */, workers()->active_workers());
+                                            true /* only promote regions */, false, workers()->active_workers());
   prepare_to_evacuate(false);
   workers()->run_task(&task);
 }

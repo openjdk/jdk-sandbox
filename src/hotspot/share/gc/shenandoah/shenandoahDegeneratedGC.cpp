@@ -275,7 +275,7 @@ void ShenandoahDegenGC::op_degenerated() {
 
           heap->collection_set()->clear_current_index();
         }
-        op_evacuate();
+        op_evacuate(_degen_point != _degenerated_evac);
         if (heap->cancelled_gc()) {
           op_degenerated_fail();
           return;
@@ -421,9 +421,9 @@ void ShenandoahDegenGC::op_cleanup_early() {
   ShenandoahHeap::heap()->recycle_trash();
 }
 
-void ShenandoahDegenGC::op_evacuate() {
+void ShenandoahDegenGC::op_evacuate(bool require_early_recycle_preprocessing) {
   ShenandoahGCPhase phase(ShenandoahPhaseTimings::degen_gc_evac);
-  ShenandoahHeap::heap()->evacuate_collection_set(_generation, false /* concurrent*/);
+  ShenandoahHeap::heap()->evacuate_collection_set(_generation, false /* concurrent*/, require_early_recycle_preprocessing);
 }
 
 void ShenandoahDegenGC::op_init_update_refs() {

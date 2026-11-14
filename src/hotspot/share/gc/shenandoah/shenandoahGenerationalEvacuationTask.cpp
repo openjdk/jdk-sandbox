@@ -36,7 +36,7 @@ ShenandoahGenerationalEvacuationTask::ShenandoahGenerationalEvacuationTask(Shena
                                                                            ShenandoahGeneration* generation,
                                                                            ShenandoahRegionIterator* iterator,
                                                                            bool concurrent, bool only_promote_regions,
-                                                                           size_t num_workers) :
+                                                                           bool require_preprocessing, size_t num_workers) :
   WorkerTask("Shenandoah Evacuation"),
   _heap(heap),
   _ctx(heap->marking_context()),
@@ -46,6 +46,7 @@ ShenandoahGenerationalEvacuationTask::ShenandoahGenerationalEvacuationTask(Shena
   _num_workers(num_workers),
   _concurrent(concurrent),
   _only_promote_regions(only_promote_regions),
+  _require_preprocessing(require_preprocessing),
   _early_recycle_preprocessed_regions(0)
 {
   shenandoah_assert_generational();
@@ -167,7 +168,7 @@ void ShenandoahGenerationalEvacuationTask::evacuate_regions(uint worker_id) {
 
   // Set aside enough regions for early recycle with FWT to satisfy the anticipated memory shortfall.
   // Each worker is responsible for preparing 1/_num_workers of the total shortfall
-  if (_concurrent) {
+  if (_require_preprocessing) {
     size_t total_shortfall = _heap->young_generation()->heuristics()->mutator_memory_shortfall();
     size_t my_shortfall = total_shortfall / _num_workers;
     if (worker_id == 0) {
@@ -175,7 +176,11 @@ void ShenandoahGenerationalEvacuationTask::evacuate_regions(uint worker_id) {
     }
     size_t backfill = 0;
     size_t my_preprocessed_regions = 0;
-    for (size_t i = worker_id; i < cset_region_count; i += worker_id) {
+    for (size_t i = worker_id; i < cset_region_count; i += _num_workers) {
+      // Yield but do not cancel. Once started, preprocessing must finish.
+      if (_concurrent && SuspendibleThreadSet::should_yield()) {
+        SuspendibleThreadSet::yield();
+      }
       my_preprocessed_regions++;
       r = _cset->cset_region(i);
       size_t num_entries;
@@ -195,11 +200,6 @@ void ShenandoahGenerationalEvacuationTask::evacuate_regions(uint worker_id) {
         log_info(gc)("worker %u checks for yield in preprocessing if _concurrent: %s but does not cancel during preprocessing",
                      worker_id, _concurrent? "true": "false");
 #endif
-        if (_concurrent) {
-          if (SuspendibleThreadSet::should_yield()) {
-            SuspendibleThreadSet::yield();
-          }
-        }
         size_t num_entries = r->calculate_entries_in_forward_table(num_forwardings);
         if (num_entries > 0) {
           size_t early_available_words = region_size_words - entry_size_words * num_entries;
@@ -239,8 +239,11 @@ void ShenandoahGenerationalEvacuationTask::evacuate_regions(uint worker_id) {
     } while (!_early_recycle_preprocessed_regions.compare_set(other_preprocessed_regions,
                                                               other_preprocessed_regions + my_preprocessed_regions,
                                                               memory_order_relaxed));
+  } else {
+    // This cycle degenerated after preprocessing was finished. Redundantly, every worker signals that preprocessing is done.
+    _early_recycle_preprocessed_regions.store_relaxed(cset_region_count);
   }
-  // Else, this is degenerated evacuation.  Preprocessing was completed in concurrent mode.
+
   ShenandoahConcurrentEvacuator cl(_heap);
   // Concurrent GC workers evacuate regions in order of increasing live data. They start with the regions that have
   // the least amount of live data, so the first few regions evacuated may go very fast.
@@ -436,7 +439,7 @@ void ShenandoahGenerationalEvacuationTask::evacuate_regions(uint worker_id) {
         if (queued_regions > 0) {
           // Loop until preprocessing is done
           uint32_t yields = 0;
-          while (_early_recycle_preprocessed_regions.load_relaxed() != num_regions) {
+          while (_early_recycle_preprocessed_regions.load_relaxed() != cset_region_count) {
             yield_or_sleep(yields);
             if (_concurrent && SuspendibleThreadSet::should_yield()) {
               SuspendibleThreadSet::yield();
@@ -460,7 +463,7 @@ void ShenandoahGenerationalEvacuationTask::evacuate_regions(uint worker_id) {
           // The queue is full. Do not evacuate another region until preprocessing is done since we have nowhere
           // to store yet another region for preparation.
           uint32_t yields = 0;
-          while (_early_recycle_preprocessed_regions.load_relaxed() != num_regions) {
+          while (_early_recycle_preprocessed_regions.load_relaxed() != cset_region_count) {
             yield_or_sleep(yields);
 #ifdef KELVIN_SUSPENDIBLE
             log_info(gc)("worker %u checks for yield in full queues if _concurrent: %s",

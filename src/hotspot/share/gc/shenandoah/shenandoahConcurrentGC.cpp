@@ -1169,7 +1169,7 @@ void ShenandoahConcurrentGC::op_evacuate() {
     ShenandoahGenerationalHeap::heap()->plan_early_reuse();
   }
 #endif
-  heap->evacuate_collection_set(_generation, true /*concurrent*/);
+  heap->evacuate_collection_set(_generation, true /*concurrent*/, true);
 }
 
 void ShenandoahConcurrentGC::op_init_update_refs() {

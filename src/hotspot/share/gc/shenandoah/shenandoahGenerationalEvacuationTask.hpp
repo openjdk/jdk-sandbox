@@ -88,13 +88,13 @@ private:
   size_t _num_workers;
   bool _concurrent;
   bool _only_promote_regions;   // if only promote, we do not early recycle
+  bool _require_preprocessing;
   Atomic<size_t> _early_recycle_preprocessed_regions;
 
 public:
   ShenandoahGenerationalEvacuationTask(ShenandoahGenerationalHeap* sh,
-                                       ShenandoahGeneration* generation,
-                                       ShenandoahRegionIterator* iterator,
-                                       bool concurrent, bool only_promote_regions, size_t num_workers);
+                                       ShenandoahGeneration* generation, ShenandoahRegionIterator* iterator,
+                                       bool concurrent, bool only_promote_regions, bool require_preprocessing, size_t num_workers);
   void work(uint worker_id) override;
 private:
   void do_work(uint worker_id);

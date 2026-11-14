@@ -52,7 +52,7 @@ private:
   void op_prepare_evacuation();
   void op_cleanup_early();
 
-  void op_evacuate();
+  void op_evacuate(bool require_early_recycle_preprocessing);
   void op_init_update_refs();
   void op_recycle_collection_set();
   void op_update_refs();
