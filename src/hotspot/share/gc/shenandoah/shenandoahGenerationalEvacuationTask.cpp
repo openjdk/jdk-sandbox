@@ -283,7 +283,7 @@ void ShenandoahGenerationalEvacuationTask::evacuate_regions(uint worker_id) {
       cl.finish_region(r);
       num_forwardings = cl.num_forwardings();
     }
-    bool preprocessing_finished = (_early_recycle_preprocessed_regions.load_relaxed() == num_regions);
+    bool preprocessing_finished = (_early_recycle_preprocessed_regions.load_relaxed() == cset_region_count);
     if (preprocessing_finished) {
       size_t fwt_regions_recycled = 0;
       size_t fwt_bytes_recycled = 0;
