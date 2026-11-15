@@ -275,7 +275,9 @@ void ShenandoahGenerationalHeap::evacuate_collection_set(ShenandoahGeneration* g
                                        true /*   all cset regions are prepared */,
                                        collection_set(), true /* is_generational */);
   }
+#ifdef KELVIN_DEPRECATE
   collection_set()->switch_to_reuse_forwarding();
+#endif
 }
 
 void ShenandoahGenerationalHeap::promote_regions_in_place(ShenandoahGeneration* generation, bool concurrent) {

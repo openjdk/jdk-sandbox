@@ -134,6 +134,7 @@ void dump_cset_map(const char* msg, CSetState* map) {
 }
 #endif
 
+#ifdef KELVIN_DEPRECATE
 void ShenandoahCollectionSet::switch_to_reuse_forwarding() {
 #ifdef KELVIN_DEPRECATE
   CSetState state;
@@ -205,6 +206,7 @@ void ShenandoahCollectionSet::switch_to_reuse_forwarding() {
   dump_cset_map("After switch_to_reuse_forwarding", &_cset_map._cset_map[0]);
 #endif
 }
+#endif
 
 void ShenandoahCollectionSet::optimize_reused_forwarding(size_t start_index, size_t stride) {
   if (ShenandoahCSetAllocationForwardingTable && ShenandoahPruneFWTCollisionChains) {

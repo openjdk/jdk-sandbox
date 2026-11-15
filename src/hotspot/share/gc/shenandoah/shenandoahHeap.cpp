@@ -1238,7 +1238,9 @@ void ShenandoahHeap::evacuate_collection_set(ShenandoahGeneration* generation,
                                          true /*   all cset regions are prepared */,
                                          collection_set(), false /* is_generational */);
   }
+#ifdef KELVIN_DEPRECATE
   _collection_set->switch_to_reuse_forwarding();
+#endif
 }
 
 class ShenandoahCompleteStackWatermarkHandshakeClosure : public HandshakeClosure {
@@ -3477,8 +3479,8 @@ ShenandoahEvacuationTask::ShenandoahEvacuationTask(
     _early_recycle_preprocessed_regions(0)
 {
   assert(!ShenandoahHeap::heap()->mode()->is_generational(), "Handle generational evacuation elsewhere");
-  if (require_preprocessing) {
-    ShenandoahFreeSet* free_set = heap->free_set();
+  if (require_early_recycle_preprocessing) {
+    ShenandoahFreeSet* free_set = sh->free_set();
     free_set->set_first_unpublished_fwt(0);
     free_set->set_upper_bound_on_unpublished_fwt(0);
     free_set->set_first_unclaimed_young_fwt(0);

@@ -86,9 +86,9 @@ public:
 
   // Add region to collection set
   void add_region(ShenandoahHeapRegion* r);
-
+#ifdef KELVIN_DEPRECATE
   void switch_to_reuse_forwarding();
-
+#endif
   void optimize_reused_forwarding(size_t start_index, size_t stride);
 
   // MT version
