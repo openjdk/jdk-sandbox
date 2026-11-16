@@ -114,10 +114,13 @@ public:
 
   ShenandoahCSetMap cset_map() const { return _cset_map; }
 
-  inline void update_map(uint32_t index, CSetState new_state) {
+  inline void update_map_state(uint32_t index, CSetState new_state) {
     AtomicAccess::store(&_cset_map._cset_map[index], new_state);
   }
 
+  inline CSetState get_map_state(uint32_t index) {
+    return AtomicAccess::load(&_cset_map._cset_map[index]);
+  }
 
   inline bool is_in(ShenandoahHeapRegion* r) const;
   inline bool is_in(size_t region_idx)       const;

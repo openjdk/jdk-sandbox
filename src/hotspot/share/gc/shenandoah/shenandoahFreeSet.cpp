@@ -4640,7 +4640,7 @@ bool ShenandoahFreeSet::publish_prepared_regions(uint worker_id, uint workers, b
           if (status == ShenandoahEarlyRecycleStatus::Prepared_FWT) {
             // The forwarding table is ready. Tell all Mutators to start using it. The purpose of publishing is to assure
             // that no mutators are still relying on mark-word forwarding for this region.
-            cset->update_map(r->index(), fwt_state);
+            cset->update_map_state(r->index(), fwt_state);
             bool success = r->compare_set_early_recycle_status(ShenandoahEarlyRecycleStatus::Prepared_FWT,
                                                                ShenandoahEarlyRecycleStatus::Publishing_FWT);
             assert(success, "Lock violation");

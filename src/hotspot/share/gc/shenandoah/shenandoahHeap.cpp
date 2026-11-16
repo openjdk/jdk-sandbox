@@ -1425,10 +1425,12 @@ oop ShenandoahHeap::try_evacuate_object(oop p, Thread* thread, ShenandoahHeapReg
 
 // Returns true iff the region is successfully recycled for no-table early recycling.
 bool ShenandoahHeap::finish_no_table_region_evacuation(ShenandoahHeapRegion* r, uint32_t num_forwardings) {
-  // The region was presumed to have a fwd table.  Now we know it does not.
+  ShenandoahCollectionSet* cset = collection_set();
+
 
   if (r->is_pinned() || r->was_promoted_in_place() || r->has_self_forwards()) {
     r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Abandoned);
+    assert(cset->get_map_state(r->index()) == CSetState::IN_CSET, "Leave cset state alone when we abandon");
     return false;
   }
 
@@ -1463,6 +1465,7 @@ bool ShenandoahHeap::finish_no_table_region_evacuation(ShenandoahHeapRegion* r, 
 #endif
   if (pad >= region_size_words) {
     r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Abandoned);
+    assert(cset->get_map_state(r->index()) == CSetState::IN_CSET, "Leave cset state alone when we abandon");
     return false;
   } else {
 
@@ -1552,30 +1555,30 @@ bool ShenandoahHeap::finish_no_table_region_evacuation(ShenandoahHeapRegion* r, 
     r->set_top(bottom + pad);
     r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Prepared_NO_FWT);
     r->set_reserved_body_words(num_forwardings);
+    cset->update_map_state(r->index(), CSetState::REUSABLE_MARKWORD);
+
     OrderAccess::fence();
     return true;
   }
 }
 
 bool ShenandoahHeap::finish_fwt_region_evacuation(ShenandoahHeapRegion* r) {
+  ShenandoahCollectionSet* cset = collection_set();
+
+  assert(cset->get_map_state(r->index()) == CSetState::IN_CSET, "Region should be in CSET, not already finished");
+
   // KELVIN TODO: WHY CAN'T WE RECYCLE OLD CSET REGIONS?  WE PROBABLY WILL HAVE TO CLEAR THE REMSET CARDS.
   if (r->is_old()) {
+    r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Abandoned);
     return false;
   }
-  // KELVIN TODO: MOST OF THESE FALSE RETURNS SHOULD BE REPLACED WITH ASSERTS. IF WE CAN'T REPLACE WITH ASSERTS, WE
-  // NEED TO RETHINK HOW WE BUDGET FOR FWT REGIONS.
 
   assert(ShenandoahHeap::heap()->marking_context()->top_at_mark_start(r) == r->top(), "TAMS must be set to top");
   if (!ShenandoahCSetReuse) {
+    r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Abandoned);
     return false;
   }
-#ifdef KELVIN_DEPRECATE
-  // STW GC uses mark-word forwarding.
-  if (!concurrent) {
-    return false;
-  }
-#endif
-  // There should be no live objects.
+
   if (r->is_pinned() || r->was_promoted_in_place() || r->has_self_forwards()) {
     r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Abandoned);
     return false;
