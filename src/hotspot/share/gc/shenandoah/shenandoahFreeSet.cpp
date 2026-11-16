@@ -2748,7 +2748,8 @@ void ShenandoahFreeSet::recycle_collection_set() {
     size_t gaps_compressed = 0;
     for (size_t i = num_early_recycle_regions; i > 0; i--) {
       ShenandoahHeapRegion* r = get_tlab_region(i - 1);
-      assert(cset->is_reusable(r) || r->has_self_forwards(), "Should not be here");
+      assert(cset->is_reusable(r) || r->has_self_forwards() ||
+             (r->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Abandoned), "Should not be here");
       if (!r->has_self_forwards()) {
         switch (r->get_early_recycle_status()) {
           case ShenandoahEarlyRecycleStatus::Planned_NO_FWT:
@@ -2822,7 +2823,8 @@ void ShenandoahFreeSet::recycle_collection_set() {
     // 3. Move all no-table regions to the end of the early_recycled_regions array
     for (size_t i = 0; i < num_early_recycle_regions; i++) {
       ShenandoahHeapRegion* r = get_tlab_region(i);
-      assert(cset->is_reusable(r) || r->has_self_forwards(), "Should not be here");
+      assert(cset->is_reusable(r) || r->has_self_forwards() ||
+             (r->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Abandoned), "Should not be here");
       if (!r->has_self_forwards()) {
         switch (r->get_early_recycle_status()) {
           case ShenandoahEarlyRecycleStatus::Planned_NO_FWT:
