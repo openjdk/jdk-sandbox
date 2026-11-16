@@ -4737,21 +4737,26 @@ bool ShenandoahFreeSet::publish_prepared_regions(uint worker_id, uint workers, b
                    worker_id, new_first_unpublished, new_last_unpublished);
 #endif
 
-      // If this fails, the range has already expanded downward. Only this worker thread can shrink the range, because
-      // this thread holds the publish lock.
-      compare_set_first_unpublished_fwt(first_unpublished, new_first_unpublished);
+      if (first_unpublished < upper_bound_on_unpublished) {
+        // If the loop iterates, adjust the bounds when appropriate.  Otherwise, leave bounds as is.
 
-      if (new_last_unpublished >= new_first_unpublished) {
-        // If this fails, the range has already expanded upward. Only this worker thread can shrink the range, because
+        // If this fails, the range has already expanded downward. Only this worker thread can shrink the range, because
         // this thread holds the publish lock.
-        compare_set_upper_bound_on_unpublished_fwt(upper_bound_on_unpublished, new_last_unpublished + 1);
+        compare_set_first_unpublished_fwt(first_unpublished, new_first_unpublished);
+
+        if (new_last_unpublished >= new_first_unpublished) {
+          // If this fails, the range has already expanded upward. Only this worker thread can shrink the range, because
+          // this thread holds the publish lock.
+          compare_set_upper_bound_on_unpublished_fwt(upper_bound_on_unpublished, new_last_unpublished + 1);
+        }
       }
+
+      // Published is at least as much as was prepared before our handshake. It's likely more, but we
+      // don't know that for sure, so we act conservatively.
+      add_to_fwt_regions_published(regions_to_publish);
 
       // Makes no sense to transfer to Mutator if we are in degenerated GC.
       if (concurrent) {
-        // Published is at least as much as was prepared before our handshake. It's likely more, but we
-        // don't know that for sure, so we act conservatively.
-        add_to_fwt_regions_published(regions_to_publish);
         size_t total_available_to_xfer = add_to_fwt_bytes_published(bytes_to_publish);
 
         // Still holding the handshake lock, transfer as much memory as possible from Reserves to Mutator.
