@@ -260,16 +260,12 @@ void ShenandoahGenerationalHeap::evacuate_collection_set(ShenandoahGeneration* g
                                             workers()->active_workers());
   prepare_to_evacuate(concurrent);
   workers()->run_task(&task);
-  if (cancelled_gc()) {
-    // We didn't finish the work.  Do not do final publish and do not
-    // switch to reuse forwarding until the degen cycle finishes evacuation.
-    return;
-  }
-  // Single post-evacuation rendezvous; see ShenandoahHeap::evacuate_collection_set.
+  // Even if GC is cancelled, we want to publish the prepared regions before we start degeneration.
+
   ShenandoahFreeSet* free_set = this->free_set();
   if (concurrent && ShenandoahCSetReuse && (free_set->fwt_regions_prepared() > free_set->fwt_regions_published())) {
 #ifdef KELVIN_DEBUG
-    log_info(gc)("Evacuation is done. Running one last handshake because regions prepared was less than regions-published");
+    log_info(gc)("Evacuation is done or was cancelled. Running one last handshake because regions prepared was less than regions-published");
 #endif
     free_set->publish_prepared_regions(0, 1 /* only 1 worker now */, true /* is_concurrent */,
                                        true /*   all cset regions are prepared */,
