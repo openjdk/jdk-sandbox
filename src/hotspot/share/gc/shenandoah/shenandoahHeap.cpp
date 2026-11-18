@@ -3566,7 +3566,7 @@ void ShenandoahEvacuationTask::evacuate_regions(uint worker_id) {
   log_info(gc)("ShenGenEvacTask::evac_and_promote_regions(%u)", worker_id);
 #endif
 #ifdef KELVIN_DEBUG
-  log_info(gc)("ShenGenEvacTask::evac_and_promote_regions(%u) is selecting fwt regions", worker_id);
+  log_info(gc)("ShenGenEvacTask::evacuate_regions(%u) is selecting fwt regions", worker_id);
 #endif
   // Regions have already been sorted in increasing live data, which is a light-weight approximation of increasing
   // forward table size (aka increasing mark-word-density).
@@ -3598,10 +3598,11 @@ void ShenandoahEvacuationTask::evacuate_regions(uint worker_id) {
         // For now, calculate num_forwardings only for regions that we plan to early recycle with forwarding table.
         // As the non-fwt regions are evacuated, we will update their expected forwardings. The order of regions within
         // the early recycle regions array is approximately the order of increasing mark-word density.
-        size_t num_forwardings = _ctx->count_mark_bit_conflicts<1>(r->bottom(), r->end());
+        HeapWord* tams = _ctx->top_at_mark_start(r);
+        size_t num_forwardings = _ctx->count_mark_bit_conflicts<1>(r->bottom(), tams);
         // Objects allocated during concurrent mark are not yet recognized as "marked", so count them separately.
         HeapWord* top = r->top();
-        for (HeapWord* p = _ctx->top_at_mark_start(r); p < top; ) {
+        for (HeapWord* p = tams; p < top; ) {
           oop obj = cast_to_oop(p);
           num_forwardings++;
           p += ShenandoahForwarding::size(obj);
