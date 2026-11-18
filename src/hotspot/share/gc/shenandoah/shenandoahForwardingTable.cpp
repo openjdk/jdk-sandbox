@@ -245,7 +245,8 @@ uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::compute_entries(uint32_t
     num_required_entries = ((num_forwardings + unusable_entries) * 100 + lf - 1) / lf;
     HeapWord* new_table_start = align_down(end - num_required_entries * entry_words, entry_obj_align);
     num_table_entries = (end - new_table_start) / entry_words;
-    assert(num_table_entries == num_required_entries, "sanity");
+    // num_table_entries may be larger than num_required_entries in case of "large object alignment".
+    assert(num_table_entries >= num_required_entries, "sanity");
 
 #ifdef KELVIN_DEBUG
     log_info(gc)("[%zu] loop prologue, additional unusable: %u, unusable: %u, num_table_entries: %u, lf: %u",
@@ -299,7 +300,8 @@ uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::compute_entries(uint32_t
         table_start = new_table_start;
         new_table_start = align_down(end - num_required_entries * entry_words, entry_obj_align);
         num_table_entries = (end - new_table_start) / entry_words;
-        assert(num_table_entries == num_required_entries, "sanity");
+        // num_table_entries may be larger than num_required_entries in case of "large object alignment".
+        assert(num_table_entries >= num_required_entries, "sanity");
 #ifdef KELVIN_DEBUG
         log_info(gc)("[%zu] bottom of loop body, recomputed num_required_entries: %u, new_table_start: " PTR_FORMAT,
                      _region->index(), num_required_entries, p2i(new_table_start));
