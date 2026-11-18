@@ -89,7 +89,7 @@ void ShenandoahGenerationalEvacuationTask::work(uint worker_id) {
   if (_concurrent) {
     ShenandoahWorkerTimingsTracker timer(ShenandoahPhaseTimings::conc_evac, ShenandoahPhaseTimings::Work, worker_id, true);
     SuspendibleThreadSetJoiner stsj;
-#define KELVIN_SUSPENDIBLE
+#undef KELVIN_SUSPENDIBLE
 #ifdef KELVIN_SUSPENDIBLE
     log_info(gc)("worker %u becomes suspendible in work()", worker_id);
 #endif

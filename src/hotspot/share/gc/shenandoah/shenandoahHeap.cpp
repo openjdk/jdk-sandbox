@@ -3611,8 +3611,8 @@ void ShenandoahEvacuationTask::evacuate_regions(uint worker_id) {
           size_t early_available_words = region_size_words - entry_size_words * num_entries;
           backfill += early_available_words;
 #ifdef KELVIN_DEBUG
-          log_info(gc)("Recycled FWT region %zu: live: %zu, %zu entries (of size %zu), available: %zu, backfill: %zu",
-                       r->index(), r->get_live_data_words(), num_entries, entry_size_words, early_available_words, backfill);
+          log_info(gc)("Worker %u recycled FWT region %zu: live: %zu, %zu entries (of size %zu), available: %zu, backfill: %zu",
+                       worker_id, r->index(), r->get_live_data_words(), num_entries, entry_size_words, early_available_words, backfill);
 #endif
           r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Planned_FWT);
           // KELVIN TODO: we don't really need forwardings except for assertion enforcement.  (build-only)
@@ -3621,7 +3621,8 @@ void ShenandoahEvacuationTask::evacuate_regions(uint worker_id) {
           r->set_fwt_entries(num_entries);
           fwt_regions++;
 #ifdef KELVIN_DEBUG
-          log_info(gc)("Region %zu is Planned_FWT with %zu forwardings, %zu entries", r->index(), num_forwardings, num_entries);
+          log_info(gc)("Worker %u sets region %zu to Planned_FWT with %zu forwardings, %zu entries",
+                       worker_id, r->index(), num_forwardings, num_entries);
 #endif
           continue;
         }

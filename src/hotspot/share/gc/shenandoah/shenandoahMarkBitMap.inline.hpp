@@ -487,7 +487,8 @@ inline void ShenandoahMarkBitMap::clear_range_of_words(idx_t beg, idx_t end) {
 inline size_t ShenandoahMarkBitMap::bitmap_words_in_range(const HeapWord* start, const HeapWord* end) const {
   assert((reinterpret_cast<uintptr_t>(start) & ((0x2 << LogMinObjAlignment) - 1)) == 0, "start must be aligned");
   assert((reinterpret_cast<uintptr_t>(end) & ((0x2 << LogMinObjAlignment) - 1)) == 0, "end must be aligned");
-  assert(end >= start, "Precondition");
+  assert(end >= start, "Precondition: end: " PTR_FORMAT " must be greater or equal to start: " PTR_FORMAT,
+         p2i(end), p2i(start));
   if (end == start) {
     return 0;
   } else {

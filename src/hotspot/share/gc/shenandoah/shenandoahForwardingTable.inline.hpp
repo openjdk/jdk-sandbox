@@ -261,7 +261,7 @@ uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::reserve_forwarding(BitMa
                                                                            Entry& replaced, uint32_t& replaced_index,
                                                                            uint32_t& replaced_stride, uint32_t& replaced_probes) {
   uint32_t const first_index = index;
-  uint32_t const max_probes = _common_max_probes;
+  // uint32_t const max_probes = _common_max_probes;
   uint32_t depth = 1;
   HeapWord* const region_base = _region->bottom();
 
@@ -270,20 +270,28 @@ uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::reserve_forwarding(BitMa
   Entry* const table = reinterpret_cast<Entry*>(desc._table);
   uint32_t const num_entries = desc._num_entries;
 #else
-  
   uint32_t const num_entries = _u._fwt._num_entries;
   Entry* const table = reinterpret_cast<Entry*>(_u._fwt._table);
   assert(table != nullptr, "kelvin paranoia");
 #endif
+  uint32_t const max_probes = num_entries / 4;
   while (used.at(index)) {
-#ifdef KELVIN_DEPRECATE
-    if (max_probes != 0 && depth >= max_probes) {
-      // Kelvin TODO: remove this behavior now that we have collision chain balancing and pruning.
-      // Pathological chain.
+    // Given that high probe count can normally be removed by pruning after publication, Kelvin prefers to
+    // relax the abandonment condition.  Rather than abandoning if depth > _common_max_probes (original code), this
+    // implementation only abandons if depth > 1/4 num_entries;
+
+    // KELVIN TODO: I WISH WE COULD DEPRECATE THIS GIVEN THAT WE WILL PRUNE AFTER CONSTRUCTION, BUT KEEP THIS
+    // UNTIL I DEBUG INFINITE LOOPS DURING BUILD
+    if (depth >= max_probes) {
+
+#define KELVIN_DEBUG_FWT_BUILD
+#ifdef KELVIN_DEBUG_FWT_BUILD
+      log_info(gc)("reserve_forwarding abandons region because max_probes: %u, depth: %u, _num_actual: %u",
+                   max_probes, depth, num_actual);
+#endif
       compare_set_status(ShenandoahEarlyRecycleStatus::Planned_FWT, ShenandoahEarlyRecycleStatus::Abandoned);
       return _u._fwt._num_entries;
     }
-#endif
 #ifdef DMITRY_BUILD
     if (max_probes != 0 && depth >= max_probes) {
       build._complete = false; // pathological chain
@@ -295,6 +303,9 @@ uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::reserve_forwarding(BitMa
       replaced_probes = ShenandoahEarlyRecycleInfo::probes<Entry>(table, num_entries, entry.original(region_base), replaced_stride);
       if (replaced_probes < depth) {
         num_actual++;
+        assert(num_actual <= _u._fwt._num_expected_forwardings,
+               "_num_actual (%u) must not exceed expected number of forwardings (%u)",
+               num_actual, _u._fwt._num_expected_forwardings);
         replaced_index = index;
         replaced = Entry(region_base, entry.original(region_base), entry.forwardee_from_entry_without_barrier());
         if (depth > _u._fwt._max_required_probes) {
@@ -329,7 +340,7 @@ uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::reserve_new_forwarding(B
                                                                                uint32_t& replaced_index, uint32_t& replaced_stride,
                                                                                uint32_t& replaced_probes) {
   uint32_t const first_index = index;
-  uint32_t const max_probes = _common_max_probes;
+  // uint32_t const max_probes = _common_max_probes;
   HeapWord* const region_base = _region->bottom();
 #ifdef DMITRY_BUILD
   fwt_info& desc = build._desc;
@@ -339,15 +350,19 @@ uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::reserve_new_forwarding(B
   Entry* const table = reinterpret_cast<Entry*>(_u._fwt._table);
   uint32_t const num_entries = _u._fwt._num_entries;
 #endif
+  uint32_t const max_probes = num_entries / 4;
   while (used.at(index)) {
-#ifdef KELVIN_DEPRECATE
-    if (max_probes != 0 && depth >= max_probes) {
-      // Kelvin TODO: remove this behavior now that we have collision chain balancing and pruning.
-      // Pathological chain.
+    if (depth >= max_probes) {
+      // Given that high probe count can normally be removed by pruning after publication, Kelvin prefers to
+      // relax the abandonment condition.  Rather than abandoning if depth > _common_max_probes (original code), this
+      // implementation only abandons if depth > 1/4 num_entries;
       compare_set_status(ShenandoahEarlyRecycleStatus::Planned_FWT, ShenandoahEarlyRecycleStatus::Abandoned);
-      return _u._fwt._num_entries;
-    }
+#ifdef KELVIN_DEBUG_FWT_BUILD
+      log_info(gc)("Abandoning region %zu because reserve_new_forwarding sees depth: %u, max: %u",
+                   _region->index(), depth, max_probes);
 #endif
+      return num_entries;
+    }
 #ifdef DMITRY_BUILD
     if (max_probes != 0 && depth >= max_probes) {
       build._complete = false; // pathological chain

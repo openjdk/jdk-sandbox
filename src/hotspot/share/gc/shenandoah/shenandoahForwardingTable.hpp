@@ -282,10 +282,14 @@ class alignas(CACHE_LINE_SIZE_IN_BYTES) ShenandoahEarlyRecycleInfo {
   template <bool b = use_forward_table, typename = std::enable_if_t<b == true>>
   inline void probe_of(void* table, uint32_t num_entries, HeapWord* original, uint32_t& index, uint32_t& stride) const;
 
+  // Returns index of reserved location.  If a suitable index could not be found, returns _u._fwt._num_entries and sets
+  // _status to Abandoned.
   template <class Entry, bool b = use_forward_table, typename = std::enable_if_t<b == true>>
   inline uint32_t reserve_forwarding(BitMap& used, uint32_t index, uint32_t stride, uint32_t& num_actuals, Entry& replaced,
                                      uint32_t& replaced_index, uint32_t& replaced_stride, uint32_t& replaced_probes);
 
+  // Returns index of reserved location.  If a suitable index could not be found, returns _u._fwt._num_entries and sets
+  // _status to Abandoned.
   template <class Entry, bool b = use_forward_table, typename = std::enable_if_t<b == true>>
   inline uint32_t reserve_new_forwarding(BitMap& used, uint32_t index, uint32_t stride, uint32_t probes,
                                          Entry& replaced, uint32_t& replaced_index, uint32_t& replaced_stride,
@@ -295,16 +299,16 @@ class alignas(CACHE_LINE_SIZE_IN_BYTES) ShenandoahEarlyRecycleInfo {
   inline void insert_forwarding(Entry* table, uint32_t index, const Entry& entry);
 
   template <class Entry, bool b = use_forward_table, typename = std::enable_if_t<b == true>>
-  void enter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee, uint32_t& num_actual,
+  bool enter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee, uint32_t& num_actual,
                         Entry& replaced, uint32_t& replaced_index, uint32_t& replaced_stride, uint32_t& replaced_probes);
 
   template <class Entry, bool b = use_forward_table, typename = std::enable_if_t<b == true>>
-  void reenter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee,
+  bool reenter_forwarding(BitMap& used, HeapWord* original, HeapWord* forwardee,
                           uint32_t index, uint32_t stride, uint32_t probed_count,
                           Entry& replaced, uint32_t& replaced_index, uint32_t& replaced_stride, uint32_t& replaced_probes);
 
   template <class Entry, bool b = use_forward_table, typename = std::enable_if_t<b == true>>
-  void fill_forwardings(BitMap& used);
+  bool fill_forwardings(BitMap& used);
 
 #ifdef KELVIN_NICE_TO_HAVE
   template <class Entry, bool b = use_forward_table, typename = std::enable_if_t<b == true>>
