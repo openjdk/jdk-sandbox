@@ -3841,8 +3841,8 @@ void ShenandoahFreeSet::initialize_recycled_region_arrays(size_t fwd_table_regio
 
   _early_recycled_no_table_retired_regions = &_early_recycled_regions[total_regions - no_table_regions];
   // Retired regions have no need for regions_data.
-  _early_recycled_no_table_regions_count = 0;
-  _early_recycled_no_table_used = 0;
+  _early_recycled_no_table_retired_regions_count = 0;
+  _early_recycled_no_table_retired_used = 0;
 
   _early_recycled_shared_alloc_regions = &_early_recycled_regions[total_regions - (no_table_regions + 1)];
   _early_recycled_shared_alloc_regions_data = &_early_recycled_regions_data[total_regions - (no_table_regions + 1)];
@@ -3854,7 +3854,6 @@ void ShenandoahFreeSet::initialize_recycled_region_arrays(size_t fwd_table_regio
   _early_recycled_retired_regions = &_early_recycled_regions[fwt_midpoint];
   _early_recycled_retired_regions_count = 0;
   _early_recycled_retired_used = 0;
-
 #ifdef KELVIN_DEBUG
   log_info(gc)("after initialize, tlab_regions: " PTR_FORMAT ", no_table_regions: " PTR_FORMAT
                ", no_table_retired: " PTR_FORMAT ", shared_alloc: " PTR_FORMAT ", fwt_retired: " PTR_FORMAT,
@@ -3882,10 +3881,18 @@ void ShenandoahFreeSet::initialize_recycled_region_arrays() {
 void ShenandoahFreeSet::clear_early_recycling_totals() {
   _early_recycled_tlab_regions_count = 0;
   _early_recycled_tlab_used = 0;
+
+  _early_recycled_no_table_regions_count = 0;
+  _early_recycled_no_table_used = 0;
+
   _early_recycled_shared_alloc_regions_count = 0;
   _early_recycled_shared_alloc_used = 0;
+
   _early_recycled_retired_regions_count = 0;
   _early_recycled_retired_used = 0;
+
+  _early_recycled_no_table_retired_regions_count = 0;
+  _early_recycled_no_table_retired_used = 0;
 }
 
 size_t ShenandoahFreeSet::get_tlab_allocatable_size(size_t index) {
@@ -4190,7 +4197,7 @@ void ShenandoahFreeSet::insert_retired_region(ShenandoahHeapRegion* r) {
 }
 
 void ShenandoahFreeSet::insert_no_table_retired_region(ShenandoahHeapRegion* r) {
-  _early_recycled_no_table_retired_regions[_early_recycled_retired_regions_count++] = r;
+  _early_recycled_no_table_retired_regions[_early_recycled_no_table_retired_regions_count++] = r;
   _early_recycled_no_table_retired_used += r->used_with_reserve();
 }
 
