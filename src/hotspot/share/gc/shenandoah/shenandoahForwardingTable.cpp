@@ -245,6 +245,13 @@ uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::compute_entries(uint32_t
     num_required_entries = ((num_forwardings + unusable_entries) * 100 + lf - 1) / lf;
     HeapWord* new_table_start = align_down(end - num_required_entries * entry_words, entry_obj_align);
     num_table_entries = (end - new_table_start) / entry_words;
+    if (new_table_start <= bottom) {
+      log_info(gc)("Forwarding table build failed for region %zu: "
+                   "table_entries=%u unusable=%u required=%u num_forwardings=%u region_words=%u",
+                   _region->index(), num_table_entries, unusable_entries, num_required_entries, num_forwardings,
+                   (uint32_t) pointer_delta(end, bottom));
+      return 0;
+    }
     // num_table_entries may be larger than num_required_entries in case of "large object alignment".
     assert(num_table_entries >= num_required_entries, "sanity");
 
@@ -267,7 +274,6 @@ uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::compute_entries(uint32_t
       // So new_table_start is based on num_required_entries, which is based on unusable_entries for table_start.
       // To decide whether table_start is a good enough guess, we have to check whether there are more unusable_entries
       // between new_table_start and table_start.
-
 #ifdef KELVIN_DEBUG
       if (new_table_start > table_start) {
         log_info(gc)("WTF! new_table_start: " PTR_FORMAT ", table_start: " PTR_FORMAT,
@@ -278,9 +284,9 @@ uint32_t ShenandoahEarlyRecycleInfo<use_forward_table>::compute_entries(uint32_t
                      p2i(_region->bottom()), p2i(_region->top()), p2i(_region->end()));
       }
 #endif
+      assert(new_table_start >= bottom, "table start must be in region");
       additional_unusable_entries = ctx->count_mark_bit_conflicts<entry_words>(new_table_start, table_start);
       unusable_entries += additional_unusable_entries;
-      assert(new_table_start >= bottom, "table start must be in region");
 
 #ifdef KELVIN_DEBUG
       log_info(gc)("[%zu] loop body, additional unusable: %u, unusable: %u, num_table_entries: %u, lf: %u",
