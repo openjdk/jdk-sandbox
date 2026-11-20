@@ -2741,13 +2741,15 @@ void ShenandoahFreeSet::recycle_collection_set() {
   size_t num_no_table_regions = 0;
 
   if (num_early_recycle_regions * 2 > total_regions) {
-    // We have to carefully sift no-table regions while shrinking the representation of unprocessed regions to assure
-    // the two tables do not overlap.
-    size_t slide_bottom = 0;
-    size_t slide_top = 0;
-    size_t gaps_compressed = 0;
-    for (size_t i = num_early_recycle_regions; i > 0; i--) {
-      ShenandoahHeapRegion* r = get_tlab_region(i - 1);
+    // In this loop, we:
+    // 1. Remove regions that satisfy r->has_self_forward(); they cannot be early recycled
+    // 2. Move all fwt regions to the front of queue
+    // 3. Move all no-table regions to the end of the early_recycled_regions array, taking care to not overwrite the
+    //    end of the unprocessed regions array (since no-table regions grow backward from the end of the
+    //    early_recycled_regions_rray.
+    size_t regions_to_be_processed = num_early_recycle_regions;
+    for (size_t i = 0; i < regions_to_be_processed; i++) {
+      ShenandoahHeapRegion* r = get_tlab_region(i);
       assert(cset->is_reusable(r) || r->has_self_forwards() ||
              (r->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Abandoned), "Should not be here");
       if (!r->has_self_forwards()) {
@@ -2764,42 +2766,28 @@ void ShenandoahFreeSet::recycle_collection_set() {
             
           case ShenandoahEarlyRecycleStatus::Published_FWT:
           case ShenandoahEarlyRecycleStatus::Retired_FWT:
-            num_fwt_regions++;
-            // Preserve this region, but slide it down, but compact downward
-            if (slide_top == 0) {
-              slide_top = i - 1;
-              slide_bottom = i - 1;
-            } else if (i == slide_bottom) {
-              // Neighboring FWT regions: expand the slide range
-              slide_bottom = i - 1;
-            } else {
-              size_t dest_idx = i;
-              size_t source_idx = slide_bottom;
-              gaps_compressed += (source_idx - dest_idx) - 1;
-              slide_bottom = dest_idx;
-              for (size_t slide_count = slide_top + 1 - slide_bottom; slide_count > 0; slide_count--) {
-                set_tlab_region_slot(dest_idx++, get_tlab_region(source_idx++));
-              }
-              slide_top = dest_idx - 1;
-            }
+          {
+            size_t dest_index = num_fwt_regions++;
+            if (dest_index < i) {
+              set_tlab_region_slot(dest_index, r);
+            } // else, no need to side this object;
             break;
-
+          }
           case ShenandoahEarlyRecycleStatus::Prepared_NO_FWT:
           case ShenandoahEarlyRecycleStatus::Retired_NO_FWT:
-            if (num_no_table_regions + 1 + num_early_recycle_regions - gaps_compressed > total_regions) {
-              size_t dest_idx = i;
-              size_t source_idx = slide_bottom;
-              gaps_compressed += (source_idx - dest_idx) - 1;
-              slide_bottom = dest_idx;
-              for (size_t slide_count = slide_top + 1 - slide_bottom; slide_count > 0; slide_count--) {
-                set_tlab_region_slot(dest_idx++, get_tlab_region(source_idx++));
-              }
-              slide_top = dest_idx - 1;
-            }
-
+          {
+            // Copying this region to the no_table_regions array may overwrite the last interesting element of the
+            // tlab region array, so we copy the last entry in the array to the slot just processed before copying
+            // the original value of this slot to the no_table regions.
+            size_t potential_overwrite_index = --regions_to_be_processed;
+            if (potential_overwrite_index > i) {
+              ShenandoahHeapRegion* potentially_overwritten_region = get_tlab_region(potential_overwrite_index);
+              // We decrement i so that it will re-examine the entry at this index
+              set_tlab_region_slot(i--, potentially_overwritten_region);
+            } // else, we are processing the last region to be processed. At top of loop, we will exit loop.
             set_no_table_region_slot(num_no_table_regions++, r);
             break;
-            
+          }
           case ShenandoahEarlyRecycleStatus::Abandoned:
             // We were not able to recycle this cset region. Remove from our tracking data by falling through.
             // KELVIN TODO: Might be better to move to retired.  Then we can iterate over collection set without
@@ -2807,14 +2795,6 @@ void ShenandoahFreeSet::recycle_collection_set() {
             break;
         }
       } // else, skip this self_forwarded region.  
-    }
-    if (slide_bottom > 0) {
-      // Do one last slide if necessary
-      size_t dest_idx = 0;
-      size_t source_idx = slide_bottom;
-      for (size_t slide_count = slide_top + 1 - slide_bottom; slide_count > 0; slide_count--) {
-        set_tlab_region_slot(dest_idx++, get_tlab_region(source_idx++));
-      }
     }
   } else {
     // In this loop, we:
