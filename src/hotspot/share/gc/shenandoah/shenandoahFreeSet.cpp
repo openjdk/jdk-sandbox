@@ -1142,8 +1142,9 @@ void ShenandoahRegionPartitions::assert_bounds() {
     switch (partition) {
       case ShenandoahFreeSetPartitionId::NotFree:
       {
-        assert(alloc_capacity != _region_size_bytes, "Should not be retired if empty");
         ShenandoahHeapRegion* r = ShenandoahHeap::heap()->get_region(i);
+        // An early recycled region with no forward table may appear to be empty, so allow cset region to fail the assert test.
+        assert(r->is_cset() || (alloc_capacity != _region_size_bytes), "Should not be retired if empty");
         if (r->is_humongous()) {
           // A humongous NotFree region is never early recycled.  If the humongous region had become unreachable, it would
           // have been reclaimed as immediate garbage.
