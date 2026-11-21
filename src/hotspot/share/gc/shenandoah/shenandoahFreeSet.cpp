@@ -4586,7 +4586,7 @@ bool ShenandoahFreeSet::publish_prepared_regions(uint worker_id, uint workers, b
   // Publish if:
   //  (Nothing has been published yet and we have at least one (probably more) prepared regions) or
   //  ((Prepared > previously published) and
-  //   ((there are no more regions to prepare) or
+  //   ((there are no more regions to prepare (aka cset_is_finished)) or
   //    (original_published - consumed_regions < workers)))
   // unless we decide otherwise below
 #define KELVIN_DEBUG

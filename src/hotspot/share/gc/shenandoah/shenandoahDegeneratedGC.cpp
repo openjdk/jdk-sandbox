@@ -264,10 +264,16 @@ void ShenandoahDegenGC::op_degenerated() {
 
         {
           heap->sync_pinned_region_status();
-          heap->collection_set()->clear_current_index();
+          ShenandoahCollectionSet* cset = heap->collection_set();
+          cset->clear_current_index();
           ShenandoahHeapRegion* r;
           while ((r = heap->collection_set()->next()) != nullptr) {
             if (r->is_pinned()) {
+              if (_degen_point == _degenerated_evac) {
+                // cset_is_finished forces all prepared regions to be published even if there is "no urgent" need for regions.
+                heap->free_set()->publish_prepared_regions(0, 1, false /*concurrent*/, true /*cset_is_finished*/,
+                                                           cset, heap->mode()->is_generational());
+              }
               op_degenerated_fail();
               return;
             }
@@ -277,6 +283,10 @@ void ShenandoahDegenGC::op_degenerated() {
         }
         op_evacuate(_degen_point != _degenerated_evac);
         if (heap->cancelled_gc()) {
+          // Degen failed during evacuation.
+          // cset_is_finished forces all prepared regions to be published even if there is "no urgent" need for regions.
+          heap->free_set()->publish_prepared_regions(0, 1, false /*concurrent*/, true /*cset_is_finished*/,
+                                                     heap->collection_set(), heap->mode()->is_generational());
           op_degenerated_fail();
           return;
         }
