@@ -233,10 +233,21 @@ oop ShenandoahBarrierSet::load_reference_barrier_slow(oop obj, T* load_addr) {
   assert(_heap->has_forwarded_objects(), "Filtered by caller");
   assert(_heap->in_collection_set(obj), "Filtered by caller");
   oop fwd = resolve_forwarded_not_null(obj);
-  if (obj == fwd && _heap->is_evacuation_in_progress()
-      && !_cset_map.is_midcycle(obj)) { // don't evacuate new objects from recycled regions
-    Thread* t = Thread::current();
-    fwd = _heap->evacuate_object(obj, t);
+  if (obj == fwd && _heap->is_evacuation_in_progress()) {
+    if (_cset_map.is_midcycle(obj)) {
+      // This region has been early recycled, but maybe it was early recycled by a different thread after we
+      // obtained the fwd address above. Resolve again to mitigate the potential race.
+      OrderAccess::loadload();
+      fwd = resolve_forwarded_not_null(obj);
+      // if fwd still equals obj, that means fwd was newly allocated. Now that the region has been early recycled,
+      // we know that evacuation is completed, so resolve_forwarded will return new address if object was pre-existing.
+    } else {
+      // obj is in the cset and has not yet been forwarded.  The enclosing region has not yet been early recycled,
+      // so we know that obj needs to be evacuated. Note that evacuate_object() resolves the race between mutiple threads
+      // trying to evacuate the same object.
+      Thread* t = Thread::current();
+      fwd = _heap->evacuate_object(obj, t);
+    }
   }
   if (load_addr != nullptr && fwd != obj) {
     // Since we are here and we know the load address, update the reference.
@@ -281,14 +292,24 @@ private:
       oop obj = CompressedOops::decode_not_null(o);
       if (_cset->is_in(obj)) {
         oop fwd = ShenandoahBarrierSet::resolve_forwarded_not_null(obj);
-        if (EVAC && obj == fwd
-            && !_cset->is_midcycle(obj)) { // don't evacuate new objects from recycled regions
-          fwd = _heap->evacuate_object(obj, _thread);
-          shenandoah_assert_forwarded_except(p, obj, _heap->cancelled_gc());
+        if (EVAC && obj == fwd) {
+          if (_cset->is_midcycle(obj)) {
+            // This region has been early recycled, but maybe it was early recycled by a different thread after we
+            // obtained the fwd address above. Resolve again to mitigate the potential race.
+            OrderAccess::loadload();
+            fwd = ShenandoahBarrierSet::resolve_forwarded_not_null(obj);
+            // if fwd still equals obj, that means fwd was newly allocated. Now that the region has been early recycled,
+            // we know that evacuation is completed, so resolve_forwarded will return new address if object was pre-existing.
+          } else {
+            // obj is in the cset and has not yet been forwarded.  The enclosing region has not yet been early recycled,
+            // so we know that obj needs to be evacuated. Note that evacuate_object() resolves the race between mutiple threads
+            // trying to evacuate the same object.
+            fwd = _heap->evacuate_object(obj, _thread);
+            shenandoah_assert_forwarded_except(p, obj, _heap->cancelled_gc());
+          }
         }
         if (fwd != obj) {
           ShenandoahHeap::atomic_update_oop(fwd, p, o);
-          obj = fwd;
         }
       }
     }
@@ -392,10 +413,21 @@ void ShenandoahBarrierSet::arraycopy_evacuation(T* src, size_t count) {
       oop obj = CompressedOops::decode_not_null(o);
       if (cset->is_in(obj)) {
         oop fwd = resolve_forwarded_not_null(obj);
-        if (obj == fwd
-            && !cset->is_midcycle(obj)) { // don't evacuate new objects from recycled regions
-          fwd = _heap->evacuate_object(obj, thread);
-          shenandoah_assert_forwarded_except(elem_ptr, obj, _heap->cancelled_gc());
+        if (obj == fwd) {
+          if (cset->is_midcycle(obj)) {
+            // This region has been early recycled, but maybe it was early recycled by a different thread after we
+            // obtained the fwd address above. Resolve again to mitigate the potential race.
+            OrderAccess::loadload();
+            fwd = resolve_forwarded_not_null(obj);
+            // if fwd still equals obj, that means fwd was newly allocated. Now that the region has been early recycled,
+            // we know that evacuation is completed, so resolve_forwarded will return new address if object was pre-existing.
+          } else {
+            // obj is in the cset and has not yet been forwarded.  The enclosing region has not yet been early recycled,
+            // so we know that obj needs to be evacuated. Note that evacuate_object() resolves the race between mutiple threads
+            // trying to evacuate the same object.
+            fwd = _heap->evacuate_object(obj, thread);
+            shenandoah_assert_forwarded_except(elem_ptr, obj, _heap->cancelled_gc());
+          }
         }
         if (fwd != obj) {
           ShenandoahHeap::atomic_update_oop(fwd, elem_ptr, o);
