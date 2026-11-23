@@ -3469,16 +3469,14 @@ void ShenandoahRetireGCLABClosure::do_thread(Thread* thread) {
 ShenandoahEvacuationTask::ShenandoahEvacuationTask(
   ShenandoahHeap* sh, ShenandoahCollectionSet* cs, bool concurrent, bool require_early_recycle_preprocessing, size_t num_workers) :
     WorkerTask("Shenandoah Evacuation"),
-    _sh(sh),
-    _cs(cs),
+    _heap(sh),
+    _cset(cs),
     _ctx(sh->marking_context()),
     _concurrent(concurrent),
     _require_preprocessing(require_early_recycle_preprocessing),
     _num_workers(num_workers),
-    _heuristics(ShenandoahHeap::heap()->global_generation()->heuristics()),
     _early_recycle_preprocessed_regions(0)
 {
-  assert(!ShenandoahHeap::heap()->mode()->is_generational(), "Handle generational evacuation elsewhere");
   if (require_early_recycle_preprocessing) {
     ShenandoahFreeSet* free_set = sh->free_set();
     free_set->set_first_unpublished_fwt(0);
@@ -3533,9 +3531,9 @@ void ShenandoahEvacuationTask::yield_or_sleep(uint32_t &yields) {
 
 void ShenandoahEvacuationTask::evacuate_region(ShenandoahHeapRegion* r, ShenandoahConcurrentEvacuateRegionObjectClosure& cl) {
   assert(r->has_live(), "Region %zu should have been reclaimed early", r->index());
-  assert(!_cs->is_reusable(r), "must not already be recycled");
+  assert(!_cset->is_reusable(r), "must not already be recycled");
   log_develop_debug(gc)("GC Thread " PTR_FORMAT " evacuating region: %lu", p2i(Thread::current()), r->index());
-  _sh->marked_object_iterate(r, &cl);
+  _heap->marked_object_iterate(r, &cl);
 }
 
 void ShenandoahEvacuationTask::do_work(unsigned int worker_id) {
@@ -3558,15 +3556,16 @@ void ShenandoahEvacuationTask::evacuate_regions(uint worker_id) {
   size_t region_size_bytes = region_size_words * HeapWordSize;
   size_t entry_size_words = ShenandoahEarlyRecycleInfo<true>::entry_size_words();
   size_t entry_size_bytes = entry_size_words * HeapWordSize;
-  size_t num_regions = _sh->num_regions();
-  size_t cset_region_count = _cs->count();
-  ShenandoahFreeSet* free_set = _sh->free_set();
+  size_t num_regions = _heap->num_regions();
+  size_t cset_region_count = _cset->count();
+  ShenandoahFreeSet* free_set = _heap->free_set();
 #define KELVIN_DEBUG
 #ifdef KELVIN_DEBUG
-  log_info(gc)("ShenGenEvacTask::evac_and_promote_regions(%u)", worker_id);
-#endif
-#ifdef KELVIN_DEBUG
-  log_info(gc)("ShenGenEvacTask::evacuate_regions(%u) is selecting fwt regions", worker_id);
+  if (GENERATIONAL) {
+    log_info(gc)("ShenGenEvacTask::evacuate_regions(%u) is selecting fwt regions", worker_id);
+  } else {
+    log_info(gc)("ShenEvacTask::evacuate_regions(%u) is selecting fwt regions", worker_id);
+  }
 #endif
   // Regions have already been sorted in increasing live data, which is a light-weight approximation of increasing
   // forward table size (aka increasing mark-word-density).
@@ -3576,9 +3575,9 @@ void ShenandoahEvacuationTask::evacuate_regions(uint worker_id) {
   if (_require_preprocessing) {
     size_t total_shortfall;
     if (GENERATIONAL) {
-      total_shortfall = _sh->young_generation()->heuristics()->mutator_memory_shortfall();
+      total_shortfall = _heap->young_generation()->heuristics()->mutator_memory_shortfall();
     } else {
-      total_shortfall = _heuristics->mutator_memory_shortfall();
+      total_shortfall = _heap->global_generation()->heuristics()->mutator_memory_shortfall();
     }
     size_t my_shortfall = total_shortfall / _num_workers;
     if (worker_id == 0) {
@@ -3592,7 +3591,7 @@ void ShenandoahEvacuationTask::evacuate_regions(uint worker_id) {
         SuspendibleThreadSet::yield();
       }
       my_preprocessed_regions++;
-      r = _cs->cset_region(i);
+      r = _cset->cset_region(i);
       size_t num_entries;
       if (backfill < my_shortfall) {
         // For now, calculate num_forwardings only for regions that we plan to early recycle with forwarding table.
@@ -3613,7 +3612,8 @@ void ShenandoahEvacuationTask::evacuate_regions(uint worker_id) {
           backfill += early_available_words;
 #ifdef KELVIN_DEBUG
           log_info(gc)("Worker %u recycled FWT region %zu: live: %zu, %zu entries (of size %zu), available: %zu, backfill: %zu",
-                       worker_id, r->index(), r->get_live_data_words(), num_entries, entry_size_words, early_available_words, backfill);
+                       worker_id, r->index(), r->get_live_data_words(), num_entries, entry_size_words, early_available_words,
+                       backfill);
 #endif
           r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Planned_FWT);
           // KELVIN TODO: we don't really need forwardings except for assertion enforcement.  (build-only)
@@ -3661,20 +3661,20 @@ void ShenandoahEvacuationTask::evacuate_regions(uint worker_id) {
   uint32_t cset_index;
 
   // THIS IS ONLY USED FOR GENERATIONAL MODE
-  ShenandoahConcurrentEvacuator cl((ShenandoahGenerationalHeap*) _sh);
+  ShenandoahConcurrentEvacuator cl((ShenandoahGenerationalHeap*) _heap);
   // THIS IS ONLY USED FOR SINGLE_GENERATIONAL MODE
-  ShenandoahConcurrentEvacuateRegionObjectClosure single_gen_cl(_sh);
+  ShenandoahConcurrentEvacuateRegionObjectClosure single_gen_cl(_heap);
 
   // Concurrent GC workers evacuate regions in order of increasing live data. They start with the regions that have
   // the least amount of live data, so the first few regions evacuated may go very fast.
   LogTarget(Debug, gc) lt;
   while (true) {
-    cset_index = _cs->claim_next_index();
+    cset_index = _cset->claim_next_index();
     if (cset_index >= cset_region_count) {
       r = nullptr;
       cset_is_finished = true;
     } else {
-      r = _cs->cset_region(cset_index);
+      r = _cset->cset_region(cset_index);
 #ifdef KELVIN_DEBUG
       log_info(gc)("ShenGenEvacTask::evac_and_promote_regions(%u) claimed next region: %zu", worker_id, r->index());
 #endif
@@ -3682,7 +3682,7 @@ void ShenandoahEvacuationTask::evacuate_regions(uint worker_id) {
         LogStream ls(lt);
         log_region(r, &ls);
       }
-      if (_cs->is_reusable(r)) {
+      if (_cset->is_reusable(r)) {
         // Already evacuated and recycled. Degenerated GC resumes here.
         continue;
       }
@@ -3693,7 +3693,7 @@ void ShenandoahEvacuationTask::evacuate_regions(uint worker_id) {
 #endif
       if (GENERATIONAL) {
         cl.set_region(r);
-        _sh->marked_object_iterate(r, &cl);
+        _heap->marked_object_iterate(r, &cl);
         cl.finish_region(r);
         num_forwardings = cl.num_forwardings();
       } else {
@@ -3713,7 +3713,7 @@ void ShenandoahEvacuationTask::evacuate_regions(uint worker_id) {
         if (cset_is_finished) {
           cset_index = await_queue_cset_indices[--queued_regions];
           num_forwardings = await_queue_forwardings[queued_regions];
-          r = _cs->cset_region(cset_index);
+          r = _cset->cset_region(cset_index);
 #ifdef KELVIN_DEBUG
           log_info(gc)("Preprocessing is finished and cset is finished, worker %u is processing region %zu (cset index: %u) with %zu forwards",
                        worker_id, r->index(), cset_index, num_forwardings);
@@ -3737,7 +3737,7 @@ void ShenandoahEvacuationTask::evacuate_regions(uint worker_id) {
             log_info(gc)("worker %u is finishing region %zu (cset index %u) with no table, forwardings: %zu",
                          worker_id, r->index(), cset_index, num_forwardings);
 #endif
-            _sh->finish_no_table_region_evacuation(r, num_forwardings);
+            _heap->finish_no_table_region_evacuation(r, num_forwardings);
           } else {
             // Recycle with fwt, using num_entries that are stored in the region.
             // finish_fwt_region_evacuation() informs the free set that this region is ready to receive evacuations.
@@ -3745,7 +3745,7 @@ void ShenandoahEvacuationTask::evacuate_regions(uint worker_id) {
             log_info(gc)("worker %u is finishing region %zu (cset index %u) with forward table, forwardings: %zu",
                          worker_id, r->index(), cset_index, num_forwardings);
 #endif
-            bool status = _sh->finish_fwt_region_evacuation(r);
+            bool status = _heap->finish_fwt_region_evacuation(r);
             if (status) {
               fwt_regions_recycled++;
               fwt_bytes_recycled += region_size_bytes - num_entries * entry_size_bytes;
@@ -3759,7 +3759,7 @@ void ShenandoahEvacuationTask::evacuate_regions(uint worker_id) {
           }
           if (queued_regions > 0) {
             cset_index = await_queue_cset_indices[--queued_regions];
-            r = _cs->cset_region(cset_index);
+            r = _cset->cset_region(cset_index);
             num_forwardings = await_queue_forwardings[queued_regions];
 #ifdef KELVIN_DEBUG
             log_info(gc)("worker %u is preparing to process last queued region %zu (of %zu queued regions) (cset index: %u) with forwardings: %zu",
@@ -3836,7 +3836,7 @@ void ShenandoahEvacuationTask::evacuate_regions(uint worker_id) {
                    worker_id, queued_regions);
 #endif
       // Cannot cancel evacuation if we have thread-local queued regions. We have to finish those first.
-      if ((queued_regions == 0) && _sh->check_cancelled_gc_and_yield(_concurrent)) {
+      if ((queued_regions == 0) && _heap->check_cancelled_gc_and_yield(_concurrent)) {
         // TODO: retire any claimed early-recycle-evacuation regions.
         // If we break here, publishing will happen later, when dgen resumes.
         break;
@@ -3849,7 +3849,8 @@ void ShenandoahEvacuationTask::evacuate_regions(uint worker_id) {
         bool published;
         do {
           // Repeatedly publish as long as there are relevant prepared regions that remain to be published.
-          published = free_set->publish_prepared_regions(worker_id, _num_workers, _concurrent, cset_is_finished, _cs, GENERATIONAL);
+          published = free_set->publish_prepared_regions(worker_id, _num_workers, _concurrent,
+                                                         cset_is_finished, _cset, GENERATIONAL);
         } while (published);
       } // else, there were no fwt regions recycled and the cset is not finished, so no need to publish anything.
     } else {
@@ -3908,370 +3909,5 @@ void ShenandoahEvacuationTask::evacuate_regions(uint worker_id) {
 #endif
 }
 
-#ifdef KELVIN_DEPRECATE_WITH_REPLACEMENT
-the_old_do_work() {
-  ShenandoahHeapRegion* r;
-  size_t fwt_regions = 0;
-  size_t region_size_words = ShenandoahHeapRegion::region_size_words();
-  size_t region_size_bytes = region_size_words * HeapWordSize;
-  size_t entry_size_words = ShenandoahHeapRegion::words_in_forwarding_entry();
-  size_t entry_size_bytes = entry_size_words * HeapWordSize;
-  size_t num_regions = _sh->num_regions();
-  size_t cset_region_count = _cs->count();
-  ShenandoahFreeSet* free_set = _sh->free_set();
-
-  // Even a non-concurrent degen can benefit from early recycling of collection set regions.
-  if (worker_id == 0) {
-    // The first worker is responsible for selecting which regions will be early recycled with forward table.
-    // Regions have already been sorted in increasing live data, which is a light-weight approximation of increasing
-    // forward table size (aka increasing mark-word-density).
-
-    // Set aside enough regions for early recycle with FWT to satisfy the anticipated memory shortfall.
-    size_t short_fall = _heuristics->mutator_memory_shortfall();
-    size_t back_fill = 0;
-#ifdef KELVIN_DEBUG
-    log_info(gc)("Preparing to evacuate with %zu cset regions, short_fall: %zu", cset_region_count, short_fall);
-#endif
-    for (size_t i = 0; i < cset_region_count; i++) {
-      r = _cs->cset_region(i);
-#ifdef KELVIN_DEBUG
-      log_info(gc)("Examining region %zu, with %zu live words", r->index(), r->get_live_data_words());
-#endif
-      size_t num_entries;
-      if (back_fill < short_fall) {
-        // For now, calculate num_forwardings only for regions that we plan to early recycle with forwarding table.
-        // As the non-fwt regions are evacuated, we will update their expected forwardings. The order of regions within
-        // the early recycle regions array is approximately the order of increasing mark-word density.
-        size_t num_forwardings = _ctx->count_mark_bit_conflicts<1>(r->bottom(), r->end());
-        size_t num_entries = r->calculate_entries_in_forward_table(num_forwardings);
-#ifdef KELVIN_DEBUG
-        log_info(gc)("  Region %zu has %zu forwardings, %zu entries", r->index(), num_forwardings, num_entries);
-#endif
-        if (num_entries > 0) {
-          size_t early_available_words = region_size_words - entry_size_words * num_entries;
-#ifdef KELVIN_DEBUG
-          log_info(gc)("  Early allocatable words: %zu", early_available_words);
-#endif
-          back_fill += early_available_words;
-          r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Planned_FWT);
-          // KELVIN TODO: we don't really need forwardings except for assertion enforcement.  (build-only)
-          r->set_expected_forwardings(num_forwardings);
-          r->set_fwt_entries(num_entries);
-          fwt_regions++;
-          continue;
-        }
-      }
-      // This region will not be early recycled with forward table.
-#ifdef KELVIN_DEBUG
-      log_info(gc)("  Region %zu is rejected for fwt", r->index());
-#endif
-      r->set_fwt_entries(0);
-    }
-
-#ifdef KELVIN_DEBUG
-    log_info(gc)("After evac pre-init, cset region count: %zu, fwt regions: %zu, no-table regions: %zu",
-                 cset_region_count, fwt_regions, cset_region_count - fwt_regions);
-    log_info(gc)("  shortfall: %zu, back_fill: %zu", short_fall, back_fill);
-#endif
-
-    // Once we identify that preprocessing is finished, other threads may consult the fields we've initialized above.
-    OrderAccess::storeload();
-
-    // Signal to all other workers that the early-release preprocessing is done.
-    bool result = _early_recycle_preprocessed_regions.compare_set(0, num_regions, memory_order_relaxed);
-    assert(result, "_early_recycle_preprocessed_regions should equal 0 during preprocessing");
-  }
-  // else, there's no need to early recycle regions because this is not worker 0.
-
-  // Concurrent GC workers evacuate regions in order of increasing live data. They start with the regions that have
-  // the least amount of live data, so the first few regions evacuated may go very fast.
-  static const size_t QueueSize = 16;
-  ShenandoahHeapRegion* await_preprocessing_queue[QueueSize];
-  uint32_t await_queue_forwardings[QueueSize];
-  size_t queued_regions = 0;
-  bool cset_is_finished = false;
-  size_t num_forwardings;
-  uint32_t cset_index;
-  LogTarget(Debug, gc) lt;
-  while (true) {
-    cset_index = _cs->claim_next_index();
-    if (cset_index >= cset_region_count) {
-      r = nullptr;
-      cset_is_finished = true;
-#ifdef KELVIN_DEBUG
-      log_info(gc)(" Worker %zu sees that cset_is_finished", worker_id);
-#endif
-    } else {
-      r = _cs->cset_region(cset_index);
-      if (_cs->is_reusable(r)) {
-        // Already evacuated and recycled. Degenerated GC resumes here.
-        continue;
-      }
-      // Evacuate this region.
-      // KELVIN TODO: I want to replace the evacuator with evacuate-to-early-recycled when available.
-      ShenandoahConcurrentEvacuateRegionObjectClosure cl(_sh, r);
-      SuspendibleThreadSetJoiner stsj(_concurrent);
-      evacuate_region(r, cl);
-#ifdef KELVIN_DEBUG
-      log_info(gc)("  Region %zu has been evacuated by worker %zu", r->index(), worker_id);
-#endif
-      num_forwardings = cl.num_forwardings();
-      if (_sh->check_cancelled_gc_and_yield(_concurrent)) {
-        break;
-      }
-    }
-
-    bool preprocessing_finished = (_early_recycle_preprocessed_regions.load_relaxed() == num_regions);
-    if (preprocessing_finished) {
-      size_t fwt_regions_recycled = 0;
-      size_t fwt_bytes_recycled = 0;
-      uint32_t first_newly_unpublished = cset_region_count;
-      uint32_t last_newly_unpublished = 0;
-      
-      if (!cset_is_finished || (queued_regions > 0)) {
-        if (cset_is_finished) {
-          r = await_preprocessing_queue[--queued_regions];
-          num_forwardings = await_queue_forwardings[queued_regions];
-        }
-        // Loop here so we can process this region, plus any regions that have been queued up while we waited
-        // for preprocessing to finish.
-        while (true) {
-          size_t num_entries;
-
-#ifdef KELVIN_DEBUG
-          log_info(gc)("Worker %zu is postprocessing region %zu with num_forwardings %zu, entries %u",
-                       worker_id, r->index(), num_forwardings, r->get_fwt_entries());
-#endif
-
-          if ((num_entries = r->get_fwt_entries()) == 0) {
-            // We plan that this region will not be early recycled with a forwarding table. We might choose to early recycle
-            // this region without a forwarding table. Save the number of forwarded objects now, so that we can use mark-word
-            // density to prioritize no-table recycling if necessary.
-#ifdef KELVIN_DEBUG
-            log_info(gc)("Worker %zu is finishing region %zu for no_table recycle with num_forwardings %zu",
-                         worker_id, r->index(), num_forwardings);
-#endif
-            _sh->finish_no_table_region_evacuation(r, num_forwardings);
-#ifdef KELVIN_DEBUG
-            log_info(gc)("Worker %zu finished region %zu for no_table recycle with num_forwardings %zu",
-                         worker_id, r->index(), num_forwardings);
-#endif
-          } else {
-            // Recycle with fwt, using num_entries that are stored in the region.
-            // finish_fwt_region_evacuation() informs the free set that this region is ready to receive evacuations.
-#ifdef KELVIN_DEBUG
-            log_info(gc)("Worker %zu is finishing region %zu for fwt recycle with num_forwardings %zu",
-                         worker_id, r->index(), num_forwardings);
-#endif
-            _sh->finish_fwt_region_evacuation(r);
-            fwt_regions_recycled++;
-            fwt_bytes_recycled += (region_size_words - num_entries * entry_size_words) * HeapWordSize;
-          }
-          if (_sh->check_cancelled_gc_and_yield(_concurrent)) {
-            break;
-          }
-          if (queued_regions > 0) {
-            r = await_preprocessing_queue[--queued_regions];
-            num_forwardings = await_queue_forwardings[queued_regions];
-          } else {
-            break;
-          }
-        }
-      }
-
-      // Update the prepared tallies if we added any fwt regions to the prepared total.
-      size_t now_prepared;
-      size_t now_prepared_bytes;
-      if (fwt_regions_recycled > 0) {
-        size_t original_prepared;
-        do {
-          original_prepared = free_set->fwt_regions_prepared();
-          now_prepared = original_prepared + fwt_regions_recycled;
-        } while (!free_set->compare_set_fwt_regions_prepared(original_prepared, now_prepared));
-
-        // Note: it is possible that a "publisher" sees regions prepared without the accompanying bytes prepared.
-        // We expect this to be very rare.  If it happens, it might cause a delay in transfer of reserves
-        // from Collector or OldCollector to the mutator partition. Current thought is to allow that to happen
-        // rarely rather than invest in a more expensive synchronization mechanism.
-        size_t original_prepared_bytes;
-        do {
-          original_prepared_bytes = free_set->fwt_bytes_prepared();
-          now_prepared_bytes = original_prepared_bytes + fwt_bytes_recycled;;
-        } while (!free_set->compare_set_fwt_bytes_prepared(original_prepared_bytes, now_prepared_bytes));
-      } else {
-        now_prepared = free_set->fwt_regions_prepared();
-        now_prepared_bytes = free_set->fwt_bytes_prepared();
-      }
-
-      // Publish if approprirate
-      if (cset_is_finished || (fwt_regions_recycled > 0)) {
-        while (true) {
-          // We'll break out of this loop if we decide not to publish.  But if we publish once, we may be the
-          // only opportunity to publish again, because all the workers that have been preparing during out publication
-          // were forbidden from publishing while we held the publication lock.
-          size_t original_published = free_set->fwt_regions_published();
-
-          // Publish if:
-          //  Nothing has been published yet and we have at least one (probably more) prepared regions, or
-          //  Prepared > previously published by at least num_workers / 2, or
-          //  Prepared > previously published and there are no more regions to prepare
-          // unless we decide otherwise below
-          if (((original_published == 0) && (now_prepared > 0)) ||
-              ((now_prepared > original_published) &&
-               ((now_prepared - original_published >= _num_workers / 2) || cset_is_finished))) {
-
-            // Because of races, original_consumed may be > original_published. That only happens if other threads publish
-            // and consume after I read published, in which case I should not need to publish now, because some other thread
-            // is publishing.
-
-            // We'll publish if the available supply to GC workers is less than 1 region per worker, or if there are
-            // no more cset regions to prepare and the prepared regions have not already been published.
-            size_t original_consumed = free_set->fwt_regions_consumed_by_gc();
-            if (((original_published > original_consumed) && (original_published - original_consumed < _num_workers)) ||
-                (cset_is_finished && (original_published > now_prepared))) {
-              uint32_t started, finished;
-
-              free_set->fwt_handshakes(started, finished);
-              if (started == finished) {
-                if (free_set->fwt_start_handshake(started, finished)) {
-                  // I hold the publication lock.
-                  // Update my counts of prepared and published since values may have changed since I sampled above
-    
-                  size_t regions_to_publish = 0;
-                  size_t bytes_to_publish = 0;
-                  size_t first_unpublished_index = free_set->first_unpublished_fwt();
-                  size_t upper_bound_on_unpublished = free_set->upper_bound_on_unpublished_fwt();
-                  // Note: more regions might get published while I'm iterating through this loop and/or while I'm
-                  // performing the handshake.  We won't count those as published until some subsequent publication.
-                  for (size_t index = first_unpublished_index; index < upper_bound_on_unpublished; index++) {
-                    ShenandoahHeapRegion* r = free_set->get_tlab_region(index);
-                    if (r->get_early_recycle_status() == ShenandoahEarlyRecycleStatus::Prepared_FWT) {
-                      r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Publishing_FWT);
-                      regions_to_publish++;
-                      bytes_to_publish += region_size_bytes - r->get_fwt_entries() * entry_size_bytes;
-                    }
-                  }
-
-                  // Everything stored above should become visible to other threads after handshake
-                  OrderAccess::storeload();
-                  if (_concurrent) {
-                    assert(!SafepointSynchronize::is_at_safepoint(), "Cannot rendezvous if we're at a safepoint");
-                    assert(!Thread::current()->is_suspendible_thread(), "must not hold STS join across rendezvous");
-#ifdef KELVIN_DEBUG
-                    log_info(gc)("Worker %zu satisfied is_suspendible_thread() test", worker_id);
-#endif
-                    // Force mutators into handshake to assure that they no longer use mark-word forwarding on any of the
-                    // now-prepared regions.
-                    _sh->rendezvous_threads("Switch to Forward Table");
-#ifdef KELVIN_DEBUG
-                    log_info(gc)("worker %zu back from rendezous_threads, first_unpublished: %zu, upper_bound: %zu",
-                                 worker_id, first_unpublished_index, upper_bound_on_unpublished);
-#endif
-                  } else {
-#ifdef KELVIN_DEBUG
-                    log_info(gc)("worker %zu skips rendezous_threads because we're in degen, first_unpublished: %zu, upper_bound: %zu",
-                                 worker_id, first_unpublished_index, upper_bound_on_unpublished);
-#endif
-
-                  }
-
-                  size_t new_first_unpublished_index = 0xffffffffffffffff;
-                  size_t new_upper_bound = 0;
-                  for (size_t index = first_unpublished_index; index < upper_bound_on_unpublished; index++) {
-                    ShenandoahHeapRegion* r = free_set->get_tlab_region(index);
-                    ShenandoahEarlyRecycleStatus status = r->get_early_recycle_status();
-                    switch (status) {
-                      case ShenandoahEarlyRecycleStatus::Publishing_FWT:
-                        r->set_early_recycle_status(ShenandoahEarlyRecycleStatus::Published_FWT);
-                        break;
-                      case ShenandoahEarlyRecycleStatus::Prepared_FWT:
-                        if (index < new_first_unpublished_index) {
-                          new_first_unpublished_index = index;
-                        }
-                        if (index > new_upper_bound) {
-                          new_upper_bound = index;
-                        }
-                        break;
-                      default:
-                        assert(false, "Not expecting this status value here: %d", (int) status);
-                    }
-                  }
-
-                  // If unpublished range has not changed since I read it, update.  Otherwise, leave values alone.
-                  // Expected behavior: first_unpublished only advances if it was initially empty.  last_unpublished
-                  // grows because other threads finish preparing regions while this thread is publishing.
-                  free_set->compare_set_first_unpublished_fwt(first_unpublished_index, new_first_unpublished_index);
-                  free_set->compare_set_upper_bound_on_unpublished_fwt(upper_bound_on_unpublished, new_upper_bound);
-
-                  // Published is at least as much as was prepared before our handshake.  It's likely more, but we
-                  // don't know that for sure, so we act conservatively.
-                  free_set->add_to_fwt_regions_published(regions_to_publish);
-                  size_t total_available_to_xfer = free_set->add_to_fwt_bytes_published(bytes_to_publish);
-
-                  // Still holding the handshake lock, transfer as much memory as possible from Reserves to Mutator.
-                  // now_prepared_bytes is aka as fwt_bytes_published
-                  size_t young_transfers = free_set->young_fwt_bytes_to_mutator();
-                  size_t old_transfers = free_set->old_fwt_bytes_to_mutator();
-                  size_t transferable = total_available_to_xfer - (young_transfers + old_transfers);
-                  size_t newly_transferred = free_set->endow_mutator_from_collector(transferable);
-                  free_set->set_young_fwt_bytes_to_mutator(young_transfers + newly_transferred);
-                  transferable -= newly_transferred;
-                  newly_transferred = free_set->endow_mutator_from_old_collector(transferable);
-                  free_set->set_old_fwt_bytes_to_mutator(old_transfers + newly_transferred);
-                  // Release the publication lock
-                  bool result = free_set->fwt_finish_handshake(started+1, finished);
-                  assert(result, "Nobody else should modify starts and finishes while I hold the lock");
-                } else {
-                  // if started != finished, that means some other thread holds the publication lock and is
-                  // in the process of of publishing. If that other thread started its handshake before certain
-                  // regions were prepared, it will recheck conditions and perform another handshake if appropriate.
-                  // I will not be responsible for publishing my newly prepared regions.
-                  break;
-                }
-              } else {
-                // otherwise, some other thread was already working on a handshake, so we'll just move on
-                break;
-              }
-            } else {
-              // There's plenty of runway for the number of workers, so no need to publish right now.
-              break;
-            }
-          } else {
-            // There are not enough newly prepared regions to make publication worthwhile, so let's wait for more preparation
-            break;
-          }
-          // Each worker, upon detecting cset_is_finished, will have at least one chance to do one final publication of
-          // prepared regions. If I prepare a region but do not publish because some other worker was already publishing,
-          // that other worker will consult prepared regions after it finishes its current handshake and will perform
-          // a second handshake, either because that other worker already saw that cset_is_finished, or because it will see
-          // that cset_is_finished on its next iteration through the cset iterator.
-          if (cset_is_finished) {
-            break;
-          }
-        }  // This ends the while(true) loop. Either we published, or we decided not to publish.
-      } // else, there were no fwt regions recycled and the cset is not finished, so no need to publish anything.
-    } else {
-      // Preprocessing is not yet done: we don't know whether we should build a forwarding table for this
-      // evacuated region. Remember the region in my queue while I work on evacuating more regions.
-      if (queued_regions < QueueSize) {
-        await_queue_forwardings[queued_regions] = num_forwardings;
-        await_preprocessing_queue[queued_regions++] = r;
-        if (queued_regions == QueueSize) {
-          // The queue is full. Do not evacuate another region until preprocessing is done since we have nowhere
-          // to store yet another region for preparation.
-          int yields = 0;
-          while (_early_recycle_preprocessed_regions.load_relaxed() != num_regions) {
-            yield_or_sleep(yields);
-          }
-        }
-      }
-    }
-    if (cset_is_finished) {
-      break;
-    }
-  } // This ends the outer-most while (true) loop, which repeatedly publishes as long as there is more to be published
-#ifdef KELVIN_DEBUG
-  log_info(gc)("We are done with do_work(%zu)", worker_id);
-#endif
-}
-#endif
+template void ShenandoahEvacuationTask::evacuate_regions<false>(uint);
+template void ShenandoahEvacuationTask::evacuate_regions<true>(uint);

@@ -1038,28 +1038,30 @@ public:
 };
 
 class ShenandoahEvacuationTask : public WorkerTask {
-private:
-  ShenandoahHeap* const _sh;
-  ShenandoahCollectionSet* const _cs;
+protected:
+  ShenandoahHeap* const _heap;
+  ShenandoahCollectionSet* const _cset;
   ShenandoahMarkingContext* const _ctx;
   bool _concurrent;
   bool _require_preprocessing;
   size_t _num_workers;
-  ShenandoahHeuristics* _heuristics;
+
   // Don't bother to pad this. It is not hot. It is updated only _num_workers times only during initialization of the
   // evacuation effort.
   Atomic<size_t> _early_recycle_preprocessed_regions;
-public:
-  ShenandoahEvacuationTask(ShenandoahHeap* sh, ShenandoahCollectionSet* cs, bool concurrent,
-                           bool require_early_recycle_preprocessing, size_t num_workers);
-  void work(uint worker_id) final;
-  template <bool GENERATIONAL>
-  void evacuate_regions(uint worker_id);
 
-protected:
   void yield_or_sleep(uint32_t &yields);
   void evacuate_region(ShenandoahHeapRegion* r, ShenandoahConcurrentEvacuateRegionObjectClosure& cl);
   void do_work(uint worker_id);
+
+public:
+  ShenandoahEvacuationTask(ShenandoahHeap* sh, ShenandoahCollectionSet* cs, bool concurrent,
+                           bool require_early_recycle_preprocessing, size_t num_workers);
+  void work(uint worker_id);
+
+  template <bool GENERATIONAL>
+  void evacuate_regions(uint worker_id);
+
 }; // This closes definition of ShenandoahEvacuationTask
 
 #endif // SHARE_GC_SHENANDOAH_SHENANDOAHHEAP_HPP

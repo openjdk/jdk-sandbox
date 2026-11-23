@@ -252,10 +252,11 @@ void ShenandoahGenerationalHeap::plan_early_reuse() {
 }
 #endif
 
+// KELVIN TO DO: i think we do not need the generation argument here.
 void ShenandoahGenerationalHeap::evacuate_collection_set(ShenandoahGeneration* generation,
                                                          bool concurrent, bool require_early_recycle_preprocessing) {
   ShenandoahRegionIterator regions;
-  ShenandoahGenerationalEvacuationTask task(this, generation, &regions, concurrent,
+  ShenandoahGenerationalEvacuationTask task(this, collection_set(), &regions, concurrent,
                                             false /* only promote regions */, require_early_recycle_preprocessing,
                                             workers()->active_workers());
   prepare_to_evacuate(concurrent);
@@ -276,9 +277,10 @@ void ShenandoahGenerationalHeap::evacuate_collection_set(ShenandoahGeneration* g
 #endif
 }
 
+// KELVIN TO DO: i think we do not need the generation argument here.
 void ShenandoahGenerationalHeap::promote_regions_in_place(ShenandoahGeneration* generation, bool concurrent) {
   ShenandoahRegionIterator regions;
-  ShenandoahGenerationalEvacuationTask task(this, generation, &regions, concurrent,
+  ShenandoahGenerationalEvacuationTask task(this, collection_set(), &regions, concurrent,
                                             true /* only promote regions */, false, workers()->active_workers());
   prepare_to_evacuate(false);
   workers()->run_task(&task);

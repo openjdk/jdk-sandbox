@@ -78,32 +78,32 @@ public:
 
 // Unlike ShenandoahEvacuationTask, this iterates over all regions rather than just the collection set.
 // This is needed in order to promote humongous start regions if age() >= tenure threshold.
-class ShenandoahGenerationalEvacuationTask : public WorkerTask {
+class ShenandoahGenerationalEvacuationTask : public ShenandoahEvacuationTask {
 private:
-  ShenandoahGenerationalHeap* const _heap;
-  ShenandoahMarkingContext* _ctx;
-  ShenandoahCollectionSet* _cset;
-  ShenandoahGeneration* const _generation;
+
+  // Parent class uniquely has _heuristics, and I uniquely have _generation.  Are these just two paths to the same info?
+
+  // Kelvin surprised that _regions is not present in parent class.  Why not? 
   ShenandoahRegionIterator* _regions;
-  size_t _num_workers;
-  bool _concurrent;
+
+  // _only_promote_regions is legitimately unique to generational evacuation.
+
   bool _only_promote_regions;   // if only promote, we do not early recycle
-  bool _require_preprocessing;
+
   Atomic<size_t> _early_recycle_preprocessed_regions;
 
 public:
-  ShenandoahGenerationalEvacuationTask(ShenandoahGenerationalHeap* sh,
-                                       ShenandoahGeneration* generation, ShenandoahRegionIterator* iterator,
-                                       bool concurrent, bool only_promote_regions, bool require_preprocessing, size_t num_workers);
+  ShenandoahGenerationalEvacuationTask(ShenandoahGenerationalHeap* heap, ShenandoahCollectionSet* cset,
+                                       ShenandoahRegionIterator* iterator, bool concurrent, bool only_promote_regions,
+                                       bool require_preprocessing, size_t num_workers);
+
   void work(uint worker_id) override;
 private:
   void do_work(uint worker_id);
   void promote_regions(uint worker_id);
-  void evacuate_regions(uint worker_id);
   void maybe_promote_region(ShenandoahHeapRegion* region);
   void promote_in_place(ShenandoahHeapRegion* region);
   void promote_humongous(ShenandoahHeapRegion* region);
-  void yield_or_sleep(uint32_t& yields);
 };
 
 #endif //SHARE_GC_SHENANDOAH_SHENANDOAHGENERATIONALEVACUATIONTASK_HPP
