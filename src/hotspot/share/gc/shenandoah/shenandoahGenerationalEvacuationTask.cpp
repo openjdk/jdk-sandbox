@@ -44,6 +44,10 @@ ShenandoahGenerationalEvacuationTask::ShenandoahGenerationalEvacuationTask(Shena
   shenandoah_assert_generational();
 }
 
+size_t ShenandoahGenerationalEvacuationTask::shortfall() const {
+  return _heap->young_generation()->heuristics()->mutator_memory_shortfall();
+}
+
 void ShenandoahGenerationalEvacuationTask::work(uint worker_id) {
   if (_concurrent) {
     ShenandoahWorkerTimingsTracker timer(ShenandoahPhaseTimings::conc_evac, ShenandoahPhaseTimings::Work, worker_id, true);
@@ -70,7 +74,7 @@ void ShenandoahGenerationalEvacuationTask::do_work(uint worker_id) {
     promote_regions(worker_id);
   } else {
     assert(!_cset->is_empty(), "Should have a collection set here");
-    evacuate_regions<true>(worker_id);
+    evacuate_regions(worker_id);
     promote_regions(worker_id);
   }
 }

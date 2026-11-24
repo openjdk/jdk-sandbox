@@ -32,56 +32,10 @@ class ShenandoahGenerationalHeap;
 class ShenandoahHeapRegion;
 class ShenandoahRegionIterator;
 
-class ShenandoahConcurrentEvacuator : public ObjectClosure {
-private:
-  ShenandoahGenerationalHeap* const _heap;
-  Thread* const _thread;
-  ShenandoahMarkingContext* const _context;
-  HeapWord* _tams;
-  size_t _num_forwardings;
-
-public:
-  explicit ShenandoahConcurrentEvacuator(ShenandoahGenerationalHeap* heap) :
-          _heap(heap), _thread(Thread::current()),
-          _context(heap->marking_context()), _tams(nullptr), _num_forwardings(0) {}
-
-  void set_region(ShenandoahHeapRegion* r) {
-    _tams = _context->top_at_mark_start(r);
-    _num_forwardings = 0;
-  }
-
-  void finish_region(ShenandoahHeapRegion* r) {
-    // Advance TAMS to top so that get_last_marked_addr in build_forwarding_table
-    // can search the full [bottom, top) range of the evacuated region.
-    _context->capture_top_at_mark_start(r);
-  }
-
-  void do_object(oop p) override {
-    shenandoah_assert_marked(nullptr, p);
-    _num_forwardings++;
-    if (!p->is_forwarded()) {
-      _heap->evacuate_object(p, _thread);
-    }
-    // Mark objects beyond TAMS so that their headers are findable when
-    // building the forwarding table (mirrors ShenandoahConcurrentEvacuateRegionObjectClosure).
-    if (cast_from_oop<HeapWord*>(p) >= _tams) {
-      bool upgraded = false;
-      _context->mark_strong_ignore_tams(p, upgraded);
-      assert(!upgraded, "should be first mark");
-    }
-    assert(_context->is_marked(p), "must be marked");
-  }
-
-  size_t num_forwardings() const { return _num_forwardings; }
-};
-
-
 // Unlike ShenandoahEvacuationTask, this iterates over all regions rather than just the collection set.
 // This is needed in order to promote humongous start regions if age() >= tenure threshold.
 class ShenandoahGenerationalEvacuationTask : public ShenandoahEvacuationTask {
 private:
-
-  // Parent class uniquely has _heuristics, and I uniquely have _generation.  Are these just two paths to the same info?
 
   // Kelvin surprised that _regions is not present in parent class.  Why not? 
   ShenandoahRegionIterator* _regions;
@@ -91,6 +45,9 @@ private:
   bool _only_promote_regions;   // if only promote, we do not early recycle
 
   Atomic<size_t> _early_recycle_preprocessed_regions;
+
+protected:
+  size_t shortfall() const override;
 
 public:
   ShenandoahGenerationalEvacuationTask(ShenandoahGenerationalHeap* heap, ShenandoahCollectionSet* cset,

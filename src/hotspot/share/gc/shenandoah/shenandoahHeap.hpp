@@ -1054,12 +1054,13 @@ protected:
   void evacuate_region(ShenandoahHeapRegion* r, ShenandoahConcurrentEvacuateRegionObjectClosure& cl);
   void do_work(uint worker_id);
 
+  virtual size_t shortfall() const;
+
 public:
   ShenandoahEvacuationTask(ShenandoahHeap* sh, ShenandoahCollectionSet* cs, bool concurrent,
                            bool require_early_recycle_preprocessing, size_t num_workers);
   void work(uint worker_id);
 
-  template <bool GENERATIONAL>
   void evacuate_regions(uint worker_id);
 
 }; // This closes definition of ShenandoahEvacuationTask

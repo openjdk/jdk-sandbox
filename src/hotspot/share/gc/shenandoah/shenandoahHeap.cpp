@@ -111,9 +111,7 @@
 #include "gc/shenandoah/shenandoahJfrSupport.hpp"
 #endif
 
-
 size_t ShenandoahConcurrentEvacuateEarlyRecycleRegionObjectClosure::_min_fill_size = 0;
-
 
 class ShenandoahPretouchHeapTask : public WorkerTask {
 private:
@@ -3465,6 +3463,9 @@ void ShenandoahRetireGCLABClosure::do_thread(Thread* thread) {
   }
 }
 
+size_t ShenandoahEvacuationTask::shortfall() const {
+  return _heap->global_generation()->heuristics()->mutator_memory_shortfall();
+}
 
 ShenandoahEvacuationTask::ShenandoahEvacuationTask(
   ShenandoahHeap* sh, ShenandoahCollectionSet* cs, bool concurrent, bool require_early_recycle_preprocessing, size_t num_workers) :
@@ -3537,7 +3538,7 @@ void ShenandoahEvacuationTask::evacuate_region(ShenandoahHeapRegion* r, Shenando
 }
 
 void ShenandoahEvacuationTask::do_work(unsigned int worker_id) {
-  evacuate_regions<false>((uint) worker_id);
+  evacuate_regions((uint) worker_id);
 }
 
 static void log_region(const ShenandoahHeapRegion* r, LogStream* ls) {
@@ -3548,7 +3549,6 @@ static void log_region(const ShenandoahHeapRegion* r, LogStream* ls) {
                r->is_cset()? "cset": "not-cset");
 }
 
-template <bool GENERATIONAL>
 void ShenandoahEvacuationTask::evacuate_regions(uint worker_id) {
   ShenandoahHeapRegion* r;
   size_t fwt_regions = 0;
@@ -3561,11 +3561,7 @@ void ShenandoahEvacuationTask::evacuate_regions(uint worker_id) {
   ShenandoahFreeSet* free_set = _heap->free_set();
 #define KELVIN_DEBUG
 #ifdef KELVIN_DEBUG
-  if (GENERATIONAL) {
-    log_info(gc)("ShenGenEvacTask::evacuate_regions(%u) is selecting fwt regions", worker_id);
-  } else {
-    log_info(gc)("ShenEvacTask::evacuate_regions(%u) is selecting fwt regions", worker_id);
-  }
+  log_info(gc)("ShenEvacTask::evacuate_regions(%u) is selecting fwt regions", worker_id);
 #endif
   // Regions have already been sorted in increasing live data, which is a light-weight approximation of increasing
   // forward table size (aka increasing mark-word-density).
@@ -3573,12 +3569,7 @@ void ShenandoahEvacuationTask::evacuate_regions(uint worker_id) {
   // Set aside enough regions for early recycle with FWT to satisfy the anticipated memory shortfall.
   // Each worker is responsible for preparing 1/_num_workers of the total shortfall
   if (_require_preprocessing) {
-    size_t total_shortfall;
-    if (GENERATIONAL) {
-      total_shortfall = _heap->young_generation()->heuristics()->mutator_memory_shortfall();
-    } else {
-      total_shortfall = _heap->global_generation()->heuristics()->mutator_memory_shortfall();
-    }
+    size_t total_shortfall = shortfall();
     size_t my_shortfall = total_shortfall / _num_workers;
     if (worker_id == 0) {
       my_shortfall = total_shortfall - (_num_workers - 1) * my_shortfall;
@@ -3660,10 +3651,7 @@ void ShenandoahEvacuationTask::evacuate_regions(uint worker_id) {
   size_t num_forwardings;
   uint32_t cset_index;
 
-  // THIS IS ONLY USED FOR GENERATIONAL MODE
-  ShenandoahConcurrentEvacuator cl((ShenandoahGenerationalHeap*) _heap);
-  // THIS IS ONLY USED FOR SINGLE_GENERATIONAL MODE
-  ShenandoahConcurrentEvacuateRegionObjectClosure single_gen_cl(_heap);
+  ShenandoahConcurrentEvacuateRegionObjectClosure cl(_heap);
 
   // Concurrent GC workers evacuate regions in order of increasing live data. They start with the regions that have
   // the least amount of live data, so the first few regions evacuated may go very fast.
@@ -3691,17 +3679,10 @@ void ShenandoahEvacuationTask::evacuate_regions(uint worker_id) {
 #ifdef KELVIN_DEBUG
       log_info(gc)("ShenGenEvacTask is evacuating region %zu", r->index());
 #endif
-      if (GENERATIONAL) {
-        cl.set_region(r);
-        _heap->marked_object_iterate(r, &cl);
-        cl.finish_region(r);
-        num_forwardings = cl.num_forwardings();
-      } else {
-        single_gen_cl.set_region(r);
-        evacuate_region(r, single_gen_cl);
-        single_gen_cl.finish_region(r);
-        num_forwardings = single_gen_cl.num_forwardings();
-      }
+      cl.set_region(r);
+      evacuate_region(r, cl);
+      cl.finish_region(r);
+      num_forwardings = cl.num_forwardings();
     }
     bool preprocessing_finished = (_early_recycle_preprocessed_regions.load_relaxed() == cset_region_count);
     if (preprocessing_finished) {
@@ -3850,7 +3831,7 @@ void ShenandoahEvacuationTask::evacuate_regions(uint worker_id) {
         do {
           // Repeatedly publish as long as there are relevant prepared regions that remain to be published.
           published = free_set->publish_prepared_regions(worker_id, _num_workers, _concurrent,
-                                                         cset_is_finished, _cset, GENERATIONAL);
+                                                         cset_is_finished, _cset, _heap->mode()->is_generational());
         } while (published);
       } // else, there were no fwt regions recycled and the cset is not finished, so no need to publish anything.
     } else {
@@ -3909,5 +3890,3 @@ void ShenandoahEvacuationTask::evacuate_regions(uint worker_id) {
 #endif
 }
 
-template void ShenandoahEvacuationTask::evacuate_regions<false>(uint);
-template void ShenandoahEvacuationTask::evacuate_regions<true>(uint);
